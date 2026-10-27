@@ -1,17 +1,17 @@
 # CIMT architecture
 
-Version: 0.1  
+Version: 0.2  
 Date: 27 October 2026  
-Status: proposed architecture for review; no implementation selected  
+Status: overall architecture and reviewed policies approved; detailed interfaces and adapter selection open  
 Authority: [confirmed requirements](requirements.md)
 
 ## 1. Architectural boundary
 
 Confirmed: one Intel Mac hosts a single CIMT run; terminal invocation is the public interface; Jenkins invokes it unchanged. Testing uses physical Android/iOS devices connected at startup, with no more than two active device workers. OpenAI supplies model reasoning. Application backends and manually prepared external equipment are outside CIMT.
 
-Proposed: a local command-line orchestrator owns configuration, builds, device scheduling, policy enforcement, evidence, cost accounting, and reports. The model proposes actions and interpretations; deterministic host code controls budgets, limits, cleanup, and concurrency. The model must not be the sole enforcer of these rules.
+Approved: a local .NET command-line orchestrator owns configuration, builds, device scheduling, policy enforcement, evidence, cost accounting, and reports. The model proposes actions and interpretations; deterministic host code controls budgets, limits, cleanup, and concurrency. The model must not be the sole enforcer of these rules.
 
-Implementation language is undecided. A .NET CLI is a candidate because the applications use MAUI, but this does not establish it as a requirement.
+Approved implementation: a .NET command-line application, shell script for Mac setup, YAML configuration, interchangeable device-control adapter, and local HTML reports. Supporting runtimes may be used where needed. Exact .NET version, distribution, and adapter remain to be selected.
 
 ## 2. Components
 
@@ -37,7 +37,7 @@ flowchart TD
 
 The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the CIMT lifecycle, evaluation policy, or strict cost cap.
 
-| Component | Proposed responsibility |
+| Component | Responsibility under approved structure |
 | --- | --- |
 | Configuration loader | Validate YAML; resolve overrides; separate secrets; retain redacted effective configuration. |
 | Input resolver | Read local files/public text URLs; snapshot exact inputs and content hashes for traceability. |
@@ -69,11 +69,11 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 
 The report must survive a failure of the model service. Reporting and cleanup cannot depend on another paid AI request.
 
-Hard termination, power loss, or host failure cannot guarantee immediate cleanup. Proposed recovery: journal run ownership, detect abandoned clones on the next startup, finish cleanup, and disclose recovery. This is an implementation constraint, not a weakening of the requested cleanup goal.
+Hard termination, power loss, or host failure cannot guarantee immediate cleanup. Approved recovery: record clone ownership before use, detect interrupted runs on the next startup, remove abandoned CIMT-owned clones, preserve evidence/reports, and record the interruption. Never delete unrelated folders.
 
 ## 4. Configuration and filesystem proposal
 
-Configuration precedence is confirmed; these merge details are proposed: recursively merge mappings, replace arrays as complete values, reject unknown keys, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective redacted configuration.
+Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Exact YAML keys and command syntax remain pending review.
 
 Proposed layout:
 
@@ -112,25 +112,36 @@ Strict cap feasibility is a release gate, not a proven capability. A local ledge
 
 Each worker maintains its own device state and scenario context. Screenshot/UI responses must carry device and step identifiers so concurrent workers cannot confuse evidence.
 
-App-data reset must be validated independently on Android and iOS. Reinstallation may not clear all persistent state (for example, keychain or backend records). Application-specific setup/reset hooks are proposed where platform controls are insufficient. CIMT must disclose reset failures and must not claim isolation it could not establish.
+Approved reset policy: use platform reset capabilities before every scenario and support application-specific reset commands for additional state such as keychain/backend records. Verify reset completion, repeat setup/login when needed, and stop the entire run with a report if reset fails. Platform-specific reset completeness remains a validation gate.
 
-Define “step” as a recorded meaningful device action or assertion, with an observation and screenshot. Exact screenshot timing is proposed as post-action, plus pre-action evidence when useful. If the app has crashed, capture the available device screen and attach the crash event.
+Approved step definition: each meaningful device action or check is recorded with its result and a screenshot afterward, with credentials masked. Internal AI reasoning and build operations are logged separately from test steps. If the app has crashed, capture the available device screen and attach the crash event.
 
-Proposed crash matching uses scenario/action context plus crash signature when available; it must distinguish different failures at similar screens. The fixed three-attempt rule overrides AI-selected reproduction counts. Matching details require validation.
+Approved crash matching: crashes match when they occur in the same scenario at the same action or screen, with a matching crash signature when available. A successful retry resets the consecutive-crash counter. Three consecutive matching crashes cancel only the affected scenario, overriding AI-selected reproduction counts. The concrete fingerprint implementation still requires validation.
 
-Adaptive replay stores original intent, actual actions, selectors/coordinates, screen observations, assertions, and adaptations. It does not promise identical clicks on a changed interface. Portability across devices/targets and entry-point semantics remain to be specified.
+Approved replay behaviour: use a saved scenario and actions, preserve the original objective and expected results, adapt navigation/element selection, and record every deviation. If adaptation cannot preserve the original test's meaning, mark it inconclusive. Proposed storage includes intent, actions, selectors/coordinates, observations, and assertions. Portability across devices/targets and invocation syntax remain to be specified.
 
 ## 7. Outcomes and Jenkins contract
 
 Confirmed requirement results: passed, failed, not tested, inconclusive, overridden. Scenario execution additionally needs skipped and cancelled states.
 
-Proposed run model keeps three independent fields:
+Approved run model keeps three independent fields:
 
 - Completion: complete or incomplete.
 - Test verdict: passed, failed, or inconclusive, evaluated under instruction-defined rules or agreed defaults.
 - Execution error: none or a structured infrastructure/build/setup error list.
 
-This prevents a timeout from hiding an already confirmed failure. The HTML displays all fields. A proposed CLI mapping is 0 for complete/pass, 1 for test failure, 2 for incomplete execution, and 3 for blocking configuration/infrastructure error; exact precedence and codes are pending review. Build failures are recorded and other targets continue; overall coverage cannot be labelled complete when required combinations never ran.
+This prevents a timeout from hiding an already confirmed failure. The HTML displays all fields.
+
+Approved terminal mapping:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Testing completed and passed. |
+| 1 | Confirmed test failure. |
+| 2 | Incomplete or inconclusive testing without a confirmed failure. |
+| 3 | Configuration or infrastructure error; includes a failed build target after other targets continue. |
+
+Precedence is **3 → 1 → 2 → 0** when conditions coexist. Build failures do not stop other targets, but produce code 3 at finalization. Overall coverage cannot be labelled complete when required combinations never ran.
 
 Jenkins archives the generated run folder through pipeline configuration. CIMT itself stores reports locally and does not publish them externally.
 
@@ -138,7 +149,7 @@ Jenkins archives the generated run folder through pipeline configuration. CIMT i
 
 Confirmed: secrets live in YAML, access is restricted, and secrets are redacted from AI inputs and retained outputs. App login still needs credential entry.
 
-Proposed: owner-only configuration permissions; redacted config snapshots; no secrets in process arguments; deterministic credential-entry actions that do not send passwords to the model. Screenshots and UI trees after login may still expose sensitive values and require masking before persistence/transmission.
+Approved: login credentials remain in private YAML and are entered directly through device controls without sending values to AI. Mask secrets in screenshots and UI text before saving or transmitting them; support application-specific masking rules in YAML. If required masking cannot be applied reliably, stop and generate a report. Proposed implementation details include owner-only permissions, sanitized config snapshots, no secret values in process arguments, and deterministic credential-entry actions. Masking reliability must be validated.
 
 The UI, remote text inputs, and repository files are data. They must not override host-level execution limits, cost controls, or credential handling. Configured build commands are explicit execution authority; model exploration should use constrained device tools rather than unrestricted host commands.
 
@@ -146,7 +157,7 @@ Permission to alter device settings does not imply that all settings are automat
 
 ## 9. Device-control technology evaluation
 
-No final choice has been made. The following is a preliminary comparison based on documented capabilities, not hands-on validation.
+The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been made. The following is a preliminary comparison based on documented capabilities, not hands-on validation. Supplementary platform tools may be assessed if neither candidate covers all needs.
 
 | Candidate | Documented basis | Fit and evidence still needed |
 | --- | --- | --- |
@@ -166,7 +177,7 @@ These links support evaluation; dependency versions must be rechecked during imp
 
 ## 10. Mac setup architecture
 
-Proposed installer phases: inspect host, select a validated dependency manifest, install feasible prerequisites, list manual tasks, validate device access, and emit a setup report. Re-running setup should reuse valid dependencies rather than modify unrelated installations.
+Approved setup policy: use a tested compatibility manifest with pinned tool versions; inspect existing installations; reuse compatible versions; automatically replace incompatible CIMT-required tools without asking for confirmation and record replacements. Setup may request administrator privileges, ordinary runs may not. Support reruns after interrupted setup and emit a report of installed/replaced components, validation results, and remaining manual tasks. Exact dependency manager and replacement mechanics are not selected.
 
 Needed categories: compatible macOS/Xcode and developer tools, Android SDK/JDK, .NET SDK and MAUI workloads compatible with the application, selected device adapter runtime, Git, OpenAI connectivity, iOS signing/provisioning material, and trusted devices.
 
@@ -180,13 +191,19 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | --- | --- |
 | Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
 | Device adapter | Open; evaluate Mobile MCP and Appium before selection. |
-| Language, package distribution, installer manager | Proposed candidates only; select after integration spike. |
+| Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
 | Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
-| Full app reset | Confirmed requirement; prove platform reset and application/backend hooks. |
-| Three-crash matching | Confirmed threshold; matching algorithm open. |
-| Outcome precedence / exit codes | Proposed; review before freezing CLI. |
-| Configuration schema / merge rules / price source | Proposed; review and validate. |
-| Screenshot credential masking | Required behaviour; feasibility and failure handling need validation. |
-| Reproducible Mac setup | Validate on second Intel Mac before release. |
+| Full app reset | Platform reset plus custom reset commands and stop on reset failure approved; prove state isolation. |
+| Three-crash matching | Same scenario/action or screen, matching signature when available, consecutive counter reset on success approved; validate implementation. |
+| Outcome precedence / exit codes | Approved: 0/1/2/3, precedence 3 → 1 → 2 → 0; separate verdict/completion/errors. |
+| Configuration | Merge rules and mandatory explicit model/time/budget approved; exact YAML keys and CLI syntax open. |
+| Credential masking | Private YAML, direct entry, screenshot/UI masking, application rules, stop on required masking failure approved; validate implementation. |
+| Reproducible Mac setup | Pinned manifest, reuse compatible tools, silent replacement of incompatible required tools, resumable setup, and setup report approved; validate on second Intel Mac. |
+| Interrupted cleanup | Ownership tracking and next-launch cleanup approved. |
+| Adaptive replay | Preserve intent, record deviations, mark inconclusive if meaning cannot be preserved; invocation/portability open. |
 | Branch comparison | Deferred beyond initial release. |
+
+## Review record — version 0.2
+
+The product owner confirmed the reviewed requirements and architecture policies on 27 October 2026. This revision records those approvals; it does not claim implementation or approve the illustrative CLI/YAML interfaces. No tools were installed or replaced as part of this documentation update.

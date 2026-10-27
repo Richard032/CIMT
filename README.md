@@ -9,14 +9,14 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 ## Documentation
 
 - [Requirements](docs/requirements.md): confirmed product requirements, outcome rules, and acceptance criteria.
-- [Architecture](docs/architecture.md): proposed components, execution lifecycle, technology evaluation, and unresolved engineering decisions.
+- [Architecture](docs/architecture.md): approved structure and policies, technology evaluation, and unresolved engineering decisions.
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 
-All three documents are version 0.1, dated 27 October 2026, based on the product-owner interview. Technical proposals are explicitly distinguished from confirmed requirements.
+All three documents are version 0.2, dated 27 October 2026, based on the product-owner interview and subsequent review. Requirements and the main architecture decisions are confirmed. Detailed YAML keys, terminal command syntax, technology selection, and implementation proofs remain open.
 
 ## Initial release
 
-- Intel Mac host; one CIMT installation and one active run per Mac.
+- Intel Mac host; .NET command-line application, shell setup script, one installation and one active run per Mac.
 - Single Git branch; private repositories supported through existing Git credentials.
 - All supported physical devices connected at startup; at most two tested simultaneously.
 - Every configured build target on every compatible device.

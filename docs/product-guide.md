@@ -1,8 +1,8 @@
 # CIMT product documentation
 
-Version: 0.1  
+Version: 0.2  
 Date: 27 October 2026  
-Status: intended product behaviour and proposed operator workflow  
+Status: product behaviour and reviewed policies confirmed; YAML/CLI interfaces proposed  
 Product: CIMT — Curtis Intelligent Mobile Test
 
 **CIMT is not implemented yet. Commands, configuration keys, paths, and pipeline examples below are proposed interfaces for review, not executable instructions for an existing release.**
@@ -22,7 +22,7 @@ CIMT complements the existing validation system. AI exploration can miss bugs or
 
 ## 2. Where it runs
 
-The initial release runs on Intel Macs. One installation serves multiple application repositories; only one run may be active per Mac.
+The initial release runs on Intel Macs. One installation serves multiple application repositories; only one run may be active per Mac. The approved implementation is a .NET command-line application with a shell setup script and interchangeable device adapter.
 
 Developers invoke the terminal command. Jenkins invokes the same command through a pipeline on its Mac execution node. Devices must be connected to the Mac actually executing CIMT, even if Jenkins orchestration is elsewhere.
 
@@ -60,7 +60,7 @@ The intended sequence is:
 8. Validate access under the exact account that will execute CIMT, including the Jenkins account.
 9. Run a small acceptance workflow on both devices.
 
-Setup may request administrator privileges. Ordinary tests must not require them. Supported versions and exact commands will be published after adapter/toolchain validation. No assumption is made that every Intel Mac can support every iPhone OS version.
+Setup uses a tested compatibility manifest with pinned versions, reuses compatible tools, and silently replaces incompatible CIMT-required tool versions without confirmation. Replacements are recorded. Setup can be rerun after interruption and produces a report of installed/replaced components, validation results, and remaining manual steps. Setup may request administrator privileges. Ordinary tests must not require them. Supported versions and exact commands will be published after adapter/toolchain validation. No assumption is made that every Intel Mac can support every iPhone OS version.
 
 ## 5. Proposed configuration example
 
@@ -121,11 +121,11 @@ signing:
   profile: "<application-specific-profile-reference>"
 ```
 
-The budget/time values are illustrative choices only. The real configuration must use a validated model/pricing combination. Signing details will depend on application packaging and the chosen adapter.
+The budget/time values are illustrative choices only. An explicit time limit, AI budget, and model are mandatory in the effective configuration. Missing or invalid settings stop execution before testing and produce an error report. The real configuration must use a validated model/pricing combination. Signing details will depend on application packaging and the chosen adapter.
 
-Configuration precedence is default YAML, per-run YAML, then terminal arguments. The architecture proposes merging mappings and replacing complete lists; this detail still needs review.
+Configuration precedence is default YAML, per-run YAML, then terminal arguments. Approved merge rules combine nested mappings and replace lists completely. Relative file paths resolve from the YAML file that declares them. Unknown keys and invalid values are rejected before building/testing. Save the effective configuration with secrets removed.
 
-Store actual secrets only in private configuration outside version control. File access will be restricted. App credentials are entered through device control when required and must not be copied into AI prompts. Do not include real secrets in shared example files.
+Store actual secrets only in private configuration outside version control. File access will be restricted. Login credentials remain in private YAML and are entered directly through device control without sending values to AI. Secrets in screenshots/UI text are masked before storage or AI processing. Application-specific masking rules are configured in YAML. If required masking cannot be applied reliably, CIMT stops and generates a report. Do not include real secrets in shared example files.
 
 ## 6. Proposed terminal workflow
 
@@ -138,7 +138,7 @@ The exact command names and options are proposals. No interactive question will 
 
 A run will clone the repository into the common working folder, build configured targets, and test each target on every compatible startup device. At most two devices run simultaneously; the others wait.
 
-Application data is reset before every scenario. Setup and login are repeated when necessary. The operator authorizes CIMT to reset/reinstall apps, delete test data, and change device settings. Equipment outside the phone remains manually prepared.
+Application data is reset before every scenario using platform capabilities and application-specific reset commands where necessary. Reset completion is verified; a reset failure stops the run and generates a report. Setup and login are repeated when necessary. The operator authorizes CIMT to reset/reinstall apps, delete test data, and change device settings. Equipment outside the phone remains manually prepared.
 
 ## 7. Writing testing instructions
 
@@ -174,13 +174,13 @@ When instructions conflict with a requirement, instructions have higher priority
 
 ## 8. Crashes, limits, and interruptions
 
-CIMT relaunches after an app crash. AI decides reproduction effort based on complexity, but three crashing attempts at the same point cancel the affected scenario only.
+CIMT relaunches after an app crash. AI decides reproduction effort based on complexity, but three consecutive matching crashes cancel the affected scenario only. Matching uses the same scenario and action or screen, with a matching crash signature when available. A successful retry resets the consecutive-crash counter.
 
 The whole-run time limit covers execution end to end. The AI spending limit is shared by all workers. Before each AI request, CIMT must reserve the maximum possible charge; if funds are insufficient it stops incomplete, potentially below the configured cap.
 
 A failed build target is recorded while other targets continue. Device disconnection or a blocking AI/infrastructure failure stops the run and generates a partial report. Missing equipment skips dependent scenarios while other scenarios continue. No startup devices means stop and report.
 
-After execution, the clone is deleted, including after failure, incompletion, or interruption. Reports remain. Immediate deletion cannot occur while the Mac is powered off or the process is forcibly killed; the architecture proposes recovery cleanup at next startup.
+After execution, the clone is deleted, including after failure, incompletion, or interruption. Reports remain. Immediate deletion cannot occur while the Mac is powered off or the process is forcibly killed; CIMT records temporary clone ownership and performs recovery cleanup on the next startup, preserving existing reports/evidence and recording the interruption. Only CIMT-owned temporary folders may be deleted.
 
 ## 9. Reading the report
 
@@ -194,7 +194,7 @@ The report will show:
 - Observed versus expected behaviour, reproductions, and crashes.
 - Each requirement's status and evidence.
 - Ambiguous instructions, CIMT's interpretation, and instruction overrides.
-- Screenshots for every test step and saved actions.
+- Screenshots after every meaningful device action or check, its result, and saved actions. Credentials are masked. Internal AI reasoning and builds are logged separately from test steps.
 - Time/budget usage and reasons for stopping.
 - Errors or missing evidence, and clone cleanup status.
 
@@ -206,13 +206,24 @@ The report will show:
 | Inconclusive | A check was attempted but evidence cannot establish pass/fail. |
 | Overridden | A conflicting instruction took priority; report explains it. |
 
-Testing instructions define test failure rules. Without them, confirmed requirement failures or app crashes mean failed; unfinished or inconclusive testing means incomplete; otherwise passed. Reporting mixed failures and incomplete coverage, and exact terminal exit codes, still require architecture review.
+Testing instructions define test failure rules. Without them, confirmed requirement failures or app crashes mean failed; unfinished or inconclusive testing means incomplete; otherwise passed. Reports keep test verdict, completion, and execution errors separate. A run can therefore be failed and incomplete at the same time.
+
+Approved terminal exit codes are:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Complete and passed. |
+| 1 | Confirmed test failure. |
+| 2 | Incomplete/inconclusive without confirmed failure. |
+| 3 | Configuration/infrastructure error, including a failed build target after other targets continue. |
+
+When conditions coexist, precedence is **3 → 1 → 2 → 0**. The report preserves all findings.
 
 Keep the complete folder when copying or archiving a run. Reports remain until manually deleted. CIMT does not automatically publish them.
 
 ## 10. Saved actions and replay
 
-CIMT saves performed actions for later replay. Replay may adapt to a changed UI while retaining the scenario's intent. The report records adaptations and actual observations; replay is not a promise of identical coordinates or identical AI decisions.
+CIMT saves performed actions for later replay. Replay preserves the original objective and expected results while adapting navigation and element selection to changed UI. The report records every deviation and actual observation. If adaptation cannot preserve the original test's meaning, the result is inconclusive.
 
 Replay invocation and cross-device portability remain design decisions. The initial release must demonstrate saved actions and adaptive replay.
 
@@ -239,7 +250,7 @@ pipeline {
 }
 ```
 
-This is not a ready-to-run pipeline: labels, installation paths, artifact collection, and exit-code handling must match the eventual implementation. Use the same service account tested during provisioning. Disable or reject overlapping runs on the Mac; CIMT's own host lock enforces the same rule.
+This is not a ready-to-run pipeline: labels, installation paths, artifact collection, and handling of the approved exit codes must match the eventual implementation. Use the same service account tested during provisioning. Disable or reject overlapping runs on the Mac; CIMT's own host lock enforces the same rule.
 
 ## 12. Troubleshooting expectations
 
@@ -259,4 +270,8 @@ This is not a ready-to-run pipeline: labels, installation paths, artifact collec
 
 The first release must be demonstrated on a second Intel Mac with two build targets on a physical Android phone and iPhone. [Requirements acceptance criteria](requirements.md#7-first-release-acceptance-criteria) also cover concurrency, reset, crash recovery, privacy, strict budget, reports, cleanup, and Jenkins.
 
-Before implementation, review the [architecture decisions](architecture.md#11-decisions-and-release-gates). Device-control technology, supported versions, CLI/YAML details, outcome precedence, and strict budget implementation remain open. Two-branch comparison will follow the single-branch initial release.
+Before implementation, review the [architecture decisions](architecture.md#11-decisions-and-release-gates). Device-control technology, supported versions, detailed CLI/YAML interfaces, distribution, and strict budget implementation proofs remain open. The core architecture, .NET implementation, merge rules, outcome/exit-code policies, reset/masking behaviour, replay policy, recovery cleanup, and automatic tool replacement are approved. Two-branch comparison will follow the single-branch initial release.
+
+## Review record — version 0.2
+
+The product owner confirmed the reviewed requirements and architecture policies on 27 October 2026. This revision records those approvals; it does not claim implementation or approve the illustrative CLI/YAML interfaces. No tools were installed or replaced as part of this documentation update.
