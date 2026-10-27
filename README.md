@@ -12,7 +12,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Architecture](docs/architecture.md): approved structure and policies, technology evaluation, and unresolved engineering decisions.
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 
-All three documents are version 0.2, dated 27 October 2026, based on the product-owner interview and subsequent review. Requirements and the main architecture decisions are confirmed. Detailed YAML keys, terminal command syntax, technology selection, and implementation proofs remain open.
+All three documents are version 0.3, dated 27 October 2026, based on the product-owner interview and reviews. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Adapter selection, supported toolchain versions, full schema constraints, and implementation proofs remain open.
 
 ## Initial release
 
@@ -29,3 +29,11 @@ Two-branch comparison is planned for a later release. Device-control technology 
 ## Review order
 
 Start with the requirements, review the architecture against them, then review the proposed operator experience in the product guide. Open decisions are collected in the architecture document.
+
+## Approved command and configuration design
+
+The planned commands are setup, validate, run, and replay. Configuration uses setup.yaml, default.yaml, and an app.yaml per-run override, with separate ai-model and ai-budget sections.
+
+CIMT will supply default Android/iOS build scripts. User replacements/custom copies are supported. All commands and script integrations require examples and runnable demos using a user-supplied app; no demo MAUI application will be bundled.
+
+See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the design; no executable CLI or scripts have been implemented yet.

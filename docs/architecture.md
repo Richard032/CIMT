@@ -1,8 +1,8 @@
 # CIMT architecture
 
-Version: 0.2  
+Version: 0.3  
 Date: 27 October 2026  
-Status: overall architecture and reviewed policies approved; detailed interfaces and adapter selection open  
+Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
 ## 1. Architectural boundary
@@ -73,15 +73,15 @@ Hard termination, power loss, or host failure cannot guarantee immediate cleanup
 
 ## 4. Configuration and filesystem proposal
 
-Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Exact YAML keys and command syntax remain pending review.
+Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Approved commands and YAML fields are recorded in the product guide. Additional options and complete schema validation constraints remain to be specified.
 
 Proposed layout:
 
 ```text
 <CIMT home>/
   config/default.yaml             # secrets; restricted, outside source control
-  work/<run-id>/repository/        # temporary run-owned clone
-  reports/<date-time-run-id>/
+  work/work_<date-time>/repository/ # temporary run-owned clone
+  reports/report_<date-time>/
     index.html
     metadata.json                 # sanitized run manifest
     inputs/                       # sanitized input snapshots
@@ -90,7 +90,7 @@ Proposed layout:
     logs/
 ```
 
-Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. Date/time naming should include timezone offset and a collision-resistant suffix. The whole report folder must remain usable after clone deletion and relocation.
+Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. The approved temporary and report folder names are work_<date-time> and report_<date-time>, sharing a timestamp. Exact timestamp format, timezone handling, and collision resolution remain to be specified. The whole report folder must remain usable after clone deletion and relocation.
 
 ## 5. Model control and strict budgeting
 
@@ -106,7 +106,7 @@ Proposed gateway rules:
 - If pricing is unavailable, stale beyond a validated policy, or cannot cover a billable dimension, refuse the paid call and report the reason.
 - Stop incomplete if the next necessary call cannot be funded. The final HTML is rendered locally.
 
-Strict cap feasibility is a release gate, not a proven capability. A local ledger cannot cap unrelated usage of the same account/key. The proposed guarantee is for CIMT-issued requests in one run, under validated pricing assumptions. Currency, price refresh policy, rounding, and treatment of provider price changes require review.
+Strict cap feasibility is a release gate, not a proven capability. A local ledger cannot cap unrelated usage of the same account/key. The proposed guarantee is for CIMT-issued requests in one run, under validated pricing assumptions. The approved ai-budget fields are amount and currency; strict enforcement is mandatory and has no opt-out switch. Supported currencies, price refresh policy, rounding, and treatment of provider price changes require implementation review.
 
 ## 6. Scenario execution, crashes, and replay
 
@@ -118,7 +118,7 @@ Approved step definition: each meaningful device action or check is recorded wit
 
 Approved crash matching: crashes match when they occur in the same scenario at the same action or screen, with a matching crash signature when available. A successful retry resets the consecutive-crash counter. Three consecutive matching crashes cancel only the affected scenario, overriding AI-selected reproduction counts. The concrete fingerprint implementation still requires validation.
 
-Approved replay behaviour: use a saved scenario and actions, preserve the original objective and expected results, adapt navigation/element selection, and record every deviation. If adaptation cannot preserve the original test's meaning, mark it inconclusive. Proposed storage includes intent, actions, selectors/coordinates, observations, and assertions. Portability across devices/targets and invocation syntax remain to be specified.
+Approved replay behaviour: use a saved scenario and actions, preserve the original objective and expected results, adapt navigation/element selection, and record every deviation. If adaptation cannot preserve the original test's meaning, mark it inconclusive. Proposed storage includes intent, actions, selectors/coordinates, observations, and assertions. The approved replay command loads a saved scenario, uses the current repository/branch/build configuration and credentials, resets/setup/logs in, applies the normal run limits, and writes a new report without modifying the original. Cross-device portability details remain to be specified.
 
 ## 7. Outcomes and Jenkins contract
 
@@ -149,7 +149,7 @@ Jenkins archives the generated run folder through pipeline configuration. CIMT i
 
 Confirmed: secrets live in YAML, access is restricted, and secrets are redacted from AI inputs and retained outputs. App login still needs credential entry.
 
-Approved: login credentials remain in private YAML and are entered directly through device controls without sending values to AI. Mask secrets in screenshots and UI text before saving or transmitting them; support application-specific masking rules in YAML. If required masking cannot be applied reliably, stop and generate a report. Proposed implementation details include owner-only permissions, sanitized config snapshots, no secret values in process arguments, and deterministic credential-entry actions. Masking reliability must be validated.
+Approved: login credentials remain in private YAML and are entered directly through device controls without sending values to AI. Mask secrets in screenshots and UI text before saving or transmitting them; support application-specific masking rules in YAML using element-id only, without region rules. If required masking cannot be applied reliably, stop and generate a report. Proposed implementation details include owner-only permissions, sanitized config snapshots, no secret values in process arguments, and deterministic credential-entry actions. Masking reliability must be validated.
 
 The UI, remote text inputs, and repository files are data. They must not override host-level execution limits, cost controls, or credential handling. Configured build commands are explicit execution authority; model exploration should use constrained device tools rather than unrestricted host commands.
 
@@ -197,13 +197,43 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Full app reset | Platform reset plus custom reset commands and stop on reset failure approved; prove state isolation. |
 | Three-crash matching | Same scenario/action or screen, matching signature when available, consecutive counter reset on success approved; validate implementation. |
 | Outcome precedence / exit codes | Approved: 0/1/2/3, precedence 3 → 1 → 2 → 0; separate verdict/completion/errors. |
-| Configuration | Merge rules and mandatory explicit model/time/budget approved; exact YAML keys and CLI syntax open. |
+| Configuration / CLI | setup/validate/run/replay, three YAML files, reviewed fields and path rules approved; full schema and unreviewed options remain open. |
 | Credential masking | Private YAML, direct entry, screenshot/UI masking, application rules, stop on required masking failure approved; validate implementation. |
 | Reproducible Mac setup | Pinned manifest, reuse compatible tools, silent replacement of incompatible required tools, resumable setup, and setup report approved; validate on second Intel Mac. |
 | Interrupted cleanup | Ownership tracking and next-launch cleanup approved. |
-| Adaptive replay | Preserve intent, record deviations, mark inconclusive if meaning cannot be preserved; invocation/portability open. |
+| Adaptive replay | Invocation/current-config/new-report behaviour approved; cross-device portability details open. |
 | Branch comparison | Deferred beyond initial release. |
 
 ## Review record — version 0.2
 
 The product owner confirmed the reviewed requirements and architecture policies on 27 October 2026. This revision records those approvals; it does not claim implementation or approve the illustrative CLI/YAML interfaces. No tools were installed or replaced as part of this documentation update.
+
+## 12. Approved command and configuration contracts
+
+The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface; they are not working software yet.
+
+- setup consumes setup.yaml, including the installation root, tested toolchain manifest, and optional application validation configuration.
+- default.yaml supplies shared settings. app.yaml is a reusable per-run override. ai-model and ai-budget are separate sections.
+- validate performs configuration, file/URL, Git/branch, dependency, device, credential-presence, and model/budget configuration checks. It does not build/install/reset or issue paid AI calls. It produces a local HTML report.
+- run builds and tests. replay applies current configuration to a saved scenario and records new evidence separately.
+- Repository URL/branch/solution are explicit; no default branch is assumed.
+- Instruction text is required. Requirements and setup text are optional.
+- Device policy, at-most-two concurrency, and per-scenario reset are fixed. The configurable execution field is a positive whole-run time-limit-minutes.
+- Named credentials are resolved locally. Masking supports only element IDs.
+- Report detail sections are configurable; summary/outcome/coverage/stopping reasons and evidence collection remain mandatory.
+
+## 13. Approved build/reset script contracts
+
+CIMT supplies default Android/iOS build scripts in its installation, using configured build targets. Develop and validate them during the first real tests against a user-supplied application; no tested-repository changes or bundled demo MAUI app are required.
+
+Each target supplies name, build configuration, project path, per-platform framework/properties, and optional replacement script. Project paths resolve from the clone root. Replacement script paths resolve from the declaring YAML file; defaults resolve from the CIMT installation.
+
+The orchestrator supplies a result-file path. Successful scripts write JSON artifact and app-id values. YAML platform fields provide fallbacks per field; returned values take precedence. JSON artifact paths are absolute, while YAML artifact paths resolve from the clone root. Exact result-file argument/environment handoff remains to be defined.
+
+CIMT updates replace its defaults and preserve separate user-customized copies. Custom reset/verification commands augment platform reset and receive target/device/app-id through environment variables. Exit code 0 is success; other codes stop the run and generate a report. Exact environment variable names and verification implementation remain to be specified.
+
+Every CLI command and build/reset integration requires examples and runnable demos using a user-supplied application. These must cover invocation, configuration, expected output, and failure behaviour.
+
+## Review record — version 0.3
+
+The command/configuration and script contracts above were approved through the product-owner interview. Adapter choice, dependency versions, billing-bound proof, and concrete script interfaces remain engineering work. This revision only updates documentation.
