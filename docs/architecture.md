@@ -157,7 +157,7 @@ Permission to alter device settings does not imply that all settings are automat
 
 ## 9. Device-control technology evaluation
 
-The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been qualified. The original capability comparison below is supplemented by the [hands-on evaluation](adapter-evaluation.md): both Android paths work, while iPhone signing blocks the final gate. Supplementary platform tools may be assessed if neither candidate covers all needs.
+The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been qualified. The original capability comparison below is supplemented by the [hands-on evaluation](adapter-evaluation.md): both Android paths work and Appium iPhone control now passes after account recovery; Mobile MCP iPhone provisioning and full application qualification remain open. Supplementary platform tools may be assessed if neither candidate covers all needs.
 
 | Candidate | Documented basis | Fit and evidence still needed |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Topic | State / next evidence |
 | --- | --- |
 | Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
-| Device adapter | Mobile MCP preferred provisionally after Android probes; final selection blocked on iPhone signing and complete gate. |
+| Device adapter | Appium Android/iPhone basic control demonstrated; Mobile MCP iPhone helper pending. Earlier Mobile MCP preference was provisional; full selection gate remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
 | Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
@@ -245,3 +245,8 @@ The .NET CLI/configuration foundation and generic default build workers now exis
 The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from effective-config snapshots and diagnostics; actual screen masking is not yet implemented.
 
 Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
+
+
+### Device-control follow-up after Apple account recovery
+
+Appium's dedicated WebDriverAgent helper now builds/signs successfully and has passed physical-iPhone UI/screenshot/navigation checks. Both physical platforms have basic Appium control evidence. Mobile MCP's original preference remains provisional; its separate iPhone helper profile/control is pending. The adapter boundary and complete qualification gate are unchanged. See the adapter evaluation and installation sections 11–12.

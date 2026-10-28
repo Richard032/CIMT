@@ -6,7 +6,7 @@ Updated: 28 October 2026
 
 Done: Android control probes for Mobile MCP and Appium; local evidence recorded; competing Android sessions diagnosed and isolated.
 
-Blocked: iPhone helper signing. Mobile MCP is preferred for initial integration, but the final cross-platform selection gate remains open.
+Follow-up: Appium iPhone signing and basic control now pass. Mobile MCP was preferred provisionally before those results; its iPhone helper profile/control remain pending. The final qualification gate remains open.
 
 See [evaluation](adapter-evaluation.md).
 
@@ -32,22 +32,22 @@ See [build contract](build-script-contract.md).
 
 Done: wired pairing, Developer Mode, developer services, and tunnel verified. A valid legacy development identity and matching app-specific profiles were confirmed, correcting the earlier identity classification.
 
-Blocked: no valid helper profile; Xcode rejected its saved Apple-account login during a dedicated automatic-provisioning build (exit 65). Account reauthentication or an appropriate manually prepared helper profile is required. No iPhone control pass is claimed.
+Initial blocker: Xcode rejected its saved Apple-account login during automatic provisioning (exit 65). The product owner restored access; the next build/signature check passed and Appium completed 11 iPhone control checks. Mobile MCP still lacks its separate helper profile.
 
-Next: recover account/profile access, install the helper, and verify UI/screenshot/navigation. See installation section 11. Application build acceptance, final adapter selection, and the overall remaining work below are still open.
+Done on follow-up: WDA helper installed/launched, UI source/screenshots/Home/Settings navigation checked, and session/server cleanup completed. The initial early foreground-query failure is retained; a bounded transition wait resolved it on retry. See installation sections 11–12. Application build acceptance, final adapter selection, and the overall remaining work below remain open.
 
 ## Overall done
 
 - Approved requirements and architecture/CLI/YAML design.
 - Mac inventory, prerequisite bootstrap and rerun, maintained installation guide.
 - Noninteractive Subgit application read access.
-- Both adapter candidates installed and Android control evaluated.
+- Both adapter candidates installed and Android control evaluated; Appium iPhone helper/control verified in 11 smoke checks.
 - CLI/configuration foundation and readiness reports.
 - Default build-script implementation and contract tests.
 
 ## Overall remaining
 
-- Complete iPhone provisioning/control and final adapter qualification.
+- Complete Mobile MCP iPhone provisioning/control, input-entry coverage, and full final adapter qualification.
 - Correct/configure app-specific macOS pre-build support and verify real APK/IPA builds.
 - Implement full setup/run/replay, repository lifecycle, max-two-device scheduling, AI interpretation, strict billing reservations, reset/login, masking, crash recovery, and adaptive replay.
 - Complete per-step application evidence and requirement-outcome reports.

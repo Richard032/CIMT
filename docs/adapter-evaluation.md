@@ -1,13 +1,13 @@
 # Physical-device adapter evaluation
 
 Date: 28 October 2026  
-Status: Android checks completed; final cross-platform selection blocked
+Status: Android checks completed; Appium iPhone control verified; full qualification remains open
 
 ## Decision
 
-Mobile MCP is the preferred candidate for initial integration behind CIMT's interchangeable adapter boundary. **Final adapter selection is not approved by this evaluation:** the agreed gate requires a working physical Android/iPhone workflow, including a real MAUI application, reset, and unattended operation.
+Mobile MCP was the preferred candidate provisionally after the first Android checks. Following Xcode account recovery, Appium is now the first candidate to demonstrate basic control on both physical platforms. **Final adapter selection is not approved by these smoke checks:** the agreed gate still requires a real MAUI application, reset, and unattended operation. CIMT retains its interchangeable adapter boundary.
 
-Both candidates have demonstrated Android control. Neither has demonstrated iPhone UI control with this Mac's present signing setup. The approved gate is preserved.
+Both candidates have demonstrated Android control. Appium has now demonstrated iPhone UI inspection, screenshots, and navigation; Mobile MCP's separate iPhone helper still needs a valid profile. The approved full qualification gate is preserved.
 
 ## Environment and method
 
@@ -27,7 +27,7 @@ Evidence and raw diagnostics remain under the private /Users/Shared/CIMT/evaluat
 | Android screenshot | Captured locally. | Captured locally. |
 | Android navigation | Swipe and Home commands returned success. | Back command and session cleanup succeeded. |
 | iPhone discovery | Passed. | Device selected for session attempt. |
-| iPhone control | Blocked: DeviceKit agent not installed and requires a signing profile. | Blocked: WebDriverAgent provisioning failed; xcodebuild exited 65. |
+| iPhone control | Blocked: DeviceKit agent not installed and requires a signing profile. | Passed: signed WDA installed/launched; UI, screenshots, Home and Settings navigation verified. |
 | Successful simultaneous Android+iOS control | Not demonstrated. | Not demonstrated. |
 | MAUI install/reset/login/crash workflow | Not demonstrated. | Not demonstrated. |
 | Jenkins account operation | Not demonstrated. | Not demonstrated. |
@@ -46,11 +46,11 @@ The follow-up check found one valid legacy iPhone Developer identity with its pr
 
 Mobile MCP requests agent installation with a provisioning profile. Appium's session reported no usable development profile for WebDriverAgent, plus device-install diagnostics. No signing checks were disabled and no new account credentials or certificates were created.
 
-A later dedicated WebDriverAgent build with automatic provisioning enabled exited 65: Xcode rejected the saved Apple-account login and could not obtain a matching helper profile. Reauthenticate the existing team account or supply a valid helper profile, then rerun iPhone candidates. The connected phone is paired, wired, and has Developer Mode and developer services enabled; its OS/toolchain combination still requires a successful helper install and control test. See installation section 11.
+The first dedicated WebDriverAgent build with automatic provisioning exited 65 because Xcode rejected its saved Apple-account login. After the product owner restored account access, the same build succeeded and signature verification passed. Its new development profile covers the connected phone. The phone is paired, wired, and has Developer Mode and developer services enabled. Appium then installed/launched the signed WDA helper and completed 11 control checks. See installation sections 11–12.
 
-## Why Mobile MCP is preferred, provisionally
+## Original Mobile MCP preference and current evidence
 
-Its structured tool vocabulary and accessibility refs fit the intended autonomous action loop; the Android result includes identifiers/bounds needed for later element-ID masking. Appium also provides working Android control and remains an alternative. This preference is an engineering inference, not a claim of proved iOS or MAUI compatibility.
+Mobile MCP's structured tool vocabulary and accessibility refs fit the intended autonomous action loop; the Android result includes identifiers/bounds needed for later element-ID masking. That original preference was an engineering inference. Appium now has stronger demonstrated cross-platform control evidence. Mobile MCP iPhone compatibility and complete MAUI workflows remain unproved; the final decision must follow the remaining gate.
 
 Credential input/logging and element masking still require CIMT-side controls; direct adapter logging must not leak secrets.
 
@@ -68,7 +68,7 @@ These are engineering probes, not CIMT's eventual user-facing test commands. Clo
 
 ## Remaining gate
 
-1. Valid iPhone helper signing and verified UI/screenshot/input control.
+1. Finish candidate comparison: Appium signing/UI/screenshot/navigation now pass; Mobile MCP signing/control and input-entry coverage remain open.
 2. A real application build and install on both platforms.
 3. Reset/login, crash diagnostics/relaunch, and adaptive action checks.
 4. Successful simultaneous operation on two devices.
@@ -76,3 +76,12 @@ These are engineering probes, not CIMT's eventual user-facing test commands. Clo
 6. Record a final adapter decision after those checks.
 
 References: [Mobile MCP capabilities](https://github.com/mobile-next/mobile-mcp), [Appium iPhone device preparation](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/device-setup/).
+
+
+## Follow-up control check after Xcode recovery
+
+The dedicated Appium helper build completed with exit 0 and passed strict signature verification. The first session waited for the phone to be unlocked. UI source and screenshots worked, but an immediate query after Home still returned Settings. That first result is retained.
+
+A repeat probe kept the same expected foreground applications and added a bounded eight-second polling wait for transitions. All 11 checks passed: physical session, UI source, Settings screenshot, Settings foreground, Home command, SpringBoard foreground, Home screenshot, Settings reactivation, Settings foreground after return, return-Home command, and session closure. The Home transition was observed after about 1.2 seconds. Screenshots were inspected locally and show Settings and the Home screen.
+
+The signed helper remains installed for reuse; the temporary Appium server and its owned test process were stopped. No real MAUI application, reset/login flow, crash recovery, text entry, or simultaneous two-device execution was validated by this check.

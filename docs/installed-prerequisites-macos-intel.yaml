@@ -40,7 +40,7 @@ verification:
   application-git-read-access: subgit-https-verified
   github-terminal-authentication: not-configured-not-needed-for-application
   android-device: connected-authorized-control-probes-passed
-  iphone: discovered-control-blocked-by-helper-signing
+  iphone: appium-ui-screenshot-navigation-verified
   application-build-and-test: publish-attempted-blocked-no-app-tests
   final-yaml-manifest-enforcement: not-implemented
 
@@ -57,8 +57,8 @@ implementation-increments:
   default-build-workers: installed
   simulated-build-contract-checks: 4-passed
   physical-android-control: both-candidates-passed
-  physical-ios-control: blocked-by-helper-signing
-  adapter-selection: mobile-mcp-preferred-final-gate-open
+  physical-ios-control: appium-11-checks-passed-mobile-mcp-pending
+  adapter-selection: open-appium-control-demonstrated-both-platforms
   application-android-publish: blocked-by-windows-prebuild
   application-ios-publish: blocked-by-provisioning
 
@@ -68,7 +68,7 @@ iphone-follow-up:
   developer-services: available
   development-identity: valid-legacy-iphone-developer
   app-specific-profiles: valid-but-not-for-helper
-  helper-profile: unavailable
-  automatic-helper-provisioning: failed-xcode-account-login-rejected
-  helper-control: not-verified
-  next: reauthenticate-xcode-account-or-supply-valid-helper-profile
+  helper-profile: available-for-wda-only
+  automatic-helper-provisioning: passed-after-xcode-account-recovery
+  helper-control: appium-11-checks-passed
+  next: mobile-mcp-profile-and-full-application-qualification
