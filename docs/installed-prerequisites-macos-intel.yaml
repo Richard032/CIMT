@@ -90,3 +90,10 @@ devicekit-follow-up:
   signing-profile: unexpired-development-wildcard-matches-phone-and-identity
   application-probe: passed-8-guarded-checks-after-unlocking
   lock-state-guard: verified-stops-application-actions
+
+responsibility-refactor:
+  dotnet-unit-tests: 36-passed
+  python-unit-tests: 32-passed
+  regression-and-contract-checks: 23-passed
+  total-development-checks: 91-passed
+  live-api-and-device-acceptance: pending

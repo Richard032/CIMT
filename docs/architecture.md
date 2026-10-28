@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.5  
+Version: 0.6  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -254,3 +254,12 @@ The current engine treats the supplied text as one exploration objective per tar
 ### Device-control follow-up after Apple account recovery
 
 Appium's dedicated WebDriverAgent helper now builds/signs successfully and has passed physical-iPhone UI/screenshot/navigation checks. Both physical platforms have basic Appium control evidence. Mobile MCP's original preference remains provisional; its DeviceKit helper is installed and has passed eight guarded iPhone Settings/UI/screenshot/navigation smoke checks. The adapter boundary and complete qualification gate are unchanged. See the adapter evaluation and installation sections 11–12.
+
+
+## 15. Responsibility and unit-test boundaries
+
+The host now separates command handling, settings, process access, deadlines, run steps, owned work, builds, outcome calculation, and report rendering. RunCoordinator orders steps and handles failure/cleanup; each step owns its specific work. The build worker separates request loading, argument construction, process execution, artifact selection, and result output.
+
+The Python worker separates scheduling, objective orchestration, actions, coverage, crash recovery, app lifecycle, screen capture, masking, evidence, budget accounting, prompts, API transport, and MCP transport. ScenarioSession stores objective data. Constructors accept replaceable external dependencies for unit tests. Simple constructor injection and ordered steps are used. The proxy pattern is prohibited by the repository rules.
+
+See the [development guide](development.md) for the component map and verification. This is an internal refactor. Public commands, YAML fields, reset/retry/limit policies, and exit precedence retain the approved behavior. The requirements baseline and open real-device acceptance gates are unchanged.

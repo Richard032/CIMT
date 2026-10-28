@@ -50,3 +50,8 @@ The checks cover configuration and CLI behavior, owned cleanup, failure preceden
 - Demonstrate Jenkins and a second Intel Mac; complete the adapter-selection and release acceptance gates.
 
 On the development Mac the public example validation currently stops at an empty private API-key field (exit 3), before provider access or app interactions. The user chose an existing key; its usable local source has not yet been supplied.
+
+
+## Internal structure and development verification
+
+The host, build worker, and device worker are split into services with narrow responsibilities. See the [development guide](development.md) for the component map and [AGENTS.md](../AGENTS.md) for coding rules. Run the full source verification with bash scripts/check-development.sh. The verified refactor has 68 unit tests (36 .NET and 32 Python) plus 23 regression/contract checks, all passed. These use simulated dependencies and do not establish real-device acceptance.

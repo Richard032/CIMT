@@ -80,3 +80,14 @@ Blocked live run: the user chose an existing OpenAI key, but no usable local sou
 Review: the macOS adapter preserves tagging and copying in a fixture; the actual tagger and APK/IPA builds remain unverified. iOS reinstall verifies container reset only; Keychain/backend state needs app hooks where applicable. Current model support is restricted to the documented snapshot/USD pricing profile. These implementation limits are disclosed; the approved release requirements remain unchanged.
 
 Next: provide the existing key locally, validate the example, then execute its documented public run command. Review real build/device results before closing any application or adapter acceptance gate.
+
+
+## Reviewed increment — small responsibilities and unit tests
+
+Done: added repository development rules in AGENTS.md: small classes and methods, one purpose per method, simple designs, simple English comments, focused unit tests, and no proxy pattern. Added shared formatting rules and a developer guide.
+
+Done: separated command parsing/routing, settings and redaction, process access, time limits, run steps, owned cleanup, builds, outcome policy, and HTML. The build worker now separates request/argument/process/artifact/result responsibilities. The Python worker now separates scheduling, objectives, actions, coverage, crashes, reset, screen capture/masking, evidence, budget, prompts, HTTPS, and MCP messages. Tests use normal constructors with fake dependencies; constructor bypasses were removed. Legacy regression cases now have named methods and setup helpers.
+
+Verified: 68 unit tests passed (36 .NET; 13 existing Python policy tests plus 19 new component/scenario tests). All 18 CLI/configuration/cleanup regression checks, four simulated build-contract checks, and one MSBuild adapter fixture also passed: 91 checks in total. No paid API requests, physical-device operations, or real MAUI builds ran during this refactor.
+
+Review: this changes internal structure, not the approved command/configuration or test behavior. No requirement gate was relaxed. Real app builds and device acceptance remain pending. Use bash scripts/check-development.sh for the complete development suite; see the [developer guide](development.md).

@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.5  
+Version: 0.6  
 Date: 28 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -328,3 +328,6 @@ Use the [step reviews](implementation-status.md) to distinguish implemented foun
 The [button/crash example](../examples/econ-button-crash/README.md) contains both build targets, platform settings, instructions, requirements, setup notes, and application-specific macOS build support. Its public cimt run invocation uses the configured main branch. Reports and disposable work are local subfolders of that example. The existing API key belongs in ignored, owner-only default.private.yaml, never the tracked template.
 
 The current run engine performs one objective per target/device, with at most two devices active. It reports observed controls, attempted controls, remaining paths, screenshots, and confirmed or suspected terminations. It cannot promise to reach hidden or equipment-dependent buttons. Limits and blocking conditions produce incomplete reports. Only the documented model snapshot/USD profile is currently supported; other models need a validated pricing bound before use. See [run-engine limits](run-engine.md).
+
+
+The internal code now uses smaller services, simple English comments, and replaceable dependencies for unit tests. This does not change the operator commands or configuration. Development rules and checks are described in the [development guide](development.md).

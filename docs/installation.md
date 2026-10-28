@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.5  
+Version: 0.6  
 Last updated: 28 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -690,3 +690,27 @@ Done: installed support runtime, public run integration, example files, macOS ta
 Blocked: the example's private key field is empty. Running the installed public validate command produced exit 3 and a timestamped HTML error report under the example's reports folder. No OpenAI inference, real application build through the new adapter, reset/install, or button exploration occurred in this step. The user selected an existing key; its usable local source is still pending.
 
 Remaining: validate with that key, run the example through the public command, inspect signed APK/IPA and physical-device evidence, and resolve any failures in the example integration. iOS reinstall verifies container reset; Keychain or backend reset needs app-specific hooks. Final adapter choice, supported manifest, setup/replay, full scenarios, Jenkins, and second-Mac acceptance remain open.
+
+
+## 15. Maintain the refactored source installation
+
+The refactor keeps the installed commands and runtime requirements. It adds source modules and unit-test projects. From the source folder, verify a prepared Mac with:
+
+```bash
+bash scripts/check-development.sh
+```
+
+The first Mac passed 68 unit tests and 23 regression/contract checks after the refactor. These use simulated tools, API responses, and phones; they do not run the real MAUI application. See the [development guide](development.md).
+
+After successful checks, update both .NET components and all Python support modules:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
+bash scripts/install-cimt-runtime.sh
+cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
+chmod +x "$CIMT_INSTALL_ROOT/bin/cimt"
+```
+
+The runtime installer copies every supplied Python module. Copying only agent.py, mobile.py, and run_ui.py is no longer sufficient. Existing private configuration and application examples remain valid. The same phone helpers are used; real-device acceptance remains pending.

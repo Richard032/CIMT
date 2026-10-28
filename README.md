@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.5, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.6, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -65,4 +65,4 @@ Read the [reviewed implementation status](docs/implementation-status.md) for don
 - [Adapter evaluation](docs/adapter-evaluation.md): both candidates exercised on Android and iPhone; Appium passed 11 iPhone checks and Mobile MCP passed 8 guarded iPhone smoke checks. Final application qualification remains open.
 - [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
 
-Development checks are listed in the [run-engine notes](docs/run-engine.md). Activate the prerequisite environment first. Private configuration, run evidence, and temporary work stay local.
+Run development checks with bash scripts/check-development.sh. The [development guide](docs/development.md) explains the small services, unit-test boundaries, and simple English comment rules from [AGENTS.md](AGENTS.md). Private configuration, run evidence, and temporary work stay local.
