@@ -38,6 +38,16 @@ public sealed class OutcomeTests
             RunOutcomePolicy.Evaluate(0, Execution("inconclusive", "complete")));
     }
 
+    [Fact]
+    public void InvalidCheckStatusCannotBeHiddenByAPassedScenario()
+    {
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"scenarios":[{"verdict":"passed","completion":"complete","crashes":[],
+            "checks":[{"status":"<redacted>"}]}]}]}
+            """);
+        Assert.Equal(new RunOutcome(2, "inconclusive", "incomplete"), RunOutcomePolicy.Evaluate(0, execution));
+    }
+
     [Theory]
     [InlineData("{\"devices\":[]}")]
     [InlineData("{\"devices\":[{\"scenarios\":[]}]}")]

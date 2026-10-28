@@ -69,6 +69,8 @@ def _validate_evidence(check):
 def scenario_verdict(checks, has_crash, complete, requirements=None):
     """A known failure stays failed. Finishing navigation alone cannot prove a pass."""
     requirements = requirements or []
+    if any(check.get("status") not in CHECK_STATUSES for check in checks + requirements):
+        raise InfrastructureError("An invalid check status cannot produce a verdict")
     # Retain old observations, but do not judge an overridden expectation as a failure.
     overridden = {row["id"] for row in requirements if row["status"] == "overridden"}
     checks = [

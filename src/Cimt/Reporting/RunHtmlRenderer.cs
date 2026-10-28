@@ -15,17 +15,21 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     /// <summary>Render saved results while escaping HTML and removing configured secrets.</summary>
     public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null)
     {
+        // Redact parsed values first. Never run replacement over JSON or HTML markup.
+        JsonElement? safeExecution = execution is { } value
+            ? JsonSerializer.SerializeToElement(new ExecutionRedactor(new JsonTextRedactor(configuration.Scrub)).Execution(value))
+            : null;
         return PageStart + Header(state, outcome) + Stages(state.Stages) + Inputs(state.Report)
-            + new RequirementHtmlRenderer(configuration).Render(coverage, state.RequirementHeadings) + Execution(execution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
+            + new RequirementHtmlRenderer(configuration).Render(coverage, state.RequirementHeadings) + Execution(safeExecution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
     }
 
     private string Header(RunState state, RunOutcome outcome)
     {
         return "<h1>CIMT application test</h1><p>Exit: " + outcome.ExitCode
-            + " · Verdict: " + Safe(outcome.Verdict) + " · Completion: " + Safe(outcome.Completion) + "</p>"
-            + "<p>Run: " + Safe(state.Identity.Id) + " (UTC)</p>"
-            + "<p>Branch: " + Safe(state.Configuration.Root.Get("repository")!.Value("branch")!)
-            + " · Commit: " + Safe(state.Commit) + "</p><h2>Stopping reasons and coverage limits</h2><ul>"
+            + " · Verdict: " + Encoded(outcome.Verdict) + " · Completion: " + Encoded(outcome.Completion) + "</p>"
+            + "<p>Run: " + Encoded(state.Identity.Id) + " (UTC)</p>"
+            + "<p>Branch: " + Encoded(state.Configuration.Root.Get("repository")!.Value("branch")!)
+            + " · Commit: " + Encoded(state.Commit) + "</p><h2>Stopping reasons and coverage limits</h2><ul>"
             + string.Join("", state.Errors.Select(error => "<li>" + Safe(error) + "</li>"))
             + "</ul><p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p>";
     }
@@ -41,15 +45,18 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         var description = Field(item, "stage") + " " + Field(item, "target") + " "
             + Field(item, "platform") + ": " + Field(item, "result");
         var log = Detail("diagnostics") && item.TryGetProperty("log", out var path)
-            ? " — <a href=\"" + Safe(path.ToString()) + "\">build log</a>" : "";
-        return "<li>" + Safe(description) + log + "</li>";
+            ? " — <a href=\"" + Encoded(path.ToString()) + "\">build log</a>" : "";
+        return "<li>" + Encoded(description) + log + "</li>";
     }
 
     private string Inputs(string report)
     {
         var file = Path.Combine(report, "inputs.json");
-        return Detail("requirements") && File.Exists(file)
-            ? Details("Testing instructions and requirements", File.ReadAllText(file)) : "";
+        if (!Detail("requirements") || !File.Exists(file))
+            return "";
+        var inputs = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
+        var safe = new JsonTextRedactor(configuration.Scrub).Text(inputs);
+        return Details("Testing instructions and requirements", safe!.ToJsonString());
     }
 
     private string Execution(JsonElement? execution)
@@ -59,7 +66,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         var body = "<h2>Device scenarios and coverage</h2>"
             + string.Join("", value.GetProperty("devices").EnumerateArray().Select(Device));
         if (value.TryGetProperty("budget", out var budget))
-            body += "<h2>AI budget accounting</h2><pre>" + Safe(budget.ToString()) + "</pre>";
+            body += "<h2>AI budget accounting</h2><pre>" + Encoded(budget.ToString()) + "</pre>";
         if (Detail("diagnostics"))
             body += Details("Execution data", value.ToString());
         return body;
@@ -75,11 +82,11 @@ public sealed class RunHtmlRenderer(Configuration configuration)
 
     private string Scenario(JsonElement scenario)
     {
-        var body = "<h4>" + Safe(Field(scenario, "target")) + " — "
-            + Safe(Field(scenario, "verdict", "inconclusive")) + " / " + Safe(Field(scenario, "completion")) + "</h4>";
+        var body = "<h4>" + Encoded(Field(scenario, "target")) + " — "
+            + Encoded(Field(scenario, "verdict", "inconclusive")) + " / " + Encoded(Field(scenario, "completion")) + "</h4>";
         body += Coverage(scenario) + Findings(scenario) + Checks(scenario);
         if (scenario.TryGetProperty("remaining", out var remaining) && remaining.GetArrayLength() > 0)
-            body += "<p>Remaining/blocked work:</p><pre>" + Safe(remaining.ToString()) + "</pre>";
+            body += "<p>Remaining/blocked work:</p><pre>" + Encoded(remaining.ToString()) + "</pre>";
         if (Detail("interpretations") && scenario.TryGetProperty("interpretation", out var interpretation))
             body += "<p>Interpretation: " + Safe(interpretation.ToString()) + "</p>";
         if (Detail("scenarios"))
@@ -92,9 +99,9 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         if (!scenario.TryGetProperty("coverage", out var coverage))
             return "";
-        return "<p>Observed control/state combinations: " + Safe(Field(coverage, "observedControls", "0"))
-            + "; activated: " + Safe(Field(coverage, "attemptedControls", "0"))
-            + "; outstanding: " + Safe(Field(coverage, "outstandingObservedControls", "0")) + ".</p>";
+        return "<p>Observed control/state combinations: " + Encoded(Field(coverage, "observedControls", "0"))
+            + "; activated: " + Encoded(Field(coverage, "attemptedControls", "0"))
+            + "; outstanding: " + Encoded(Field(coverage, "outstandingObservedControls", "0")) + ".</p>";
     }
 
     private string Findings(JsonElement scenario)
@@ -132,13 +139,14 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     private string Check(JsonElement check, bool overridden)
     {
         var body = "<details><summary>" + Safe(Field(check, "subject")) + ": "
-            + Safe(Field(check, "status")) + "</summary>";
+            + Encoded(Field(check, "status")) + "</summary>";
         if (overridden)
             body += "<p>Historical observation: testing instructions override this requirement. See the requirement mapping for the effective decision.</p>";
         foreach (var field in new[] { "source", "requirementId", "expected", "observed", "reason", "instructionQuote" })
-            body += "<p>" + Safe(field) + ": " + Safe(Field(check, field)) + "</p>";
+            body += "<p>" + Encoded(field) + ": " + (field is "source" or "requirementId"
+                ? Encoded(Field(check, field)) : Safe(Field(check, field))) + "</p>";
         if (check.TryGetProperty("screenshot", out var screenshot))
-            body += "<p><a href=\"" + Safe(screenshot.ToString()) + "\">Check evidence</a></p>";
+            body += "<p><a href=\"" + Encoded(screenshot.ToString()) + "\">Check evidence</a></p>";
         return body + "</details>";
     }
 
@@ -146,15 +154,15 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         var action = step.TryGetProperty("action", out var value)
             ? value.ValueKind == JsonValueKind.Object ? Field(value, "action") : value.ToString() : "check";
-        var body = "<li><p>" + Safe(action + ": " + Field(step, "observation")) + "</p>"
+        var body = "<li><p>" + Encoded(action) + ": " + Safe(Field(step, "observation")) + "</p>"
             + Notes(step, ["actionError", "crash", "recovery", "navigation", "evidenceError"]);
         if (step.TryGetProperty("screenshot", out var screenshot))
             body += Image(screenshot.ToString());
         return body + "</li>";
     }
 
-    private string Image(string path) => "<a href=\"" + Safe(path) + "\"><img loading=\"lazy\" src=\""
-        + Safe(path) + "\" alt=\"Step evidence\"></a>";
+    private string Image(string path) => "<a href=\"" + Encoded(path) + "\"><img loading=\"lazy\" src=\""
+        + Encoded(path) + "\" alt=\"Step evidence\"></a>";
 
     private string Notes(JsonElement item, IEnumerable<string> keys)
     {
@@ -162,14 +170,15 @@ public sealed class RunHtmlRenderer(Configuration configuration)
             .Select(key => "<p>" + Safe(item.GetProperty(key).ToString()) + "</p>"));
     }
 
-    private string Details(string title, string value) => "<details><summary>" + Safe(title)
-        + "</summary><pre>" + Safe(value) + "</pre></details>";
+    private static string Details(string title, string value) => "<details><summary>" + Encoded(title)
+        + "</summary><pre>" + Encoded(value) + "</pre></details>";
 
     private bool Detail(string section) => configuration.Root.Get("reports")?.Get("sections")?.List is not { } sections
         || sections.Any(item => item.Text == section);
 
     // Encode only after redaction so both secrets and HTML text remain safe.
     private string Safe(string value) => WebUtility.HtmlEncode(configuration.Scrub(value));
+    private static string Encoded(string value) => WebUtility.HtmlEncode(value);
 
     private static string Field(JsonElement item, string key, string fallback = "") =>
         item.ValueKind == JsonValueKind.Object && item.TryGetProperty(key, out var field) ? field.ToString() : fallback;

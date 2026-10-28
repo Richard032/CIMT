@@ -201,7 +201,7 @@ class ScenarioRunner:
         point = session.coverage.crash_point(session.result["target"], element, action)
         entry = {
             "step": len(session.result["steps"]),
-            "action": self.redactor.object(action),
+            "action": self.redactor.records.action(action),
             "observation": action["observation"],
         }
         try:
@@ -214,9 +214,9 @@ class ScenarioRunner:
         return entry, element, point
 
     def _save_action(self, session, entry, action):
-        session.result["steps"].append(self.redactor.object(entry))
+        session.result["steps"].append(self.redactor.records.step(entry))
         result = entry.get("crash", entry.get("actionError", "action completed"))
-        session.history.append(self.redactor.object(dict(action, result=result)))
+        session.history.append(self.redactor.records.action(dict(action, result=result)))
 
     @staticmethod
     def _complete(session, action):

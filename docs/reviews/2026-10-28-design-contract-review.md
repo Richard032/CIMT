@@ -18,6 +18,8 @@ Recommended correction: separate typed control data from text that can contain s
 
 Simple regression cases: a credential equal to `failed`; a credential matching a requirement ID; a one-digit credential; and a credential matching the run year. Verify the verdict, valid JSON, and unchanged identity separately.
 
+Resolution, 28 October 2026: the product owner requested the redaction fix. Record-aware redaction now preserves control metadata while scrubbing observations. Final JSON is sanitized as parsed values before serialization; HTML preserves metadata and sanitizes JSON details before encoding. Unknown check statuses cannot produce a pass. The synthetic Python-to-.NET reproduction now retains failed and exit 1; digit, ID, identity, and evidence-link cases pass. See [redaction verification](../redaction.md). Existing reports remain historical evidence.
+
 ## D2 — P1: escaped secret text can bypass screenshot masking
 
 Location: [Redactor.sensitive](../../runtime/redaction.py), lines 48–58. Related requirements: FR-28 and FR-36.
@@ -27,6 +29,8 @@ Secret detection searches inside json.dumps(element). JSON escapes non-ASCII cha
 Reproduction: an ordinary `status-label` contains the invented secret `páss`. Redactor.sensitive returns false. ScreenMasker changes the returned UI text to `<redacted>` but leaves the image inside the label bounds unchanged. The probe checks whether the rectangle is painted; it does not use a real screenshot or real credential.
 
 Recommended correction: search the original string values in the UI structure before JSON encoding. Keep the existing element-ID and secure-field checks. Use separate simple tests for Unicode, quotes, backslashes, nested text, and a normal non-sensitive label.
+
+Resolution, 28 October 2026: original nested UI strings now drive secret detection, and pixel tests pass for Unicode, quotes, backslashes, and newlines. Sensitive elements also mask nested UI text values. Required-mask failure still stops execution. D2 is resolved for the tested implementation; real-device masking acceptance remains open.
 
 ## D3 — P1: instruction completion has no complete instruction inventory
 

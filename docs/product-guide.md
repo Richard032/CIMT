@@ -155,6 +155,8 @@ All example script paths refer to optional user-provided files, not scripts ship
 
 Masking supports **element-id rules only**, with no screen-region coordinates. Secrets must be masked in screenshots/UI text before saving or AI processing. If required masking cannot be applied reliably, stop and report. Named credential references, not secret values, are stored in action recordings.
 
+Redaction removes credential values from observations and text before JSON/HTML encoding. It preserves test statuses, generated IDs, numbers, and evidence links, including when their characters happen to match a credential. Screenshot masking searches original UI strings, including Unicode and escaped characters, and masks nested text in sensitive elements. See [redaction behavior and verification](redaction.md).
+
 ## 7. Path rules and run folders
 
 | Path | Resolution |

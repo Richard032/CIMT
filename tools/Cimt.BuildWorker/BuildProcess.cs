@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Cimt.Secrets;
 
 namespace Cimt.Build;
 
@@ -35,20 +36,15 @@ public sealed class BuildProcess(string executable) : IBuildProcess
 /// <summary>Removes configured signing secrets before writing build diagnostics.</summary>
 public sealed class BuildLog(TextWriter output, TextWriter errors)
 {
-    private string[] secrets = [];
+    private SecretText text = new([]);
 
     public void Configure(Dictionary<string, string> properties)
     {
-        secrets = properties.Where(property => Regex.IsMatch(property.Key, "pass|secret|token|key", RegexOptions.IgnoreCase))
-            .Select(property => property.Value).Where(value => value.Length > 0).OrderByDescending(value => value.Length).ToArray();
+        text = new SecretText(properties.Where(property => Regex.IsMatch(property.Key, "pass|secret|token|key", RegexOptions.IgnoreCase))
+            .Select(property => property.Value));
     }
 
-    public string Scrub(string value)
-    {
-        foreach (var secret in secrets)
-            value = value.Replace(secret, "<redacted>", StringComparison.Ordinal);
-        return value;
-    }
+    public string Scrub(string value) => text.Scrub(value);
 
     public void ProcessOutput(BuildProcessResult result)
     {

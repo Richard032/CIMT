@@ -26,6 +26,8 @@ Each objective gets a fresh result for every catalogue item. All start as not te
 
 Requirement checks must use a known requirementId. Instruction checks use an empty ID. Each decided check includes expected and observed behavior. The host supplies its step number and links the same masked screen used for that decision. CheckRecorder records and publishes the result before image storage, so a storage error cannot erase a known failure. Original check history remains available even when the current requirement status changes.
 
+Check redaction preserves status, source, and requirement ID while removing secrets from observations and other text. The recorder validates the exact redacted check before it reaches the verdict policy. Final JSON/HTML retains IDs, statuses, hashes, and evidence links without running text replacement over serialized data. See [redaction](redaction.md).
+
 | Status | Required information and behavior |
 | --- | --- |
 | passed | Expected and observed behavior support the complete catalogue item. |

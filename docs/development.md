@@ -47,6 +47,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | mobile.py | Connect the device services used by a scenario. |
 | app_lifecycle.py, device_commands.py | Install/reset the tested app and query readiness/status. |
 | redaction.py, screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
+| record_redaction.py | Redact text according to each result record type while preserving its control metadata. |
 | mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
@@ -67,7 +68,9 @@ Expected result: all checks pass. A failure makes the script return a nonzero co
 
 ## Defect boundaries
 
-Checks have explicit expected and observed behavior. A failed effective expectation remains failed after a later pass or an execution limit. A validated instruction override changes the applicable requirement expectation, while preserving the original observation in history; it cannot hide app crashes or instruction failures. Finishing navigation without an explicit objective check is inconclusive. Each recorded check points to the masked screen used for that decision. RequirementCatalogue now preserves every nonblank source item, text, line range, and stable ID. RequirementReportBuilder constructs scoped coverage from configured targets and startup devices. Full semantic scenario planning and real application acceptance remain release work.
+Checks have explicit expected and observed behavior. A failed effective expectation remains failed after a later pass or an execution limit. A validated instruction override changes the applicable requirement expectation, while preserving the original observation in history; it cannot hide app crashes or instruction failures. Finishing navigation without an explicit objective check is inconclusive. Each recorded check points to the masked screen used for that decision. RequirementCatalogue retains requirement entries with text, line ranges, and stable IDs, and keeps explicit Markdown headings as separate context. RequirementReportBuilder constructs scoped coverage from configured targets and startup devices. Full semantic scenario planning and real application acceptance remain release work.
+
+Keep redaction at record boundaries. Add new control fields to the correct record type in both runtimes and add a small regression case. Never exempt an arbitrary nested payload because a field is named status, and never replace secrets in serialized JSON or HTML. JsonTextRedactor owns value traversal; ExecutionRedactor and RunReportRedactor own their record contracts. SecretText is compiled into the host and build worker without an assembly dependency between them. Use [the redaction contract](redaction.md) when changing these boundaries.
 
 Capture reads sensitive field positions before and after taking an image, even when the first screen has no sensitive field. Changed fields stop capture before the image can be returned. Known crash findings are published before capture or image storage; capture errors are separate evidence errors. The performed action is retained when capture or recovery throws.
 

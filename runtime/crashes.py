@@ -203,7 +203,9 @@ class CrashRecovery:
             "point": point,
             "matchingAttempt": count,
             "diagnostics": self.redactor.object(observation.diagnostics),
-            "reproductionSteps": self.redactor.object(session.history + [action]),
+            "reproductionSteps": [
+                self.redactor.records.action(item) for item in session.history + [action]
+            ],
         }
 
     @staticmethod

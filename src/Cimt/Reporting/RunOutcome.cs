@@ -24,6 +24,7 @@ public static class RunOutcomePolicy
                     var verdict = scenario.TryGetProperty("verdict", out var result) ? result.GetString() : null;
                     hasFailure |= scenario.GetProperty("crashes").GetArrayLength() > 0 || verdict == "failed";
                     allDecided &= verdict is "passed" or "failed";
+                    allDecided &= KnownCheckStatuses(scenario);
                     allComplete &= scenario.GetProperty("completion").GetString() == "complete";
                 }
             }
@@ -43,5 +44,17 @@ public static class RunOutcomePolicy
     {
         return new[] { "stoppingReason", "error" }.Any(key =>
             device.TryGetProperty(key, out var reason) && reason.ValueKind != JsonValueKind.Null);
+    }
+
+    private static bool KnownCheckStatuses(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("checks", out var checks))
+            return true;
+        if (checks.ValueKind != JsonValueKind.Array)
+            return false;
+        // A damaged status must not disappear from the completion decision.
+        return checks.EnumerateArray().All(check => check.ValueKind == JsonValueKind.Object
+            && check.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String
+            && status.GetString() is "passed" or "failed" or "not tested" or "inconclusive" or "overridden");
     }
 }

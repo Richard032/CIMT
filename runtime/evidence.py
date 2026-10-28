@@ -30,7 +30,7 @@ class RunJournal:
 
     def publish(self, result):
         # Copy and redact in the owning worker before sharing the result.
-        safe = self.redactor.object(result)
+        safe = self.redactor.records.device_result(result)
         with self.lock:
             self.results = [item for item in self.results if item["index"] != result["index"]] + [
                 safe

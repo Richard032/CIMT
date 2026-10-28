@@ -45,7 +45,9 @@ public sealed class RunReportWriter : IRunReportWriter
             requirementCoverage = coverage,
             execution
         };
-        var json = JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        File.WriteAllText(Path.Combine(state.Report, "result.json"), state.Configuration.Scrub(json));
+        var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var source = JsonSerializer.SerializeToElement(value, options);
+        var safe = new RunReportRedactor(new JsonTextRedactor(state.Configuration.Scrub)).Run(source);
+        File.WriteAllText(Path.Combine(state.Report, "result.json"), safe.ToJsonString(options));
     }
 }

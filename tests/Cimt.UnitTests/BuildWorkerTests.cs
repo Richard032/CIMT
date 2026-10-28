@@ -60,6 +60,22 @@ public sealed class BuildWorkerTests
     }
 
     [Fact]
+    public void BuildLogKeepsExistingRedactionMarkers()
+    {
+        var log = new BuildLog(TextWriter.Null, TextWriter.Null);
+        log.Configure(new() { ["Password"] = "e" });
+        Assert.Equal("s<redacted>cr<redacted>t", log.Scrub(log.Scrub("secret")));
+    }
+
+    [Fact]
+    public void BuildLogRemovesEscapedSigningSecret()
+    {
+        var log = new BuildLog(TextWriter.Null, TextWriter.Null);
+        log.Configure(new() { ["Password"] = "a\"b" });
+        Assert.Equal("log <redacted>", log.Scrub("log a\\u0022b"));
+    }
+
+    [Fact]
     public async Task FailedPublishDoesNotQueryMetadataOrWriteSuccess()
     {
         using var temporary = new TestDirectory();

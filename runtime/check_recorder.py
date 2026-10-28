@@ -19,7 +19,11 @@ class CheckRecorder:
         if not checks:
             return
         index = len(session.result["steps"])
-        recorded = [dict(check, step=index) for check in self.redactor.object(checks)]
+        safe = [self.redactor.records.check(check) for check in checks]
+        # Verify the exact values that the verdict policy will receive.
+        validate_checks(safe)
+        RequirementResults.validate(safe, rows, instructions)
+        recorded = [dict(check, step=index) for check in safe]
         session.result["checks"].extend(recorded)
         RequirementResults.record(rows, recorded)
         step = {

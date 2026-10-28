@@ -2,8 +2,10 @@
 
 import io
 import json
+import re
 from PIL import Image, ImageDraw
 from errors import InfrastructureError
+from record_redaction import RecordRedactor
 
 
 class Redactor:
@@ -29,13 +31,30 @@ class Redactor:
 
         visit(config)
         self.ids = {rule["element-id"] for rule in config.get("masking", {}).get("rules", [])}
+        self.records = RecordRedactor(self)
+        # Match once so replacements cannot damage each other or an existing marker.
+        spellings = set()
+        for secret in self.secrets:
+            spellings.update(self._spellings(secret))
+        if spellings:
+            spellings.add("<redacted>")
+        choices = [re.escape(secret) for secret in sorted(spellings, key=len, reverse=True)]
+        self.pattern = re.compile("|".join(choices)) if choices else None
+
+    @staticmethod
+    def _spellings(secret):
+        escaped = json.dumps(secret)[1:-1]
+        return [
+            secret,
+            escaped,
+            json.dumps(secret, ensure_ascii=False)[1:-1],
+            re.sub(r"\\u[0-9a-fA-F]{4}", lambda match: "\\u" + match[0][2:].upper(), escaped),
+        ]
 
     def text(self, text):
         """Remove known secret values before text is saved or reported."""
         text = str(text)
-        for secret in sorted(self.secrets, key=len, reverse=True):
-            text = text.replace(secret, "<redacted>")
-        return text
+        return self.pattern.sub("<redacted>", text) if self.pattern else text
 
     def object(self, value):
         """Copy nested data while removing secret values from its strings."""
@@ -54,8 +73,15 @@ class Redactor:
             for x in ["password", "securetext", "token", "secret"]
         ):
             return True
-        value = json.dumps(element)
-        return any(secret in value for secret in self.secrets)
+        return self.contains_secret(element)
+
+    def contains_secret(self, value):
+        """Inspect original strings. JSON escaping must not hide a required pixel mask."""
+        if isinstance(value, dict):
+            return any(self.contains_secret(item) for item in value.values())
+        if isinstance(value, list):
+            return any(self.contains_secret(item) for item in value)
+        return isinstance(value, str) and any(secret in value for secret in self.secrets)
 
 
 class ScreenMasker:
@@ -85,13 +111,26 @@ class ScreenMasker:
         return sx, sy
 
     def _element(self, element, draw, image, scale):
-        item = self.redactor.object(element)
+        item = self.redactor.records.element(element)
         if self.redactor.sensitive(element):
             self._draw_mask(element, draw, image, scale)
-            for key in ["text", "label", "name", "value"]:
-                if key in item:
-                    item[key] = "<masked>"
+            item = self._mask_text(item)
         return item
+
+    @staticmethod
+    def _mask_text(value):
+        if isinstance(value, dict):
+            return {
+                key: (
+                    "<masked>"
+                    if key in ["text", "label", "name", "value"]
+                    else ScreenMasker._mask_text(item)
+                )
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [ScreenMasker._mask_text(item) for item in value]
+        return value
 
     @staticmethod
     def _draw_mask(element, draw, image, scale):

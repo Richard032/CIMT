@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.7  
+Version: 0.8  
 Last updated: 28 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -755,3 +755,17 @@ cimt --help
 ```
 
 The first Mac was updated this way after all 254 offline checks passed. Installed host/prompt files were compared with the tested source. The mapping example retains one heading as context and five requirement results. Private configuration was not read or changed. See [mapping rules](requirement-mapping.md); this does not establish real-device acceptance.
+
+## 20. Redaction correction — 28 October 2026
+
+Update the host, build worker, and all Python modules together. The worker now includes record_redaction.py; copying only redaction.py is insufficient. No additional dependency, YAML field, or private configuration change is needed.
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
+cp runtime/*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
+cimt --help
+```
+
+First-Mac verification: all 301 offline checks passed. Both installed assemblies and all Python modules match the tested source; public help works. A synthetic result passed through the real Python recorder/journal and .NET writer retains failed and exit 1 for the original status/credential collision. Pixel tests cover Unicode and escaped-character secrets. No private configuration was read or changed, and no phone or API was used. Historical reports are preserved. See [redaction behavior and limits](redaction.md).

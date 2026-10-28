@@ -24,7 +24,7 @@ class DeviceRunner:
         folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         result = {
             "index": index,
-            "device": self.redactor.object(device),
+            "device": self.redactor.records.device(device),
             "scenarios": [],
             "error": None,
             "stoppingReason": None,

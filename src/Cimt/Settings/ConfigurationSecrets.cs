@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Cimt.Secrets;
 
 namespace Cimt;
 
@@ -6,8 +7,13 @@ namespace Cimt;
 public sealed class ConfigurationSecrets
 {
     public HashSet<string> Values { get; } = new(StringComparer.Ordinal);
+    private readonly SecretText text;
 
-    public ConfigurationSecrets(Node root) => Collect(root, false);
+    public ConfigurationSecrets(Node root)
+    {
+        Collect(root, false);
+        text = new SecretText(Values);
+    }
 
     private void Collect(Node node, bool sensitive)
     {
@@ -21,13 +27,7 @@ public sealed class ConfigurationSecrets
                 Collect(child, sensitive);
     }
 
-    public string Scrub(string value)
-    {
-        // Longer values go first so a short secret cannot expose part of a longer one.
-        foreach (var secret in Values.OrderByDescending(item => item.Length))
-            value = value.Replace(secret, "<redacted>", StringComparison.Ordinal);
-        return value;
-    }
+    public string Scrub(string value) => text.Scrub(value);
 
     public object? Sanitized(Node node)
     {
@@ -35,7 +35,7 @@ public sealed class ConfigurationSecrets
             return node.Map.ToDictionary(item => item.Key, item => Sanitized(item.Value));
         if (node.List is not null)
             return node.List.Select(Sanitized).ToArray();
-        return Values.Contains(node.Scalar ?? "") ? "<redacted>" : node.Scalar;
+        return node.Scalar is { } value ? Scrub(value) : null;
     }
 }
 

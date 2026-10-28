@@ -1,9 +1,11 @@
 # CIMT architecture
 
-Version: 0.9  
+Version: 0.10  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
+
+Implemented redaction correction: observations and other free text are redacted separately from typed control metadata. The worker uses RecordRedactor; the .NET report boundary uses JsonTextRedactor, ExecutionRedactor, and RunReportRedactor before serialization. JSON syntax, status values, generated IDs, numbers, and evidence links are preserved. Screen masking searches original nested UI strings before encoding. See the [redaction contract and verification](redaction.md). This implements FR-28/FR-36 without changing the public interface.
 
 ## 1. Architectural boundary
 
