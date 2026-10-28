@@ -53,7 +53,68 @@ try
         using(var held=new MachineLock()){Assert(Probe()==0,"second process entered lock");}
         Assert(Probe()==1,"lock not released");
     });
-    Check("unimplemented run cannot report a pass",()=>{var code=Entry.Run(["run","--config",file]).GetAwaiter().GetResult();Assert(code==3,"unimplemented run passed");var reports=Directory.GetFiles(Path.Combine(temp,"reports"),"index.html",SearchOption.AllDirectories);Assert(reports.Length>0,"missing HTML report");Assert(reports.All(p=>!File.ReadAllText(p).Contains(secret)),"report leaked secret");});
+    Check("missing runtime cannot report an application pass",()=>{var code=Entry.Run(["run","--config",file]).GetAwaiter().GetResult();Assert(code==3,"missing runtime passed");var reports=Directory.GetFiles(Path.Combine(temp,"reports"),"index.html",SearchOption.AllDirectories);Assert(reports.Length>0,"missing HTML report");Assert(reports.All(p=>!File.ReadAllText(p).Contains(secret)),"report leaked secret");});
+    Check("interrupted cleanup removes only owned work",()=>{var unrelated=Path.Combine(temp,"keep");Directory.CreateDirectory(unrelated);File.WriteAllText(Path.Combine(unrelated,"keep.txt"),"keep");var owned=RunEngine.CreateOwnedWork(Path.Combine(temp,"work"));Directory.CreateDirectory(Path.Combine(owned,"repository"));File.WriteAllText(Path.Combine(owned,"repository","App.csproj"),"fixture");RunEngine.CleanupPreviousOwnedWork();Assert(!Directory.Exists(owned),"owned clone remained");Assert(File.Exists(Path.Combine(unrelated,"keep.txt")),"unrelated work removed");});
+    Check("cleanup rejects a changed ownership token",()=>{var owned=RunEngine.CreateOwnedWork(Path.Combine(temp,"work"));var marker=Path.Combine(owned,".cimt-owned");var token=File.ReadAllText(marker);File.WriteAllText(marker,"changed");try{RunEngine.RemoveOwnedWork(owned);throw new Exception("foreign work removed");}catch(IOException){}Assert(Directory.Exists(owned),"unsafe cleanup");File.WriteAllText(marker,token);RunEngine.RemoveOwnedWork(owned);});
+    Check("public run continues after build failure and cleans its clone",()=>
+    {
+        string Executable(string name,string content){var p=Write(name,content);File.SetUnixFileMode(p,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);return p;}
+        Write("instructions.txt","Explore buttons; fixture only.");
+        Write("lib/cimt-runtime/run_ui.py","fixture worker selected by test executable");
+        Executable("tools/python/bin/python","""
+#!/usr/bin/env python3
+import sys,json,pathlib
+c=json.load(sys.stdin)
+if '--preflight' not in sys.argv:
+ d={'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
+ pathlib.Path(c['report'],'ui-results.json').write_text(json.dumps(d))
+print('Simulated runtime interface; no API or device actions.')
+""");
+        Executable("fakebin/node","""
+#!/usr/bin/env python3
+import sys,json
+if any('daemon' in a for a in sys.argv): print('{}')
+else: print(json.dumps({'devices':{'data':{'devices':[{'id':'fixture-device','platform':'android','state':'online'}]}},'binary':'fixture-native'}))
+""");
+        Executable("fakebin/git","""
+#!/usr/bin/env python3
+import sys,pathlib
+a=sys.argv[1:]
+if a[0]=='clone':
+ p=pathlib.Path(a[-1]);p.mkdir();(p/'App.sln').write_text('fixture');(p/'App.csproj').write_text('<Project />')
+elif 'rev-parse' in a: print('a'*40)
+elif 'submodule' not in a: sys.exit(4)
+""");
+        var build=Executable("fixture-build","""
+#!/bin/bash
+python3 - <<'PY'
+import json,os,pathlib,sys
+r=json.loads(pathlib.Path(os.environ['CIMT_BUILD_REQUEST']).read_text())
+if r['configuration']=='Failed':sys.exit(42)
+p=pathlib.Path(os.environ['CIMT_BUILD_RESULT']);a=p.parent/'fixture.apk';a.write_bytes(b'fixture only')
+p.write_text(json.dumps({'artifact':str(a),'app-id':'com.example.fixture'}))
+PY
+""");
+        var extra=Read("build: {targets: [{name: fail, configuration: Failed, project: App.csproj, android: {framework: net10.0-android, script: '"+build+"'}}, {name: ok, configuration: Release, project: App.csproj, android: {framework: net10.0-android, script: '"+build+"'}}]}");
+        var merged=Node.Merge(root,extra);
+        // Write the merged fixture as JSON, which is a YAML subset.
+        object? Value(Node n)=>n.Map is not null?n.Map.ToDictionary(p=>p.Key,p=>Value(p.Value)):n.List is not null?n.List.Select(Value).ToArray():n.Scalar;
+        var fixture=Write("fixture-run.yaml",JsonSerializer.Serialize(Value(merged)));
+        var prior=Environment.GetEnvironmentVariable("PATH");
+        var existing=Directory.Exists(Path.Combine(temp,"reports"))?Directory.GetDirectories(Path.Combine(temp,"reports")).ToHashSet():[];
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH",Path.Combine(temp,"fakebin")+Path.PathSeparator+prior);
+            Assert(Entry.Run(["run","--config",fixture]).GetAwaiter().GetResult()==3,"build failure did not dominate outcome");
+        }
+        finally{Environment.SetEnvironmentVariable("PATH",prior);}
+        var created=Directory.GetDirectories(Path.Combine(temp,"reports")).Single(p=>!existing.Contains(p));
+        using var result=JsonDocument.Parse(File.ReadAllText(Path.Combine(created,"result.json")));
+        var stages=result.RootElement.GetProperty("stages").EnumerateArray().Where(e=>e.GetProperty("stage").GetString()=="build").ToArray();
+        Assert(stages.Length==2&&stages[0].GetProperty("result").GetString()=="error"&&stages[1].GetProperty("result").GetString()=="passed","other target did not continue");
+        Assert(!Directory.EnumerateDirectories(Path.Combine(temp,"work"),"work_*").Any(),"run clone remained");
+        Assert(!File.ReadAllText(Path.Combine(created,"index.html")).Contains(secret),"secret appeared in application report");
+    });
     Console.WriteLine($"{passed} checks passed.");return 0;
 }
 finally{Directory.Delete(temp,true);}

@@ -1,0 +1,14 @@
+# Copy to default.private.yaml, fill api-key locally, and restrict it to its owner.
+workspace:
+  root: ./work
+reports:
+  root: ./reports
+  sections: [requirements, scenarios, findings, interpretations, diagnostics]
+execution:
+  time-limit-minutes: 60
+ai-model:
+  name: gpt-5.4-mini-2026-03-17
+  api-key: ""
+ai-budget:
+  amount: 5.00
+  currency: USD

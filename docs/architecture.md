@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.4  
+Version: 0.5  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -210,7 +210,7 @@ The product owner confirmed the reviewed requirements and architecture policies 
 
 ## 12. Approved command and configuration contracts
 
-The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate and the build-worker foundation now work; setup/run/replay execution remains pending. See section 14 for implementation limits.
+The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate, default build workers, and an initial run engine now exist; setup/replay execution remains pending. See section 14 for implementation limits.
 
 - setup consumes setup.yaml, including the installation root, tested toolchain manifest, and optional application validation configuration.
 - default.yaml supplies shared settings. app.yaml is a reusable per-run override. ai-model and ai-budget are separate sections.
@@ -240,11 +240,15 @@ The command/configuration and script contracts above were approved through the p
 
 ## 14. Implementation increment and explicit limits
 
-The .NET CLI/configuration foundation and generic default build workers now exist. See [implementation status](implementation-status.md). validate checks local configuration, inputs, Git branch/tool/device readiness and writes HTML. setup/run/replay execution, AI calls, and application orchestration remain unimplemented and return explicit incomplete/error reports.
+The .NET CLI/configuration foundation, generic default build workers, and initial single-objective run engine now exist. See [implementation status](implementation-status.md) and [run-engine notes](run-engine.md). validate checks local configuration, inputs, Git branch/tool/device readiness and writes HTML. run orchestrates a disposable branch clone, recorded submodules, builds, and a Python worker using Mobile MCP. The worker schedules all startup devices with at most two active, uses bounded OpenAI action selection, and records local evidence. This integration uses Mobile MCP provisionally; it does not close final adapter qualification. setup and replay still return explicit errors.
 
-The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from effective-config snapshots and diagnostics; actual screen masking is not yet implemented.
+The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from snapshots and diagnostics. The support worker implements element-ID masking before screenshot storage or AI submission; missing reliable geometry stops execution. Named credentials are entered directly by the host. These paths have simulated checks but still need application acceptance.
 
 Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
+
+The first pricing profile accepts only the explicit gpt-5.4-mini-2026-03-17 snapshot with USD accounting. Each request reserves the full model context input cost plus its enforced output cap under one shared lock; uncertain requests retain their maximum reservation. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
+
+The current engine treats the supplied text as one exploration objective per target/device. Full scenario decomposition, adaptive replay, manifest-driven setup, complete credential/reset acceptance, Jenkins, and second-Mac demonstration remain required. iOS reinstall verifies the app container; Keychain/backend reset requires application hooks where relevant. These are implementation limits, not changes to the requirements baseline.
 
 
 ### Device-control follow-up after Apple account recovery

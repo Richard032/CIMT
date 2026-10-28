@@ -11,6 +11,10 @@ runtimes:
   node: "22.23.4"
   npm: "10.9.9"
   microsoft-jdk: "21.0.13.0.2"
+  python-support: "3.14.8"
+  python-support-path: /Users/Shared/CIMT/tools/python/bin/python
+  pillow: "13.0.0"
+  truststore: "0.10.5"
 dotnet:
   sdk: "10.0.300"
   workload-set: "10.0.300.3"
@@ -55,6 +59,9 @@ application-repository:
 implementation-increments:
   cli: configuration-and-validate-foundation-installed
   foundation-checks: 15-passed
+  current-cli-lifecycle-checks: 18-passed
+  runtime-policy-checks: 13-passed
+  example-macos-build-fixture: 1-passed
   default-build-workers: installed
   simulated-build-contract-checks: 4-passed
   physical-android-control: both-candidates-passed
@@ -62,6 +69,9 @@ implementation-increments:
   adapter-selection: open-both-candidates-basic-control-demonstrated
   application-android-publish: blocked-by-windows-prebuild
   application-ios-publish: previous-provisioning-failure-revalidation-required
+  initial-run-engine: installed-single-objective-simulated-checks-passed
+  public-example-validation: stopped-empty-private-api-key-exit-3
+  live-example-run: pending-existing-api-key-and-real-build-verification
 
 iphone-follow-up:
   connection: wired-paired

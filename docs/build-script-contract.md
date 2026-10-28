@@ -52,7 +52,7 @@ export CIMT_BUILD_RESULT="/absolute/path/to/result.json"
 bash /Users/Shared/CIMT/scripts/build/android.sh
 ```
 
-For iOS, set an iOS framework in the request and invoke ios.sh. A failed publish returns its nonzero exit status and produces no successful result. CIMT's future run engine will translate build failures into final exit code 3 while continuing other targets.
+For iOS, set an iOS framework in the request and invoke ios.sh. A failed publish returns its nonzero exit status and produces no successful result. CIMT's initial run engine translates build failures into final exit code 3 while continuing other targets.
 
 ## Verification
 
@@ -80,3 +80,9 @@ The original developer checkout was unchanged. The temporary clone is removed af
 ## Remaining
 
 Resolve or explicitly configure the application's macOS pre-build compatibility and iOS signing, then rerun artifact/install checks. The scripts do not bypass these prerequisites, and their present status must not be described as successful end-to-end MAUI builds.
+
+## Main-branch example integration
+
+The [button/crash example](../examples/econ-button-crash/README.md) supplies replacement scripts that delegate to these installed defaults. A late MSBuild import runs the same CuRMiT tagger through Mono and replaces Windows copy with MSBuild Copy, only in the executable app project. Branding application IDs are explicit build properties. Source changes and generated resources stay in the disposable clone.
+
+One MSBuild fixture check verifies tagger invocation, resource copying, and isolation from unrelated projects. It does not prove that the real tagger, signed MAUI builds, or app installation succeed. The first configured public run must verify those paths; refreshed iOS profiles also need revalidation.

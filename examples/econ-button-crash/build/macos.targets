@@ -1,0 +1,5 @@
+<Project>
+  <!-- Import only into the application; preserve other projects' own targets. -->
+  <Import Project="$(MSBuildThisFileDirectory)prebuild.targets"
+          Condition="'$(MSBuildProjectName)' == 'EconMobile.Common'" />
+</Project>

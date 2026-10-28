@@ -1,15 +1,15 @@
 # CIMT installation and setup guide
 
-Version: 0.4  
+Version: 0.5  
 Last updated: 28 October 2026  
-Status: prerequisites, CLI foundation, and default build workers installed on the first Intel Mac; full execution and acceptance pending  
+Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
 ## 1. Purpose and current status
 
 This document describes how to prepare another supported Mac, install CIMT, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
 
-The CLI/configuration foundation and default Android/iOS build workers are implemented. cimt validate produces readiness reports; setup/run/replay execution remains unimplemented and returns an explicit error. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records the three reviewed increments and source installation commands. The prerequisite helpers remain separate from the future YAML-driven setup engine.
+The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. cimt validate produces readiness reports; setup and replay remain unimplemented and return an explicit error. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
 
 The agreed initial host scope is **Intel Macs**. This guide does not claim support for every macOS release, Apple Silicon, or every possible Xcode/device combination. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
@@ -450,7 +450,7 @@ The earlier GitHub terminal-authentication failures are not a blocker for readin
 
 The original application checkout remains untouched. Raw device evidence and build logs remain local; no screenshots, device IDs, signing identities, or credentials are committed. Temporary application clones are deleted after evaluation; retained evidence is outside them.
 
-The CLI recognizes all four approved command names, but only validate is implemented. setup/run/replay return explicit errors; the final setup engine, autonomous testing engine, per-step app reports, and complete cleanup/scheduling orchestration remain to be built. These partial capabilities supersede earlier historical statements that no CLI/build workers exist.
+At this increment only validate was implemented; setup/run/replay returned explicit errors. Section 14 supersedes that run status with the initial execution engine. The complete approved product and its acceptance checks remain unfinished.
 
 Development verification commands:
 
@@ -478,6 +478,7 @@ dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CI
 cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
 cp scripts/build/android.sh scripts/build/ios.sh "$CIMT_INSTALL_ROOT/scripts/build/"
 chmod +x "$CIMT_INSTALL_ROOT/bin/cimt" "$CIMT_INSTALL_ROOT/scripts/build/"*.sh
+bash scripts/install-cimt-runtime.sh
 cimt --help
 ```
 
@@ -645,3 +646,47 @@ After the product owner unlocked the phone, a new iPhone-only probe completed wi
 Evidence is in a fresh private evaluation folder. Raw screenshots, UI text, identifiers, and signing details were not committed. The MCP client exited, the temporary native daemon was stopped, and DeviceKit remains installed for reuse.
 
 Both Mobile MCP and Appium now have basic physical Android/iPhone control evidence on this Mac. This does not finish the selection gate: text input, simultaneous-device operation, real MAUI build/install/reset/login/crash flows, Jenkins, and the complete acceptance criteria remain unverified. The next application-build validation must account for the refreshed signing profiles rather than assume the earlier provisioning failure still applies.
+
+## 14. Initial run engine and application example — 28 October 2026
+
+### Install the support runtime
+
+The public run command now delegates screen processing and bounded action selection to a local Python worker. The prerequisite helper also calls scripts/install-cimt-runtime.sh. It creates an isolated environment under the selected installation root and installs Pillow 13.0.0 and truststore 0.10.5. It does not replace the Mac's global Python.
+
+Python 3.11 or newer must already be available. The helper searches PATH and conventional python.org locations. If absent, install a compatible Intel Python from the [official macOS downloads](https://www.python.org/downloads/macos/), then rerun. A selected executable can be supplied as CIMT_PYTHON_BOOTSTRAP. On the first Mac, the existing Python 3.14.8 was reused; no new global Python installation was needed. This remains a documented manual prerequisite until final setup automation.
+
+From the CIMT source folder, after the prerequisite environment is prepared:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+bash scripts/install-cimt-runtime.sh
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
+chmod +x "$CIMT_INSTALL_ROOT/bin/cimt"
+```
+
+Keep the installed default build workers from section 10. The worker uses the Mac trust store for OpenAI HTTPS; TLS verification is enabled. Install dependencies through the helper rather than into a system Python. See [run-engine notes](run-engine.md) for architecture, policy checks, and remaining implementation limits.
+
+### Prepare the user-facing example
+
+All app-specific configuration and support files are in [examples/econ-button-crash](../examples/econ-button-crash/README.md). The example selects main, both Release_Generic/Release_Pride targets, and Android/iOS. It supplies a macOS adapter preserving the existing tagger through Mono and MSBuild Copy. Mono is an application-specific prerequisite: the first Mac already had Mono 6.12.0.206 at /Library/Frameworks/Mono.framework/Versions/Current/Commands/mono. Ensure mono is available on PATH when using this example. Real tagger/build compatibility is still unverified; the import passed an MSBuild fixture only.
+
+Copy default.example.yaml to default.private.yaml inside the example and restrict permissions to owner read/write. Enter the existing OpenAI API key locally in ai-model.api-key. Named login credentials, if needed, also belong in private YAML. The prepared local development copy has no key yet. Never commit private configuration or paste its secret values into chat.
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+cimt validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+cimt run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+```
+
+Jenkins uses the same run command. Its execution account still needs Git credentials, signing, device trust, an unlocked usable signing keychain, and access to the phones. Keep the test phones unlocked; CIMT does not enter device passcodes. No Jenkins acceptance run has been performed.
+
+The example allows 60 minutes and USD 5 across the entire run. Its explicit model is gpt-5.4-mini-2026-03-17. The initial runtime rejects models/currencies without a validated pricing bound. Review these settings before use. The runtime checks model-read access before builds and uses Responses for action selection; validation alone checks configured credential presence rather than provider access.
+
+### Review of this step
+
+Done: installed support runtime, public run integration, example files, macOS target adapter, and local report/cleanup paths. Eighteen CLI/lifecycle checks, 13 runtime-policy checks, four simulated build-contract checks, and one MSBuild adapter fixture passed. These are development checks, not real app tests.
+
+Blocked: the example's private key field is empty. Running the installed public validate command produced exit 3 and a timestamped HTML error report under the example's reports folder. No OpenAI inference, real application build through the new adapter, reset/install, or button exploration occurred in this step. The user selected an existing key; its usable local source is still pending.
+
+Remaining: validate with that key, run the example through the public command, inspect signed APK/IPA and physical-device evidence, and resolve any failures in the example integration. iOS reinstall verifies container reset; Keychain or backend reset needs app-specific hooks. Final adapter choice, supported manifest, setup/replay, full scenarios, Jenkins, and second-Mac acceptance remain open.

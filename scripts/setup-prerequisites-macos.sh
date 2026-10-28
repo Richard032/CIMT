@@ -15,4 +15,5 @@ source "$CIMT_INSTALL_ROOT/environment.sh"
 cd "$CIMT_INSTALL_ROOT"
 dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
 bash "$SCRIPT_DIR/install-macos-mobile-tools.sh"
+bash "$SCRIPT_DIR/install-cimt-runtime.sh"
 echo "Prerequisite installation complete; device/signing/Git account validation is separate."

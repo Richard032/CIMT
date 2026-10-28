@@ -7,3 +7,8 @@ artifacts/
 default.yaml
 app.yaml
 setup.yaml
+**/*.private.yaml
+examples/**/work/
+examples/**/reports/
+**/__pycache__/
+*.pyc

@@ -9,6 +9,7 @@ public static class Entry
 {
     public static async Task<int> Run(string[] args)
     {
+        var started=DateTimeOffset.UtcNow;
         if(args.Length==0 || args[0] is "--help" or "help")
         { Console.WriteLine("CIMT — Curtis Intelligent Mobile Test\nCommands: setup, validate, run, replay\nOptions: --config <YAML> [--run-config <YAML>] [--branch <branch>] [--scenario <saved-scenario>]"); return 0; }
         Configuration? config=null;string? report=null;var messages=new List<string>();
@@ -32,6 +33,7 @@ public static class Entry
             report=NewReport(config.ReportsRoot);
             using var machineLock=new MachineLock();
             await File.WriteAllTextAsync(Path.Combine(report,"effective-config.json"),JsonSerializer.Serialize(config.Sanitized(root),new JsonSerializerOptions{WriteIndented=true}));
+            if(command=="run")return await RunEngine.Execute(config,report,started);
             if(command!="validate")throw new ConfigurationException("The "+command+" execution engine is not implemented yet. No application was built, installed, reset, or tested.");
             await ValidateReadiness(config,messages);
             messages.Add("Configuration/readiness checks passed. Model access, signing, login, application behaviour and strict billing enforcement require execution-time validation.");
@@ -44,7 +46,9 @@ public static class Entry
             messages.Add(config?.Scrub(message)??message);
             try
             {
-                report??=NewReport(Path.Combine(Configuration.InstallationRoot,"reports"));
+                var errorRoot=Path.Combine(Configuration.InstallationRoot,"reports");
+                if(config is not null){try{errorRoot=config.ReportsRoot;}catch(ConfigurationException){}catch(ArgumentException){}}
+                report??=NewReport(errorRoot);
                 await WriteReport(report,"inconclusive","incomplete",3,messages,config);
                 Console.Error.WriteLine((config?.Scrub(message)??message)+" Report: "+Path.Combine(report,"index.html"));
             }
@@ -126,15 +130,21 @@ public sealed class MachineLock : IDisposable
 public static class ProcessRunner
 {
     public sealed record Result(int Exit,string Stdout,string Stderr);
-    public static async Task<Result> Run(string executable,IEnumerable<string> args,int timeout,Dictionary<string,string>? environment=null)
+    public static async Task<Result> Run(string executable,IEnumerable<string> args,int timeout,Dictionary<string,string>? environment=null,string? workingDirectory=null,string? input=null)
     {
-        var info=new ProcessStartInfo(executable){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true};
+        var info=new ProcessStartInfo(executable){UseShellExecute=false,RedirectStandardOutput=true,RedirectStandardError=true,RedirectStandardInput=input is not null};
+        if(workingDirectory is not null)info.WorkingDirectory=workingDirectory;
         foreach(var arg in args)info.ArgumentList.Add(arg);
         if(environment is not null)foreach(var (k,v) in environment)info.Environment[k]=v;
         using var process=Process.Start(info)??throw new ConfigurationException("Unable to start a required tool.");
         var stdout=process.StandardOutput.ReadToEndAsync();var stderr=process.StandardError.ReadToEndAsync();
         using var cancellation=new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
-        try{await process.WaitForExitAsync(cancellation.Token);}catch(OperationCanceledException){process.Kill(true);await process.WaitForExitAsync();throw new ConfigurationException("A readiness check timed out.");}
+        try
+        {
+            if(input is not null){await process.StandardInput.WriteAsync(input.AsMemory(),cancellation.Token);process.StandardInput.Close();}
+            await process.WaitForExitAsync(cancellation.Token);
+        }
+        catch(OperationCanceledException){process.Kill(true);await process.WaitForExitAsync();throw new ConfigurationException("A required operation timed out.");}
         return new(process.ExitCode,await stdout,await stderr);
     }
 }

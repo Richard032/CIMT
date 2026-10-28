@@ -1,0 +1,6 @@
+Use the application's main branch and the build configurations in this folder.
+Use every supported physical device connected at CIMT startup, at most two at once.
+Keep test phones unlocked and connected for the run. Trust/developer authorization
+and iOS signing must already be prepared using the CIMT installation guide.
+External controllers and test accounts are prepared manually. None are supplied
+by this example. Record inaccessible equipment-dependent paths as blocked.

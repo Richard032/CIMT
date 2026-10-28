@@ -1,11 +1,11 @@
 # CIMT product documentation
 
-Version: 0.4  
+Version: 0.5  
 Date: 28 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
-**The CLI/configuration foundation and default build workers are implemented. validate works and writes local readiness reports. setup/run/replay execution and autonomous testing remain pending; those commands report the limitation explicitly. See the [implementation status](implementation-status.md) and [installation guide](installation.md). Example configuration values remain placeholders.**
+**validate, default build workers, and an initial single-objective run engine are implemented. The real app test has not yet run with this engine. setup and replay report that they are unimplemented. See the [implementation status](implementation-status.md), [installation guide](installation.md), and [runnable main-branch example](../examples/econ-button-crash/README.md). Private keys are supplied locally; none are bundled.**
 
 ## 1. Purpose and environment
 
@@ -311,7 +311,7 @@ Use the approved exit codes for pipeline results and preserve reports even on fa
 
 Demonstrate setup on a second Intel Mac and two build targets on a physical Android phone and iPhone. See [acceptance criteria](requirements.md#7-first-release-acceptance-criteria).
 
-Reviewed CLI responsibilities, YAML fields, path rules, script/result contracts, validation/replay behaviour, and masking scope are approved. Final adapter selection, a supported compatibility matrix, full schema constraints, reset environment details, strict billing proof, and full execution engines remain pending. The installed prerequisite profile, build handoff, CLI foundation, and validation reports are recorded in the implementation documents; final acceptance is still required.
+Reviewed CLI responsibilities, YAML fields, path rules, script/result contracts, validation/replay behaviour, and masking scope are approved. Final adapter selection, a supported compatibility matrix, full schema constraints, live reset/credential/billing verification, complete scenario/replay/setup engines, and release acceptance remain pending. The installed prerequisite profile and initial execution paths are recorded in the implementation documents.
 
 ## Review record — version 0.3
 
@@ -324,3 +324,7 @@ Activate /Users/Shared/CIMT/environment.sh, then run cimt --help or cimt validat
 Default scripts are installed in /Users/Shared/CIMT/scripts/build. The [build contract](build-script-contract.md) now defines their JSON request/result environment handoff. Source examples are in examples/default.example.yaml and examples/econ-app.example.yaml. They contain no secrets and no bundled demo app.
 
 Use the [step reviews](implementation-status.md) to distinguish implemented foundations, blocked validation, and remaining product work.
+
+The [button/crash example](../examples/econ-button-crash/README.md) contains both build targets, platform settings, instructions, requirements, setup notes, and application-specific macOS build support. Its public cimt run invocation uses the configured main branch. Reports and disposable work are local subfolders of that example. The existing API key belongs in ignored, owner-only default.private.yaml, never the tracked template.
+
+The current run engine performs one objective per target/device, with at most two devices active. It reports observed controls, attempted controls, remaining paths, screenshots, and confirmed or suspected terminations. It cannot promise to reach hidden or equipment-dependent buttons. Limits and blocking conditions produce incomplete reports. Only the documented model snapshot/USD profile is currently supported; other models need a validated pricing bound before use. See [run-engine limits](run-engine.md).

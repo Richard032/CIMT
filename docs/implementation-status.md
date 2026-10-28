@@ -16,7 +16,7 @@ Done: .NET command parsing, YAML mapping merge/list replacement, declaring-file 
 
 Verified: zero-warning build; 15 foundation checks passed; installed validate command checked the actual Subgit branch and connected devices. This demonstration used a synthetic credential for presence checking only and sent no OpenAI request.
 
-Working command: validate. Help is available. setup/run/replay names are recognized but their execution engines explicitly return error/incomplete reports. No fake application pass is emitted.
+At this increment the working command was validate. Help and explicit setup/run/replay limitations were available. The initial run engine described below supersedes that run status. No fake application pass is emitted.
 
 ## Reviewed increment 3 — default build scripts
 
@@ -52,14 +52,31 @@ Resolved on follow-up: the product owner unlocked the phone; a fresh guarded iPh
 - Both adapter candidates installed and Android control evaluated; Appium iPhone helper/control verified in 11 smoke checks; Mobile MCP DeviceKit installed and eight guarded iPhone smoke checks passed.
 - CLI/configuration foundation and readiness reports.
 - Default build-script implementation and contract tests.
+- Initial public run path, local support runtime, bounded action selection, owned clone lifecycle, max-two-device scheduling, evidence/report generation, and failure precedence, checked with simulations.
+- Main-branch example with both build configurations, private YAML template, text inputs, and an application-specific macOS pre-build adapter.
 
 ## Overall remaining
 
 - Complete input-entry coverage, simultaneous-device checks, and full final adapter qualification.
-- Correct/configure app-specific macOS pre-build support and verify real APK/IPA builds.
-- Implement full setup/run/replay, repository lifecycle, max-two-device scheduling, AI interpretation, strict billing reservations, reset/login, masking, crash recovery, and adaptive replay.
-- Complete per-step application evidence and requirement-outcome reports.
+- Supply the existing API key locally; verify model access and the real public-command run.
+- Verify real APK/IPA builds through the configured macOS adapter and refreshed signing profiles.
+- Qualify the implemented lifecycle, scheduling, budget reservations, reset/login, masking, evidence, and crash recovery against the real application.
+- Complete scenario decomposition, setup/replay, adaptive replay, and full requirement-outcome reporting.
 - Complete runnable user command/reset demos, manifest-driven provisioning, Jenkins and second-Intel-Mac acceptance.
 - Move CIMT's own repository to Subgit later when the destination/migration is supplied.
 
 No requirement gate was silently relaxed. Integration fixtures and incomplete commands are explicitly distinguished from working product behaviour.
+
+## Reviewed increment — user-facing main-branch exploration
+
+Done: the requested workflow now enters through cimt run. The example folder holds default and application YAML, instructions, requirements, setup notes, and macOS build scripts. Both Release_Generic and Release_Pride are configured on Android/iOS. The executable project and branding identifiers match inspected main source; the separate developer checkout was not changed. The source-inspection clone was deleted.
+
+Done: .NET orchestration and an isolated Python support worker now implement the initial single-objective path. Mobile MCP remains the provisional integration. Host code owns device scheduling, resets, masking, limits, credential entry, crash counters, reporting, and owned cleanup. setup/replay and full scenario decomposition remain unfinished. See [run-engine notes](run-engine.md).
+
+Verified: zero-warning CLI build; 18 CLI/configuration/lifecycle checks, 13 runtime-policy checks, four simulated build-contract checks, and one macOS MSBuild-adapter fixture passed. These 36 checks do not run the real MAUI app or call OpenAI. The runtime was installed with Python 3.14.8, Pillow 13.0.0, and truststore 0.10.5.
+
+Blocked live run: the user chose an existing OpenAI key, but no usable local source has been supplied. An ignored, owner-only example private YAML was prepared with an empty field. Public cimt validate stopped at that field with exit 3 and wrote its error report under the example's timestamped reports folder. No inference, app reset/install, or button exploration occurred in this increment.
+
+Review: the macOS adapter preserves tagging and copying in a fixture; the actual tagger and APK/IPA builds remain unverified. iOS reinstall verifies container reset only; Keychain/backend state needs app hooks where applicable. Current model support is restricted to the documented snapshot/USD pricing profile. These implementation limits are disclosed; the approved release requirements remain unchanged.
+
+Next: provide the existing key locally, validate the example, then execute its documented public run command. Review real build/device results before closing any application or adapter acceptance gate.

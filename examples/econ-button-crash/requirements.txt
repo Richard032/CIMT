@@ -1,0 +1,5 @@
+The application shall remain running when reachable enabled buttons and controls
+are activated during normal navigation and interaction.
+An action that intentionally leaves the app shall be described separately from a
+confirmed crash. Unexpected termination without crash diagnostics shall be marked
+as a suspected crash, with the evidence and uncertainty stated.

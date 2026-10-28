@@ -1,10 +1,10 @@
 # CIMT — Curtis Intelligent Mobile Test
 
-CIMT is a planned command-line product for autonomous everyday testing of .NET MAUI applications on connected Android and iOS devices.
+CIMT is a command-line product in development for autonomous everyday testing of .NET MAUI applications on connected Android and iOS devices.
 
 Developers supply a Git repository, configurable build targets, plain-text testing instructions, and requirements. CIMT will build the application, operate it on the devices, and produce a local HTML report with observations and evidence. Jenkins will invoke the same command through its pipelines.
 
-**Status: CLI/configuration foundation and default build workers implemented; autonomous testing, final adapter qualification, and real application build acceptance remain pending.**
+**Status: CLI validation, default build workers, and an initial single-objective run engine are implemented. The real application run, final adapter qualification, and release acceptance remain pending.**
 
 ## Documentation
 
@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.4, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.5, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -37,7 +37,7 @@ The planned commands are setup, validate, run, and replay. Configuration uses se
 
 CIMT will supply default Android/iOS build scripts. User replacements/custom copies are supported. All commands and script integrations require examples and runnable demos using a user-supplied app; no demo MAUI application will be bundled.
 
-See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the approved design. The CLI/configuration foundation and default build-script workers are implemented; full execution engines and end-to-end acceptance remain pending.
+See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. The [main-branch button/crash example](examples/econ-button-crash/README.md) supplies the public validate/run commands and all application-specific inputs. The [run-engine notes](docs/run-engine.md) distinguish the current implementation from the complete approved design.
 
 ## Prerequisite bootstrap
 
@@ -60,9 +60,9 @@ CIMT's product code and documentation remain in this GitHub repository for now. 
 
 ## Current implementation
 
-Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces real configuration/readiness reports. setup/run/replay execution remains explicitly unimplemented.
+Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces configuration/readiness reports. cimt run now owns cloning, builds, device scheduling, bounded AI exploration, evidence, and cleanup for one objective per target/device. setup and replay remain explicitly unimplemented. No real application pass is claimed from implementation fixtures.
 
 - [Adapter evaluation](docs/adapter-evaluation.md): both candidates exercised on Android and iPhone; Appium passed 11 iPhone checks and Mobile MCP passed 8 guarded iPhone smoke checks. Final application qualification remains open.
 - [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
 
-Development checks: dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release, and python3 tests/check-build-contract.py. Activate the prerequisite environment first.
+Development checks are listed in the [run-engine notes](docs/run-engine.md). Activate the prerequisite environment first. Private configuration, run evidence, and temporary work stay local.

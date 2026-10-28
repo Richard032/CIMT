@@ -1,0 +1,36 @@
+repository:
+  url: https://subgit.curtis.ch/ECON/ag-econ-mobile.git
+  branch: main
+  solution: EconMobile.sln
+inputs:
+  instructions: ./instructions.txt
+  requirements: ./requirements.txt
+  setup: ./setup.txt
+build:
+  targets:
+    - name: Release_Generic
+      configuration: Release_Generic
+      project: EconMobile.Common/EconMobile.Common.csproj
+      android:
+        framework: net10.0-android36.0
+        script: ./build/android.sh
+        properties:
+          ApplicationId: ch.curtis_gen.econ_a
+      ios:
+        framework: net10.0-ios
+        script: ./build/ios.sh
+        properties:
+          ApplicationId: ch.curtis-gen.econ-i
+    - name: Release_Pride
+      configuration: Release_Pride
+      project: EconMobile.Common/EconMobile.Common.csproj
+      android:
+        framework: net10.0-android36.0
+        script: ./build/android.sh
+        properties:
+          ApplicationId: ch.curtis.econ_a
+      ios:
+        framework: net10.0-ios
+        script: ./build/ios.sh
+        properties:
+          ApplicationId: ch.curtis.econ-i

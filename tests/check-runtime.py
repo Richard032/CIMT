@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Focused policy checks; no network requests and no real device actions."""
+import concurrent.futures, io, pathlib, sys, time, unittest, json
+from types import SimpleNamespace
+from decimal import Decimal
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'runtime'))
+from PIL import Image
+from agent import Agent, Budget, InfrastructureError, LimitReached, NoRedirect, FIELDS
+from mobile import Redactor
+from run_ui import CrashCounter, Execution
+
+MODEL = 'gpt-5.4-mini-2026-03-17'
+
+
+class RuntimeChecks(unittest.TestCase):
+    def test_two_workers_compete_for_final_reservation(self):
+        budget = Budget(MODEL, 1, 'USD'); budget.limit = budget.bound
+        def reserve(_):
+            try: budget.reserve(); return True
+            except LimitReached: return False
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(reserve, range(2)))
+        self.assertEqual(results.count(True), 1)
+        self.assertEqual(budget.pending, budget.bound)
+        budget.finish(None)
+        self.assertEqual(budget.pending, 0)
+        self.assertEqual(budget.uncertain, budget.bound)
+        with self.assertRaises(LimitReached): budget.reserve()
+
+    def test_usage_refunds_only_the_verified_unused_reservation(self):
+        budget = Budget(MODEL, 5, 'USD'); snapshots = []
+        budget.journal = lambda: snapshots.append(budget.snapshot())
+        budget.reserve(); budget.finish({'input_tokens': 100, 'output_tokens': 20})
+        self.assertEqual(budget.accounted, Decimal('0.000165'))
+        self.assertEqual(budget.pending, 0)
+        self.assertEqual(len(snapshots), 2)
+
+    def test_invalid_usage_keeps_full_uncertain_bound(self):
+        budget = Budget(MODEL, 5, 'USD'); budget.reserve()
+        with self.assertRaises(InfrastructureError): budget.finish({'input_tokens': 1, 'output_tokens': 999999})
+        self.assertEqual(budget.uncertain, budget.bound)
+
+    def test_unknown_model_currency_rejected(self):
+        for model, currency in [('unpriced-model', 'USD'), (MODEL, 'CHF')]:
+            with self.assertRaises(InfrastructureError): Budget(model, 5, currency)
+
+    def test_unfunded_action_makes_no_api_request(self):
+        budget = Budget(MODEL, '.01', 'USD')
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic-not-a-real-key'}}, budget, time.time() + 30)
+        calls = []
+        agent.request = lambda *args: calls.append(args)
+        with self.assertRaises(LimitReached): agent.choose('test', '', '', [], b'image-fixture', [], [], {})
+        self.assertFalse(calls)
+
+    def test_incomplete_response_executes_no_action(self):
+        budget = Budget(MODEL, 5, 'USD')
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic-not-a-real-key'}}, budget, time.time() + 30)
+        agent.request = lambda *args: {'status': 'incomplete', 'usage': {'input_tokens': 10, 'output_tokens': 2048}}
+        with self.assertRaises(InfrastructureError): agent.choose('test', '', '', [], b'image-fixture', [], [], {})
+        self.assertEqual(budget.uncertain, 0)
+
+    def test_api_redirect_is_rejected(self):
+        with self.assertRaises(InfrastructureError): NoRedirect().redirect_request()
+
+    def test_element_id_mask_blacks_pixels_and_scrubs_ui(self):
+        redactor = Redactor({'ai-model': {'api-key': 'synthetic-api-secret'}, 'masking': {'rules': [{'element-id': 'PasswordEntry'}]}})
+        raw = [{'ref': '@e1', 'identifier': 'PasswordEntry', 'type': 'EditText', 'value': 'unknown-secret',
+                'coordinates': {'x': 20, 'y': 30, 'width': 20, 'height': 10}}]
+        source = io.BytesIO(); Image.new('RGB', (100, 100), 'white').save(source, format='PNG')
+        safe, encoded = redactor.capture(raw, source.getvalue(), {'width': 100, 'height': 100})
+        image = Image.open(io.BytesIO(encoded))
+        self.assertEqual(image.getpixel((25, 35)), (0, 0, 0))
+        self.assertEqual(image.getpixel((95, 95)), (255, 255, 255))
+        self.assertEqual(safe[0]['ref'], '@e1'); self.assertEqual(safe[0]['value'], '<masked>')
+
+    def test_required_mask_without_bounds_stops(self):
+        redactor = Redactor({'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}})
+        source = io.BytesIO(); Image.new('RGB', (100, 100), 'white').save(source, format='PNG')
+        with self.assertRaises(InfrastructureError):
+            redactor.capture([{'value': 'synthetic-password'}], source.getvalue(), {'width': 100, 'height': 100})
+        self.assertNotIn('synthetic-password', redactor.text('error synthetic-password'))
+
+    def test_same_point_crashes_cancel_at_three(self):
+        counter = CrashCounter()
+        self.assertEqual(counter.record('point-A', True), 1)
+        counter.record('navigation-B', False)
+        self.assertEqual(counter.record('point-A', True), 2)
+        self.assertEqual(counter.record('point-A', True), 3)
+        self.assertEqual(counter.record('point-A', False), 0)
+        self.assertEqual(counter.record('point-A', True), 1)
+        self.assertEqual(counter.record('different-crash', True), 1)
+
+    def test_coordinate_taps_are_bounded_by_device_dimensions(self):
+        calls = []
+        mobile = SimpleNamespace(readiness=lambda: None, call=lambda *a, **kw: calls.append((a, kw)))
+        execution = object.__new__(Execution); execution.config = {}
+        elements = [{'type': 'CimtScreenInfo', 'screenWidth': 100, 'screenHeight': 200}]
+        action = {'action': 'tap', 'ref': '', 'x': 100, 'y': 2}
+        with self.assertRaises(ValueError): execution.execute_action(mobile, action, elements)
+        self.assertFalse(calls)
+        action['x'] = 20; execution.execute_action(mobile, action, elements)
+        self.assertEqual(calls[0][1], {'x': 20, 'y': 2})
+
+    def test_credentials_require_maskable_element_identifier(self):
+        calls = []; config = {'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}}
+        mobile = SimpleNamespace(readiness=lambda: None, call=lambda *a, **kw: calls.append((a, kw)))
+        execution = object.__new__(Execution); execution.config = config; execution.redactor = Redactor(config)
+        action = {'action': 'credential', 'ref': '@e1', 'credential': 'test', 'field': 'password'}
+        with self.assertRaises(InfrastructureError): execution.execute_action(mobile, action, [{'ref': '@e1'}])
+        self.assertFalse(calls)
+
+    def test_model_input_contains_aliases_but_no_credential_values(self):
+        config = {'ai-model': {'name': MODEL, 'api-key': 'synthetic-api-key'},
+                  'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}}
+        agent = Agent(config, Budget(MODEL, 5, 'USD'), time.time() + 30)
+        action = {k: '' for k in FIELDS}; action.update(action='done', x=-1, y=-1, remaining=[], completion='blocked')
+        bodies = []
+        def respond(path, body):
+            bodies.append(body)
+            return {'status': 'completed', 'usage': {'input_tokens': 10, 'output_tokens': 10},
+                    'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': json.dumps(action)}]}]}
+        agent.request = respond
+        agent.choose('test', '', '', [], b'image-fixture', [], ['test'], {})
+        encoded = json.dumps(bodies)
+        for secret in ['synthetic-api-key', 'synthetic-user', 'synthetic-password']: self.assertNotIn(secret, encoded)
+        self.assertIn('credentialAliases', encoded)
+
+
+if __name__ == '__main__': unittest.main(verbosity=2)

@@ -1,0 +1,23 @@
+Test the main branch for crashes by exploring all reachable buttons and controls.
+
+Start from a reset application. Explore navigation, tabs, menus, dialogs, back
+buttons, settings, and enabled controls on every reachable screen. Scroll to find
+additional controls. Tap each distinct available button where possible. Use
+short synthetic text when a non-secret input is needed to reach more controls.
+Use named test credentials only if they are supplied in private configuration.
+
+When a control needs unavailable credentials, backend data, or external equipment,
+record what is blocked and continue other reachable paths. Stay within the tested
+application and permission dialogs related to it. Record external links without
+exploring unrelated applications or websites.
+
+If the application crashes or closes unexpectedly, record the last action,
+reproduction path, platform, target, screenshots, and available diagnostics.
+Relaunch and continue. Choose useful reproduction attempts within the run limits;
+cancel only this scenario after three consecutive matching same-point crashes.
+
+Attempt broad button coverage, not an unbounded claim about every possible state.
+Report visited controls, remaining paths, blocked controls, ambiguous behaviour,
+and the interpretation used. An unexpected crash fails the test. Outstanding
+coverage at a time/budget limit makes execution incomplete. Never report that all
+buttons were tested merely because a limit was reached.
