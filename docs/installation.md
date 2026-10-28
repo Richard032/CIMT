@@ -722,3 +722,13 @@ The review fixes use the same installation commands in section 15. No new depend
 The offline suite verifies functional findings, a result returned as a time limit expires, unresolved-check resolution, sensitive-screen transitions, preserved crash evidence, native command errors, custom-script YAML fallbacks, and clone cleanup after helper failure. These are source checks for a prepared Mac. A signed application build and physical-device exploration still need their separate acceptance run. The iPhone is unavailable at this review; no iPhone operation was attempted.
 
 First-Mac result: both .NET components were republished successfully, support dependencies were already installed, and all Python modules were copied. The public cimt --help command returned successfully. Installed host and Python module files match the corrected source build.
+
+## 17. Install the requirement-mapping increment
+
+Use the same republish and runtime-install steps in section 15. No additional dependency, YAML field, API key, or phone helper is introduced. Update both the host and all Python support modules together: the runtime request and check-response contracts now include requirement IDs and current results.
+
+New reports retain requirements.json with the complete catalogue and redacted source fingerprint. result.json and HTML include every item and applicable target/device result, even when builds or device execution did not start. Existing private YAML and text-input paths continue to work.
+
+To check the report on any prepared development Mac without devices or API access, run the [offline mapping demonstration](../examples/requirement-mapping/README.md). Its five synthetic statuses produce expected exit 1 with incomplete completion. Run the full development suite before installing source changes. This check is separate from signed real-app/device qualification.
+
+First-Mac mapping installation verified: republished the host, copied all Python support modules, checked public help, and compared installed files with the source build. Private configuration was preserved.

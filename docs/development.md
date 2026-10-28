@@ -36,6 +36,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | run_ui.py, device_runner.py | Connect services and handle one device's failures. |
 | device_scheduler.py | Submit startup devices with a two-worker limit. |
 | check_results.py | Validate explicit observations and calculate the scenario verdict. |
+| check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
 | actions.py | Validate and execute allowed actions; enter credentials locally. |
 | coverage_tracker.py | Track observed and activated controls. |
@@ -66,8 +67,10 @@ Expected result: all checks pass. A failure makes the script return a nonzero co
 
 ## Defect boundaries
 
-Checks have explicit expected and observed behavior. A failed check remains failed after a later pass or an execution limit. Finishing navigation without an explicit objective check is inconclusive. Each recorded check points to the masked screen used for that decision. Full discovery of every supplied requirement is still release work.
+Checks have explicit expected and observed behavior. A failed effective expectation remains failed after a later pass or an execution limit. A validated instruction override changes the applicable requirement expectation, while preserving the original observation in history; it cannot hide app crashes or instruction failures. Finishing navigation without an explicit objective check is inconclusive. Each recorded check points to the masked screen used for that decision. RequirementCatalogue now preserves every nonblank source item, text, line range, and stable ID. RequirementReportBuilder constructs scoped coverage from configured targets and startup devices. Full semantic scenario planning and real application acceptance remain release work.
 
 Capture reads sensitive field positions before and after taking an image, even when the first screen has no sensitive field. Changed fields stop capture before the image can be returned. Known crash findings are published before capture or image storage; capture errors are separate evidence errors. The performed action is retained when capture or recovery throws.
 
 BuildResultResolver is a pure per-field policy. BuildArtifactStore reads metadata and saves artifacts; ApplicationBuilder records an unusable target and permits later targets. Helper shutdown and owned work deletion are separate cleanup attempts. Ownership checks still apply when helper shutdown fails.
+
+The mapping demo uses the real input and report services with synthetic observations. It is separate from the small unit tests. See [mapping rules](requirement-mapping.md) for the catalogue contract and status precedence. The action schema follows [official Structured Outputs guidance](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses); local mapping/quote validation remains mandatory.

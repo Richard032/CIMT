@@ -20,11 +20,28 @@ class Agent:
         self.transport.request("models/" + self.model)
 
     def choose(
-        self, instructions, requirements, setup, elements, screenshot, history, aliases, coverage
+        self,
+        instructions,
+        requirements,
+        setup,
+        elements,
+        screenshot,
+        history,
+        aliases,
+        coverage,
+        requirement_results=None,
     ):
         """Request one action after the shared budget has reserved its maximum cost."""
         body = self.prompts.build(
-            instructions, requirements, setup, elements, screenshot, history, aliases, coverage
+            instructions,
+            requirements,
+            setup,
+            elements,
+            screenshot,
+            history,
+            aliases,
+            coverage,
+            requirement_results,
         )
         return parse_action(self._request_action(body))
 

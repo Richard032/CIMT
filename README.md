@@ -4,7 +4,7 @@ CIMT is a command-line product in development for autonomous everyday testing of
 
 Developers supply a Git repository, configurable build targets, plain-text testing instructions, and requirements. CIMT will build the application, operate it on the devices, and produce a local HTML report with observations and evidence. Jenkins will invoke the same command through its pipelines.
 
-**Status: CLI validation, default build workers, and an initial single-objective run engine are implemented. The real application run, final adapter qualification, and release acceptance remain pending.**
+**Status: CLI validation, default build workers, an initial single-objective run engine, and complete source requirement mapping are implemented. The real application run, final adapter qualification, and release acceptance remain pending.**
 
 ## Documentation
 
@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.6, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.3, dated 27 October 2026. The architecture is version 0.7. Product and installation guides are updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -66,3 +66,6 @@ Read the [reviewed implementation status](docs/implementation-status.md) for don
 - [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
 
 Run development checks with bash scripts/check-development.sh. The [development guide](docs/development.md) explains the small services, unit-test boundaries, and simple English comment rules from [AGENTS.md](AGENTS.md). Private configuration, run evidence, and temporary work stay local.
+
+- [Complete requirement mapping](docs/requirement-mapping.md): source catalogue, five statuses, evidence, and every applicable target/device combination.
+- [Offline mapping demonstration](examples/requirement-mapping/README.md): runnable synthetic report; no API key or phone needed.

@@ -14,6 +14,7 @@ public static class RuntimeRequest
         ["builds"] = state.Builds,
         ["devices"] = state.Devices,
         ["inputs"] = state.Inputs,
+        ["requirements"] = state.Requirements,
         ["resetDirectories"] = ResetDirectories(state.Configuration.Root)
     };
 

@@ -27,6 +27,13 @@ public sealed class TextInputLoader(ITextInputReader reader) : IRunStep
     {
         foreach (var (name, source) in state.Configuration.Root.Get("inputs")!.Map!)
             state.Inputs[name] = await ReadInput(state, source);
+        state.Requirements = RequirementCatalogue.Read(state.Inputs.GetValueOrDefault("requirements", ""));
+        await File.WriteAllTextAsync(Path.Combine(state.Report, "requirements.json"),
+            JsonSerializer.Serialize(new
+            {
+                sourceSha256 = RequirementCatalogue.Hash(state.Inputs.GetValueOrDefault("requirements", "")),
+                items = state.Requirements
+            }, new JsonSerializerOptions { WriteIndented = true }));
         await File.WriteAllTextAsync(Path.Combine(state.Report, "inputs.json"),
             JsonSerializer.Serialize(state.Inputs, new JsonSerializerOptions { WriteIndented = true }));
     }

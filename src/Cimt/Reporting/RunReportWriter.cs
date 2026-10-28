@@ -8,10 +8,13 @@ public sealed class RunReportWriter : IRunReportWriter
     public int Write(RunState state)
     {
         var execution = ReadExecution(state.Report);
-        var outcome = RunOutcomePolicy.Evaluate(state.Exit, execution);
-        WriteMachineResult(state, outcome, execution);
+        var coverage = RequirementReportBuilder.Build(state.Requirements, RequirementScopes.Create(state),
+            execution, state.Inputs.GetValueOrDefault("instructions", ""),
+            RequirementCatalogue.Hash(state.Inputs.GetValueOrDefault("requirements", "")));
+        var outcome = RunOutcomePolicy.Evaluate(state.Exit, execution, coverage);
+        WriteMachineResult(state, outcome, execution, coverage);
         var renderer = new RunHtmlRenderer(state.Configuration);
-        File.WriteAllText(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution));
+        File.WriteAllText(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage));
         Console.WriteLine("CIMT run finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
         return outcome.ExitCode;
     }
@@ -22,7 +25,7 @@ public sealed class RunReportWriter : IRunReportWriter
         return File.Exists(path) ? JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(path)) : null;
     }
 
-    private static void WriteMachineResult(RunState state, RunOutcome outcome, JsonElement? execution)
+    private static void WriteMachineResult(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage coverage)
     {
         var value = new
         {
@@ -37,9 +40,10 @@ public sealed class RunReportWriter : IRunReportWriter
             stages = state.Stages,
             builds = state.Builds,
             errors = state.Errors,
+            requirementCoverage = coverage,
             execution
         };
-        var json = JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(value, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         File.WriteAllText(Path.Combine(state.Report, "result.json"), state.Configuration.Scrub(json));
     }
 }

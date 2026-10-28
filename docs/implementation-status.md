@@ -61,7 +61,7 @@ Resolved on follow-up: the product owner unlocked the phone; a fresh guarded iPh
 - Supply the existing API key locally; verify model access and the real public-command run.
 - Verify real APK/IPA builds through the configured macOS adapter and refreshed signing profiles.
 - Qualify the implemented lifecycle, scheduling, budget reservations, reset/login, masking, evidence, and crash recovery against the real application.
-- Complete scenario decomposition, setup/replay, adaptive replay, and full requirement-outcome reporting.
+- Complete semantic scenario decomposition, setup/replay, adaptive replay, and real-app requirement-outcome acceptance.
 - Complete runnable user command/reset demos, manifest-driven provisioning, Jenkins and second-Intel-Mac acceptance.
 - Move CIMT's own repository to Subgit later when the destination/migration is supplied.
 
@@ -103,3 +103,19 @@ Verified: 62 .NET unit tests, 64 Python unit tests, 18 CLI/lifecycle regression 
 Installed on the first Mac: republished the host and build worker, copied all Python support modules, and checked the public help command. Installed host/module files match the corrected source build. Existing private configuration was preserved.
 
 The command and YAML interface and approved requirements remain unchanged. Complete per-requirement inventory/evaluation, explicit scenario decomposition, setup/replay, interruption/run-identity work, real app/device qualification, Jenkins, and second-Mac acceptance remain open. The iPhone is unavailable. Existing-key configuration and real model access remain unverified; no private YAML was read or changed during these fixes.
+
+## Reviewed increment — complete requirement mapping
+
+Done: catalogue every nonblank supplied source item before preflight/builds, with original text, one-based line ranges, generated IDs, and a hash of the redacted source snapshot. Wrapped text remains together; compound items are assessed as a whole. No heading/context text is silently omitted. Every objective starts with a result and explanation for every item.
+
+Done: require known catalogue IDs in requirement checks; validate exact instruction quotes for overrides; preserve failed findings across retries; resolve unknown results by ID; retain expected/observed behavior, step references, masked screenshots, or evidence-error explanations. Check recording has its own small service. The model receives current requirement results without duplicating the source text.
+
+Done: render every requirement and applicable target/startup-device pair, including failed builds, locked devices, and work that never started. Missing coverage prevents a pass; unresolved scopes keep completion incomplete even alongside a failure. HTML and result.json retain the complete matrix. The public command/YAML interface is unchanged, and no paid extraction/planning call was added.
+
+Done: added a runnable offline five-status demonstration in examples/requirement-mapping, including an explained override and an inconclusive result. It uses real catalogue/report services with synthetic observations; its exit 1 and incomplete result are expected. It does not use OpenAI, build a real app, or operate a phone. See [mapping documentation](requirement-mapping.md).
+
+Remaining: real Android/iOS requirement-evaluation acceptance, semantic scenario decomposition, setup/replay, interruption/run-identity work, final adapter qualification, Jenkins, and second-Mac acceptance. The iPhone remains unavailable. Private configuration was not read or changed.
+
+Verified for this increment: 99 .NET unit tests, 87 Python unit tests, 18 CLI/lifecycle checks, four simulated build-contract checks, and one MSBuild fixture passed: 209 checks total. The public-command regression also verifies that a failed build remains in the requirement matrix. The offline demo retained all five statuses, an exact instruction override quote, source line references/fingerprint, and the expected failed/incomplete outcome. No live API call, real MAUI build, device operation, or private-configuration read was performed.
+
+First-Mac mapping installation verified: republished the host, copied all Python support modules, checked public help, and compared installed files with the source build. Private configuration was preserved.

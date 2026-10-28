@@ -2,7 +2,16 @@
 
 from errors import InfrastructureError
 
-CHECK_FIELDS = ["subject", "source", "status", "expected", "observed", "reason"]
+CHECK_FIELDS = [
+    "subject",
+    "source",
+    "status",
+    "expected",
+    "observed",
+    "reason",
+    "requirementId",
+    "instructionQuote",
+]
 CHECK_STATUSES = ["passed", "failed", "not tested", "inconclusive", "overridden"]
 CHECK_SCHEMA = {
     "type": "object",
@@ -13,6 +22,8 @@ CHECK_SCHEMA = {
         "expected": {"type": "string"},
         "observed": {"type": "string"},
         "reason": {"type": "string"},
+        "requirementId": {"type": "string"},
+        "instructionQuote": {"type": "string"},
     },
     "required": CHECK_FIELDS,
     "additionalProperties": False,
@@ -36,6 +47,12 @@ def _validate_check(check):
         raise InfrastructureError("A test check needs a subject and a valid source")
     if check["status"] not in CHECK_STATUSES:
         raise InfrastructureError("A test check has an invalid status")
+    if check["source"] == "requirements" and not check["requirementId"].strip():
+        raise InfrastructureError("A requirement check needs its catalogue ID")
+    if check["source"] == "instructions" and check["requirementId"]:
+        raise InfrastructureError("An instructions check cannot use a requirement ID")
+    if check["status"] == "overridden" and not check["instructionQuote"].strip():
+        raise InfrastructureError("An overridden requirement needs an instruction quote")
     _validate_evidence(check)
 
 
@@ -49,14 +66,30 @@ def _validate_evidence(check):
         raise InfrastructureError("Only a requirement can be overridden by instructions")
 
 
-def scenario_verdict(checks, has_crash, complete):
+def scenario_verdict(checks, has_crash, complete, requirements=None):
     """A known failure stays failed. Finishing navigation alone cannot prove a pass."""
-    if has_crash or any(check["status"] == "failed" for check in checks):
+    requirements = requirements or []
+    # Retain old observations, but do not judge an overridden expectation as a failure.
+    overridden = {row["id"] for row in requirements if row["status"] == "overridden"}
+    checks = [
+        check
+        for check in checks
+        if check["source"] != "requirements" or check["requirementId"] not in overridden
+    ]
+    if has_crash or any(check["status"] == "failed" for check in checks + requirements):
         return "failed"
+    if any(row["status"] in ["not tested", "inconclusive"] for row in requirements):
+        return "inconclusive"
     if not complete or not checks:
         return "inconclusive"
     # Later evidence may resolve an unknown check. Keep every observation in the report.
-    latest = {(check["source"], check["subject"]): check for check in checks}
+    latest = {
+        (
+            check["source"],
+            check["requirementId"] if check["source"] == "requirements" else check["subject"],
+        ): check
+        for check in checks
+    }
     if any(check["status"] in ["not tested", "inconclusive"] for check in latest.values()):
         return "inconclusive"
     objective_checked = any(

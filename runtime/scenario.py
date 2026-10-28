@@ -11,7 +11,9 @@ from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
 from errors import InfrastructureError
 from evidence import ScenarioEvidence
-from check_results import scenario_verdict, validate_checks
+from check_results import scenario_verdict
+from check_recorder import CheckRecorder
+from requirement_results import RequirementResults
 
 
 @dataclass
@@ -48,7 +50,16 @@ class ScenarioRunner:
     """Orders objective steps. Actions, coverage, evidence, and recovery are separate services."""
 
     def __init__(
-        self, inputs, config, redactor, control, actions, report, sleep=time.sleep, clock=time.time
+        self,
+        inputs,
+        config,
+        redactor,
+        control,
+        actions,
+        report,
+        sleep=time.sleep,
+        clock=time.time,
+        requirements=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -58,6 +69,7 @@ class ScenarioRunner:
         self.report = report
         self.sleep = sleep
         self.clock = clock
+        self.requirements = requirements or []
 
     def run(self, mobile, build, result, agent, publish):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
@@ -119,8 +131,7 @@ class ScenarioRunner:
         )
         return ScenarioSession(result, build["app-id"], executable, elements, image), monitor
 
-    @staticmethod
-    def _new_result(build):
+    def _new_result(self, build):
         return {
             "target": build["target"],
             "appId": build["app-id"],
@@ -130,6 +141,7 @@ class ScenarioRunner:
             "remaining": [],
             "crashes": [],
             "checks": [],
+            "requirements": RequirementResults.initial(self.requirements),
             "coverage": {},
             "reset": "not-started",
         }
@@ -172,45 +184,15 @@ class ScenarioRunner:
             session.history,
             list(self.config.get("credentials", {})),
             coverage,
+            session.result["requirements"],
         )
         # Keep a returned finding even if the run limit expired during the request.
-        self._record_checks(session, action.get("checks", []), evidence, publish)
+        CheckRecorder(self.redactor, evidence, publish).record(
+            session, action.get("checks", []), self.inputs["instructions"]
+        )
         self.control.check()
         publish()
         return action
-
-    def _record_checks(self, session, checks, evidence, publish):
-        validate_checks(checks)
-        if not checks:
-            return
-        index = len(session.result["steps"])
-        safe = self.redactor.object(checks)
-        recorded = [dict(check, step=index) for check in safe]
-        session.result["checks"].extend(recorded)
-        step = {
-            "step": index,
-            "action": "check",
-            "observation": "; ".join(check["subject"] + ": " + check["status"] for check in safe),
-        }
-        session.result["steps"].append(step)
-        session.result["verdict"] = scenario_verdict(
-            session.result["checks"], bool(session.result["crashes"]), False
-        )
-        publish()
-        self._save_check_image(session, step, recorded, evidence)
-
-    def _save_check_image(self, session, step, checks, evidence):
-        try:
-            # Save the same masked image that the model used for these checks.
-            path = evidence.save_image(
-                "check-" + str(step["step"]).zfill(4) + ".png", session.image
-            )
-            step["screenshot"] = path
-            for check in checks:
-                check["screenshot"] = path
-        except Exception as error:
-            step["evidenceError"] = self.redactor.text(str(error))
-            raise
 
     def _perform(self, mobile, session, action):
         element = next(
@@ -245,9 +227,12 @@ class ScenarioRunner:
             result["remaining"].append(
                 str(len(outstanding)) + " observed control/state combinations were not activated"
             )
+        unresolved = RequirementResults.unresolved(result["requirements"])
+        if unresolved:
+            result["remaining"].append(str(unresolved) + " requirements have no decided result")
         result["interpretation"] = action["observation"]
         complete = action["completion"] == "complete" and not result["remaining"]
         result["completion"] = "complete" if complete else "incomplete"
         result["verdict"] = scenario_verdict(
-            result.get("checks", []), bool(result["crashes"]), complete
+            result.get("checks", []), bool(result["crashes"]), complete, result["requirements"]
         )

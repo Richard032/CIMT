@@ -22,9 +22,9 @@ public static class RunEngine
     private static IRunStep[] CreateSteps(RuntimePaths paths, RunProcess processes, IRunProgress progress,
         WorkDirectoryManager folders, ITextInputReader inputs) =>
     [
+        new TextInputLoader(inputs),
         new RuntimeFilesCheck(paths),
         new WorkPreparation(folders),
-        new TextInputLoader(inputs),
         new ModelAccessCheck(processes, paths, progress),
         new DeviceDiscovery(processes, paths, progress),
         new RepositoryCheckout(processes, progress),

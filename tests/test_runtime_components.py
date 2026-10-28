@@ -41,6 +41,8 @@ def check(status="passed"):
         "expected": "Buttons keep the app usable",
         "observed": "The app remains usable",
         "reason": "",
+        "requirementId": "",
+        "instructionQuote": "",
     }
 
 
@@ -124,15 +126,7 @@ class ScenarioTests(unittest.TestCase):
         self.actions = ActionExecutor(
             {}, self.redactor, self.control.deadline, sleep=lambda _: None
         )
-        self.runner = ScenarioRunner(
-            {"instructions": "Explore buttons"},
-            {},
-            self.redactor,
-            self.control,
-            self.actions,
-            self.root,
-            sleep=lambda _: None,
-        )
+        self.runner = self.create_runner()
         self.build = {
             "target": "Release",
             "platform": "android",
@@ -140,11 +134,44 @@ class ScenarioTests(unittest.TestCase):
             "artifact": "fixture.apk",
         }
 
-    def run_scenario(self, mobile, actions):
+    def create_runner(self, requirements=None):
+        return ScenarioRunner(
+            {"instructions": "Explore buttons"},
+            {},
+            self.redactor,
+            self.control,
+            self.actions,
+            self.root,
+            sleep=lambda _: None,
+            requirements=requirements,
+        )
+
+    def run_scenario(self, mobile, actions, runner=None):
         result = {"scenarios": []}
         agent = FakeAgent(actions)
-        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        (runner or self.runner).run(mobile, self.build, result, agent, lambda: None)
         return result["scenarios"][0], agent
+
+    def test_unchecked_catalogue_item_prevents_completion(self):
+        definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
+        result, agent = self.run_scenario(
+            FakeMobile(self.root, elements=[]), [action()], self.create_runner(definitions)
+        )
+        self.assertEqual(result["completion"], "incomplete")
+        self.assertEqual(result["requirements"][0]["status"], "not tested")
+        self.assertEqual(agent.calls[0][-1][0]["id"], "REQ-0001")
+
+    def test_mapped_requirement_and_objective_can_complete(self):
+        definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
+        mapped = dict(check(), source="requirements", requirementId="REQ-0001")
+        result, _ = self.run_scenario(
+            FakeMobile(self.root, elements=[]),
+            [action(checks=[mapped, check()])],
+            self.create_runner(definitions),
+        )
+        self.assertEqual(result["completion"], "complete")
+        self.assertEqual(result["verdict"], "passed")
+        self.assertTrue(result["requirements"][0]["screenshot"])
 
     def test_observed_button_must_be_activated_before_completion(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action()])

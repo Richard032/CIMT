@@ -1,0 +1,3 @@
+Inspect setting persistence and menu navigation. Exercise the prepared test equipment if available.
+Do not test export.
+Report missing equipment and ambiguous observations. Do not invent evidence.

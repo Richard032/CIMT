@@ -23,6 +23,8 @@ def check(status="passed", source="instructions"):
         "expected": "Value stays saved",
         "observed": "Value is visible",
         "reason": "",
+        "requirementId": "REQ-0001" if source == "requirements" else "",
+        "instructionQuote": "",
     }
 
 
@@ -75,7 +77,11 @@ class CheckResultTests(unittest.TestCase):
             validate_checks([dict(check("overridden"), reason="Conflicting request")])
 
     def test_requirement_can_be_overridden_with_a_reason(self):
-        overridden = dict(check("overridden", "requirements"), reason="Instructions take priority")
+        overridden = dict(
+            check("overridden", "requirements"),
+            reason="Instructions take priority",
+            instructionQuote="Explore only",
+        )
         validate_checks([overridden])
         self.assertEqual(scenario_verdict([check(), overridden], False, True), "passed")
 

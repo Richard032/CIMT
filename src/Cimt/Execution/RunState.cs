@@ -25,6 +25,7 @@ public sealed class RunState(Configuration configuration, string report, DateTim
     public List<Dictionary<string, string>> Builds { get; } = [];
     public List<Dictionary<string, string>> Devices { get; } = [];
     public Dictionary<string, string> Inputs { get; } = [];
+    public IReadOnlyList<RequirementDefinition> Requirements { get; set; } = [];
     public Dictionary<string, string> Environment
     {
         get;

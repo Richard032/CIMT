@@ -52,7 +52,17 @@ SYSTEM_PROMPT = (
     "does not prove success. Use an empty checks list when this screen proves no check. "
     "Use not tested or inconclusive with a reason when evidence is missing. "
     "Use overridden only for a requirement that conflicts with the testing instructions, "
-    "and explain that conflict. Include only observations supported by the supplied evidence."
+    "and explain that conflict. Include only observations supported by the supplied evidence. "
+    "requirementResults is the complete host catalogue. For a requirements check, copy its "
+    "requirementId exactly from that catalogue; for an instructions check use an empty ID. "
+    "Preserve the supplied requirement meaning. A catalogue item may contain several conditions; "
+    "pass it only when ALL its conditions have evidence. Do not pass a compound item after "
+    "checking only one clause. If its meaning is unclear, record your interpretation and an "
+    "inconclusive result. Headings or context that cannot be evaluated stay not tested with "
+    "an explanation; never invent a pass. Work through all applicable catalogue items. "
+    "For overridden, instructionQuote must be an exact nonempty quote from testing instructions "
+    "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
+    "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive."
 )
 
 
@@ -63,12 +73,23 @@ class ActionPromptBuilder:
         self.model = model
 
     def build(
-        self, instructions, requirements, setup, elements, screenshot, history, aliases, coverage
+        self,
+        instructions,
+        requirements,
+        setup,
+        elements,
+        screenshot,
+        history,
+        aliases,
+        coverage,
+        requirement_results=None,
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
         state = {
             "instructions": instructions,
-            "requirements": requirements,
+            # Catalogue entries already contain all source text. Avoid sending it twice.
+            "requirements": "" if requirement_results else requirements,
+            "requirementResults": requirement_results or [],
             "setup": setup,
             "elements": elements,
             "recentActions": history[-24:],

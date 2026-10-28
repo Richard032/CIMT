@@ -13,10 +13,10 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         """;
 
     /// <summary>Render saved results while escaping HTML and removing configured secrets.</summary>
-    public string Render(RunState state, RunOutcome outcome, JsonElement? execution)
+    public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null)
     {
         return PageStart + Header(state, outcome) + Stages(state.Stages) + Inputs(state.Report)
-            + Execution(execution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
+            + new RequirementHtmlRenderer(configuration).Render(coverage) + Execution(execution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
     }
 
     private string Header(RunState state, RunOutcome outcome)
@@ -109,18 +109,32 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         if (!scenario.TryGetProperty("checks", out var checks) || checks.GetArrayLength() == 0)
             return "";
         var rows = checks.EnumerateArray().ToArray();
-        var failed = rows.Count(check => Field(check, "status") == "failed");
+        var overridden = OverriddenRequirements(scenario);
+        var failed = rows.Count(check => IsEffectiveFailure(check, overridden));
         var summary = "<p>Recorded checks: " + rows.Length + "; failed: " + failed + ".</p>";
         var visible = Detail("requirements") ? rows
-            : Detail("findings") ? rows.Where(check => Field(check, "status") == "failed").ToArray() : [];
-        return summary + string.Join("", visible.Select(Check));
+            : Detail("findings") ? rows.Where(check => IsEffectiveFailure(check, overridden)).ToArray() : [];
+        return summary + string.Join("", visible.Select(check => Check(check, overridden.Contains(Field(check, "requirementId")))));
     }
 
-    private string Check(JsonElement check)
+    private static HashSet<string> OverriddenRequirements(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("requirements", out var requirements))
+            return [];
+        return requirements.EnumerateArray().Where(row => Field(row, "status") == "overridden")
+            .Select(row => Field(row, "id")).ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static bool IsEffectiveFailure(JsonElement check, HashSet<string> overridden) =>
+        Field(check, "status") == "failed" && !overridden.Contains(Field(check, "requirementId"));
+
+    private string Check(JsonElement check, bool overridden)
     {
         var body = "<details><summary>" + Safe(Field(check, "subject")) + ": "
             + Safe(Field(check, "status")) + "</summary>";
-        foreach (var field in new[] { "source", "expected", "observed", "reason" })
+        if (overridden)
+            body += "<p>Historical observation: testing instructions override this requirement. See the requirement mapping for the effective decision.</p>";
+        foreach (var field in new[] { "source", "requirementId", "expected", "observed", "reason", "instructionQuote" })
             body += "<p>" + Safe(field) + ": " + Safe(Field(check, field)) + "</p>";
         if (check.TryGetProperty("screenshot", out var screenshot))
             body += "<p><a href=\"" + Safe(screenshot.ToString()) + "\">Check evidence</a></p>";

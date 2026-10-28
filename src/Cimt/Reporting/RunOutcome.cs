@@ -8,7 +8,7 @@ public sealed record RunOutcome(int ExitCode, string Verdict, string Completion)
 public static class RunOutcomePolicy
 {
     /// <summary>Keep failures visible even when coverage is incomplete or a build failed.</summary>
-    public static RunOutcome Evaluate(int exit, JsonElement? execution)
+    public static RunOutcome Evaluate(int exit, JsonElement? execution, RequirementCoverage? coverage = null)
     {
         var hasFailure = false;
         var scenarioCount = 0;
@@ -28,6 +28,8 @@ public static class RunOutcomePolicy
                 }
             }
         allDecided &= scenarioCount > 0;
+        hasFailure |= coverage?.HasFailures == true;
+        allComplete &= coverage?.HasUnresolved != true;
         if (hasFailure)
             exit = ExitCodes.Combine(exit, 1);
         if (!allComplete || !allDecided)

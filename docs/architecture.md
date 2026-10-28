@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.6  
+Version: 0.7  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -263,3 +263,13 @@ The host now separates command handling, settings, process access, deadlines, ru
 The Python worker separates scheduling, objective orchestration, actions, coverage, crash recovery, app lifecycle, screen capture, masking, evidence, budget accounting, prompts, API transport, and MCP transport. ScenarioSession stores objective data. Constructors accept replaceable external dependencies for unit tests. Simple constructor injection and ordered steps are used. The proxy pattern is prohibited by the repository rules.
 
 See the [development guide](development.md) for the component map and verification. This is an internal refactor. Public commands, YAML fields, reset/retry/limit policies, and exit precedence retain the approved behavior. The requirements baseline and open real-device acceptance gates are unchanged.
+
+## 16. Complete requirement mapping increment
+
+The host now creates a complete source catalogue before runtime preflight and builds. It preserves nonblank source items with stable internal IDs, original text, line ranges, and a fingerprint of the redacted source snapshot. Paragraphs, list items, labelled items, and completed lines determine result boundaries. Wrapped lines stay together; compound items require evidence for every condition. Ambiguous/context items are retained rather than silently discarded. This is deterministic source accounting, not semantic scenario decomposition.
+
+The worker sees every catalogue item and its current result. Checks reference known IDs; overrides must explain the conflict and quote the actual testing instructions. A separate CheckRecorder publishes observations before storing their evidence. RequirementResults maintains per-objective statuses, retaining failures across retries and resolving unknown results by ID. A validated instruction override changes the applicable requirement expectation, preserves historical observations, and cannot hide an app crash or instruction failure.
+
+The final report builds its matrix from all configured compatible target/startup-device combinations, including failed builds and work that did not start. Unresolved combinations prevent complete coverage even if another combination failed. Every item has a result, source reference, and evidence or an unavailable-evidence explanation. The approved command/YAML interface and requirements baseline are unchanged. See [mapping rules](requirement-mapping.md) and the [offline demonstration](../examples/requirement-mapping/README.md).
+
+This closes the missing catalogue/mapping component for the tested implementation. Android/iOS application acceptance of the mapping remains open. Full semantic scenario planning, setup/replay, interruption/run-identity work, final adapter qualification, Jenkins, and second-Mac acceptance remain separate gaps.

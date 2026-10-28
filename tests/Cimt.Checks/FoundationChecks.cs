@@ -237,6 +237,7 @@ build:
     private string InstallFakeTools()
     {
         Write("instructions.txt", "Explore buttons; fixture only.");
+        Write("requirements.txt", "Save shall work.\nBack shall work.");
         Write("lib/cimt-runtime/run_ui.py", "fixture worker selected by test executable");
         InstallFakePython();
         InstallFakeNode();
@@ -246,7 +247,7 @@ build:
 
     private string CreatePublicConfiguration(string build)
     {
-        var extra = Read("build: {targets: [{name: fail, configuration: Failed, project: App.csproj, android: {framework: net10.0-android, script: '" + build + "'}}, {name: ok, configuration: Release, project: App.csproj, android: {framework: net10.0-android, script: '" + build + "'}}]}");
+        var extra = Read("inputs: {requirements: ./requirements.txt}\nbuild: {targets: [{name: fail, configuration: Failed, project: App.csproj, android: {framework: net10.0-android, script: '" + build + "'}}, {name: ok, configuration: Release, project: App.csproj, android: {framework: net10.0-android, script: '" + build + "'}}]}");
         var merged = Node.Merge(root, extra);
         // Write the merged fixture as JSON, which is a YAML subset.
         object? Value(Node n) => n.Map is not null ? n.Map.ToDictionary(p => p.Key, p => Value(p.Value)) : n.List is not null ? n.List.Select(Value).ToArray() : n.Scalar;
@@ -270,6 +271,11 @@ build:
         using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "result.json")));
         var stages = result.RootElement.GetProperty("stages").EnumerateArray().Where(e => e.GetProperty("stage").GetString() == "build").ToArray();
         Assert(stages.Length == 2 && stages[0].GetProperty("result").GetString() == "error" && stages[1].GetProperty("result").GetString() == "passed", "other target did not continue");
+        var mapping = result.RootElement.GetProperty("requirementCoverage").GetProperty("requirements");
+        Assert(mapping.GetArrayLength() == 2, "a supplied requirement disappeared");
+        Assert(mapping[0].GetProperty("results").GetArrayLength() == 2, "failed build was omitted from the matrix");
+        Assert(mapping[0].GetProperty("status").GetString() == "not tested", "missing evidence passed");
+        Assert(File.Exists(Path.Combine(created, "requirements.json")), "catalogue was not retained");
         Assert(!Directory.EnumerateDirectories(Path.Combine(temp, "work"), "work_*").Any(), "run clone remained");
         Assert(!File.ReadAllText(Path.Combine(created, "index.html")).Contains(secret), "secret appeared in application report");
     }

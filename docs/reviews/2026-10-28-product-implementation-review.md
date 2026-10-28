@@ -165,3 +165,11 @@ The original findings above describe the reviewed snapshot, not the corrected so
 Final offline verification: 62 .NET unit tests, 64 Python unit tests, 18 CLI/lifecycle checks, four build-contract simulations, and one MSBuild example fixture passed: 149 checks. The full log is local at /private/tmp/cimt-defect-fix-checks-20261028.log. No paid API request, real MAUI build, physical-device operation, or private-configuration read occurred.
 
 These corrections close R1–R7 for the tested paths. They do not close the release gaps listed above. The iPhone remains unavailable, and a real application run remains necessary before relying on the product for daily or nightly verdicts.
+
+## Follow-up — complete requirement mapping increment
+
+The catalogue/mapping gap listed in the original review is now implemented for the tested paths. The host preserves every nonblank source item with text, ID, line references, and a redacted-source fingerprint. Checks reference known IDs, overrides retain an actual instruction quote, and final coverage includes every applicable configured target/startup-device pair. Failed builds and unstarted/locked devices retain explicit unresolved results. Unresolved scopes keep completion incomplete even when another scope failed.
+
+The [mapping contract](../requirement-mapping.md) documents deterministic source grouping and compound-item interpretation. It does not claim semantic scenario decomposition or real application acceptance. The [offline demonstration](../../examples/requirement-mapping/README.md) exercises all five statuses through the real catalogue/report services with synthetic observations. Other release gaps in this historical review remain open.
+
+Mapping verification: 99 .NET and 87 Python unit tests plus 23 regression/contract checks passed (209 total). The five-status synthetic demo passed its report checks with expected exit 1/incomplete completion. Real-app acceptance remains pending.

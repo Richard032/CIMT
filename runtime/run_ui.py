@@ -59,6 +59,7 @@ class Execution:
             self.control,
             actions,
             self.context["report"],
+            requirements=self.context.get("requirements", []),
         )
         return DeviceRunner(
             self.context,

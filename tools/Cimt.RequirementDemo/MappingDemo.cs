@@ -1,0 +1,58 @@
+using System.Text.Json;
+
+namespace Cimt.RequirementDemo;
+
+/// <summary>Exercise the real input, catalogue, matrix, and report services with synthetic observations.</summary>
+public static class MappingDemo
+{
+    public static async Task<int> Run(string example)
+    {
+        var configuration = Configuration(example);
+        var report = new CommandReports().Create(Path.Combine(example, "reports"));
+        var state = new RunState(configuration, report, DateTimeOffset.UtcNow,
+            new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        using var http = new HttpClient();
+        await new TextInputLoader(new TextInputReader(http)).Execute(state);
+        if (state.Requirements.Count != 5)
+            throw new InvalidOperationException("The demo needs its five example requirements.");
+        state.Devices.Add(new()
+        {
+            ["id"] = "synthetic-device",
+            ["platform"] = "android",
+            ["name"] = "Simulated phone"
+        });
+        var execution = DemoObservations.Execution(state.Requirements);
+        await File.WriteAllTextAsync(Path.Combine(report, "ui-results.json"), JsonSerializer.Serialize(execution));
+        Console.WriteLine("Synthetic requirement-mapping demo. No app, device, or API was used.");
+        return new RunReportWriter().Write(state);
+    }
+
+    private static Configuration Configuration(string example)
+    {
+        var origin = Path.Combine(example, "demo-inputs.yaml");
+        var target = Mapping(origin, new()
+        {
+            ["name"] = Text("Demo", origin),
+            ["android"] = Mapping(origin, [])
+        });
+        return new(Mapping(origin, new()
+        {
+            ["repository"] = Mapping(origin, new()
+            {
+                ["branch"] = Text("synthetic-demo", origin)
+            }),
+            ["build"] = Mapping(origin, new()
+            {
+                ["targets"] = new(null, null, [target], origin)
+            }),
+            ["inputs"] = Mapping(origin, new()
+            {
+                ["instructions"] = Text("./instructions.txt", origin),
+                ["requirements"] = Text("./requirements.txt", origin)
+            })
+        }));
+    }
+
+    private static Node Mapping(string origin, Dictionary<string, Node> values) => new(null, values, null, origin);
+    private static Node Text(string value, string origin) => new(value, null, null, origin);
+}
