@@ -157,7 +157,7 @@ Permission to alter device settings does not imply that all settings are automat
 
 ## 9. Device-control technology evaluation
 
-The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been qualified. The original capability comparison below is supplemented by the [hands-on evaluation](adapter-evaluation.md): both Android paths work and Appium iPhone control now passes after account recovery; DeviceKit is now installed; Mobile MCP iPhone application control awaits an unlocked phone, and full qualification remains open. Supplementary platform tools may be assessed if neither candidate covers all needs.
+The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been qualified. The original capability comparison below is supplemented by the [hands-on evaluation](adapter-evaluation.md): both Android paths work and Appium iPhone control now passes after account recovery; DeviceKit is installed and Mobile MCP passed eight guarded iPhone smoke checks; full application qualification remains open. Supplementary platform tools may be assessed if neither candidate covers all needs.
 
 | Candidate | Documented basis | Fit and evidence still needed |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Topic | State / next evidence |
 | --- | --- |
 | Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
-| Device adapter | Appium Android/iPhone basic control demonstrated; Mobile MCP DeviceKit installed, application checks blocked by phone lock. Earlier preference was provisional; full selection gate remains open. |
+| Device adapter | Both candidates demonstrated Android/iPhone basic control. Mobile MCP passed eight guarded iPhone smoke checks; the preference remains provisional and the full selection gate remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
 | Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
@@ -249,4 +249,4 @@ Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CI
 
 ### Device-control follow-up after Apple account recovery
 
-Appium's dedicated WebDriverAgent helper now builds/signs successfully and has passed physical-iPhone UI/screenshot/navigation checks. Both physical platforms have basic Appium control evidence. Mobile MCP's original preference remains provisional; its separate DeviceKit helper is now installed, with application control still pending an unlocked-device check. The adapter boundary and complete qualification gate are unchanged. See the adapter evaluation and installation sections 11–12.
+Appium's dedicated WebDriverAgent helper now builds/signs successfully and has passed physical-iPhone UI/screenshot/navigation checks. Both physical platforms have basic Appium control evidence. Mobile MCP's original preference remains provisional; its DeviceKit helper is installed and has passed eight guarded iPhone Settings/UI/screenshot/navigation smoke checks. The adapter boundary and complete qualification gate are unchanged. See the adapter evaluation and installation sections 11–12.

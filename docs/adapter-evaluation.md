@@ -1,13 +1,13 @@
 # Physical-device adapter evaluation
 
 Date: 28 October 2026  
-Status: Android checks completed; Appium iPhone control verified; full qualification remains open
+Status: both candidates have Android/iPhone basic control evidence; full application qualification remains open
 
 ## Decision
 
-Mobile MCP was the preferred candidate provisionally after the first Android checks. Following Xcode account recovery, Appium is now the first candidate to demonstrate basic control on both physical platforms. **Final adapter selection is not approved by these smoke checks:** the agreed gate still requires a real MAUI application, reset, and unattended operation. CIMT retains its interchangeable adapter boundary.
+Mobile MCP was the preferred candidate provisionally after the first Android checks. Following Xcode account recovery, Appium was the first candidate to demonstrate basic control on both physical platforms. Mobile MCP subsequently passed eight guarded iPhone smoke checks as well. **Final adapter selection is not approved by these smoke checks:** the agreed gate still requires a real MAUI application, reset, and unattended operation. CIMT retains its interchangeable adapter boundary.
 
-Both candidates have demonstrated Android control. Appium has now demonstrated iPhone UI inspection, screenshots, and navigation; Mobile MCP's separate DeviceKit helper is now installed, but application checks are blocked by the phone lock. The approved full qualification gate is preserved.
+Both candidates have demonstrated Android control. Appium has now demonstrated iPhone UI inspection, screenshots, and navigation; Mobile MCP's separate DeviceKit helper is installed and its guarded unlocked-phone check passed. The approved full qualification gate is preserved.
 
 ## Environment and method
 
@@ -27,7 +27,7 @@ Evidence and raw diagnostics remain under the private /Users/Shared/CIMT/evaluat
 | Android screenshot | Captured locally. | Captured locally. |
 | Android navigation | Swipe and Home commands returned success. | Back command and session cleanup succeeded. |
 | iPhone discovery | Passed. | Device selected for session attempt. |
-| iPhone control | DeviceKit 0.0.35 installed and responding; application checks incomplete because phone is locked. | Passed: signed WDA installed/launched; UI, screenshots, Home and Settings navigation verified. |
+| iPhone control | DeviceKit 0.0.35 installed; all eight guarded iPhone Settings/UI/screenshot/swipe/Home checks passed after unlocking. | Passed: signed WDA installed/launched; UI, screenshots, Home and Settings navigation verified. |
 | Successful simultaneous Android+iOS control | Not demonstrated. | Not demonstrated. |
 | MAUI install/reset/login/crash workflow | Not demonstrated. | Not demonstrated. |
 | Jenkins account operation | Not demonstrated. | Not demonstrated. |
@@ -50,7 +50,7 @@ The first dedicated WebDriverAgent build with automatic provisioning exited 65 b
 
 ## Original Mobile MCP preference and current evidence
 
-Mobile MCP's structured tool vocabulary and accessibility refs fit the intended autonomous action loop; the Android result includes identifiers/bounds needed for later element-ID masking. That original preference was an engineering inference. Appium now has stronger demonstrated cross-platform control evidence. Mobile MCP's helper installation is verified, but its application control and complete MAUI workflows remain unproved; the final decision must follow the remaining gate.
+Mobile MCP's structured tool vocabulary and accessibility refs fit the intended autonomous action loop; the Android result includes identifiers/bounds needed for later element-ID masking. That original preference was an engineering inference. Both candidates now have basic Android/iPhone control evidence. Mobile MCP's guarded iPhone check passed after unlocking; complete MAUI workflows remain unproved. The original preference remains provisional and the final decision must follow the remaining gate.
 
 Credential input/logging and element masking still require CIMT-side controls; direct adapter logging must not leak secrets.
 
@@ -68,7 +68,7 @@ These are engineering probes, not CIMT's eventual user-facing test commands. Clo
 
 ## Remaining gate
 
-1. Finish candidate comparison: Appium signing/UI/screenshot/navigation now pass; Mobile MCP helper signing/installation now pass; unlocked application control and input-entry coverage remain open.
+1. Finish candidate comparison: Appium signing/UI/screenshot/navigation now pass; Mobile MCP helper signing/installation now pass; guarded iPhone basic control now passes. Input-entry coverage remains open.
 2. A real application build and install on both platforms.
 3. Reset/login, crash diagnostics/relaunch, and adaptive action checks.
 4. Successful simultaneous operation on two devices.
@@ -93,4 +93,11 @@ The refreshed profile inventory now contains an unexpired team wildcard developm
 
 The initial control probe timed out launching Settings. UI and screenshot responses were returned, but local inspection showed the passcode screen. A repeated attempt had the same readiness issue. These are retained as incomplete application checks, not passed app control. devicectl JSON confirmed passcodeRequired=true.
 
-The probe now checks iPhone lock readiness before application actions. An actual locked-device check verified that it records one failed readiness check and stops before launch/screenshots/gestures. Installation is complete; the unlocked Settings/UI/screenshot/navigation probe is pending. See installation section 13. Raw profile details, device IDs, UI, and images remain private.
+The probe now checks iPhone lock readiness before application actions. An actual locked-device check verified that it records one failed readiness check and stops before launch/screenshots/gestures. Installation is complete. The first probe was pending an unlocked phone; the subsequent successful result is recorded below. See installation section 13. Raw profile details, device IDs, UI, and images remain private.
+
+
+## Successful Mobile MCP check after unlocking
+
+The fresh guarded iPhone-only probe passed all eight checks: unlocked readiness, Settings launch, UI elements, screenshot, swipe command, Home command, Home UI elements, and Home screenshot. Local image inspection confirmed Settings and the Home screen. Previous lock-screen attempts remain preserved; the readiness blocker is resolved for this check.
+
+The temporary MCP client and native daemon were stopped. DeviceKit remains installed. This is basic control evidence on the inspected phone/toolchain, not proof of text input, simultaneous operation, application reset/login/crash handling, Jenkins execution, or the complete final adapter gate.

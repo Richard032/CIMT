@@ -41,7 +41,7 @@ verification:
   application-git-read-access: subgit-https-verified
   github-terminal-authentication: not-configured-not-needed-for-application
   android-device: connected-authorized-control-probes-passed
-  iphone: appium-ui-screenshot-navigation-verified
+  iphone: both-candidates-basic-control-verified
   application-build-and-test: publish-attempted-blocked-no-app-tests
   final-yaml-manifest-enforcement: not-implemented
 
@@ -58,10 +58,10 @@ implementation-increments:
   default-build-workers: installed
   simulated-build-contract-checks: 4-passed
   physical-android-control: both-candidates-passed
-  physical-ios-control: appium-11-checks-passed-mobile-mcp-blocked-by-lock
-  adapter-selection: open-appium-control-demonstrated-both-platforms
+  physical-ios-control: appium-11-checks-and-mobile-mcp-8-checks-passed
+  adapter-selection: open-both-candidates-basic-control-demonstrated
   application-android-publish: blocked-by-windows-prebuild
-  application-ios-publish: blocked-by-provisioning
+  application-ios-publish: previous-provisioning-failure-revalidation-required
 
 iphone-follow-up:
   connection: wired-paired
@@ -71,12 +71,12 @@ iphone-follow-up:
   app-specific-profiles: valid-but-not-for-helper
   helper-profile: matching-wildcard-available-for-wda-and-devicekit
   automatic-helper-provisioning: passed-after-xcode-account-recovery
-  helper-control: appium-11-checks-passed-devicekit-app-probe-incomplete
-  next: unlocked-mobile-mcp-control-and-full-application-qualification
+  helper-control: appium-11-checks-and-devicekit-8-checks-passed
+  next: input-concurrency-and-full-application-qualification
 
 devicekit-follow-up:
   installation: passed-stock-native-installer
   version: "0.0.35"
   signing-profile: unexpired-development-wildcard-matches-phone-and-identity
-  application-probe: incomplete-phone-locked
+  application-probe: passed-8-guarded-checks-after-unlocking
   lock-state-guard: verified-stops-application-actions
