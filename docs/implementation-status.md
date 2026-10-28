@@ -28,6 +28,14 @@ Blocked: Android repository pre-build assumes Windows commands; iOS provisioning
 
 See [build contract](build-script-contract.md).
 
+## Reviewed follow-up — connected iPhone
+
+Done: wired pairing, Developer Mode, developer services, and tunnel verified. A valid legacy development identity and matching app-specific profiles were confirmed, correcting the earlier identity classification.
+
+Blocked: no valid helper profile; Xcode rejected its saved Apple-account login during a dedicated automatic-provisioning build (exit 65). Account reauthentication or an appropriate manually prepared helper profile is required. No iPhone control pass is claimed.
+
+Next: recover account/profile access, install the helper, and verify UI/screenshot/navigation. See installation section 11. Application build acceptance, final adapter selection, and the overall remaining work below are still open.
+
 ## Overall done
 
 - Approved requirements and architecture/CLI/YAML design.

@@ -444,7 +444,7 @@ The earlier GitHub terminal-authentication failures are not a blocker for readin
 
 [Reviewed status](implementation-status.md) records each increment and remaining work.
 
-1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Mobile MCP's iPhone DeviceKit requires signing; Appium WDA provisioning failed. There is no valid development identity available, and matching wildcard profiles are expired. Final adapter selection is pending; Mobile MCP is preferred provisionally.
+1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Mobile MCP's iPhone DeviceKit requires signing; Appium WDA provisioning failed. A later recheck confirmed a valid legacy development identity, correcting the initial classification; matching wildcard profiles are expired and a helper profile is missing. Final adapter selection is pending; Mobile MCP is preferred provisionally.
 2. The .NET CLI/configuration foundation is built and installed at /Users/Shared/CIMT/bin/cimt, with assemblies under lib/cimt. Source environment.sh to put it on PATH. Fifteen checks passed, and real readiness validation reached Subgit and both connected-device inventories. Only synthetic credential presence was tested; no AI request was made.
 3. Default Android/iOS scripts are installed under scripts/build, with worker assemblies under lib/cimt-build. Four simulated build-contract checks passed. Actual builds on main with submodules were attempted: Android stops at the repository's Windows-only pre-build commands, and iOS lacks an available provisioning profile. No successful artifact was produced.
 
@@ -484,3 +484,70 @@ cimt --help
 These commands install the supplied defaults. Keep custom replacements in separate files. Copy examples/default.example.yaml and examples/econ-app.example.yaml to private configuration locations, adjust their relative text paths and values, and restrict secret files to owner read/write before validation. The default example deliberately has an empty API key and a model placeholder. No live key is needed for the synthetic development checks above; real configuration/readiness validation requires configured values but does not authenticate to OpenAI.
 
 This source-install procedure was executed on the first Mac. Repeating it on another Intel Mac, final distribution packaging, and the complete YAML-driven setup command remain acceptance work.
+
+
+## 11. Connected iPhone recheck — 28 October 2026
+
+### Verified on the first Mac
+
+- The phone is a physical iPhone 14 running iOS 27.0.1. A user-assigned device name may describe a different model; use hardware properties to identify it.
+- Wired connection, pairing, Developer Mode, developer disk-image services, and the device tunnel are available.
+- Mobile MCP's on-device agent is not installed.
+- One valid legacy iPhone Developer identity is available. Matching, unexpired app-specific development profiles also exist. **Correction:** the previous conclusion that no development identity was available was too broad. Legacy iPhone Developer identities must be recognized alongside Apple Development identities.
+- The available wildcard profiles for this phone are expired. Existing ECON app-specific profiles do not cover the automation helper.
+- A dedicated WebDriverAgent build with automatic provisioning enabled was attempted. It exited 65 because Xcode rejected its saved Apple-account login and could not obtain the helper's development profile. No successful helper build, installation, or iPhone UI-control result was produced.
+
+Raw device/signing details and the build log remain in the private evaluation folder. Device identifiers, account email, certificate fingerprints, and provisioning files are not included in this repository.
+
+### Manual Apple-account recovery
+
+1. Open Xcode → Settings → Accounts on the Mac under the user account that will run CIMT.
+2. Select the existing Apple account for the development team and sign in again. Complete Apple's authentication prompts locally; never put the Apple password in CIMT input files or chat.
+3. Confirm the required team is available. If account access or profile creation is restricted, have the team's authorized Apple administrator prepare a development profile for the helper instead.
+4. Check signing identities with security find-identity -v -p codesigning. Confirm a valid identity and its private key match a certificate included in the chosen profile; a certificate file alone is insufficient.
+5. Supply an unexpired iOS development profile that includes the test phone and permits the automation helper's bundle identifier. A suitable team wildcard profile can cover Mobile MCP's helper; an unrelated app-specific profile cannot. Do not rename the helper to an existing application identifier.
+
+This account recovery is pending user action. The dedicated automatic-provisioning attempt below was verified to reach the authentication error; successful profile creation remains unverified.
+
+### Retry the Appium helper provisioning check
+
+The first-Mac check used the installed WebDriverAgent project. Substitute the actual team, phone UDID, and a new private evidence folder. Keep this helper identifier separate from tested applications.
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+xcodebuild \
+  -project "$APPIUM_HOME/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj" \
+  -scheme WebDriverAgentRunner -configuration Debug \
+  -destination "id=<phone-udid>" \
+  -derivedDataPath "<private-evidence-folder>/wda-build" \
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="<team-id>" \
+  CODE_SIGN_IDENTITY="iPhone Developer" \
+  PRODUCT_BUNDLE_IDENTIFIER=ch.curtis.cimt.WebDriverAgentRunner \
+  build-for-testing
+```
+
+Use Apple Development instead if that is the valid identity on the new Mac. This prepares a separate candidate helper; it does not install Mobile MCP's agent or establish the final adapter decision. A successful build must be followed by an actual session, UI, screenshot, and navigation check.
+
+### Install Mobile MCP's helper with a valid profile
+
+After account/profile recovery, the installed native CLI exposes this procedure:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+CIMT_MOBILECLI="$(node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); process.stdout.write(Mobilecli.getMobilecliPath())')"
+"$CIMT_MOBILECLI" agent install \
+  --device "<phone-udid>" \
+  --provisioning-profile "<absolute-path-to-valid-helper.mobileprovision>"
+"$CIMT_MOBILECLI" agent status --device "<phone-udid>"
+```
+
+The command syntax is confirmed by the installed CLI help. Successful agent installation is pending the valid profile. Then run the engineering probe from the CIMT source folder:
+
+```bash
+python3 scripts/evaluate-mobile-mcp.py --output "<new-private-evidence-folder>"
+```
+
+The probe checks up to two connected physical devices, opens Settings, reads UI elements, captures a screenshot, swipes, and returns Home. These smoke checks do not reset application data or prove MAUI application acceptance. Raw results stay private. Stop the native daemon before switching Android ownership to Appium.
+
+References: [Mobile CLI real-device setup](https://github.com/mobile-next/mobilecli#ios-real-devices), [Appium real-device preparation](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/device-setup/).

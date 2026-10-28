@@ -61,3 +61,14 @@ implementation-increments:
   adapter-selection: mobile-mcp-preferred-final-gate-open
   application-android-publish: blocked-by-windows-prebuild
   application-ios-publish: blocked-by-provisioning
+
+iphone-follow-up:
+  connection: wired-paired
+  developer-mode: enabled
+  developer-services: available
+  development-identity: valid-legacy-iphone-developer
+  app-specific-profiles: valid-but-not-for-helper
+  helper-profile: unavailable
+  automatic-helper-provisioning: failed-xcode-account-login-rejected
+  helper-control: not-verified
+  next: reauthenticate-xcode-account-or-supply-valid-helper-profile

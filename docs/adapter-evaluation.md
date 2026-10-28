@@ -42,11 +42,11 @@ CIMT must give one adapter exclusive ownership of each device and clean up its s
 
 ## iPhone signing findings
 
-The Keychain reports one valid signing identity, with no valid development identity. Existing profiles include device matches, but the matching wildcard development profiles are expired. Profile-file presence does not establish a usable certificate/private-key/profile combination.
+The follow-up check found one valid legacy iPhone Developer identity with its private key available, plus valid app-specific development profiles matching that identity and the connected phone. The earlier statement that no development identity was available was incorrect. The matching wildcard development profiles are expired, and no usable helper-specific profile was found. App-specific ECON profiles do not provision an unrelated automation helper.
 
 Mobile MCP requests agent installation with a provisioning profile. Appium's session reported no usable development profile for WebDriverAgent, plus device-install diagnostics. No signing checks were disabled and no new account credentials or certificates were created.
 
-Prepare a valid development identity/profile for the chosen helper, then rerun both iPhone candidates. The connected phone's newer OS/toolchain combination still requires a successful install and control test.
+A later dedicated WebDriverAgent build with automatic provisioning enabled exited 65: Xcode rejected the saved Apple-account login and could not obtain a matching helper profile. Reauthenticate the existing team account or supply a valid helper profile, then rerun iPhone candidates. The connected phone is paired, wired, and has Developer Mode and developer services enabled; its OS/toolchain combination still requires a successful helper install and control test. See installation section 11.
 
 ## Why Mobile MCP is preferred, provisionally
 
