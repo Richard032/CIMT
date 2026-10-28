@@ -4,7 +4,7 @@ CIMT is a planned command-line product for autonomous everyday testing of .NET M
 
 Developers supply a Git repository, configurable build targets, plain-text testing instructions, and requirements. CIMT will build the application, operate it on the devices, and produce a local HTML report with observations and evidence. Jenkins will invoke the same command through its pipelines.
 
-**Status: documentation draft for review. No executable CIMT implementation or Mac installer exists in this repository yet.**
+**Status: approved design with prerequisite bootstrap scripts. The CIMT CLI and autonomous testing engine are not implemented yet.**
 
 ## Documentation
 
@@ -37,4 +37,17 @@ The planned commands are setup, validate, run, and replay. Configuration uses se
 
 CIMT will supply default Android/iOS build scripts. User replacements/custom copies are supported. All commands and script integrations require examples and runnable demos using a user-supplied app; no demo MAUI application will be bundled.
 
-See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the design; no executable CLI or scripts have been implemented yet.
+See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the approved design. The CIMT CLI and application build scripts remain to be implemented; prerequisite helpers are available below.
+
+## Prerequisite bootstrap
+
+For the validated first-Mac prerequisite profile (Intel, Xcode 26.5):
+
+```bash
+bash scripts/setup-prerequisites-macos.sh
+source /Users/Shared/CIMT/environment.sh
+```
+
+The helper installs isolated runtimes, MAUI Android/iOS workloads, Android tools, and both adapter candidates. It is not the completed YAML-driven cimt setup command. Read the [installation guide](docs/installation.md#8-prerequisite-installation-performed--28-october-2026) for exact versions, checks, limitations, Git authentication, and remaining device/application validation.
+
+[Installed prerequisite profile](docs/installed-prerequisites-macos-intel.yaml) records observed versions; it is not yet an enforced installer manifest.

@@ -5,7 +5,7 @@ Date: 27 October 2026
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
-**CIMT is not implemented yet. The commands and fields below record the approved design; no executable CLI, build scripts, or Mac installer are delivered in this documentation revision. Example paths, repositories, versions, values, and credentials are placeholders.**
+**The CIMT CLI and autonomous testing engine are not implemented yet. The commands and fields below record the approved design. Prerequisite bootstrap helpers are now available; see the [installation guide](installation.md) for verified commands and their limitations. The final YAML-driven setup and application build scripts remain pending. Example paths, repositories, versions, values, and credentials below are placeholders.**
 
 ## 1. Purpose and environment
 

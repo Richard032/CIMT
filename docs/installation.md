@@ -1,15 +1,15 @@
 # CIMT installation and setup guide
 
-Version: 0.1  
+Version: 0.2  
 Last updated: 28 October 2026  
-Status: living installation guide; initial Mac inspection complete, installation and end-to-end verification pending  
+Status: prerequisite installation and rerun verified on the first Intel Mac; CIMT implementation and end-to-end acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
 ## 1. Purpose and current status
 
 This document describes how to prepare another supported Mac, install CIMT, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
 
-CIMT's CLI, installer, default build scripts, and pinned toolchain manifest have not yet been implemented. Commands beginning with cimt below are the approved product interface and cannot yet be executed from this repository. Prerequisite inspection commands were exercised where recorded; installation commands and package versions will be filled in as they are implemented and verified.
+CIMT's CLI and default application build scripts have not yet been implemented. Prerequisite bootstrap scripts are now available and were executed successfully on the first Intel Mac; section 8 records exact commands, versions, checks, and limitations. Commands beginning with cimt below remain the approved future interface and cannot yet be executed from this repository. The prerequisite helpers are separate from the future YAML-driven cimt setup implementation.
 
 The agreed initial host scope is **Intel Macs**. This guide does not claim support for every macOS release, Apple Silicon, or every possible Xcode/device combination. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
@@ -36,13 +36,13 @@ Do not turn this Mac's observed versions into a supported baseline without testi
 | Component | Selection rule | Current state |
 | --- | --- | --- |
 | Intel Mac/macOS | Must run the selected developer tools. | Intel scope confirmed; supported macOS range not selected. |
-| Xcode and iPhone OS | Match Apple support and the selected .NET iOS workload. | Installed Xcode inspected; build/install compatibility unverified. |
-| .NET SDK | Support CIMT's implementation and the application's target frameworks/global.json. | Several SDKs found; product SDK pin not selected. |
-| MAUI Android/iOS workloads | Match the chosen SDK and application. | Android workload found; iOS workload absent from reported installed list. |
-| JDK and Android SDK/build tools | Match the application's Android targets and selected .NET Android tooling. | Not detected in checked locations. |
-| Device adapter | Select after evaluating physical Android/iOS and unattended Intel/Jenkins operation. | Mobile MCP/Appium evaluation pending. |
-| Supporting runtimes | Install only those required by the selected adapter. | Node/npm not detected; requirement depends on adapter selection. |
-| Git | Noninteractive access under the executing account. | Git found; inspected SSH route needs host-trust setup. |
+| Xcode and iPhone OS | Match Apple support and the selected .NET iOS workload. | Xcode 26.5 retained; matching iOS SDK 26.5.10284 installed in the pilot profile. Device build/install remains unverified. |
+| .NET SDK | Support CIMT's implementation and the application's target frameworks/global.json. | Isolated 10.0.300 pilot profile installed alongside existing SDKs; application-specific selection remains to be validated. |
+| MAUI Android/iOS workloads | Match the chosen SDK and application. | maui-android and maui-ios installed at workload set 10.0.300.3 in CIMT's separate SDK. |
+| JDK and Android SDK/build tools | Match the application's Android targets and selected .NET Android tooling. | JDK 21, Android API 36, build-tools 36.0.0, command-line tools 22.0, and platform-tools 37.0.1 installed. |
+| Device adapter | Select after evaluating physical Android/iOS and unattended Intel/Jenkins operation. | Both evaluation candidates installed; no final selection. Mobile MCP startup/tool discovery verified. |
+| Supporting runtimes | Provide runtimes needed for adapter evaluation. | Node 22.23.4/npm 10.9.9 installed for both candidates. |
+| Git | Noninteractive access under the executing account. | Host trust repaired; private repository authentication still needs user/account setup. |
 | OpenAI model/pricing | Use a model with a provable maximum request cost. | Not configured/validated in this inspection. |
 
 Microsoft requires an Xcode version compatible with the selected MAUI release; Apple publishes Xcode host/device support separately. Review both when creating the manifest. [Microsoft installation guidance](https://learn.microsoft.com/dotnet/maui/get-started/installation), [Apple Xcode requirements](https://developer.apple.com/xcode/system-requirements).
@@ -125,7 +125,7 @@ Use the MAUI-compatible Xcode version rather than automatically selecting whiche
 4. Check dotnet workload list under the selected SDK.
 5. Record exact SDK/workload versions and verify through the first application's builds.
 
-The exact pinned installation commands will be added when the SDK/workload manifest is selected. Do not treat the presence of maui-android as proof that iOS is installed.
+Section 8 records the verified pilot installation command. A different application's SDK/global.json or a different Xcode version may need another validated profile. Do not treat the presence of maui-android as proof that iOS is installed.
 
 ### Step 6 — Prepare Java and Android SDK tools
 
@@ -175,11 +175,11 @@ Prepare any required Bluetooth, USB, seat-controller, backend, or other external
 
 Evaluate Mobile MCP and Appium against the approved physical-device requirements before selecting one. Record required supporting runtime versions, installation commands, signing/device-agent setup where applicable, and unattended operation here after validation.
 
-Node/npm are currently not detected; do not install an adapter or supporting runtime during a read-only inspection. Adapter selection remains open, not an implementation deviation.
+Both candidates and Node/npm have now been installed for evaluation, as recorded in section 8. Neither candidate has been selected as CIMT's adapter. Installed tooling is not evidence that app control, reset, masking, or unattended real-device execution already works.
 
 ### Step 10 — Install CIMT and create configuration
 
-**Pending implementation:** no CIMT executable/install package or toolchain manifest is currently delivered. Once packaging/bootstrap is defined, add the exact download/install command, package version verification, and setup invocation here.
+**CIMT CLI implementation pending:** prerequisite bootstrap helpers and an installed-version record are now provided; no CIMT executable/install package is delivered yet. Use section 8 for the verified prerequisite bootstrap. Final packaging and YAML-driven cimt setup remain to be implemented.
 
 Approved setup invocation:
 
@@ -305,7 +305,112 @@ Keep untested instructions labelled pending until verified. If implementation ne
 | Date | Activity | Result |
 | --- | --- | --- |
 | 28 October 2026 | Read-only first-Mac prerequisite inspection. | Completed; findings above. |
-| Pending | Dependency installation and version manifest validation. | Not executed. |
+| 28 October 2026 | Prerequisite helper installation and rerun. | Installed versions verified; final YAML-driven manifest enforcement and app compatibility pending. |
 | Pending | CIMT setup/validate command implementation. | Not available. |
 | Pending | Physical Android/iPhone build, install, and autonomous testing. | Not executed. |
 | Pending | Jenkins and second-Intel-Mac acceptance. | Not executed. |
+
+## 8. Prerequisite installation performed — 28 October 2026
+
+The product owner authorized installing the missing prerequisites. This section supersedes the missing-tool findings in the historical section 5. Existing Xcode and system .NET installations were preserved.
+
+### Verified installation procedure
+
+The pilot installer requires an Intel Mac with selected Xcode 26.5. It uses the existing macOS Bash, curl, tar, unzip, and shasum tools; it does not require Homebrew or Python.
+
+From the CIMT source/documentation directory, execute:
+
+```bash
+bash scripts/setup-prerequisites-macos.sh
+source /Users/Shared/CIMT/environment.sh
+```
+
+The installer defaults to /Users/Shared/CIMT. To use another absolute installation root, set CIMT_INSTALL_ROOT before invoking the script and source that root's environment.sh afterward.
+
+The wrapper performs:
+
+1. Intel/runtime bootstrap through scripts/bootstrap-macos-prerequisites.sh.
+2. Version-pinned workloads under the separate SDK:
+   dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
+3. Android and adapter tooling through scripts/install-macos-mobile-tools.sh.
+
+The scripts are preliminary prerequisite helpers, not the completed cimt setup command. They do not yet read setup.yaml/toolchain.manifest. The supplied installed-version YAML is an inventory/profile record; final manifest-driven enforcement remains implementation work.
+
+Activation is explicit so the existing account-wide SDK selection is preserved. Source environment.sh in the developer terminal or Jenkins pipeline before using these tools. No shell startup file was changed.
+
+The profile uses Microsoft's documented .NET 10.0.300 / workload-set 10.0.300.3 combination for Xcode 26.5. A newer workload set requiring another Xcode version was not silently substituted. [Official Xcode 26.5 workload release](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10284).
+
+### Installed and verified versions
+
+| Component | Version / result |
+| --- | --- |
+| Node.js | 22.23.4, Intel archive. |
+| npm | 10.9.9 bundled with Node. |
+| Microsoft OpenJDK | 21.0.13.0.2, build 21.0.13.0.2+1-LTS. |
+| Isolated .NET SDK | 10.0.300. |
+| Workload set | 10.0.300.3. |
+| MAUI workloads | maui-android and maui-ios, MAUI SDK 10.0.20. |
+| .NET iOS SDK | 26.5.10284. |
+| .NET Android SDK | 36.1.53 in the selected workload set. |
+| Android command-line tools | 22.0, Intel archive build 15859902. |
+| Android platform-tools | 37.0.1; adb 1.0.41. |
+| Android platform | API 36, revision 2. |
+| Android build-tools | 36.0.0. |
+| Appium | 3.9.0. |
+| Appium UiAutomator2 driver | 8.7.2. |
+| Appium XCUITest driver | 12.22.1. |
+| Mobile MCP | 1.0.14; executable mcp-server-mobile. |
+| Mobile MCP native Intel helper | mobilecli 1.0.21. |
+
+Download integrity was checked before extraction: Node/JDK/Android archives against official SHA-256 values, .NET against official SHA-512 release metadata. npm verifies package integrity during installation.
+
+Direct package versions are pinned in the helpers. The Android SDK manager resolves platform-tools to its available revision; 37.0.1 was observed here. Fully enforcing every dependency revision from YAML, including package-manager/transitive dependencies, remains part of final setup implementation.
+
+### Verification actually completed
+
+- Bootstrap runtime versions matched the pinned values.
+- Both MAUI workloads installed successfully; dotnet workload list reports set 10.0.300.3.
+- Android tooling versions and API/build-tools files were checked.
+- Both Appium drivers report installed at the selected versions.
+- Mobile MCP initialized over local standard input/output and listed 33 tools, including physical-device discovery. This sent no AI requests and did not operate an app.
+- The Mobile MCP Intel native helper starts and reports version 1.0.21.
+- The complete prerequisite wrapper was run again successfully; existing runtime installations and matching drivers were reused.
+- All three helper scripts passed Bash syntax checks.
+
+Install logs remain locally under /Users/Shared/CIMT/logs. About 7.5 GiB of tools were installed; approximately 9.9 GiB remained free at verification. No unrelated files or developer SDKs were removed.
+
+### Driver diagnostics and physical-device scope
+
+XCUITest's doctor reports zero required fixes. It also reports optional simulator/video/Remote-XPC components absent; these features were not enabled.
+
+UiAutomator2's generic doctor reports one required fix because its check assumes an Android emulator executable. CIMT's initial requirement is physical devices, and adb/platform-tools are installed. The emulator warning is recorded, not reported as an all-green diagnostic and not used to expand CIMT's device scope. Actual Android control still requires a connected phone and application test.
+
+Video/streaming utilities, Android emulator/images, and simulator-specific helpers were not installed as CIMT physical-device prerequisites.
+
+Some optional XCUITest Remote-XPC/tunnel features mention administrator privileges. Ordinary CIMT runs must remain unprivileged; the adapter evaluation must prove a compliant real-device path before selection. Installing a candidate is not approval of a privileged runtime design.
+
+### Git trust and remaining authentication
+
+GitHub's ED25519 key was retrieved from its official HTTPS metadata, matched to its published fingerprint, and added to the current account's known_hosts. Host verification now succeeds.
+
+The SSH repository check subsequently failed with Permission denied (publickey). The noninteractive HTTPS check also found no credentials. No private key, token, or GitHub account credential was generated or exposed.
+
+Complete Git authentication under the intended executing account and rerun the section 4 Git check before private cloning. [GitHub host fingerprints](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).
+
+### Device state after installation
+
+- adb started successfully and returned no connected Android devices.
+- Apple device discovery now shows one connected iPhone running iOS 27.0.1; two other historical paired entries remain unavailable.
+- The connected iPhone's install/signing/control compatibility with Xcode 26.5 and the selected adapter is unverified. Device visibility alone is not proof of readiness.
+- No application was built, installed, reset, or operated.
+
+### Remaining before CIMT can execute a test
+
+1. Implement the CIMT CLI and final YAML-driven setup; the prerequisite helpers do not provide autonomous testing.
+2. Configure noninteractive Git authentication and supply the first real application's repository/branch.
+3. Connect and authorize an Android device; validate the available iPhone, including signing and its OS/toolchain requirements.
+4. Complete both adapters' real-device evaluation before selecting one.
+5. Implement and verify application builds, reset/login, element-ID masking, strict OpenAI budget, evidence, and reports. OpenAI credentials/model access were not configured or tested by this prerequisite installation.
+6. Repeat the complete procedure under Jenkins and on the second Intel Mac.
+
+No approved product behaviour was changed. The installed profile and helper scripts are an implementation increment; full application compatibility, manifest enforcement, and end-to-end acceptance remain explicitly unverified.
