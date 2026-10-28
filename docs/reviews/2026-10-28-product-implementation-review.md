@@ -173,3 +173,9 @@ The catalogue/mapping gap listed in the original review is now implemented for t
 The [mapping contract](../requirement-mapping.md) documents deterministic source grouping and compound-item interpretation. It does not claim semantic scenario decomposition or real application acceptance. The [offline demonstration](../../examples/requirement-mapping/README.md) exercises all five statuses through the real catalogue/report services with synthetic observations. Other release gaps in this historical review remain open.
 
 Mapping verification: 99 .NET and 87 Python unit tests plus 23 regression/contract checks passed (209 total). The five-status synthetic demo passed its report checks with expected exit 1/incomplete completion. Real-app acceptance remains pending.
+
+## Follow-up — shared run identity
+
+The run-identity gap in the original review is now corrected: one invocation identity selects paired UTC millisecond work/report names. No independent folder clock, random work suffix, or separate report counter remains. Collisions advance both names together without changing the actual invocation start/deadline. Metadata, runtime, results, progress, and child processes use the same ID. Reports remain outside verified cleanup paths and survive deletion/copying; command/error locks protect active runs.
+
+Verification: 230 offline checks passed, including the public-command work/report/runtime identity proof after cleanup. See [identity contract](../run-identity.md). Full interruption history and graceful cancellation remain separate open work; this increment does not close other release gaps.

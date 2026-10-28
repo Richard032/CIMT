@@ -5,6 +5,7 @@ public static class RuntimeRequest
 {
     public static Dictionary<string, object?> Create(RunState state) => new()
     {
+        ["runId"] = state.Identity.Id,
         ["config"] = ConvertNode(state.Configuration.Root),
         ["report"] = state.Report,
         ["work"] = state.Work,

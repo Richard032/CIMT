@@ -23,6 +23,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         return "<h1>CIMT application test</h1><p>Exit: " + outcome.ExitCode
             + " · Verdict: " + Safe(outcome.Verdict) + " · Completion: " + Safe(outcome.Completion) + "</p>"
+            + "<p>Run: " + Safe(state.Identity.Id) + " (UTC)</p>"
             + "<p>Branch: " + Safe(state.Configuration.Root.Get("repository")!.Value("branch")!)
             + " · Commit: " + Safe(state.Commit) + "</p><h2>Stopping reasons and coverage limits</h2><ul>"
             + string.Join("", state.Errors.Select(error => "<li>" + Safe(error) + "</li>"))

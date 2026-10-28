@@ -58,7 +58,7 @@ internal sealed class BuildFixture : IDisposable
         Directory.CreateDirectory(repository);
         File.WriteAllText(Path.Combine(repository, "app.apk"), "fixture");
         var config = new Configuration(new Node(null, [], null, Path.Combine(directory.Path, "config.yaml")));
-        State = new(config, directory.Path, DateTimeOffset.UtcNow, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        State = new(config, TestRunFolders.At(directory.Path, DateTimeOffset.UtcNow), new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         Builder = new(new RunProcess(new FakeCommandRunner()), new BuildArtifactStore(), new SilentProgress());
     }
 

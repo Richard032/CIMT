@@ -47,7 +47,7 @@ public sealed class CommandTests
                 ["api-key"] = new("synthetic-secret", null, null, origin)
             }, null, origin)
         }, null, origin);
-        var state = new RunState(new Configuration(root), "/unused", DateTimeOffset.UnixEpoch,
+        var state = new RunState(new Configuration(root), TestRunFolders.At("/unused", DateTimeOffset.UnixEpoch),
             new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         state.Errors.Add("<script>synthetic-secret</script>");
         var html = new RunHtmlRenderer(state.Configuration).Render(state, new(3, "inconclusive", "incomplete"), null);

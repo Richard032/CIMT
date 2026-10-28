@@ -8,9 +8,10 @@ public static class MappingDemo
     public static async Task<int> Run(string example)
     {
         var configuration = Configuration(example);
-        var report = new CommandReports().Create(Path.Combine(example, "reports"));
-        var state = new RunState(configuration, report, DateTimeOffset.UtcNow,
-            new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        var folders = new RunFolderAllocator().Create(Path.Combine(example, "work"), Path.Combine(example, "reports"), DateTimeOffset.UtcNow);
+        var report = folders.Report;
+        var state = new RunState(configuration, folders,
+            new RunDeadline(folders.Identity.Started.AddMinutes(1)));
         using var http = new HttpClient();
         await new TextInputLoader(new TextInputReader(http)).Execute(state);
         if (state.Requirements.Count != 5)

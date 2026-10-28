@@ -1,7 +1,7 @@
 namespace Cimt;
 
 /// <summary>Lets tests replace execution without adding a forwarding service.</summary>
-public delegate Task<int> RunApplication(Configuration configuration, string report, DateTimeOffset started);
+public delegate Task<int> RunApplication(Configuration configuration, RunFolders folders);
 
 /// <summary>Holds command data while errors may still need a report.</summary>
 public sealed class CommandSession(DateTimeOffset started)
@@ -11,32 +11,40 @@ public sealed class CommandSession(DateTimeOffset started)
     {
         get; set;
     }
-    public string? Report
+    public RunFolders? Folders
     {
         get; set;
     }
+    public string? Report => Folders?.Report;
     public List<string> Messages { get; } = [];
 }
 
 /// <summary>Routes one command to a handler and converts failures into reports.</summary>
 public sealed class CommandApplication(IConfigurationLoader configurations, IReadinessValidator readiness,
-    RunApplication run, ICommandReports reports, Func<IDisposable> acquireLock,
+    RunApplication run, ICommandReports reports, RunFolderAllocator folders, Func<IDisposable> acquireLock,
     TextWriter output, TextWriter errors, TimeProvider? clock = null)
 {
     /// <summary>Route one command and write a safe error report if it fails.</summary>
     public async Task<int> Run(string[] arguments)
     {
         var session = new CommandSession((clock ?? TimeProvider.System).GetUtcNow());
+        IDisposable? held = null;
         try
         {
             var options = CommandLine.Parse(arguments);
             if (options.IsHelp)
                 return ShowHelp();
+            held = acquireLock();
             return await Execute(options, session);
         }
         catch (Exception error)
         {
             return await ReportFailure(session, error);
+        }
+        finally
+        {
+            // Keep the lock until error reporting has finished too.
+            held?.Dispose();
         }
     }
 
@@ -44,11 +52,10 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
     {
         session.Configuration = configurations.Load(options);
         session.Configuration.Validate();
-        session.Report = reports.Create(session.Configuration.ReportsRoot);
-        using var held = acquireLock();
+        session.Folders = folders.Create(session.Configuration.WorkspaceRoot, session.Configuration.ReportsRoot, session.Started);
         await reports.SaveConfiguration(session);
         if (options.Command == "run")
-            return await run(session.Configuration, session.Report, session.Started);
+            return await run(session.Configuration, session.Folders);
         if (options.Command != "validate")
             throw new ConfigurationException("The " + options.Command + " execution engine is not implemented yet. No application was built, installed, reset, or tested.");
         return await Validate(session);
@@ -71,15 +78,40 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
         session.Messages.Add(message);
         try
         {
-            session.Report ??= reports.Create(reports.ErrorRoot(session.Configuration));
+            session.Folders ??= CreateErrorFolders(session);
             await reports.Write(session, "inconclusive", "incomplete", 3);
-            errors.WriteLine(message + " Report: " + Path.Combine(session.Report, "index.html"));
+            errors.WriteLine(message + " Report: " + Path.Combine(session.Report!, "index.html"));
         }
         catch
         {
             errors.WriteLine("CIMT could not write an error report. Check report-folder permissions.");
         }
         return 3;
+    }
+
+    private RunFolders CreateErrorFolders(CommandSession session)
+    {
+        try
+        {
+            return folders.Create(ErrorWorkRoot(session), reports.ErrorRoot(session.Configuration), session.Started);
+        }
+        catch (Exception error) when (error is ConfigurationException or IOException or UnauthorizedAccessException)
+        {
+            session.Messages.Add("The configured report location is unusable; this error report uses the installation reports folder.");
+            return folders.Create(Path.Combine(Configuration.InstallationRoot, "work"), reports.ErrorRoot(null), session.Started);
+        }
+    }
+
+    private static string ErrorWorkRoot(CommandSession session)
+    {
+        try
+        {
+            return session.Configuration?.WorkspaceRoot ?? Path.Combine(Configuration.InstallationRoot, "work");
+        }
+        catch (Exception error) when (error is ConfigurationException or ArgumentException)
+        {
+            return Path.Combine(Configuration.InstallationRoot, "work");
+        }
     }
 
     private int ShowHelp()

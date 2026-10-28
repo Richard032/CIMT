@@ -3,11 +3,13 @@ using System.Text.Json;
 namespace Cimt;
 
 /// <summary>Holds run data. Services perform the work; this object only stores results.</summary>
-public sealed class RunState(Configuration configuration, string report, DateTimeOffset started, RunDeadline deadline)
+public sealed class RunState(Configuration configuration, RunFolders folders, RunDeadline deadline)
 {
     public Configuration Configuration { get; } = configuration;
-    public string Report { get; } = report;
-    public DateTimeOffset Started { get; } = started;
+    public RunFolders Folders { get; } = folders;
+    public RunIdentity Identity => Folders.Identity;
+    public string Report => Folders.Report;
+    public DateTimeOffset Started => Identity.Started;
     public RunDeadline Deadline { get; } = deadline;
     public string Work { get; set; } = "";
     public string Commit { get; set; } = "";
@@ -31,6 +33,7 @@ public sealed class RunState(Configuration configuration, string report, DateTim
         get;
     } = new()
     {
+        ["CIMT_RUN_ID"] = folders.Identity.Id,
         ["GIT_TERMINAL_PROMPT"] = "0",
         ["GCM_INTERACTIVE"] = "never"
     };
@@ -77,6 +80,7 @@ public sealed class RunProgress : IRunProgress
         File.WriteAllText(Path.Combine(state.Report, "progress.json"), JsonSerializer.Serialize(new
         {
             stage,
+            runId = state.Identity.Id,
             sourceCommit = state.Commit,
             updated = DateTimeOffset.UtcNow
         }));

@@ -78,7 +78,7 @@ Approved folder pattern:
 <report-root>/report_<date-time>/# retained report and evidence
 ```
 
-Work and report folders share a timestamp. Reports must remain outside the temporary cleanup folder. Exact timezone/collision handling remains to be implemented.
+Work and report folders share a timestamp. Reports must remain outside the temporary cleanup folder. New runs use one UTC millisecond timestamp for both names; collisions advance that shared timestamp. See [run identity](run-identity.md).
 
 A shared installation such as /Users/Shared/CIMT is an example, not a required location. Private YAML files must remain accessible only to the intended account(s), outside source control.
 
@@ -732,3 +732,13 @@ New reports retain requirements.json with the complete catalogue and redacted so
 To check the report on any prepared development Mac without devices or API access, run the [offline mapping demonstration](../examples/requirement-mapping/README.md). Its five synthetic statuses produce expected exit 1 with incomplete completion. Run the full development suite before installing source changes. This check is separate from signed real-app/device qualification.
 
 First-Mac mapping installation verified: republished the host, copied all Python support modules, checked public help, and compared installed files with the source build. Private configuration was preserved.
+
+## 18. Install the shared run-identity increment
+
+Use the host republish and all-module runtime install commands in section 15. No new dependency, YAML field, credential, or device helper is needed. Existing retained report folders are preserved. The ownership reader still supports earlier records so their abandoned work can be checked and removed normally.
+
+New work_<date-time> and report_<date-time> folders use the exact same UTC millisecond timestamp. There is no random work-folder suffix or separate report counter. run-identity.json records the pair and survives clone cleanup. Keep it with the report when archiving. Reports below owned work paths, including aliases, are rejected so cleanup cannot remove them. Validation/early-error reports allocate an identity without creating clone work.
+
+Verified on this Mac with 230 offline development checks. The public-command regression verifies the work name before deletion against the retained report/runtime metadata. The [identity documentation](run-identity.md) covers the completed format/timezone/collision choices and tests. Actual Jenkins/second-Mac execution and full interruption-history acceptance remain open.
+
+First-Mac identity installation verified: republished the host, copied all Python modules, checked public help, and confirmed installed files match the source build. The offline demo retained matching folder, result, and HTML identity metadata. Private configuration and existing reports were preserved.

@@ -34,7 +34,7 @@ public sealed class RequirementHtmlTests
     public void OverriddenHistoricalObservationIsNotCountedAsAnEffectiveFailure()
     {
         var config = Configuration();
-        var state = new RunState(config, "/unused", DateTimeOffset.UtcNow, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        var state = new RunState(config, TestRunFolders.At("/unused", DateTimeOffset.UtcNow), new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         var execution = JsonSerializer.Deserialize<JsonElement>("""
             {"devices":[{"device":{"name":"fixture"},"scenarios":[{
             "target":"Release","completion":"complete","verdict":"passed","crashes":[],"steps":[],

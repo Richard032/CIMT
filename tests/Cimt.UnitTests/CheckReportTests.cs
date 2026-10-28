@@ -47,7 +47,7 @@ public sealed class CheckReportTests
                 ["sections"] = new(null, null, [new(section, null, null, origin)], origin)
             }, null, origin)
         }, null, origin);
-        var state = new RunState(new Configuration(root), "/unused", DateTimeOffset.UnixEpoch,
+        var state = new RunState(new Configuration(root), TestRunFolders.At("/unused", DateTimeOffset.UnixEpoch),
             new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         var data = JsonSerializer.Deserialize<JsonElement>("""
             {"devices":[{"device":{"name":"fixture"},"scenarios":[{

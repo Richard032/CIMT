@@ -6,37 +6,44 @@ namespace Cimt;
 public sealed class WorkDirectoryManager(string registry)
 {
     /// <summary>Create a private work folder and record proof that CIMT owns it.</summary>
-    public string Create(string root)
+    public string Create(RunFolders folders)
     {
-        Directory.CreateDirectory(root);
-        var name = "work_" + DateTimeOffset.Now.ToString("yyyy-MM-dd_HH-mm-ss-fff") + "_" + Guid.NewGuid().ToString("N")[..8];
-        var path = Path.Combine(root, name);
+        RunFolderSafety.Check(folders);
+        var path = folders.Work;
+        if (Directory.Exists(path) || File.Exists(path) || new DirectoryInfo(path).LinkTarget is not null)
+            throw new ConfigurationException("The allocated work folder is already occupied; it will not be reused.");
         Directory.CreateDirectory(path);
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        Register(path);
+        Register(folders);
         return path;
     }
 
-    private void Register(string path)
+    private void Register(RunFolders folders)
     {
+        var path = folders.Work;
         var token = Guid.NewGuid().ToString("N");
         File.WriteAllText(Path.Combine(path, ".cimt-owned"), token);
         Directory.CreateDirectory(Path.GetDirectoryName(registry)!);
         File.WriteAllText(registry, JsonSerializer.Serialize(new
         {
             path,
-            token
+            token,
+            runId = folders.Identity.Id,
+            report = folders.Report
         }));
     }
 
     /// <summary>Remove a previous interrupted run only when its ownership can be verified.</summary>
-    public void CleanupPrevious()
+    public void CleanupPrevious(string? retainedReport = null)
     {
         if (!File.Exists(registry))
             return;
         using var record = JsonDocument.Parse(File.ReadAllText(registry));
-        Remove(record.RootElement.GetProperty("path").GetString()!);
+        var path = record.RootElement.GetProperty("path").GetString()!;
+        if (retainedReport is not null)
+            RunFolderSafety.Outside(path, retainedReport);
+        Remove(path);
     }
 
     /// <summary>Verify the recorded path and token before deleting any folder.</summary>
@@ -77,8 +84,8 @@ public sealed class WorkPreparation(WorkDirectoryManager folders) : IRunStep
 {
     public Task Execute(RunState state)
     {
-        folders.CleanupPrevious();
-        state.Work = folders.Create(state.Configuration.WorkspaceRoot);
+        folders.CleanupPrevious(state.Report);
+        state.Work = folders.Create(state.Folders);
         state.Environment["MOBILECLI_HOME"] = Path.Combine(state.Work, "mobilecli");
         return Task.CompletedTask;
     }

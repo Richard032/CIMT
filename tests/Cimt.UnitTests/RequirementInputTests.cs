@@ -20,7 +20,7 @@ public sealed class RequirementInputTests
                 ["requirements"] = new("requirements.txt", null, null, origin)
             }, null, origin)
         }, null, origin));
-        var state = new RunState(config, folder.Path, DateTimeOffset.UtcNow, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        var state = new RunState(config, TestRunFolders.At(folder.Path, DateTimeOffset.UtcNow), new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         using var http = new HttpClient();
         await new TextInputLoader(new TextInputReader(http)).Execute(state);
         Assert.Equal(2, state.Requirements.Count);
@@ -45,7 +45,7 @@ public sealed class RequirementInputTests
                 ["targets"] = new(null, null, [target], origin)
             }, null, origin)
         }, null, origin));
-        var state = new RunState(config, "/unused", DateTimeOffset.UtcNow, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        var state = new RunState(config, TestRunFolders.At("/unused", DateTimeOffset.UtcNow), new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         state.Devices.Add(new()
         {
             ["id"] = "phone-a",

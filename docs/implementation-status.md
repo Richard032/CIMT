@@ -53,6 +53,7 @@ Resolved on follow-up: the product owner unlocked the phone; a fresh guarded iPh
 - CLI/configuration foundation and readiness reports.
 - Default build-script implementation and contract tests.
 - Initial public run path, local support runtime, bounded action selection, owned clone lifecycle, max-two-device scheduling, evidence/report generation, and failure precedence, checked with simulations.
+- Shared UTC run identity and paired work/report folder allocation, with collision, lock, retention, and portability checks.
 - Main-branch example with both build configurations, private YAML template, text inputs, and an application-specific macOS pre-build adapter.
 
 ## Overall remaining
@@ -119,3 +120,17 @@ Remaining: real Android/iOS requirement-evaluation acceptance, semantic scenario
 Verified for this increment: 99 .NET unit tests, 87 Python unit tests, 18 CLI/lifecycle checks, four simulated build-contract checks, and one MSBuild fixture passed: 209 checks total. The public-command regression also verifies that a failed build remains in the requirement matrix. The offline demo retained all five statuses, an exact instruction override quote, source line references/fingerprint, and the expected failed/incomplete outcome. No live API call, real MAUI build, device operation, or private-configuration read was performed.
 
 First-Mac mapping installation verified: republished the host, copied all Python support modules, checked public help, and compared installed files with the source build. Private configuration was preserved.
+
+## Reviewed increment — run identity exactly follows the folder contract
+
+Done: replace independent work/report clocks and suffixes with one RunIdentity and allocated RunFolders pair. The command captures invocation time once, and every temporary/retained folder name uses the same selected timestamp. The completed open engineering details are UTC, millisecond precision, and one shared millisecond advance on collisions. Actual start and deadline remain unchanged.
+
+Done: retain run-identity.json and propagate the same ID through final/command reports, HTML, progress, runtime requests/results, and CIMT_RUN_ID for child processes. Allocate report-only identities for validation and early failures. Keep the Mac lock until final/error reporting finishes. Rejected invocations cannot enter the run or alter active work/reports.
+
+Done: prevent report placement inside planned/owned cleanup folders, including aliases; never adopt a newly occupied work path; protect retained reports during interrupted cleanup; keep older ownership records readable. The public-command fixture captures the actual work name before cleanup and verifies the report and runtime identity afterward.
+
+Verified: 119 .NET unit tests, 88 Python unit tests, 18 CLI/lifecycle checks, four simulated build-contract checks, and one MSBuild fixture passed: 230 total. Focused cases cover names, UTC, collisions, files/links/reservations, original deadlines, declaring-file roots, metadata, report retention/copying, command/error locks, and rejected invocation safety. No live API, real app build, or physical-device operation was performed.
+
+No requirements were relaxed. The format/timezone/collision choices complete details the design had explicitly left open. Full interruption history and graceful cancellation remain pending, along with the other scenario/setup/replay, real-device, Jenkins, and second-Mac release work. See [run identity](run-identity.md).
+
+First-Mac identity installation verified: republished the host, copied all Python modules, checked public help, and confirmed installed files match the source build. The offline demo retained matching folder, result, and HTML identity metadata. Private configuration and existing reports were preserved.

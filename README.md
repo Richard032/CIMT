@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.3, dated 27 October 2026. The architecture is version 0.7. Product and installation guides are updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.3, dated 27 October 2026. The architecture is version 0.8. Product and installation guides are updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -69,3 +69,5 @@ Run development checks with bash scripts/check-development.sh. The [development 
 
 - [Complete requirement mapping](docs/requirement-mapping.md): source catalogue, five statuses, evidence, and every applicable target/device combination.
 - [Offline mapping demonstration](examples/requirement-mapping/README.md): runnable synthetic report; no API key or phone needed.
+
+- [Shared run identity](docs/run-identity.md): identical UTC timestamps for work/report names, safe collisions, retained metadata, and cleanup/portability checks.

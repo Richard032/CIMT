@@ -74,3 +74,9 @@ Capture reads sensitive field positions before and after taking an image, even w
 BuildResultResolver is a pure per-field policy. BuildArtifactStore reads metadata and saves artifacts; ApplicationBuilder records an unusable target and permits later targets. Helper shutdown and owned work deletion are separate cleanup attempts. Ownership checks still apply when helper shutdown fails.
 
 The mapping demo uses the real input and report services with synthetic observations. It is separate from the small unit tests. See [mapping rules](requirement-mapping.md) for the catalogue contract and status precedence. The action schema follows [official Structured Outputs guidance](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses); local mapping/quote validation remains mandatory.
+
+## Shared identity boundary
+
+RunIdentity and RunFolders store one invocation identity and its paired paths. RunFolderAllocator chooses a free shared timestamp; RunFolderSafety checks report placement. WorkDirectoryManager receives the allocated pair rather than reading a clock. Command and run services pass the same data through their normal constructors/delegate. The clock is read once at command entry, and collision handling does not extend the deadline.
+
+Identity tests use small fixed-time and temporary-folder cases. Command tests use ordinary recording dependencies; they need no thread barriers, runtime method replacement, or constructor bypass. The public-command fixture verifies the same work/report/runtime ID after cleanup. The Python journal only stores the ID supplied by the host. See [run identity](run-identity.md) for the contract and verification.

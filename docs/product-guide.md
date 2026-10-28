@@ -171,11 +171,11 @@ Absolute paths are accepted where applicable. Inherited relative values retain t
 For example, corresponding run folders are:
 
 ```text
-<working-root>/work_2026-10-27_14-30-00/   # temporary
-<report-root>/report_2026-10-27_14-30-00/  # retained
+<working-root>/work_2026-10-28_14-30-00-123/   # temporary
+<report-root>/report_2026-10-28_14-30-00-123/  # retained
 ```
 
-Both use the same run timestamp. Exact timezone/collision handling remains to be specified. Reports must sit outside the temporary cleanup folder. Each clone is deleted after success, failure, incompletion, or interruption; reports remain until manually deleted.
+Both use the same UTC timestamp with millisecond precision. A collision advances both names together by one millisecond; it never adds a separate suffix, reuses existing data, or changes the actual start/deadline. run-identity.json retains the paired names and identity beside the report. See [run identity](run-identity.md). Reports must sit outside the temporary cleanup folder. Each clone is deleted after success, failure, incompletion, or interruption; reports remain until manually deleted.
 
 ## 8. Default and replacement build scripts
 

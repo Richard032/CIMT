@@ -9,7 +9,7 @@ dotnet run --project tools/Cimt.RequirementDemo/Cimt.RequirementDemo.csproj -c R
 
 Expected: the command prints a report path under this example's ignored reports folder. Open index.html there. There are five requirements and five statuses: passed, failed, not tested, inconclusive, and overridden. The export conflict quotes “Do not test export.” Every item retains its original label, text, line range, and generated internal ID. Missing screenshots are explicitly explained.
 
-**Exit 1 is expected:** the synthetic observations include a failure. Completion is incomplete because two requirements remain unresolved. No real test result is implied. Copy the whole report folder to retain its machine-readable catalogue, results, and input snapshots.
+**Exit 1 is expected:** the synthetic observations include a failure. Completion is incomplete because two requirements remain unresolved. No real test result is implied. Copy the whole report folder to retain its machine-readable catalogue, results, input snapshots, and run-identity.json. The synthetic demo uses the same UTC identity allocator as the public command, while creating no application clone.
 
 For a real run, use your normal default/private and application YAML. Point the existing inputs fields at your testable requirements and instructions:
 

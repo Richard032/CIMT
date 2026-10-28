@@ -16,7 +16,8 @@ def atomic(path, value):
 class RunJournal:
     """Serializes worker snapshots without reading a dictionary being changed."""
 
-    def __init__(self, root, redactor, budget):
+    def __init__(self, root, redactor, budget, run_id=""):
+        self.run_id = run_id
         self.root = pathlib.Path(root)
         self.redactor = redactor
         self.budget = budget
@@ -40,7 +41,7 @@ class RunJournal:
         with self.lock:
             atomic(
                 self.root / "ui-results.json",
-                {"devices": self.results, "budget": self.budget.snapshot()},
+                {"runId": self.run_id, "devices": self.results, "budget": self.budget.snapshot()},
             )
 
 

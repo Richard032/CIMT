@@ -29,7 +29,9 @@ class Execution:
             self.config["ai-budget"]["currency"],
         )
         self.control = RunControl(context["deadline"])
-        self.journal = RunJournal(context["report"], self.redactor, self.budget)
+        self.journal = RunJournal(
+            context["report"], self.redactor, self.budget, context.get("runId", "")
+        )
         self.budget.journal = self.journal.journal_budget
         self.journal.journal_budget()
         self.mobile_factory = mobile_factory or self._mobile

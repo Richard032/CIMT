@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.7  
+Version: 0.8  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -90,7 +90,7 @@ Proposed layout:
     logs/
 ```
 
-Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. The approved temporary and report folder names are work_<date-time> and report_<date-time>, sharing a timestamp. Exact timestamp format, timezone handling, and collision resolution remain to be specified. The whole report folder must remain usable after clone deletion and relocation.
+Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. The approved temporary and report folder names are work_<date-time> and report_<date-time>, sharing a timestamp. The implemented shared identity uses UTC millisecond timestamps; collisions advance both folder names together without changing the invocation start or deadline. See [run identity](run-identity.md). The whole report folder must remain usable after clone deletion and relocation.
 
 ## 5. Model control and strict budgeting
 
@@ -273,3 +273,11 @@ The worker sees every catalogue item and its current result. Checks reference kn
 The final report builds its matrix from all configured compatible target/startup-device combinations, including failed builds and work that did not start. Unresolved combinations prevent complete coverage even if another combination failed. Every item has a result, source reference, and evidence or an unavailable-evidence explanation. The approved command/YAML interface and requirements baseline are unchanged. See [mapping rules](requirement-mapping.md) and the [offline demonstration](../examples/requirement-mapping/README.md).
 
 This closes the missing catalogue/mapping component for the tested implementation. Android/iOS application acceptance of the mapping remains open. Full semantic scenario planning, setup/replay, interruption/run-identity work, final adapter qualification, Jenkins, and second-Mac acceptance remain separate gaps.
+
+## 17. Shared run identity increment
+
+RunIdentity captures the invocation start once. RunFolderAllocator selects a free paired timestamp for work_<date-time> and report_<date-time>, creates the retained report, and saves portable run-identity.json metadata. WorkDirectoryManager receives this pair and creates the exact allocated work name; it no longer generates a separate timestamp or folder suffix.
+
+The format/timezone/collision details left open in section 4 are now implemented: UTC, yyyy-MM-dd_HH-mm-ss-fff, and a shared one-millisecond advance when either candidate or its report reservation is occupied. Existing paths are never adopted. The actual start and deadline do not change when the folder timestamp advances. Alias and ownership checks keep reports outside cleanup folders. The same ID reaches results, progress, workers, and build/reset processes.
+
+The Mac lock now spans allocation, execution, cleanup, final reporting, and error reporting. Rejected invocations retain their own error reports without touching active work. The public command regression verifies shared work/report/runtime identity after cleanup; focused tests verify collisions, path origins, report copying, and unsafe placements. See [identity contract](run-identity.md). The run-identity gap is closed for the tested implementation. Full interruption history/cancellation, semantic scenario planning, setup/replay, real-app/device qualification, Jenkins, and second-Mac acceptance remain open.

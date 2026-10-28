@@ -117,7 +117,7 @@ public sealed class ExecutionTests
     private static RunState State(RunDeadline? deadline = null)
     {
         var config = new Configuration(new Node(null, [], null, "/fixture/config.yaml"));
-        return new(config, "/unused-report", DateTimeOffset.UnixEpoch,
+        return new(config, TestRunFolders.At("/unused-report", DateTimeOffset.UnixEpoch),
             deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
     }
 }

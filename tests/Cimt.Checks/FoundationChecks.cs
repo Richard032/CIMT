@@ -200,7 +200,7 @@ build:
         var unrelated = Path.Combine(temp, "keep");
         Directory.CreateDirectory(unrelated);
         File.WriteAllText(Path.Combine(unrelated, "keep.txt"), "keep");
-        var owned = folders.Create(Path.Combine(temp, "work"));
+        var owned = folders.Create(new RunFolderAllocator().Create(Path.Combine(temp, "work"), Path.Combine(temp, "reports"), DateTimeOffset.UtcNow));
         Directory.CreateDirectory(Path.Combine(owned, "repository"));
         File.WriteAllText(Path.Combine(owned, "repository", "App.csproj"), "fixture");
         folders.CleanupPrevious();
@@ -210,7 +210,7 @@ build:
 
     private void ChangedOwnershipIsRejected()
     {
-        var owned = folders.Create(Path.Combine(temp, "work"));
+        var owned = folders.Create(new RunFolderAllocator().Create(Path.Combine(temp, "work"), Path.Combine(temp, "reports"), DateTimeOffset.UtcNow));
         var marker = Path.Combine(owned, ".cimt-owned");
         var token = File.ReadAllText(marker);
         File.WriteAllText(marker, "changed");
@@ -271,6 +271,13 @@ build:
         using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "result.json")));
         var stages = result.RootElement.GetProperty("stages").EnumerateArray().Where(e => e.GetProperty("stage").GetString() == "build").ToArray();
         Assert(stages.Length == 2 && stages[0].GetProperty("result").GetString() == "error" && stages[1].GetProperty("result").GetString() == "passed", "other target did not continue");
+        var identity = result.RootElement.GetProperty("runIdentity");
+        var runId = identity.GetProperty("id").GetString()!;
+        Assert(Path.GetFileName(created) == "report_" + runId, "report used a different run timestamp");
+        using var probe = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "identity-probe.json")));
+        Assert(probe.RootElement.GetProperty("workName").GetString() == "work_" + runId, "work used a different run timestamp");
+        Assert(probe.RootElement.GetProperty("runId").GetString() == runId, "runtime used a different identity");
+        Assert(File.Exists(Path.Combine(created, "run-identity.json")), "run identity was not retained");
         var mapping = result.RootElement.GetProperty("requirementCoverage").GetProperty("requirements");
         Assert(mapping.GetArrayLength() == 2, "a supplied requirement disappeared");
         Assert(mapping[0].GetProperty("results").GetArrayLength() == 2, "failed build was omitted from the matrix");
@@ -292,6 +299,7 @@ build:
 import sys,json,pathlib
 c=json.load(sys.stdin)
 if '--preflight' not in sys.argv:
+ pathlib.Path(c['report'],'identity-probe.json').write_text(json.dumps({'runId':c['runId'],'workName':pathlib.Path(c['work']).name}))
  d={'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
  pathlib.Path(c['report'],'ui-results.json').write_text(json.dumps(d))
 print('Simulated runtime interface; no API or device actions.')

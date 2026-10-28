@@ -30,6 +30,7 @@ public sealed class RunReportWriter : IRunReportWriter
         var value = new
         {
             command = "run",
+            runIdentity = state.Identity,
             sourceBranch = state.Configuration.Root.Get("repository")!.Value("branch"),
             sourceCommit = state.Commit,
             started = state.Started,

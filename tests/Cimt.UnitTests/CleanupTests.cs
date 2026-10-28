@@ -56,8 +56,9 @@ internal sealed class CleanupFixture : IDisposable
     {
         folders = new(Path.Combine(directory.Path, "owned.json"));
         var config = new Configuration(new Node(null, [], null, Path.Combine(directory.Path, "config.yaml")));
-        State = new(config, directory.Path, DateTimeOffset.UtcNow, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
-        State.Work = folders.Create(directory.Path);
+        var pair = new RunFolderAllocator().Create(directory.Path, directory.Path, DateTimeOffset.UtcNow);
+        State = new(config, pair, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        State.Work = folders.Create(pair);
     }
 
     public Task Cleanup(ICommandRunner runner) => new RunCleanup(runner, new RuntimePaths(directory.Path), folders).Execute(State);
