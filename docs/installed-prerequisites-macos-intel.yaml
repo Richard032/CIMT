@@ -31,6 +31,7 @@ evaluation-candidates:
   xcuitest: "12.22.1"
   mobile-mcp: "1.0.14"
   mobilecli: "1.0.21"
+  devicekit-ios: "0.0.35"
 verification:
   runtime-version-checks: passed
   installer-rerun: passed
@@ -57,7 +58,7 @@ implementation-increments:
   default-build-workers: installed
   simulated-build-contract-checks: 4-passed
   physical-android-control: both-candidates-passed
-  physical-ios-control: appium-11-checks-passed-mobile-mcp-pending
+  physical-ios-control: appium-11-checks-passed-mobile-mcp-blocked-by-lock
   adapter-selection: open-appium-control-demonstrated-both-platforms
   application-android-publish: blocked-by-windows-prebuild
   application-ios-publish: blocked-by-provisioning
@@ -68,7 +69,14 @@ iphone-follow-up:
   developer-services: available
   development-identity: valid-legacy-iphone-developer
   app-specific-profiles: valid-but-not-for-helper
-  helper-profile: available-for-wda-only
+  helper-profile: matching-wildcard-available-for-wda-and-devicekit
   automatic-helper-provisioning: passed-after-xcode-account-recovery
-  helper-control: appium-11-checks-passed
-  next: mobile-mcp-profile-and-full-application-qualification
+  helper-control: appium-11-checks-passed-devicekit-app-probe-incomplete
+  next: unlocked-mobile-mcp-control-and-full-application-qualification
+
+devicekit-follow-up:
+  installation: passed-stock-native-installer
+  version: "0.0.35"
+  signing-profile: unexpired-development-wildcard-matches-phone-and-identity
+  application-probe: incomplete-phone-locked
+  lock-state-guard: verified-stops-application-actions

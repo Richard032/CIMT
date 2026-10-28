@@ -62,7 +62,7 @@ CIMT's product code and documentation remain in this GitHub repository for now. 
 
 Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces real configuration/readiness reports. setup/run/replay execution remains explicitly unimplemented.
 
-- [Adapter evaluation](docs/adapter-evaluation.md): both Android candidates exercised; Appium iPhone UI/screenshot/navigation checks passed after Xcode account recovery. Final qualification remains open.
+- [Adapter evaluation](docs/adapter-evaluation.md): both Android candidates exercised; Appium iPhone UI/screenshot/navigation checks passed. DeviceKit is installed; Mobile MCP application checks await an unlocked phone. Final qualification remains open.
 - [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
 
 Development checks: dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release, and python3 tests/check-build-contract.py. Activate the prerequisite environment first.

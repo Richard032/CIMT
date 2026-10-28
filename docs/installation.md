@@ -177,7 +177,7 @@ Prepare any required Bluetooth, USB, seat-controller, backend, or other external
 
 Evaluate Mobile MCP and Appium against the approved physical-device requirements before selecting one. Record required supporting runtime versions, installation commands, signing/device-agent setup where applicable, and unattended operation here after validation.
 
-Both candidates and Node/npm are installed. Android control probes passed for both candidates. Following Xcode account recovery, Appium iPhone signing and 11 UI/screenshot/navigation checks passed. Mobile MCP's separate iPhone helper remains pending. Final selection requires the complete gate in the [adapter evaluation](adapter-evaluation.md); reset, masking, and unattended app testing remain unverified.
+Both candidates and Node/npm are installed. Android control probes passed for both candidates. Following Xcode account recovery, Appium iPhone signing and 11 UI/screenshot/navigation checks passed. Mobile MCP's DeviceKit helper is installed; its application-control probe is blocked by the locked phone. Final selection requires the complete gate in the [adapter evaluation](adapter-evaluation.md); reset, masking, and unattended app testing remain unverified.
 
 ### Step 10 — Install CIMT and create configuration
 
@@ -444,7 +444,7 @@ The earlier GitHub terminal-authentication failures are not a blocker for readin
 
 [Reviewed status](implementation-status.md) records each increment and remaining work.
 
-1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Initial iPhone signing failed; after the Xcode account recovery in sections 11–12, Appium helper signing and 11 iPhone control checks passed. Mobile MCP's separate helper still requires a valid profile. Final adapter selection remains open; its earlier Mobile MCP preference was provisional.
+1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Initial iPhone signing failed; after the Xcode account recovery in sections 11–12, Appium helper signing and 11 iPhone control checks passed. Mobile MCP's separate DeviceKit helper was subsequently installed with a matching wildcard profile (section 13); application control still awaits an unlocked phone. Final adapter selection remains open; its earlier Mobile MCP preference was provisional.
 2. The .NET CLI/configuration foundation is built and installed at /Users/Shared/CIMT/bin/cimt, with assemblies under lib/cimt. Source environment.sh to put it on PATH. Fifteen checks passed, and real readiness validation reached Subgit and both connected-device inventories. Only synthetic credential presence was tested; no AI request was made.
 3. Default Android/iOS scripts are installed under scripts/build, with worker assemblies under lib/cimt-build. Four simulated build-contract checks passed. Actual builds on main with submodules were attempted: Android stops at the repository's Windows-only pre-build commands, and iOS lacks an available provisioning profile. No successful artifact was produced.
 
@@ -563,7 +563,7 @@ WebDriverAgentRunner (WDA) is the on-device automation helper supplied with Appi
 
 This check uses the separate ch.curtis.cimt.WebDriverAgentRunner identifier (runner suffix .xctrunner). It builds the helper from the installed Appium dependency and does not change the MAUI application's source or identity. It does not run an AI model. Creating the helper profile and building it does not prove successful device installation or control.
 
-Mobile MCP uses a different helper, DeviceKit. Its installation/profile remains pending. WDA is being evaluated as the other adapter candidate; its successful build does not select the final CIMT adapter.
+Mobile MCP uses a different helper, DeviceKit. It was subsequently installed using a matching wildcard profile; section 13 records the results and remaining control check. WDA is being evaluated as the other adapter candidate; its successful build does not select the final CIMT adapter.
 
 ### Reuse the signed helper for the control check
 
@@ -598,4 +598,41 @@ The Appium session installed/launched the signed WDA helper on the physical iPho
 
 Settings and Home screenshots were visually checked locally. No screenshots, UI trees, real device identifiers, or signing secrets were added to the repository. Session closure succeeded; the temporary local Appium server and its owned test process were stopped. WDA remains installed for future checks.
 
-This completes basic Appium iPhone control on this Mac. Mobile MCP uses a separate helper/profile and remains unverified on iPhone. Input entry, real MAUI install/reset/login/crash flows, simultaneous two-device testing, Jenkins operation, and final adapter acceptance remain open.
+This completes basic Appium iPhone control on this Mac. Mobile MCP uses a separate helper/profile, subsequently installed in section 13; its iPhone application workflow remains unverified while the phone is locked. Input entry, real MAUI install/reset/login/crash flows, simultaneous two-device testing, Jenkins operation, and final adapter acceptance remain open.
+
+
+## 13. Mobile MCP DeviceKit installation — 28 October 2026
+
+### Signing and installation verified
+
+After the Xcode account/profile refresh, the profile inventory includes an unexpired team wildcard development profile that includes the physical iPhone and references available signing identities. Both legacy iPhone Developer and Apple Development identities are now present. The wildcard profile was checked for expiry, development entitlement, device inclusion, and certificate/private-key identity matching before use.
+
+The stock native Mobile CLI agent install command from section 11 succeeded with that profile and reported DeviceKit 0.0.35 installed. Its bundle identifier is com.mobilenext.devicekit-iosUITests.xctrunner. No helper source changes, bundle renaming, or signing bypass was required. DeviceKit is separate from the previously installed Appium WebDriverAgent helper.
+
+The installation command is verified on this Mac. On another Mac, supply a profile that matches that Mac's actual available identity and test phone; copying a profile without its matching private key is insufficient. Keep profile files, certificate/private-key material, and raw installation diagnostics outside source control.
+
+### Lock-state readiness finding
+
+The first Mobile MCP probe returned UI data and screenshots, but the phone had locked again. The captured screen was the passcode screen; launching Settings timed out. Those results are retained as failed application-readiness evidence. Successful screenshot or button commands alone do not prove an application workflow passed.
+
+The engineering probe now checks the supported devicectl JSON lock-state output before iPhone application actions:
+
+```bash
+xcrun devicectl device info lockState \
+  --device "<phone-udid>" --timeout 15 \
+  --json-output "<private-evidence-folder>/lock-state.json"
+```
+
+The result.passcodeRequired field must be false. A locked or unknown state stops that phone's probe before launch, screenshot, swipe, or Home actions. The user unlocks the phone locally; CIMT must not collect its passcode or bypass the screen lock. This guard is implemented in the engineering probe; equivalent readiness handling in the full run engine remains implementation work.
+
+### Run the iPhone-only probe
+
+After unlocking the phone, keep it unlocked while checking:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+python3 scripts/evaluate-mobile-mcp.py \
+  --output "<new-private-evidence-folder>" --platform ios
+```
+
+--platform ios limits this engineering check to connected iPhones. Without a platform filter it checks up to two available physical devices. The probe records lock readiness, Settings launch, UI inspection, screenshots, swipe, and Home UI/screenshot results. Device identifiers, raw UI, and images stay in the private evidence folder. Use a fresh folder to preserve each attempt.
