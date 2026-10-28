@@ -51,3 +51,9 @@ source /Users/Shared/CIMT/environment.sh
 The helper installs isolated runtimes, MAUI Android/iOS workloads, Android tools, and both adapter candidates. It is not the completed YAML-driven cimt setup command. Read the [installation guide](docs/installation.md#8-prerequisite-installation-performed--28-october-2026) for exact versions, checks, limitations, Git authentication, and remaining device/application validation.
 
 [Installed prerequisite profile](docs/installed-prerequisites-macos-intel.yaml) records observed versions; it is not yet an enforced installer manifest.
+
+## Repository locations
+
+The first application to test is [ag-econ-mobile on Subgit](https://subgit.curtis.ch/ECON/ag-econ-mobile.git). Noninteractive read access from the current Mac was verified; the test branch remains to be explicitly selected.
+
+CIMT's product code and documentation remain in this GitHub repository for now. The product owner plans to move CIMT to Subgit later; that migration has not been performed. Application repository URLs remain configurable.

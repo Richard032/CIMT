@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.2  
+Version: 0.3  
 Last updated: 28 October 2026  
 Status: prerequisite installation and rerun verified on the first Intel Mac; CIMT implementation and end-to-end acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -42,7 +42,7 @@ Do not turn this Mac's observed versions into a supported baseline without testi
 | JDK and Android SDK/build tools | Match the application's Android targets and selected .NET Android tooling. | JDK 21, Android API 36, build-tools 36.0.0, command-line tools 22.0, and platform-tools 37.0.1 installed. |
 | Device adapter | Select after evaluating physical Android/iOS and unattended Intel/Jenkins operation. | Both evaluation candidates installed; no final selection. Mobile MCP startup/tool discovery verified. |
 | Supporting runtimes | Provide runtimes needed for adapter evaluation. | Node 22.23.4/npm 10.9.9 installed for both candidates. |
-| Git | Noninteractive access under the executing account. | Host trust repaired; private repository authentication still needs user/account setup. |
+| Git | Noninteractive access to the configured application repository under the executing account. | Supplied Subgit application URL verified successfully with the current Mac Git configuration. GitHub terminal authentication is separate and is not a prerequisite for this application. |
 | OpenAI model/pricing | Use a model with a provable maximum request cost. | Not configured/validated in this inspection. |
 
 Microsoft requires an Xcode version compatible with the selected MAUI release; Apple publishes Xcode host/device support separately. Review both when creating the manifest. [Microsoft installation guidance](https://learn.microsoft.com/dotnet/maui/get-started/installation), [Apple Xcode requirements](https://developer.apple.com/xcode/system-requirements).
@@ -89,15 +89,17 @@ A shared installation such as /Users/Shared/CIMT is an example, not a required l
 3. For SSH, verify the server fingerprint through the hosting provider's official documentation before establishing host trust.
 4. Test noninteractive access with the actual repository and account.
 
-Example inspection, using a repository for which access is authorized:
+Verified application example (the URL remains configurable for other applications):
 
 ```bash
-GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND='ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10' git ls-remote git@github.com:YOUR-TEAM/YOUR-APP.git HEAD
+GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git ls-remote --symref https://subgit.curtis.ch/ECON/ag-econ-mobile.git HEAD
 ```
 
-Success prints the remote commit and HEAD reference. Host-key failure means trust setup must be completed; it does not prove the user's repository credentials are wrong. Do not disable host verification as a workaround. GitHub connector access does not establish terminal Git access.
+Success prints the default-branch reference and HEAD commit. The supplied application URL succeeded noninteractively on this Mac. Its advertised default is main, but CIMT's configured test branch must still be explicit. The current Git credential helper is osxkeychain; no credential values were inspected. This verifies repository read access, not a clone/build or access under another account.
 
-For GitHub's manual trust/authentication test, follow its fingerprint verification procedure. [GitHub SSH connection guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection).
+For SSH URLs, host-key failure means verified trust setup is needed; it does not prove credentials are wrong. Do not disable host verification. GitHub connector access and terminal Git access are separate.
+
+The GitHub-specific procedure below is relevant to source maintenance while CIMT itself remains on GitHub; it is not required for the tested application's HTTPS Subgit URL. For GitHub's manual trust/authentication test, follow its fingerprint verification procedure. [GitHub SSH connection guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection).
 
 ### Step 4 — Prepare Xcode
 
@@ -275,7 +277,9 @@ Restricted process checks initially blocked hardware properties and Apple's devi
 
 These inspection restrictions are not established Mac defects. Normal CIMT execution must be validated directly under its intended account.
 
-### Gap list for the next implementation steps
+### Historical gap list from the initial inspection
+
+Sections 8 and 9 record subsequent installation and application-repository access results.
 
 1. Select and verify the application/toolchain compatibility matrix before installing or replacing versions.
 2. Resolve GitHub SSH host trust and retest noninteractive Git access.
@@ -395,7 +399,7 @@ GitHub's ED25519 key was retrieved from its official HTTPS metadata, matched to 
 
 The SSH repository check subsequently failed with Permission denied (publickey). The noninteractive HTTPS check also found no credentials. No private key, token, or GitHub account credential was generated or exposed.
 
-Complete Git authentication under the intended executing account and rerun the section 4 Git check before private cloning. [GitHub host fingerprints](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).
+These failures concerned GitHub terminal access, not the subsequently supplied application repository. The application's HTTPS Subgit read check succeeded as recorded in section 9. No GitHub terminal authentication change is required for that application; verify each configured repository under its actual execution account. [GitHub host fingerprints](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).
 
 ### Device state after installation
 
@@ -407,10 +411,31 @@ Complete Git authentication under the intended executing account and rerun the s
 ### Remaining before CIMT can execute a test
 
 1. Implement the CIMT CLI and final YAML-driven setup; the prerequisite helpers do not provide autonomous testing.
-2. Configure noninteractive Git authentication and supply the first real application's repository/branch.
+2. The first application URL is now supplied and its Subgit read access verified. Select an explicit test branch and application build configuration before the first run; validate access separately under Jenkins.
 3. Connect and authorize an Android device; validate the available iPhone, including signing and its OS/toolchain requirements.
 4. Complete both adapters' real-device evaluation before selecting one.
 5. Implement and verify application builds, reset/login, element-ID masking, strict OpenAI budget, evidence, and reports. OpenAI credentials/model access were not configured or tested by this prerequisite installation.
 6. Repeat the complete procedure under Jenkins and on the second Intel Mac.
 
 No approved product behaviour was changed. The installed profile and helper scripts are an implementation increment; full application compatibility, manifest enforcement, and end-to-end acceptance remain explicitly unverified.
+
+## 9. Application repository and future CIMT migration
+
+The product owner supplied the first application repository:
+
+```text
+https://subgit.curtis.ch/ECON/ag-econ-mobile.git
+```
+
+A noninteractive Git reference check succeeded on 28 October 2026 using the Mac's existing configuration. It advertised refs/heads/main and a HEAD commit. The configured credential helper is osxkeychain; no passwords, tokens, or private keys were read or changed. Access is verified for the current execution account only.
+
+The existing local ECON-Mobile checkout also points at this application URL. CIMT will still clone from the configured Git URL into its owned temporary folder; the existing checkout was not modified or substituted for that workflow. No application clone, build, or test was performed in this access check.
+
+Repository locations are separate:
+
+| Purpose | Current location | Plan |
+| --- | --- | --- |
+| Application under test | Subgit URL above. | Use configurable repository URL and explicit test branch. |
+| CIMT product code/documentation | https://github.com/Richard032/CIMT | Move to Subgit later, as requested; destination and migration steps are not yet supplied. |
+
+The earlier GitHub terminal-authentication failures are not a blocker for reading this application repository. Future Jenkins/server accounts must establish their own authorized access. No source-repository migration has been performed.
