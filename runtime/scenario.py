@@ -11,6 +11,7 @@ from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
 from errors import InfrastructureError
 from evidence import ScenarioEvidence
+from check_results import scenario_verdict, validate_checks
 
 
 @dataclass
@@ -63,7 +64,7 @@ class ScenarioRunner:
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
         startup = StartupGuard(mobile, evidence, publish)
-        recovery = CrashRecovery(mobile, monitor, evidence, self.redactor)
+        recovery = CrashRecovery(mobile, monitor, evidence, self.redactor, publish)
         while True:
             self.control.check()
             state = startup.check(session)
@@ -74,15 +75,18 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action = self._choose(session, agent, publish)
+            action = self._choose(session, agent, evidence, publish)
             if action["action"] == "done":
                 self._complete(session, action)
                 publish()
                 return
             entry, element, point = self._perform(mobile, session, action)
-            cancelled = recovery.after_action(session, entry, action, element, point)
-            self._save_action(session, entry, action)
-            publish()
+            try:
+                cancelled = recovery.after_action(session, entry, action, element, point)
+            finally:
+                # Keep the performed action even when evidence or recovery fails.
+                self._save_action(session, entry, action)
+                publish()
             if cancelled:
                 return
 
@@ -125,6 +129,7 @@ class ScenarioRunner:
             "steps": [],
             "remaining": [],
             "crashes": [],
+            "checks": [],
             "coverage": {},
             "reset": "not-started",
         }
@@ -153,7 +158,7 @@ class ScenarioRunner:
         )
         return False
 
-    def _choose(self, session, agent, publish):
+    def _choose(self, session, agent, evidence, publish):
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
         session.result["coverage"] = coverage
@@ -168,8 +173,44 @@ class ScenarioRunner:
             list(self.config.get("credentials", {})),
             coverage,
         )
+        # Keep a returned finding even if the run limit expired during the request.
+        self._record_checks(session, action.get("checks", []), evidence, publish)
         self.control.check()
+        publish()
         return action
+
+    def _record_checks(self, session, checks, evidence, publish):
+        validate_checks(checks)
+        if not checks:
+            return
+        index = len(session.result["steps"])
+        safe = self.redactor.object(checks)
+        recorded = [dict(check, step=index) for check in safe]
+        session.result["checks"].extend(recorded)
+        step = {
+            "step": index,
+            "action": "check",
+            "observation": "; ".join(check["subject"] + ": " + check["status"] for check in safe),
+        }
+        session.result["steps"].append(step)
+        session.result["verdict"] = scenario_verdict(
+            session.result["checks"], bool(session.result["crashes"]), False
+        )
+        publish()
+        self._save_check_image(session, step, recorded, evidence)
+
+    def _save_check_image(self, session, step, checks, evidence):
+        try:
+            # Save the same masked image that the model used for these checks.
+            path = evidence.save_image(
+                "check-" + str(step["step"]).zfill(4) + ".png", session.image
+            )
+            step["screenshot"] = path
+            for check in checks:
+                check["screenshot"] = path
+        except Exception as error:
+            step["evidenceError"] = self.redactor.text(str(error))
+            raise
 
     def _perform(self, mobile, session, action):
         element = next(
@@ -207,6 +248,6 @@ class ScenarioRunner:
         result["interpretation"] = action["observation"]
         complete = action["completion"] == "complete" and not result["remaining"]
         result["completion"] = "complete" if complete else "incomplete"
-        result["verdict"] = (
-            "failed" if result["crashes"] else "passed" if complete else "inconclusive"
+        result["verdict"] = scenario_verdict(
+            result.get("checks", []), bool(result["crashes"]), complete
         )

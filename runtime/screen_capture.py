@@ -61,8 +61,7 @@ class ScreenCapture:
         return image
 
     def _verify_mask_geometry(self, before):
-        if not any(self.redactor.sensitive(element) for element in before):
-            return before
+        # A sensitive field can appear after the first read. Always check again.
         after = self.raw_elements()
         if self._mask_regions(before) != self._mask_regions(after):
             raise InfrastructureError("Required mask geometry changed during screenshot capture")

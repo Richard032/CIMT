@@ -91,3 +91,15 @@ Done: separated command parsing/routing, settings and redaction, process access,
 Verified: 68 unit tests passed (36 .NET; 13 existing Python policy tests plus 19 new component/scenario tests). All 18 CLI/configuration/cleanup regression checks, four simulated build-contract checks, and one MSBuild adapter fixture also passed: 91 checks in total. No paid API requests, physical-device operations, or real MAUI builds ran during this refactor.
 
 Review: this changes internal structure, not the approved command/configuration or test behavior. No requirement gate was relaxed. Real app builds and device acceptance remain pending. Use bash scripts/check-development.sh for the complete development suite; see the [developer guide](development.md).
+
+## Reviewed increment — defects R1–R7
+
+Done: fixed all six confirmed defects from the [product review](reviews/2026-10-28-product-implementation-review.md). Explicit instruction/requirement checks now affect verdicts without needing a crash. Navigation alone cannot pass. A returned failure remains visible if a limit expires, and later evidence can resolve an earlier unknown check. Sensitive fields are checked on both sides of capture. Known crashes and performed actions survive capture/storage errors. Native commands receive their redactor through the constructor. Replacement build scripts use per-field YAML fallbacks; invalid target metadata allows later targets to continue. Helper shutdown errors no longer prevent verified owned-clone deletion.
+
+Done: separated device scheduling from execution. Small recording services test zero, one, two, and three devices without real threads, barriers, locks, report setup, or method replacement. Updated AGENTS.md and the development guide with both rules about complicated unit tests. HTML shows recorded checks and evidence, and keeps failed totals visible when detail sections are disabled.
+
+Verified: 62 .NET unit tests, 64 Python unit tests, 18 CLI/lifecycle regression checks, four build-contract simulations, and one MSBuild example fixture pass: 149 checks total. They make no OpenAI calls, operate no physical phones, and do not build the real MAUI application. Test count describes the verification performed, not product completeness.
+
+Installed on the first Mac: republished the host and build worker, copied all Python support modules, and checked the public help command. Installed host/module files match the corrected source build. Existing private configuration was preserved.
+
+The command and YAML interface and approved requirements remain unchanged. Complete per-requirement inventory/evaluation, explicit scenario decomposition, setup/replay, interruption/run-identity work, real app/device qualification, Jenkins, and second-Mac acceptance remain open. The iPhone is unavailable. Existing-key configuration and real model access remain unverified; no private YAML was read or changed during these fixes.

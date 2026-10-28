@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 
 namespace Cimt;
 
-public sealed record BuildJob(string Target, string Platform, string Folder, string RequestFile, string ResultFile, string Script)
+public sealed record BuildJob(string Target, string Platform, string Folder, string RequestFile,
+    string ResultFile, string Script, string RepositoryRoot, string? ArtifactFallback, string? AppIdFallback)
 {
     public string LogName => Path.GetFileName(Folder) + ".log";
 }
@@ -19,7 +20,8 @@ public sealed class BuildJobFactory(RuntimePaths paths)
         var folder = Path.Combine(state.Work, slug);
         Directory.CreateDirectory(folder);
         var job = new BuildJob(name, platform, folder, Path.Combine(folder, "request.json"),
-            Path.Combine(folder, "result.json"), settings.Get("script")?.PathValue ?? paths.BuildScript(platform));
+            Path.Combine(folder, "result.json"), settings.Get("script")?.PathValue ?? paths.BuildScript(platform),
+            Path.Combine(state.Work, "repository"), settings.Value("artifact"), settings.Value("app-id"));
         await WriteRequest(job.RequestFile, target, settings);
         return job;
     }
@@ -46,26 +48,36 @@ public sealed class BuildArtifactStore
 {
     public async Task<Dictionary<string, string>> Save(RunState state, BuildJob job)
     {
-        var result = JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(job.ResultFile))!;
-        Validate(result);
+        var script = await ReadScriptResult(job.ResultFile);
+        var result = BuildResultResolver.Resolve(script, job.RepositoryRoot, job.ArtifactFallback, job.AppIdFallback);
+        if (!File.Exists(result.Artifact))
+            throw new ConfigurationException("The resolved build artifact does not exist.");
         var destination = Path.Combine(state.Report, "artifacts", Path.GetFileName(job.Folder));
         Directory.CreateDirectory(destination);
-        var saved = Path.Combine(destination, Path.GetFileName(result["artifact"]));
-        File.Copy(result["artifact"], saved);
+        var saved = Path.Combine(destination, Path.GetFileName(result.Artifact));
+        File.Copy(result.Artifact, saved);
         return new()
         {
             ["target"] = job.Target,
             ["platform"] = job.Platform,
             ["artifact"] = saved,
-            ["app-id"] = result["app-id"]
+            ["app-id"] = result.AppId
         };
     }
 
-    private static void Validate(Dictionary<string, string> result)
+    private static async Task<Dictionary<string, string>> ReadScriptResult(string path)
     {
-        if (!result.TryGetValue("artifact", out var artifact) || !File.Exists(artifact) ||
-            !result.TryGetValue("app-id", out var appId) || !Regex.IsMatch(appId, "^[A-Za-z0-9_.-]+$"))
-            throw new ConfigurationException("A successful build returned invalid artifact metadata.");
+        if (!File.Exists(path))
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(path))
+                ?? throw new ConfigurationException("Build result must be a JSON object.");
+        }
+        catch (JsonException)
+        {
+            throw new ConfigurationException("Build result is not valid artifact/app-id JSON.");
+        }
     }
 }
 
@@ -78,12 +90,13 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
         progress.Write(state, "Building " + job.Target + " for " + job.Platform);
         var result = await processes.Invoke(state, "bash", [job.Script], 1800);
         await SaveLog(state, job, result);
-        if (result.Exit != 0 || !File.Exists(job.ResultFile))
+        if (result.Exit != 0)
         {
             RecordFailure(state, job, result.Exit);
             return;
         }
-        state.Builds.Add(await artifacts.Save(state, job));
+        if (!await SaveArtifact(state, job))
+            return;
         RecordStage(state, job, "passed");
         // The saved artifact survives cleanup; publish intermediates do not.
         Directory.Delete(job.Folder, recursive: true);
@@ -91,7 +104,7 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
 
     private static void SetBuildEnvironment(RunState state, BuildJob job)
     {
-        state.Environment["CIMT_REPOSITORY_ROOT"] = Path.Combine(state.Work, "repository");
+        state.Environment["CIMT_REPOSITORY_ROOT"] = job.RepositoryRoot;
         state.Environment["CIMT_BUILD_REQUEST"] = job.RequestFile;
         state.Environment["CIMT_BUILD_RESULT"] = job.ResultFile;
     }
@@ -100,6 +113,22 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
     {
         return File.WriteAllTextAsync(Path.Combine(state.Report, job.LogName),
             state.Configuration.Scrub(result.Stdout + "\n" + result.Stderr));
+    }
+
+    private async Task<bool> SaveArtifact(RunState state, BuildJob job)
+    {
+        try
+        {
+            state.Builds.Add(await artifacts.Save(state, job));
+            return true;
+        }
+        catch (ConfigurationException error)
+        {
+            // Invalid target metadata is a build failure; other targets can still run.
+            RecordFailure(state, job, 0);
+            state.Errors.Add(state.Configuration.Scrub(error.Message));
+            return false;
+        }
     }
 
     private static void RecordFailure(RunState state, BuildJob job, int exit)

@@ -2,13 +2,13 @@
 
 Updated: 28 October 2026.
 
-The repository rules are in [AGENTS.md](../AGENTS.md). The product requirements remain in [requirements.md](requirements.md). This refactor changes the code structure and tests, while keeping the public commands, YAML fields, limits, and outcome rules.
+The repository rules are in [AGENTS.md](../AGENTS.md). The product requirements remain in [requirements.md](requirements.md). The refactor and defect fixes keep the approved public commands, YAML fields, limits, and outcome rules. The review and its resolution record are in [the product review](reviews/2026-10-28-product-implementation-review.md).
 
 ## Keep each part small
 
 A class owns one area of work. A method has one purpose. A workflow method may call several steps in order; the details belong to those steps. Prefer clear names and normal control flow. Add an interface only where a dependency needs replacement in a test. Constructor injection and ordered workflow steps are the main patterns used here. Do not use the proxy pattern.
 
-Keep methods short enough to read without searching through unrelated work. Long request/schema literals are data; they are not a reason to mix more behavior into a method. Put test setup in named helpers so each test shows its action and expected result clearly.
+Keep methods short enough to read without searching through unrelated work. Long request/schema literals are data; they are not a reason to mix more behavior into a method. Put test setup in named helpers so each test shows its action and expected result clearly. If a unit test needs complicated or advanced code, simplify the tested source first. If it is still complicated, split the behavior into several simple cases. Do not replace methods at runtime to build a test fixture.
 
 ## Comments
 
@@ -33,7 +33,9 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 
 | Module | Responsibility |
 | --- | --- |
-| run_ui.py, device_runner.py | Connect services, schedule devices, and handle one device's failures. |
+| run_ui.py, device_runner.py | Connect services and handle one device's failures. |
+| device_scheduler.py | Submit startup devices with a two-worker limit. |
+| check_results.py | Validate explicit observations and calculate the scenario verdict. |
 | scenario.py | Order one objective using local scenario state. |
 | actions.py | Validate and execute allowed actions; enter credentials locally. |
 | coverage_tracker.py | Track observed and activated controls. |
@@ -58,6 +60,14 @@ bash scripts/check-development.sh
 
 This runs xUnit host/build-policy tests, Python unit tests, the existing CLI/cleanup regression checks, four simulated build-contract checks, and the macOS build-adapter fixture. It does not call OpenAI, operate physical phones, or build the real MAUI application. The xUnit project pins its test dependencies; the Python tests use unittest from the standard library and the installed CIMT support dependencies.
 
-Unit tests cover behavior at the extracted boundaries: failure precedence, deadlines, cleanup after failure, argument validation, safe HTML, build properties, metadata fallback, budget reservation, masking, rejected actions, startup crashes, repeated action crashes, reset failures, RPC parsing, and scheduling all startup devices with at most two active. Real-device acceptance remains a separate gate.
+Unit tests cover behavior at the extracted boundaries: failure precedence, deadlines, cleanup after failure, argument validation, safe HTML, build properties, metadata fallback, budget reservation, masking, rejected actions, startup crashes, repeated action crashes, reset failures, RPC parsing, and submission of every startup device with a two-worker limit. Scheduling tests use a recording executor and worker in separate one-, two-, and three-device cases. They do not use barriers, locks, temporary reports, or method replacement. The production executor uses a bounded thread pool; the small tests verify its submission contract, not physical-device concurrency. Real-device acceptance remains a separate gate.
 
 Expected result: all checks pass. A failure makes the script return a nonzero code. Investigate the failing component before running the real-app example. Fixes that require changing the product definition must be discussed with the product owner first.
+
+## Defect boundaries
+
+Checks have explicit expected and observed behavior. A failed check remains failed after a later pass or an execution limit. Finishing navigation without an explicit objective check is inconclusive. Each recorded check points to the masked screen used for that decision. Full discovery of every supplied requirement is still release work.
+
+Capture reads sensitive field positions before and after taking an image, even when the first screen has no sensitive field. Changed fields stop capture before the image can be returned. Known crash findings are published before capture or image storage; capture errors are separate evidence errors. The performed action is retained when capture or recovery throws.
+
+BuildResultResolver is a pure per-field policy. BuildArtifactStore reads metadata and saves artifacts; ApplicationBuilder records an unusable target and permits later targets. Helper shutdown and owned work deletion are separate cleanup attempts. Ownership checks still apply when helper shutdown fails.

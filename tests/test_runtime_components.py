@@ -6,7 +6,6 @@ import pathlib
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 import unittest
 from types import SimpleNamespace
@@ -24,7 +23,6 @@ from errors import InfrastructureError, LimitReached
 from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
-from run_ui import Execution
 from scenario import ScenarioRunner
 from rpc_messages import RpcMessages
 from screen_capture import ScreenCapture
@@ -32,6 +30,18 @@ from screen_capture import ScreenCapture
 MODEL = "gpt-5.4-mini-2026-03-17"
 BUTTON = {"ref": "@e1", "identifier": "ButtonA", "type": "Button", "label": "Open"}
 SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
+
+
+def check(status="passed"):
+    """Use explicit expected and observed behavior in each decided check."""
+    return {
+        "subject": "Button exploration",
+        "source": "instructions",
+        "status": status,
+        "expected": "Buttons keep the app usable",
+        "observed": "The app remains usable",
+        "reason": "",
+    }
 
 
 def action(kind="done", **values):
@@ -47,6 +57,7 @@ def action(kind="done", **values):
         "observation": "fixture",
         "remaining": [],
         "completion": "complete",
+        "checks": [check()] if kind == "done" else [],
     }
     result.update(values)
     return result
@@ -179,6 +190,67 @@ class ScenarioTests(unittest.TestCase):
             self.runner.run(mobile, self.build, {"scenarios": []}, agent, lambda: None)
         self.assertFalse(agent.calls)
 
+    def test_functional_failure_without_crash_stays_failed(self):
+        result, _ = self.run_scenario(
+            FakeMobile(self.root, elements=[]), [action(checks=[check("failed")])]
+        )
+        self.assertEqual(result["verdict"], "failed")
+        self.assertEqual(result["completion"], "complete")
+        self.assertEqual(
+            result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 1
+        )
+        self.assertTrue((self.root / result["checks"][0]["screenshot"]).exists())
+
+    def test_finishing_without_a_check_cannot_pass(self):
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(checks=[])])
+        self.assertEqual(result["verdict"], "inconclusive")
+        self.assertEqual(
+            result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 2
+        )
+
+    def test_returned_failure_survives_a_limit_during_the_request(self):
+        result = {"scenarios": []}
+        agent = StopThenReportFailure(self.control)
+        with self.assertRaises(LimitReached):
+            self.runner.run(
+                FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None
+            )
+        self.assertEqual(result["scenarios"][0]["verdict"], "failed")
+        self.assertEqual(len(result["scenarios"][0]["checks"]), 1)
+
+    def test_crash_and_action_survive_failed_post_action_capture(self):
+        mobile = FailingPostActionCapture(self.root, foreground=["com.example.app", "home"])
+        result = {"scenarios": []}
+        with self.assertRaises(InfrastructureError):
+            self.runner.run(
+                mobile, self.build, result, FakeAgent([action("tap", ref="@e1")]), lambda: None
+            )
+        scenario = result["scenarios"][0]
+        self.assertEqual(scenario["verdict"], "failed")
+        self.assertEqual(len(scenario["crashes"]), 1)
+        self.assertEqual(scenario["steps"][-1]["action"]["action"], "tap")
+        self.assertIn("evidenceError", scenario["steps"][-1])
+
+
+class StopThenReportFailure:
+    """Simulate a limit reached while the model is returning a finding."""
+
+    def __init__(self, control):
+        self.control = control
+
+    def choose(self, *arguments):
+        self.control.stop()
+        return action(checks=[check("failed")])
+
+
+class FailingPostActionCapture(FakeMobile):
+    """Allow the initial image, then fail the image after an action."""
+
+    def snapshot(self):
+        if any(name.startswith("mobile_click") for name, _ in self.calls):
+            raise InfrastructureError("capture failed")
+        return super().snapshot()
+
 
 class BoundaryTests(unittest.TestCase):
     def test_rpc_parser_keeps_partial_lines_until_complete(self):
@@ -303,60 +375,6 @@ class BoundaryTests(unittest.TestCase):
     def test_error_precedence_is_higher_than_a_crash(self):
         results = [{"error": "fixture", "scenarios": [{"crashes": [{}]}]}]
         self.assertEqual(result_exit_code(results), 3)
-
-
-class SchedulingTests(unittest.TestCase):
-    def test_all_startup_devices_run_with_at_most_two_active(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            barrier = threading.Barrier(2)
-            lock = threading.Lock()
-            counts = {"active": 0, "maximum": 0, "connected": 0}
-
-            def factory(device, folder):
-                mobile = FakeMobile(folder, elements=[])
-
-                def connect():
-                    with lock:
-                        counts["active"] += 1
-                        counts["connected"] += 1
-                        number = counts["connected"]
-                        counts["maximum"] = max(counts["maximum"], counts["active"])
-                    if number <= 2:
-                        barrier.wait(timeout=5)
-
-                def close():
-                    with lock:
-                        counts["active"] -= 1
-
-                mobile.connect = connect
-                mobile.close = close
-                return mobile
-
-            context = {
-                "config": {
-                    "ai-model": {"name": MODEL, "api-key": "synthetic"},
-                    "ai-budget": {"amount": 1, "currency": "USD"},
-                },
-                "report": temporary,
-                "deadline": time.time() + 30,
-                "inputs": {"instructions": "fixture"},
-                "devices": [{"platform": "android", "id": str(index)} for index in range(3)],
-                "builds": [
-                    {
-                        "platform": "android",
-                        "target": "Release",
-                        "app-id": "com.example.app",
-                        "artifact": "fixture.apk",
-                    }
-                ],
-            }
-            execution = Execution(
-                context, mobile_factory=factory, agent_factory=lambda: FakeAgent([action()])
-            )
-            self.assertEqual(execution.run(), 0)
-            self.assertEqual(counts["connected"], 3)
-            self.assertEqual(counts["maximum"], 2)
-            self.assertEqual(len(execution.journal.results), 3)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import base64
 import json
 from budget import MAX_OUTPUT
 from errors import InfrastructureError
+from check_results import CHECK_SCHEMA, validate_checks
 
 FIELDS = {
     "action": {
@@ -20,6 +21,7 @@ FIELDS = {
     "observation": {"type": "string"},
     "remaining": {"type": "array", "items": {"type": "string"}},
     "completion": {"type": "string", "enum": ["continue", "complete", "blocked"]},
+    "checks": {"type": "array", "items": CHECK_SCHEMA},
 }
 SCHEMA = {
     "type": "object",
@@ -43,7 +45,14 @@ SYSTEM_PROMPT = (
     "paths in observation/remaining. Do not claim exhaustive coverage of unseen states. "
     "Choose done only when the objective is explored or blocked, with explicit remaining "
     "work. Report observations, not hidden reasoning. A crash does not mean other paths "
-    "should be abandoned; host code controls recovery and limits."
+    "should be abandoned; host code controls recovery and limits. "
+    "Use checks to report explicit expected and observed behavior from the CURRENT screen. "
+    "Report functional failures as status failed, even when the app did not crash. "
+    "A completed objective needs an explicit instructions check; navigation coverage alone "
+    "does not prove success. Use an empty checks list when this screen proves no check. "
+    "Use not tested or inconclusive with a reason when evidence is missing. "
+    "Use overridden only for a requirement that conflicts with the testing instructions, "
+    "and explain that conflict. Include only observations supported by the supplied evidence."
 )
 
 
@@ -120,4 +129,5 @@ def parse_action(response):
         raise InfrastructureError("OpenAI returned no valid action object") from None
     if set(action) != set(FIELDS) or action.get("action") not in FIELDS["action"]["enum"]:
         raise InfrastructureError("OpenAI action failed local validation")
+    validate_checks(action["checks"])
     return action

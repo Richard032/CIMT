@@ -70,7 +70,11 @@ def result_exit_code(results):
     """Apply exit precedence to saved results, without any device operations."""
     if any(device["error"] for device in results):
         return 3
-    if any(scenario["crashes"] for device in results for scenario in device["scenarios"]):
+    if any(
+        scenario["crashes"] or scenario.get("verdict") == "failed"
+        for device in results
+        for scenario in device["scenarios"]
+    ):
         return 1
     if not results or any(_incomplete(device) for device in results):
         return 2
@@ -81,5 +85,8 @@ def _incomplete(device):
     return (
         device["stoppingReason"]
         or not device["scenarios"]
-        or any(scenario["completion"] != "complete" for scenario in device["scenarios"])
+        or any(
+            scenario["completion"] != "complete" or scenario.get("verdict") != "passed"
+            for scenario in device["scenarios"]
+        )
     )

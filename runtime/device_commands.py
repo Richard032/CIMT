@@ -12,11 +12,12 @@ from errors import InfrastructureError, LimitReached
 class NativeDevice:
     """Runs the native helper with one fixed device and run-specific home."""
 
-    def __init__(self, binary, device, context, run_command=subprocess.run):
+    def __init__(self, binary, device, context, redactor, run_command=subprocess.run):
         self.binary = binary
         self.device = device
         self.context = context
         self.run_command = run_command
+        self.redactor = redactor
         self.env = dict(os.environ, MOBILECLI_HOME=context["nativeHome"])
         self.env.pop("OPENAI_API_KEY", None)
 

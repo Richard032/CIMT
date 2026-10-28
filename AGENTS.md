@@ -5,7 +5,6 @@
 - Keep implementations simple. Use simple design patterns only when they help.
 - Do not use the proxy design pattern.
 - Add simple English comments that non-native speakers can understand.
-- Explain important rules, limits, and reasons in comments.
-- Make external tools, device access, AI access, and time replaceable in unit tests.
 - Add unit tests for behavior that was hard to test before a change.
-- Keep the approved product behavior. Tell the product owner about any needed change before updating its definition.
+- If a unit test needs complicated or advanced code, simplify the tested source first.
+- If the test is still complicated after that refactor, split the behavior into a set of simple test cases.

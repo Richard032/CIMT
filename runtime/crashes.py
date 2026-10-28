@@ -110,9 +110,6 @@ class StartupGuard:
         return "retry"
 
     def _record(self, session):
-        screenshot = self.evidence.save_image(
-            "startup-crash-" + str(self.failures) + ".png", session.image
-        )
         session.result["crashes"].append(
             {
                 "kind": "unexpected startup termination / suspected crash",
@@ -120,36 +117,61 @@ class StartupGuard:
             }
         )
         session.result["verdict"] = "failed"
-        session.result["steps"].append(
-            {"action": "startup/relaunch check", "screenshot": screenshot}
-        )
+        step = {"action": "startup/relaunch check"}
+        session.result["steps"].append(step)
+        # Save the known failure before attempting image storage.
         self.publish()
+        try:
+            step["screenshot"] = self.evidence.save_image(
+                "startup-crash-" + str(self.failures) + ".png", session.image
+            )
+        except Exception as error:
+            step["evidenceError"] = type(error).__name__
+            self.publish()
+            raise
 
 
 class CrashRecovery:
     """Records terminations and decides whether to relaunch or cancel the objective."""
 
-    def __init__(self, mobile, monitor, evidence, redactor):
+    def __init__(self, mobile, monitor, evidence, redactor, publish):
         self.mobile = mobile
         self.monitor = monitor
         self.evidence = evidence
         self.redactor = redactor
         self.counter = CrashCounter()
+        self.publish = publish
 
     def after_action(self, session, entry, action, element, point):
         """Save the observed result and apply the crash recovery rule."""
         observation = self.monitor.observe()
-        session.elements, session.image = self.mobile.snapshot()
-        entry.update(self.evidence.save_step(entry["step"], session.elements, session.image))
-        if self._is_crash(observation, element):
-            return self._recover_crash(session, entry, action, point, observation)
-        self._record_success(point)
-        if observation.foreground != session.app_id:
+        crashed = self._is_crash(observation, element)
+        cancelled = False
+        if crashed:
+            cancelled = self._record_crash(session, entry, action, point, observation)
+            self.publish()
+        else:
+            self._record_success(point)
+        self._capture(session, entry)
+        if cancelled:
+            return True
+        if crashed:
+            self._relaunch(session)
+            entry["recovery"] = "relaunch succeeded"
+        elif observation.foreground != session.app_id:
             entry["navigation"] = (
                 "Explicit exit or background/external navigation; no matching crash diagnostic"
             )
             self._relaunch(session)
         return False
+
+    def _capture(self, session, entry):
+        try:
+            session.elements, session.image = self.mobile.snapshot()
+            entry.update(self.evidence.save_step(entry["step"], session.elements, session.image))
+        except Exception as error:
+            entry["evidenceError"] = self.redactor.text(str(error))
+            raise
 
     @staticmethod
     def _is_crash(observation, element):
@@ -157,7 +179,7 @@ class CrashRecovery:
         explicit_exit = bool(re.search(r"\b(quit|exit|close app|beenden)\b", label, re.I))
         return bool(observation.diagnostics) or observation.died and not explicit_exit
 
-    def _recover_crash(self, session, entry, action, point, observation):
+    def _record_crash(self, session, entry, action, point, observation):
         count = self.counter.record(point + ":" + self._signature(observation.diagnostics), True)
         crash = self._crash_record(session, entry, action, point, observation, count)
         session.result["crashes"].append(crash)
@@ -168,8 +190,6 @@ class CrashRecovery:
                 "Scenario cancelled after three matching crashing attempts"
             )
             return True
-        self._relaunch(session)
-        entry["recovery"] = "relaunch succeeded"
         return False
 
     def _crash_record(self, session, entry, action, point, observation, count):

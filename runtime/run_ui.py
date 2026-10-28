@@ -1,6 +1,5 @@
 """Composition root for the Python worker used by the public .NET command."""
 
-import concurrent.futures
 import json
 import pathlib
 import sys
@@ -14,12 +13,13 @@ from mobile import Mobile
 from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
+from device_scheduler import DeviceScheduler
 
 
 class Execution:
     """Connects runtime services and schedules at most two device workers."""
 
-    def __init__(self, context, mobile_factory=None, agent_factory=None):
+    def __init__(self, context, mobile_factory=None, agent_factory=None, scheduler=None):
         self.context = context
         self.config = context["config"]
         self.redactor = Redactor(self.config)
@@ -34,6 +34,7 @@ class Execution:
         self.journal.journal_budget()
         self.mobile_factory = mobile_factory or self._mobile
         self.agent_factory = agent_factory or self._agent
+        self.scheduler = scheduler or DeviceScheduler()
 
     def run(self, preflight=False):
         """Check access or schedule the startup devices with at most two active."""
@@ -45,12 +46,7 @@ class Execution:
             return 0
         pathlib.Path(self.context["report"], "devices").mkdir(exist_ok=True)
         worker = self._device_runner()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            list(
-                pool.map(
-                    lambda item: worker.run(item[1], item[0]), enumerate(self.context["devices"], 1)
-                )
-            )
+        self.scheduler.run(self.context["devices"], worker)
         self.journal.save()
         return result_exit_code(self.journal.results)
 

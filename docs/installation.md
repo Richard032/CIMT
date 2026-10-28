@@ -700,7 +700,7 @@ The refactor keeps the installed commands and runtime requirements. It adds sour
 bash scripts/check-development.sh
 ```
 
-The first Mac passed 68 unit tests and 23 regression/contract checks after the refactor. These use simulated tools, API responses, and phones; they do not run the real MAUI application. See the [development guide](development.md).
+After the review fixes, the first Mac passed 126 unit tests (62 .NET and 64 Python) and 23 regression/contract checks: 149 checks in total. These use simulated tools, API responses, and phones; they do not run the real MAUI application. See the [development guide](development.md).
 
 After successful checks, update both .NET components and all Python support modules:
 
@@ -714,3 +714,11 @@ chmod +x "$CIMT_INSTALL_ROOT/bin/cimt"
 ```
 
 The runtime installer copies every supplied Python module. Copying only agent.py, mobile.py, and run_ui.py is no longer sufficient. Existing private configuration and application examples remain valid. The same phone helpers are used; real-device acceptance remains pending.
+
+## 16. Review-fix installation check
+
+The review fixes use the same installation commands in section 15. No new dependency, phone helper, YAML field, or command is required. Republish the host and build worker, then run the support runtime installer so check_results.py and device_scheduler.py are included. Preserve private configuration files.
+
+The offline suite verifies functional findings, a result returned as a time limit expires, unresolved-check resolution, sensitive-screen transitions, preserved crash evidence, native command errors, custom-script YAML fallbacks, and clone cleanup after helper failure. These are source checks for a prepared Mac. A signed application build and physical-device exploration still need their separate acceptance run. The iPhone is unavailable at this review; no iPhone operation was attempted.
+
+First-Mac result: both .NET components were republished successfully, support dependencies were already installed, and all Python modules were copied. The public cimt --help command returned successfully. Installed host and Python module files match the corrected source build.

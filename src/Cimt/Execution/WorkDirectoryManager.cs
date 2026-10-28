@@ -91,14 +91,27 @@ public sealed class RunCleanup(ICommandRunner runner, RuntimePaths paths, WorkDi
     {
         if (state.Work.Length == 0)
             return;
+        try
+        {
+            await StopHelper(state);
+        }
+        catch (Exception error)
+        {
+            state.Errors.Add("The owned native daemon could not be stopped: " + error.GetType().Name);
+            state.Exit = 3;
+        }
+        // Helper shutdown must not prevent deletion of an owned source clone.
+        folders.Remove(state.Work);
+    }
+
+    private async Task StopHelper(RunState state)
+    {
         var stopped = await runner.Run(new("node", ["-e",
             "const {Mobilecli}=require(process.argv[1]);console.log(new Mobilecli().executeCommand(['daemon','stop'],15000));",
             paths.NativeModule], 20, state.Environment));
-        if (stopped.Exit != 0)
-        {
-            state.Errors.Add("The owned native daemon could not be stopped cleanly.");
-            state.Exit = 3;
-        }
-        folders.Remove(state.Work);
+        if (stopped.Exit == 0)
+            return;
+        state.Errors.Add("The owned native daemon could not be stopped cleanly.");
+        state.Exit = 3;
     }
 }

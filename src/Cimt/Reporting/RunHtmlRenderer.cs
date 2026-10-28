@@ -76,7 +76,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         var body = "<h4>" + Safe(Field(scenario, "target")) + " — "
             + Safe(Field(scenario, "verdict", "inconclusive")) + " / " + Safe(Field(scenario, "completion")) + "</h4>";
-        body += Coverage(scenario) + Findings(scenario);
+        body += Coverage(scenario) + Findings(scenario) + Checks(scenario);
         if (scenario.TryGetProperty("remaining", out var remaining) && remaining.GetArrayLength() > 0)
             body += "<p>Remaining/blocked work:</p><pre>" + Safe(remaining.ToString()) + "</pre>";
         if (Detail("interpretations") && scenario.TryGetProperty("interpretation", out var interpretation))
@@ -104,12 +104,35 @@ public sealed class RunHtmlRenderer(Configuration configuration)
             + (Detail("findings") ? Details("Findings and reproduction", crashes.ToString()) : "");
     }
 
+    private string Checks(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("checks", out var checks) || checks.GetArrayLength() == 0)
+            return "";
+        var rows = checks.EnumerateArray().ToArray();
+        var failed = rows.Count(check => Field(check, "status") == "failed");
+        var summary = "<p>Recorded checks: " + rows.Length + "; failed: " + failed + ".</p>";
+        var visible = Detail("requirements") ? rows
+            : Detail("findings") ? rows.Where(check => Field(check, "status") == "failed").ToArray() : [];
+        return summary + string.Join("", visible.Select(Check));
+    }
+
+    private string Check(JsonElement check)
+    {
+        var body = "<details><summary>" + Safe(Field(check, "subject")) + ": "
+            + Safe(Field(check, "status")) + "</summary>";
+        foreach (var field in new[] { "source", "expected", "observed", "reason" })
+            body += "<p>" + Safe(field) + ": " + Safe(Field(check, field)) + "</p>";
+        if (check.TryGetProperty("screenshot", out var screenshot))
+            body += "<p><a href=\"" + Safe(screenshot.ToString()) + "\">Check evidence</a></p>";
+        return body + "</details>";
+    }
+
     private string Step(JsonElement step)
     {
         var action = step.TryGetProperty("action", out var value)
             ? value.ValueKind == JsonValueKind.Object ? Field(value, "action") : value.ToString() : "check";
         var body = "<li><p>" + Safe(action + ": " + Field(step, "observation")) + "</p>"
-            + Notes(step, ["actionError", "crash", "recovery", "navigation"]);
+            + Notes(step, ["actionError", "crash", "recovery", "navigation", "evidenceError"]);
         if (step.TryGetProperty("screenshot", out var screenshot))
             body += Image(screenshot.ToString());
         return body + "</li>";

@@ -179,7 +179,7 @@ Both use the same run timestamp. Exact timezone/collision handling remains to be
 
 ## 8. Default and replacement build scripts
 
-Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance is blocked by the source pre-build and signing prerequisites recorded in the [build contract](build-script-contract.md). Separate replacement scripts are supported by the design; the run engine is still pending.
+Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance is blocked by the source pre-build and signing prerequisites recorded in the [build contract](build-script-contract.md). Replacement scripts are supported by the initial run engine; public-command fallback handling has regression tests. See [implementation status](implementation-status.md) for the remaining real-app acceptance work.
 
 Default scripts use configured project, configuration, framework, and build properties; they build and locate installable artifacts and app identifiers.
 
@@ -210,13 +210,13 @@ CIMT supplies a result-file path to the script. A successful script writes JSON 
 }
 ```
 
-Build logs remain separate from the result file. Script-returned values take precedence per field; YAML artifact/app-id values supply missing fields. The returned artifact path is absolute; the YAML fallback resolves from the clone root. CIMT installs the matching build on each compatible startup device. The [build contract](build-script-contract.md) defines the implemented environment and JSON request/result handoff.
+Build logs remain separate from the result file. Script-returned values take precedence per field; YAML artifact/app-id values supply missing fields. A successful script may omit the result file when YAML supplies both values. Invalid returned values are reported rather than silently replaced by YAML. The returned artifact path is absolute; the YAML fallback resolves from the clone root. CIMT installs the matching build on each compatible startup device. The [build contract](build-script-contract.md) defines the implemented environment and JSON request/result handoff.
 
 A build target failure is reported while other targets continue. It produces final exit code 3.
 
 ## 9. Additional reset commands
 
-CIMT performs the platform reset before each scenario. Optional reset.command and reset.verify-command augment that reset for app/backend state and verification. Commands receive the current target, device, and app identifier through environment variables; their exact names remain to be specified.
+CIMT performs the platform reset before each scenario. Optional reset.command and reset.verify-command augment that reset for app/backend state and verification. Commands receive the current target, device, and app identifier through environment variables; they are CIMT_TARGET, CIMT_DEVICE, and CIMT_APP_ID. See [run-engine notes](run-engine.md) for the current reset limits.
 
 Exit code 0 means success. Any other exit code stops the run and produces a report. Reset completion must be verified; setup and login repeat when needed.
 
@@ -331,3 +331,5 @@ The current run engine performs one objective per target/device, with at most tw
 
 
 The internal code now uses smaller services, simple English comments, and replaceable dependencies for unit tests. This does not change the operator commands or configuration. Development rules and checks are described in the [development guide](development.md).
+
+The current worker records explicit instruction/requirement checks with expected behavior, observed behavior, status, and evidence. A functional failure affects the verdict even without a crash. Navigation completion alone cannot pass. These recorded checks do not yet provide a complete inventory of every supplied requirement; that remains a release gap.

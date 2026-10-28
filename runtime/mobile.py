@@ -17,7 +17,7 @@ class Mobile:
         self.folder = folder
         self.context = context
         self.redactor = redactor
-        self.commands = commands or NativeDevice(binary, device, context)
+        self.commands = commands or NativeDevice(binary, device, context, redactor)
         self.guard = DeviceReadiness(self.commands, folder)
         self.status = DeviceStatus(self.commands, folder)
         self.lifecycle = AppLifecycle(self.commands, self.call)

@@ -65,29 +65,30 @@ class RuntimeChecks(unittest.TestCase):
 
     def test_unfunded_action_makes_no_api_request(self):
         budget = Budget(MODEL, ".01", "USD")
+        calls = []
         agent = Agent(
             {"ai-model": {"name": MODEL, "api-key": "synthetic-not-a-real-key"}},
             budget,
             time.time() + 30,
+            transport=SimpleNamespace(request=lambda *args: calls.append(args)),
         )
-        calls = []
-        agent.transport = SimpleNamespace(request=lambda *args: calls.append(args))
         with self.assertRaises(LimitReached):
             agent.choose("test", "", "", [], b"image-fixture", [], [], {})
         self.assertFalse(calls)
 
     def test_incomplete_response_executes_no_action(self):
         budget = Budget(MODEL, 5, "USD")
-        agent = Agent(
-            {"ai-model": {"name": MODEL, "api-key": "synthetic-not-a-real-key"}},
-            budget,
-            time.time() + 30,
-        )
-        agent.transport = SimpleNamespace(
+        transport = SimpleNamespace(
             request=lambda *args: {
                 "status": "incomplete",
                 "usage": {"input_tokens": 10, "output_tokens": 2048},
             }
+        )
+        agent = Agent(
+            {"ai-model": {"name": MODEL, "api-key": "synthetic-not-a-real-key"}},
+            budget,
+            time.time() + 30,
+            transport=transport,
         )
         with self.assertRaises(InfrastructureError):
             agent.choose("test", "", "", [], b"image-fixture", [], [], {})
@@ -188,9 +189,8 @@ class RuntimeChecks(unittest.TestCase):
                 "test": {"username": "synthetic-user", "password": "synthetic-password"}
             },
         }
-        agent = Agent(config, Budget(MODEL, 5, "USD"), time.time() + 30)
         action = {k: "" for k in FIELDS}
-        action.update(action="done", x=-1, y=-1, remaining=[], completion="blocked")
+        action.update(action="done", x=-1, y=-1, remaining=[], completion="blocked", checks=[])
         bodies = []
 
         def respond(path, body):
@@ -206,7 +206,12 @@ class RuntimeChecks(unittest.TestCase):
                 ],
             }
 
-        agent.transport = SimpleNamespace(request=respond)
+        agent = Agent(
+            config,
+            Budget(MODEL, 5, "USD"),
+            time.time() + 30,
+            transport=SimpleNamespace(request=respond),
+        )
         agent.choose("test", "", "", [], b"image-fixture", [], ["test"], {})
         encoded = json.dumps(bodies)
         for secret in ["synthetic-api-key", "synthetic-user", "synthetic-password"]:
