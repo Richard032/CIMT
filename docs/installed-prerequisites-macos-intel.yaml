@@ -39,13 +39,25 @@ verification:
   uiautomator2-doctor: missing-emulator-outside-cimt-physical-device-scope
   application-git-read-access: subgit-https-verified
   github-terminal-authentication: not-configured-not-needed-for-application
-  android-device: not-connected
-  iphone: visible-application-compatibility-unverified
-  application-build-and-test: not-executed
+  android-device: connected-authorized-control-probes-passed
+  iphone: discovered-control-blocked-by-helper-signing
+  application-build-and-test: publish-attempted-blocked-no-app-tests
   final-yaml-manifest-enforcement: not-implemented
 
 application-repository:
   url: https://subgit.curtis.ch/ECON/ag-econ-mobile.git
   advertised-default-branch: main
-  test-branch: pending-explicit-selection
-  verification: noninteractive-reference-read
+  evaluated-branch: main
+  evaluated-commit: 7443429841616783225238c92b3dc4699a65e9f3
+  verification: noninteractive-reference-read-and-temporary-clone-with-submodules
+
+implementation-increments:
+  cli: configuration-and-validate-foundation-installed
+  foundation-checks: 15-passed
+  default-build-workers: installed
+  simulated-build-contract-checks: 4-passed
+  physical-android-control: both-candidates-passed
+  physical-ios-control: blocked-by-helper-signing
+  adapter-selection: mobile-mcp-preferred-final-gate-open
+  application-android-publish: blocked-by-windows-prebuild
+  application-ios-publish: blocked-by-provisioning

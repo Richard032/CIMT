@@ -1,15 +1,15 @@
 # CIMT installation and setup guide
 
-Version: 0.3  
+Version: 0.4  
 Last updated: 28 October 2026  
-Status: prerequisite installation and rerun verified on the first Intel Mac; CIMT implementation and end-to-end acceptance pending  
+Status: prerequisites, CLI foundation, and default build workers installed on the first Intel Mac; full execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
 ## 1. Purpose and current status
 
 This document describes how to prepare another supported Mac, install CIMT, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
 
-CIMT's CLI and default application build scripts have not yet been implemented. Prerequisite bootstrap scripts are now available and were executed successfully on the first Intel Mac; section 8 records exact commands, versions, checks, and limitations. Commands beginning with cimt below remain the approved future interface and cannot yet be executed from this repository. The prerequisite helpers are separate from the future YAML-driven cimt setup implementation.
+The CLI/configuration foundation and default Android/iOS build workers are implemented. cimt validate produces readiness reports; setup/run/replay execution remains unimplemented and returns an explicit error. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records the three reviewed increments and source installation commands. The prerequisite helpers remain separate from the future YAML-driven setup engine.
 
 The agreed initial host scope is **Intel Macs**. This guide does not claim support for every macOS release, Apple Silicon, or every possible Xcode/device combination. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
@@ -177,11 +177,11 @@ Prepare any required Bluetooth, USB, seat-controller, backend, or other external
 
 Evaluate Mobile MCP and Appium against the approved physical-device requirements before selecting one. Record required supporting runtime versions, installation commands, signing/device-agent setup where applicable, and unattended operation here after validation.
 
-Both candidates and Node/npm have now been installed for evaluation, as recorded in section 8. Neither candidate has been selected as CIMT's adapter. Installed tooling is not evidence that app control, reset, masking, or unattended real-device execution already works.
+Both candidates and Node/npm are installed. Android control probes passed for both candidates; iPhone helper signing blocked control. Mobile MCP is preferred provisionally; final selection requires the complete gate in the [adapter evaluation](adapter-evaluation.md). Reset, masking, and unattended app testing remain unverified.
 
 ### Step 10 — Install CIMT and create configuration
 
-**CIMT CLI implementation pending:** prerequisite bootstrap helpers and an installed-version record are now provided; no CIMT executable/install package is delivered yet. Use section 8 for the verified prerequisite bootstrap. Final packaging and YAML-driven cimt setup remain to be implemented.
+The CLI foundation is installed on the first Mac. Follow section 10 to build/install it from source after the prerequisite bootstrap in section 8. Final packaging and YAML-driven cimt setup remain to be implemented; the setup invocation below is the approved future interface.
 
 Approved setup invocation:
 
@@ -209,13 +209,13 @@ CIMT setup may replace incompatible required tools without confirmation, recordi
 
 ### Step 11 — Validate without operating the app
 
-Approved invocation, once implemented:
+Implemented invocation:
 
 ```text
 cimt validate --config default.yaml --run-config app.yaml
 ```
 
-Expected: local HTML describing configuration, text paths/URLs, Git branch access, tooling, device readiness, credential presence, and model/budget configuration. It must not build/install/reset or make paid AI calls. Actual app login, signing, and model access remain execution-time checks.
+Implemented: local HTML describing configuration, text paths/URLs, Git branch access, tool availability, connected-device inventory, credential presence, and model/budget configuration. It must not build/install/reset or make paid AI calls. Actual app login, signing, and model access remain execution-time checks.
 
 ### Step 12 — Execute the first real test
 
@@ -439,3 +439,48 @@ Repository locations are separate:
 | CIMT product code/documentation | https://github.com/Richard032/CIMT | Move to Subgit later, as requested; destination and migration steps are not yet supplied. |
 
 The earlier GitHub terminal-authentication failures are not a blocker for reading this application repository. Future Jenkins/server accounts must establish their own authorized access. No source-repository migration has been performed.
+
+## 10. Three autonomous implementation increments — 28 October 2026
+
+[Reviewed status](implementation-status.md) records each increment and remaining work.
+
+1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Mobile MCP's iPhone DeviceKit requires signing; Appium WDA provisioning failed. There is no valid development identity available, and matching wildcard profiles are expired. Final adapter selection is pending; Mobile MCP is preferred provisionally.
+2. The .NET CLI/configuration foundation is built and installed at /Users/Shared/CIMT/bin/cimt, with assemblies under lib/cimt. Source environment.sh to put it on PATH. Fifteen checks passed, and real readiness validation reached Subgit and both connected-device inventories. Only synthetic credential presence was tested; no AI request was made.
+3. Default Android/iOS scripts are installed under scripts/build, with worker assemblies under lib/cimt-build. Four simulated build-contract checks passed. Actual builds on main with submodules were attempted: Android stops at the repository's Windows-only pre-build commands, and iOS lacks an available provisioning profile. No successful artifact was produced.
+
+The original application checkout remains untouched. Raw device evidence and build logs remain local; no screenshots, device IDs, signing identities, or credentials are committed. Temporary application clones are deleted after evaluation; retained evidence is outside them.
+
+The CLI recognizes all four approved command names, but only validate is implemented. setup/run/replay return explicit errors; the final setup engine, autonomous testing engine, per-step app reports, and complete cleanup/scheduling orchestration remain to be built. These partial capabilities supersede earlier historical statements that no CLI/build workers exist.
+
+Development verification commands:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+dotnet build src/Cimt/Cimt.csproj -c Release
+dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release
+dotnet build tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release
+python3 tests/check-build-contract.py
+cimt --help
+```
+
+See the [build contract](build-script-contract.md) for actual script invocation and the [adapter evaluation](adapter-evaluation.md) for the signing prerequisites. A valid development identity/profile and a macOS-compatible application pre-build path are required before app acceptance can proceed. No signing or source build step was bypassed.
+
+
+### Install the foundation from source on another prepared Intel Mac
+
+From the CIMT source folder, after completing section 8:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+mkdir -p "$CIMT_INSTALL_ROOT/bin" "$CIMT_INSTALL_ROOT/scripts/build"
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
+cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
+cp scripts/build/android.sh scripts/build/ios.sh "$CIMT_INSTALL_ROOT/scripts/build/"
+chmod +x "$CIMT_INSTALL_ROOT/bin/cimt" "$CIMT_INSTALL_ROOT/scripts/build/"*.sh
+cimt --help
+```
+
+These commands install the supplied defaults. Keep custom replacements in separate files. Copy examples/default.example.yaml and examples/econ-app.example.yaml to private configuration locations, adjust their relative text paths and values, and restrict secret files to owner read/write before validation. The default example deliberately has an empty API key and a model placeholder. No live key is needed for the synthetic development checks above; real configuration/readiness validation requires configured values but does not authenticate to OpenAI.
+
+This source-install procedure was executed on the first Mac. Repeating it on another Intel Mac, final distribution packaging, and the complete YAML-driven setup command remain acceptance work.

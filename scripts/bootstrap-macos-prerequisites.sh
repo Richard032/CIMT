@@ -81,7 +81,7 @@ if [ -z "$JDK_HOME" ]; then echo "JDK archive layout not recognized" >&2; exit 3
   echo 'export MOBILEMCP_DISABLE_TELEMETRY=1'
   echo 'export DOTNET_CLI_TELEMETRY_OPTOUT=1'
   echo 'export DOTNET_GENERATE_ASPNET_CERTIFICATE=false'
-  echo 'export PATH="$CIMT_INSTALL_ROOT/tools/node-22.23.4/bin:$CIMT_INSTALL_ROOT/tools/node-packages/bin:$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/current/bin:$DOTNET_ROOT:$PATH"'
+  echo 'export PATH="$CIMT_INSTALL_ROOT/bin:$CIMT_INSTALL_ROOT/tools/node-22.23.4/bin:$CIMT_INSTALL_ROOT/tools/node-packages/bin:$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/current/bin:$DOTNET_ROOT:$PATH"'
 } > "$CIMT_INSTALL_ROOT/environment.sh"
 source "$CIMT_INSTALL_ROOT/environment.sh"
 node --version

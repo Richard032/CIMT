@@ -1,0 +1,14 @@
+# Copy outside Git, fill private values, then restrict access to the owner.
+workspace:
+  root: ./work
+reports:
+  root: ./reports
+  sections: [requirements, scenarios, findings, interpretations, diagnostics]
+execution:
+  time-limit-minutes: 60
+ai-model:
+  name: "<configured-model>"
+  api-key: ""
+ai-budget:
+  amount: 5
+  currency: USD

@@ -1,0 +1,4 @@
+Test navigation according to the supplied application requirements.
+Follow exact scenarios when provided. Explore other paths only when permitted.
+Record crashes, unexpected behaviour, reproduction steps, and evidence.
+This is example input; autonomous execution is not yet implemented.

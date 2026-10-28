@@ -1,0 +1,27 @@
+# Application-specific example; no credentials and no application source included.
+repository:
+  url: https://subgit.curtis.ch/ECON/ag-econ-mobile.git
+  branch: main
+  solution: EconMobile.sln
+inputs:
+  instructions: ./instructions.example.txt
+build:
+  targets:
+    - name: Release_Generic
+      configuration: Release_Generic
+      project: EconMobile.Common/EconMobile.Common.csproj
+      android:
+        framework: net10.0-android36.0
+        properties: {}
+      ios:
+        framework: net10.0-ios
+        properties: {}
+    - name: Release_Pride
+      configuration: Release_Pride
+      project: EconMobile.Common/EconMobile.Common.csproj
+      android:
+        framework: net10.0-android36.0
+        properties: {}
+      ios:
+        framework: net10.0-ios
+        properties: {}

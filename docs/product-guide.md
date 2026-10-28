@@ -1,11 +1,11 @@
 # CIMT product documentation
 
-Version: 0.3  
-Date: 27 October 2026  
+Version: 0.4  
+Date: 28 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
-**The CIMT CLI and autonomous testing engine are not implemented yet. The commands and fields below record the approved design. Prerequisite bootstrap helpers are now available; see the [installation guide](installation.md) for verified commands and their limitations. The final YAML-driven setup and application build scripts remain pending. Example paths, repositories, versions, values, and credentials below are placeholders.**
+**The CLI/configuration foundation and default build workers are implemented. validate works and writes local readiness reports. setup/run/replay execution and autonomous testing remain pending; those commands report the limitation explicitly. See the [implementation status](implementation-status.md) and [installation guide](installation.md). Example configuration values remain placeholders.**
 
 ## 1. Purpose and environment
 
@@ -179,7 +179,7 @@ Both use the same run timestamp. Exact timezone/collision handling remains to be
 
 ## 8. Default and replacement build scripts
 
-CIMT will supply default Android/iOS build scripts in its installation. They will be developed and validated during the first real tests against a user-supplied MAUI repository. Users need not add scripts or modify the tested repository.
+Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance is blocked by the source pre-build and signing prerequisites recorded in the [build contract](build-script-contract.md). Separate replacement scripts are supported by the design; the run engine is still pending.
 
 Default scripts use configured project, configuration, framework, and build properties; they build and locate installable artifacts and app identifiers.
 
@@ -210,7 +210,7 @@ CIMT supplies a result-file path to the script. A successful script writes JSON 
 }
 ```
 
-Build logs remain separate from the result file. Script-returned values take precedence per field; YAML artifact/app-id values supply missing fields. The returned artifact path is absolute; the YAML fallback resolves from the clone root. CIMT installs the matching build on each compatible startup device. The exact script arguments/environment and result-file handoff still require specification.
+Build logs remain separate from the result file. Script-returned values take precedence per field; YAML artifact/app-id values supply missing fields. The returned artifact path is absolute; the YAML fallback resolves from the clone root. CIMT installs the matching build on each compatible startup device. The [build contract](build-script-contract.md) defines the implemented environment and JSON request/result handoff.
 
 A build target failure is reported while other targets continue. It produces final exit code 3.
 
@@ -295,7 +295,7 @@ Replay loads saved scenario objectives, expected results, and action history, th
 
 Every command and build/reset integration requires documentation plus runnable demonstrations covering configuration, invocation, expected output, and failures. Demos use a **user-supplied application repository** and secret placeholders. No demo MAUI application will be included.
 
-These demos and executable scripts will be produced during development and validated against the first real application. The current examples document the interface only.
+The current examples document the interface. validate has been exercised against the supplied repository and connected devices, and build workers have simulated contract checks. Successful application builds and end-to-end setup/run/replay/reset demos remain pending; no sample configuration contains real credentials.
 
 Jenkins invokes the same CLI on the Intel Mac account with device/toolchain access. It retains/archives the entire local report folder as pipeline configuration directs. Pipeline scheduling must respect the single-run-per-Mac rule.
 
@@ -311,8 +311,16 @@ Use the approved exit codes for pipeline results and preserve reports even on fa
 
 Demonstrate setup on a second Intel Mac and two build targets on a physical Android phone and iPhone. See [acceptance criteria](requirements.md#7-first-release-acceptance-criteria).
 
-Reviewed CLI responsibilities, YAML fields, path rules, script/result contracts, validation/replay behaviour, and masking scope are approved. Adapter selection, pinned dependency versions, full schema constraints, build/reset environment interfaces, strict billing proof, timestamp collisions, and runnable implementation remain pending.
+Reviewed CLI responsibilities, YAML fields, path rules, script/result contracts, validation/replay behaviour, and masking scope are approved. Final adapter selection, a supported compatibility matrix, full schema constraints, reset environment details, strict billing proof, and full execution engines remain pending. The installed prerequisite profile, build handoff, CLI foundation, and validation reports are recorded in the implementation documents; final acceptance is still required.
 
 ## Review record — version 0.3
 
 This revision records the product owner's command/configuration approvals and corrections. ai-model/ai-budget are separate, default scripts belong to the CIMT installation, run folders use work_/report_ timestamps, masking uses element IDs only, and examples/demos use a user-supplied app. No software was installed or replaced.
+
+## Current command/build implementation
+
+Activate /Users/Shared/CIMT/environment.sh, then run cimt --help or cimt validate with real private YAML. Placeholder keys/models are rejected. validate checks credential presence only; it makes no paid AI calls and does not verify provider access, application signing, or behaviour.
+
+Default scripts are installed in /Users/Shared/CIMT/scripts/build. The [build contract](build-script-contract.md) now defines their JSON request/result environment handoff. Source examples are in examples/default.example.yaml and examples/econ-app.example.yaml. They contain no secrets and no bundled demo app.
+
+Use the [step reviews](implementation-status.md) to distinguish implemented foundations, blocked validation, and remaining product work.

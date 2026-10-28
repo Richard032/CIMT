@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.3  
-Date: 27 October 2026  
+Version: 0.4  
+Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -11,7 +11,7 @@ Confirmed: one Intel Mac hosts a single CIMT run; terminal invocation is the pub
 
 Approved: a local .NET command-line orchestrator owns configuration, builds, device scheduling, policy enforcement, evidence, cost accounting, and reports. The model proposes actions and interpretations; deterministic host code controls budgets, limits, cleanup, and concurrency. The model must not be the sole enforcer of these rules.
 
-Approved implementation: a .NET command-line application, shell script for Mac setup, YAML configuration, interchangeable device-control adapter, and local HTML reports. Supporting runtimes may be used where needed. Exact .NET version, distribution, and adapter remain to be selected.
+Approved implementation: a .NET command-line application, shell script for Mac setup, YAML configuration, interchangeable device-control adapter, and local HTML reports. Supporting runtimes may be used where needed. The foundation uses .NET 10.0.300; distribution and the final adapter remain open. The installed prerequisite profile still requires a complete compatibility/acceptance proof.
 
 ## 2. Components
 
@@ -157,7 +157,7 @@ Permission to alter device settings does not imply that all settings are automat
 
 ## 9. Device-control technology evaluation
 
-The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been made. The following is a preliminary comparison based on documented capabilities, not hands-on validation. Supplementary platform tools may be assessed if neither candidate covers all needs.
+The product owner approved evaluating Mobile MCP and Appium against the physical-device, Intel Mac, simultaneous control, and unattended Jenkins requirements before selection. No final choice has been qualified. The original capability comparison below is supplemented by the [hands-on evaluation](adapter-evaluation.md): both Android paths work, while iPhone signing blocks the final gate. Supplementary platform tools may be assessed if neither candidate covers all needs.
 
 | Candidate | Documented basis | Fit and evidence still needed |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Topic | State / next evidence |
 | --- | --- |
 | Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
-| Device adapter | Open; evaluate Mobile MCP and Appium before selection. |
+| Device adapter | Mobile MCP preferred provisionally after Android probes; final selection blocked on iPhone signing and complete gate. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
 | Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
@@ -210,7 +210,7 @@ The product owner confirmed the reviewed requirements and architecture policies 
 
 ## 12. Approved command and configuration contracts
 
-The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface; they are not working software yet.
+The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate and the build-worker foundation now work; setup/run/replay execution remains pending. See section 14 for implementation limits.
 
 - setup consumes setup.yaml, including the installation root, tested toolchain manifest, and optional application validation configuration.
 - default.yaml supplies shared settings. app.yaml is a reusable per-run override. ai-model and ai-budget are separate sections.
@@ -228,7 +228,7 @@ CIMT supplies default Android/iOS build scripts in its installation, using confi
 
 Each target supplies name, build configuration, project path, per-platform framework/properties, and optional replacement script. Project paths resolve from the clone root. Replacement script paths resolve from the declaring YAML file; defaults resolve from the CIMT installation.
 
-The orchestrator supplies a result-file path. Successful scripts write JSON artifact and app-id values. YAML platform fields provide fallbacks per field; returned values take precedence. JSON artifact paths are absolute, while YAML artifact paths resolve from the clone root. Exact result-file argument/environment handoff remains to be defined.
+The orchestrator supplies a result-file path. Successful scripts write JSON artifact and app-id values. YAML platform fields provide fallbacks per field; returned values take precedence. JSON artifact paths are absolute, while YAML artifact paths resolve from the clone root. The implemented environment/JSON handoff is specified in the [build contract](build-script-contract.md).
 
 CIMT updates replace its defaults and preserve separate user-customized copies. Custom reset/verification commands augment platform reset and receive target/device/app-id through environment variables. Exit code 0 is success; other codes stop the run and generate a report. Exact environment variable names and verification implementation remain to be specified.
 
@@ -237,3 +237,11 @@ Every CLI command and build/reset integration requires examples and runnable dem
 ## Review record — version 0.3
 
 The command/configuration and script contracts above were approved through the product-owner interview. Adapter choice, dependency versions, billing-bound proof, and concrete script interfaces remain engineering work. This revision only updates documentation.
+
+## 14. Implementation increment and explicit limits
+
+The .NET CLI/configuration foundation and generic default build workers now exist. See [implementation status](implementation-status.md). validate checks local configuration, inputs, Git branch/tool/device readiness and writes HTML. setup/run/replay execution, AI calls, and application orchestration remain unimplemented and return explicit incomplete/error reports.
+
+The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from effective-config snapshots and diagnostics; actual screen masking is not yet implemented.
+
+Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.

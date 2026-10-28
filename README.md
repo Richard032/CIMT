@@ -4,7 +4,7 @@ CIMT is a planned command-line product for autonomous everyday testing of .NET M
 
 Developers supply a Git repository, configurable build targets, plain-text testing instructions, and requirements. CIMT will build the application, operate it on the devices, and produce a local HTML report with observations and evidence. Jenkins will invoke the same command through its pipelines.
 
-**Status: approved design with prerequisite bootstrap scripts. The CIMT CLI and autonomous testing engine are not implemented yet.**
+**Status: CLI/configuration foundation and default build workers implemented; autonomous testing, final adapter qualification, and real application build acceptance remain pending.**
 
 ## Documentation
 
@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-All three documents are version 0.3, dated 27 October 2026, based on the product-owner interview and reviews. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Adapter selection, supported toolchain versions, full schema constraints, and implementation proofs remain open.
+The requirements baseline is version 0.3, dated 27 October 2026. Architecture, product, and installation guides are version 0.4, updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -37,7 +37,7 @@ The planned commands are setup, validate, run, and replay. Configuration uses se
 
 CIMT will supply default Android/iOS build scripts. User replacements/custom copies are supported. All commands and script integrations require examples and runnable demos using a user-supplied app; no demo MAUI application will be bundled.
 
-See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the approved design. The CIMT CLI and application build scripts remain to be implemented; prerequisite helpers are available below.
+See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. These describe the approved design. The CLI/configuration foundation and default build-script workers are implemented; full execution engines and end-to-end acceptance remain pending.
 
 ## Prerequisite bootstrap
 
@@ -54,6 +54,15 @@ The helper installs isolated runtimes, MAUI Android/iOS workloads, Android tools
 
 ## Repository locations
 
-The first application to test is [ag-econ-mobile on Subgit](https://subgit.curtis.ch/ECON/ag-econ-mobile.git). Noninteractive read access from the current Mac was verified; the test branch remains to be explicitly selected.
+The first application to test is [ag-econ-mobile on Subgit](https://subgit.curtis.ch/ECON/ag-econ-mobile.git). Noninteractive read access and initial build validation of main were performed on this Mac. Each run still requires an explicit configured branch.
 
 CIMT's product code and documentation remain in this GitHub repository for now. The product owner plans to move CIMT to Subgit later; that migration has not been performed. Application repository URLs remain configurable.
+
+## Current implementation
+
+Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces real configuration/readiness reports. setup/run/replay execution remains explicitly unimplemented.
+
+- [Adapter evaluation](docs/adapter-evaluation.md): both Android candidates exercised; iPhone signing blocks final selection.
+- [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
+
+Development checks: dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release, and python3 tests/check-build-contract.py. Activate the prerequisite environment first.
