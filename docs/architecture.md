@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.8  
+Version: 0.9  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -266,7 +266,7 @@ See the [development guide](development.md) for the component map and verificati
 
 ## 16. Complete requirement mapping increment
 
-The host now creates a complete source catalogue before runtime preflight and builds. It preserves nonblank source items with stable internal IDs, original text, line ranges, and a fingerprint of the redacted source snapshot. Paragraphs, list items, labelled items, and completed lines determine result boundaries. Wrapped lines stay together; compound items require evidence for every condition. Ambiguous/context items are retained rather than silently discarded. This is deterministic source accounting, not semantic scenario decomposition.
+The host now creates a complete source catalogue before runtime preflight and builds. It preserves requirement entries with stable internal IDs, original text, line ranges, and a fingerprint of the redacted source snapshot. Paragraphs, list items, labelled items, and completed lines determine result boundaries. Wrapped lines stay together; compound items require evidence for every condition. Explicit Markdown headings are retained separately as context, without requirement IDs or statuses. Each requirement also retains its active heading hierarchy in headingContext, so section meaning reaches the worker. Ambiguous prose and table rows remain requirement entries rather than being silently discarded. This is deterministic source accounting, not semantic scenario decomposition.
 
 The worker sees every catalogue item and its current result. Checks reference known IDs; overrides must explain the conflict and quote the actual testing instructions. A separate CheckRecorder publishes observations before storing their evidence. RequirementResults maintains per-objective statuses, retaining failures across retries and resolving unknown results by ID. A validated instruction override changes the applicable requirement expectation, preserves historical observations, and cannot hide an app crash or instruction failure.
 

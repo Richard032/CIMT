@@ -144,6 +144,17 @@ class RequirementResultTests(unittest.TestCase):
 
 
 class MappingPromptTests(unittest.TestCase):
+    def test_heading_context_reaches_the_model_without_an_extra_result(self):
+        rows = RequirementResults.initial([dict(DEFINITION, headingContext="# Requirements")])
+        body = ActionPromptBuilder("fixture").build(
+            "Explore", "# Requirements\nValue stays saved.", "", [], b"masked", [], [], {}, rows
+        )
+        state = json.loads(body["input"][1]["content"][0]["text"])
+        self.assertEqual(len(state["requirementResults"]), 1)
+        self.assertEqual(state["requirementResults"][0]["headingContext"], "# Requirements")
+        RequirementResults.record(rows, [check()])
+        self.assertEqual(RequirementResults.unresolved(rows), 0)
+
     def test_model_receives_ids_source_text_and_current_statuses(self):
         rows = RequirementResults.initial([DEFINITION])
         body = ActionPromptBuilder("fixture").build(

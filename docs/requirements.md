@@ -1,7 +1,7 @@
 # CIMT requirements
 
-Version: 0.3  
-Date: 27 October 2026  
+Version: 0.4  
+Date: 28 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -74,7 +74,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-24 | A strict AI spending limit shall apply across the entire run, including concurrent device workers. CIMT shall reserve the maximum possible cost before each request and shall not issue a request the remaining budget cannot cover. Conservative early stopping is accepted. |
 | FR-25 | A configurable time limit shall apply to the entire run. CIMT shall also support completion based on coverage of all testing instructions. Exhausting time or budget with work outstanding shall stop testing and produce an incomplete result. |
 | FR-26 | CIMT shall generate one local HTML report, grouped by build target, device, and scenario, with observed behaviour and evidence. |
-| FR-27 | Every supplied requirement shall have a result and supporting evidence or an explanation of why evidence is unavailable. Results shall include passed, failed, not tested, inconclusive, and overridden. |
+| FR-27 | Every supplied requirement shall have a result and supporting evidence or an explanation of why evidence is unavailable. Results shall include passed, failed, not tested, inconclusive, and overridden. Explicit Markdown document headings shall be retained as source context with their text and line numbers; they shall not receive requirement IDs or test statuses and shall not block completion. |
 | FR-28 | A test step shall be a meaningful device action or check, with its result and a screenshot captured afterward. Credentials shall be masked. Internal AI reasoning and build operations shall be logged separately from test steps. Evidence collection failures shall be disclosed rather than silently omitted. |
 | FR-29 | Reports shall include unclear instructions and interpretations, reproduction attempts, crashes, skipped/cancelled work, and relevant diagnostics. Report contents shall be configurable; disabling optional sections shall not misrepresent coverage or hide the final outcome. |
 | FR-30 | Each run shall have a retained report_<date-time> folder using the same timestamp as its temporary work_<date-time> folder, outside the temporary cleanup folder. Screenshots and recorded actions shall remain in subfolders beside the report. The folder shall be portable and archivable. Reports shall remain until manually deleted. |
@@ -180,6 +180,7 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-21 | Verify installed default build scripts require no tested-repository changes, custom copies survive a CIMT update, and script-result JSON overrides YAML artifact/app-id fallbacks per field. |
 | AC-22 | Verify work_<date-time> and report_<date-time> share a timestamp, report placement survives cleanup, and approved path resolution works for local and Jenkins configuration. |
 | AC-23 | Verify element-ID-only masking rules, named credential references, and failure on a required mask that cannot be applied reliably. |
+| AC-24 | Supply Markdown headings and a testable requirement. Verify headings remain visible as context, the requirement retains its source lines and section meaning, and a passed requirement can complete without evaluating headings. Verify a heading-only document creates no requirement results. |
 
 ## 8. Later release: branch comparison
 
@@ -196,3 +197,7 @@ The product owner confirmed the reviewed requirements and architecture policies 
 ## Review record — version 0.3
 
 The product owner approved the command/configuration review, default and replacement build scripts, script result precedence, named credentials, element-ID-only masking, validate/replay scope, setup fields, timestamped work/report folders, and examples/demos using a user-supplied app. This records the design; no executable implementation or demo application is delivered in this revision.
+
+## Review record — version 0.4
+
+On 28 October 2026, the product owner requested the document-heading correction identified in the design review. FR-27 and AC-24 now distinguish explicit Markdown headings from test expectations. The five evaluation statuses remain unchanged. Plain prose, table classification, and platform applicability are not resolved by this clarification. See [mapping rules](requirement-mapping.md) for supported heading forms.

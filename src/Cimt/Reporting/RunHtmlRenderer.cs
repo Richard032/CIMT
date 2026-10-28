@@ -16,7 +16,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null)
     {
         return PageStart + Header(state, outcome) + Stages(state.Stages) + Inputs(state.Report)
-            + new RequirementHtmlRenderer(configuration).Render(coverage) + Execution(execution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
+            + new RequirementHtmlRenderer(configuration).Render(coverage, state.RequirementHeadings) + Execution(execution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
     }
 
     private string Header(RunState state, RunOutcome outcome)

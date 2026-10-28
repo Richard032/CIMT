@@ -142,6 +142,17 @@ public sealed class RequirementCoverageTests
     }
 
     [Fact]
+    public void DocumentHeadingDoesNotPreventAPassedRequirementFromCompleting()
+    {
+        var definitions = RequirementCatalogue.Read("# Requirements\nValue stays saved.");
+        var execution = Execution(Result("passed"));
+        var coverage = RequirementReportBuilder.Build(definitions, [Scope], execution, "");
+        Assert.Single(coverage.Requirements);
+        Assert.False(coverage.HasUnresolved);
+        Assert.Equal(new RunOutcome(0, "passed", "complete"), RunOutcomePolicy.Evaluate(0, execution, coverage));
+    }
+
+    [Fact]
     public void RequirementFailureSurvivesAnInfrastructureError()
     {
         var coverage = Build(Result("failed"));

@@ -11,7 +11,7 @@ public sealed class RequirementInputTests
     {
         using var folder = new TestDirectory();
         var text = Path.Combine(folder.Path, "requirements.txt");
-        File.WriteAllText(text, "Save shall work.\nBack shall work.");
+        File.WriteAllText(text, "# Requirements\nSave shall work.\nBack shall work.");
         var origin = Path.Combine(folder.Path, "config.yaml");
         var config = new Configuration(new Node(null, new()
         {
@@ -26,7 +26,11 @@ public sealed class RequirementInputTests
         Assert.Equal(2, state.Requirements.Count);
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder.Path, "requirements.json")));
         Assert.Equal("REQ-0001", json.RootElement.GetProperty("items")[0].GetProperty("id").GetString());
-        Assert.Equal(2, json.RootElement.GetProperty("items")[1].GetProperty("startLine").GetInt32());
+        Assert.Equal(3, json.RootElement.GetProperty("items")[1].GetProperty("startLine").GetInt32());
+        Assert.Equal("# Requirements", json.RootElement.GetProperty("headings")[0].GetProperty("text").GetString());
+        Assert.Equal("# Requirements", state.Requirements[0].HeadingContext);
+        using var snapshot = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder.Path, "inputs.json")));
+        Assert.Equal(File.ReadAllText(text), snapshot.RootElement.GetProperty("requirements").GetString());
     }
 
     [Fact]

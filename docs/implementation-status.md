@@ -134,3 +134,13 @@ Verified: 119 .NET unit tests, 88 Python unit tests, 18 CLI/lifecycle checks, fo
 No requirements were relaxed. The format/timezone/collision choices complete details the design had explicitly left open. Full interruption history and graceful cancellation remain pending, along with the other scenario/setup/replay, real-device, Jenkins, and second-Mac release work. See [run identity](run-identity.md).
 
 First-Mac identity installation verified: republished the host, copied all Python modules, checked public help, and confirmed installed files match the source build. The offline demo retained matching folder, result, and HTML identity metadata. Private configuration and existing reports were preserved.
+
+## Reviewed correction — document headings are context
+
+Done: recognize explicit Markdown hash and underlined headings in a separate reader. Retain heading text, level, and original line ranges without requirement IDs or statuses. Keep active section context beside each actual requirement for the worker and report. Heading-looking code examples and ambiguous plain prose are not guessed to be headings.
+
+Done: retain all headings in requirements.json, final result.json, and a mandatory HTML context section, including heading-only documents and when optional input details are hidden. Headings no longer prevent a passed requirement from completing. Updated FR-27, AC-24, architecture, mapping rules, product guide, review resolution, and the runnable example. Table-header classification and platform applicability remain separate decisions.
+
+Verified: 142 .NET unit tests, 89 Python tests, and 23 CLI/build/example checks passed: 254 checks total. The synthetic example retains one context heading and its five requirement results. No API, real app build, phone operation, or private configuration read was needed. The first Mac's installed host and action prompt match the tested source; public help works.
+
+Other findings in the [design review](reviews/2026-10-28-design-contract-review.md), including redaction, instruction coverage, exact-scenario scope, and failure-policy priority, remain open. This correction does not close real-device or release acceptance.

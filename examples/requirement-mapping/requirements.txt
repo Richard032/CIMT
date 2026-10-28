@@ -1,3 +1,5 @@
+# Seat configuration requirements
+
 R-01 The selected value shall stay saved after reopening its screen.
 R-02 Returning from a menu shall preserve the selected value.
 R-03 The connected test equipment shall display the selected value.

@@ -4,19 +4,21 @@ Implemented increment: 28 October 2026. Covers the catalogue, mapped observation
 
 ## Source catalogue
 
-The host reads the existing optional inputs.requirements text. No new command, YAML field, ID format, or paid planning call is required. Before runtime preflight, cloning, or builds, it saves requirements.json and the redacted input snapshot. The catalogue contains the source snapshot's SHA-256 and items with generated IDs, original text, and one-based start/end lines. The hash identifies the redacted snapshot, not the original secret-bearing input.
+The host reads the existing optional inputs.requirements text. No new command, YAML field, ID format, or paid planning call is required. Before runtime preflight, cloning, or builds, it saves requirements.json and the redacted input snapshot. The catalogue contains the source snapshot's SHA-256, items with generated IDs, original text, one-based start/end lines, and headingContext. Its separate headings list retains heading text, level, and source lines without IDs or test statuses. The hash identifies the redacted snapshot, not the original secret-bearing input.
 
 IDs are REQ-0001, REQ-0002, and so on, in source order. Identical input creates identical IDs. Existing labels such as FR-01 stay in the text. Duplicate labels or duplicate text remain separate items. IDs are local to a source version; use the hash and original text when comparing runs.
 
 Grouping is deterministic and conservative:
 
 - Blank lines separate paragraphs.
-- Bullets, numbered items, labelled IDs such as FR-01, headings, and table rows start separate items.
+- Bullets, numbered items, labelled IDs such as FR-01, and table rows start separate requirement items.
+- Explicit Markdown headings are context: one to six leading hash characters followed by whitespace or end of line, or a title followed by an equals/dash underline. Up to three leading spaces are accepted. Heading-looking text in fenced or indented code stays source text. A heading ends the preceding requirement; it is never joined to that requirement.
+- Each requirement keeps the active heading hierarchy. A new heading replaces its sibling and deeper headings. The AI receives that context with the requirement, rather than being asked to test a heading.
 - A line ending with a period, question mark, or exclamation mark closes its current item before the next nonblank line.
 - Other wrapped lines stay together. Multiple conditions within one item remain one combined expectation; every condition must have evidence before it can pass.
-- No nonblank source text is silently discarded. Headings, background text, or ambiguous items that cannot be evaluated remain not tested or inconclusive with an explanation. Use a list of testable expectations when separate decisions are important.
+- No nonblank source text is silently discarded. Recognized headings remain in requirements.json, final result.json, and a mandatory HTML context section, including heading-only and trailing-heading input. They do not block completion. Plain unmarked titles, background prose, table headers, and other ambiguous text are not guessed to be headings; they remain requirement items and may be unresolved with an explanation. Use a list of testable expectations when separate decisions are important.
 
-This provides complete source accounting. It does not claim automatic semantic decomposition of every sentence or proof that the model understood every condition. Semantic scenario planning remains separate work.
+This provides complete source accounting. Requirement IDs count requirement entries only, so IDs after a removed heading can change compared with older catalogues; use the source hash, original text, and line references when reviewing retained reports. A heading-only document has no requirement evaluations and cannot by itself prove that an instruction objective passed. This does not claim automatic semantic decomposition of every sentence or proof that the model understood every condition. Semantic scenario planning and platform applicability remain separate work.
 
 ## Mapping observations
 
@@ -42,7 +44,7 @@ Results are separated by target, platform, and device. Evidence from one combina
 
 For an overall requirement: any failure wins; all not tested stays not tested; mixed unresolved results are inconclusive; all overridden stays overridden; otherwise completed passed/overridden combinations pass. An unresolved scoped result always keeps coverage incomplete, including when another scope failed. Navigation completion cannot hide an untested requirement. The final run preserves failed verdicts independently from incomplete execution and retains exit precedence 3, 1, 2, 0.
 
-Mapping is complete when every source item has a recorded result or an explicit explanation for every applicable combination. That does not mean all requirements passed or were tested. Tests remain bounded by the configured time and AI budget; mapping adds no separate paid extraction phase.
+Mapping is complete when every requirement entry has a recorded result or an explicit explanation for every applicable combination, with document headings retained separately as context. That does not mean all requirements passed or were tested. Tests remain bounded by the configured time and AI budget; mapping adds no separate paid extraction phase.
 
 ## Example and verification
 

@@ -41,6 +41,7 @@ public sealed class RunReportWriter : IRunReportWriter
             stages = state.Stages,
             builds = state.Builds,
             errors = state.Errors,
+            requirementHeadings = state.RequirementHeadings,
             requirementCoverage = coverage,
             execution
         };

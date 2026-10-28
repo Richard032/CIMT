@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.6  
+Version: 0.7  
 Last updated: 28 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -742,3 +742,16 @@ New work_<date-time> and report_<date-time> folders use the exact same UTC milli
 Verified on this Mac with 230 offline development checks. The public-command regression verifies the work name before deletion against the retained report/runtime metadata. The [identity documentation](run-identity.md) covers the completed format/timezone/collision choices and tests. Actual Jenkins/second-Mac execution and full interruption-history acceptance remain open.
 
 First-Mac identity installation verified: republished the host, copied all Python modules, checked public help, and confirmed installed files match the source build. The offline demo retained matching folder, result, and HTML identity metadata. Private configuration and existing reports were preserved.
+
+## 19. Document-heading correction — 28 October 2026
+
+This correction needs no new dependency or configuration setting. Update the host and its action prompt together from the CIMT source folder:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+cp runtime/action_prompt.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/action_prompt.py"
+cimt --help
+```
+
+The first Mac was updated this way after all 254 offline checks passed. Installed host/prompt files were compared with the tested source. The mapping example retains one heading as context and five requirement results. Private configuration was not read or changed. See [mapping rules](requirement-mapping.md); this does not establish real-device acceptance.

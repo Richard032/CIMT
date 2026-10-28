@@ -54,6 +54,29 @@ public sealed class RequirementHtmlTests
         Assert.Contains("No requirements were supplied", new RequirementHtmlRenderer(Configuration()).Render(new([])));
     }
 
+    [Fact]
+    public void HeadingOnlyReportShowsContextWithoutInventedStatuses()
+    {
+        var document = RequirementCatalogue.Parse("# Requirements <script>synthetic-secret</script>");
+        var html = new RequirementHtmlRenderer(Configuration()).Render(new([]), document.Headings);
+        Assert.Contains("Document headings (context)", html);
+        Assert.Contains("Only document headings", html);
+        Assert.Contains("Source lines 1–1", html);
+        Assert.Contains("&lt;script&gt;", html);
+        Assert.DoesNotContain("synthetic-secret", html);
+        Assert.DoesNotContain("not tested", html);
+    }
+
+    [Fact]
+    public void RequirementShowsItsSectionMeaning()
+    {
+        var original = Coverage();
+        var row = original.Requirements[0];
+        var contextual = row with { Definition = row.Definition with { HeadingContext = "## Android" } };
+        var html = new RequirementHtmlRenderer(Configuration()).Render(new([contextual]));
+        Assert.Contains("Section context: ## Android", html);
+    }
+
     private static RequirementCoverage Coverage()
     {
         var statuses = new[] { "passed", "failed", "not tested", "inconclusive", "overridden" };

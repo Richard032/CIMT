@@ -61,11 +61,58 @@ public sealed class RequirementCatalogueTests
     }
 
     [Fact]
-    public void AmbiguousHeadingsAndTableRowsAreNotDropped()
+    public void HeadingsAreContextAndTableRowsRemainRequirements()
     {
-        var rows = RequirementCatalogue.Read("# Requirements\n| ID | Expectation |\n| R1 | Save works |");
-        Assert.Equal(3, rows.Count);
-        Assert.Contains("# Requirements", rows[0].Text);
+        var document = RequirementCatalogue.Parse("# Requirements\n| ID | Expectation |\n| R1 | Save works |");
+        Assert.Equal(2, document.Items.Count);
+        Assert.Equal("# Requirements", Assert.Single(document.Headings).Text);
+        Assert.Equal("# Requirements", document.Items[0].HeadingContext);
+    }
+
+    [Fact]
+    public void HeadingDoesNotReceiveARequirementId()
+    {
+        var row = Assert.Single(RequirementCatalogue.Read("# Requirements\n- Saving must work."));
+        Assert.Equal("REQ-0001", row.Id);
+        Assert.Equal("- Saving must work.", row.Text);
+        Assert.Equal(2, row.StartLine);
+        Assert.Equal(2, row.EndLine);
+        Assert.Equal("# Requirements", row.HeadingContext);
+    }
+
+    [Fact]
+    public void HeadingOnlyDocumentRetainsItsContextWithoutRequirements()
+    {
+        var document = RequirementCatalogue.Parse("# Requirements\n\n## Android");
+        Assert.Empty(document.Items);
+        Assert.Equal(2, document.Headings.Count);
+    }
+
+    [Fact]
+    public void NewHeadingEndsThePreviousRequirement()
+    {
+        var document = RequirementCatalogue.Parse("Save the value\n## Navigation\nBack works.");
+        Assert.Equal(2, document.Items.Count);
+        Assert.Equal(1, document.Items[0].EndLine);
+        Assert.Empty(document.Items[0].HeadingContext);
+        Assert.Equal("## Navigation", document.Items[1].HeadingContext);
+    }
+
+    [Fact]
+    public void SiblingHeadingReplacesThePreviousSectionContext()
+    {
+        var rows = RequirementCatalogue.Read("# Requirements\n## Android\n- Save\n## iOS\n- Back");
+        Assert.Equal("# Requirements\n## Android", rows[0].HeadingContext);
+        Assert.Equal("# Requirements\n## iOS", rows[1].HeadingContext);
+    }
+
+    [Fact]
+    public void UnderlinedHeadingKeepsRequirementSourceLines()
+    {
+        var row = Assert.Single(RequirementCatalogue.Read("Requirements\n===\nSave works."));
+        Assert.Equal(3, row.StartLine);
+        Assert.Equal(3, row.EndLine);
+        Assert.Equal("Requirements\n===", row.HeadingContext);
     }
 
     [Fact]
