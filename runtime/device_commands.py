@@ -23,6 +23,17 @@ class NativeDevice:
 
     def native(self, arguments, timeout=30):
         """Call the native helper for this fixed device within the run deadline."""
+        result = self._run(arguments, timeout, text=True)
+        try:
+            return json.loads(result.stdout)
+        except ValueError:
+            raise InfrastructureError("Device command returned invalid JSON") from None
+
+    def screenshot(self):
+        """Read lossless pixels in memory. Never create a raw screenshot file."""
+        return self._run(["screenshot", "--format", "png", "--output", "-"], 30, text=False).stdout
+
+    def _run(self, arguments, timeout, text):
         remaining = self.context["deadline"] - time.time()
         if remaining <= 0:
             raise LimitReached("Whole-run time limit reached")
@@ -30,20 +41,16 @@ class NativeDevice:
             r = self.run_command(
                 [self.binary] + arguments + ["--device", self.device["id"]],
                 capture_output=True,
-                text=True,
+                text=text,
                 env=self.env,
                 timeout=min(timeout, remaining),
             )
         except subprocess.TimeoutExpired:
             raise InfrastructureError("Device command timed out") from None
         if r.returncode != 0:
-            raise InfrastructureError(
-                self.redactor.text(r.stderr[-1000:] or "Device command failed")
-            )
-        try:
-            return json.loads(r.stdout)
-        except ValueError:
-            raise InfrastructureError("Device command returned invalid JSON") from None
+            error = r.stderr.decode(errors="replace") if isinstance(r.stderr, bytes) else r.stderr
+            raise InfrastructureError(self.redactor.text(error[-1000:] or "Device command failed"))
+        return r
 
 
 class DeviceReadiness:

@@ -1,11 +1,13 @@
 # CIMT architecture
 
-Version: 0.10  
+Version: 0.11  
 Date: 28 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
 Implemented redaction correction: observations and other free text are redacted separately from typed control metadata. The worker uses RecordRedactor; the .NET report boundary uses JsonTextRedactor, ExecutionRedactor, and RunReportRedactor before serialization. JSON syntax, status values, generated IDs, numbers, and evidence links are preserved. Screen masking searches original nested UI strings before encoding. See the [redaction contract and verification](redaction.md). This implements FR-28/FR-36 without changing the public interface.
+
+Implemented screenshot correction: the existing device adapter now injects a native lossless PNG reader instead of using its server's JPEG screenshot output. ScreenCapture brackets capture with readiness, UI, and screen-size checks. Separate ScreenshotImage, MaskGeometry, and CaptureGuard services own image cleaning, coordinate conversion, and stability checks. Masking also hides overlapping child UI text. See [screenshot masking](screenshot-masking.md), including non-atomic capture limits and remaining physical-device acceptance.
 
 ## 1. Architectural boundary
 

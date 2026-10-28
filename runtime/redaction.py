@@ -1,11 +1,11 @@
 """Redaction of configured secrets and sensitive screen regions."""
 
-import io
 import json
 import re
-from PIL import Image, ImageDraw
-from errors import InfrastructureError
+from PIL import ImageDraw
 from record_redaction import RecordRedactor
+from mask_geometry import MaskGeometry
+from screenshot_image import ScreenshotImage
 
 
 class Redactor:
@@ -92,28 +92,28 @@ class ScreenMasker:
 
     def capture(self, raw_elements, image_bytes, size):
         """Return safe UI data and a masked PNG; raw pixels stay in memory."""
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        scale = self._scale(image, size)
+        image = ScreenshotImage.decode(image_bytes)
+        geometry = MaskGeometry(size, image.size)
         draw = ImageDraw.Draw(image)
-        safe = [self._element(element, draw, image, scale) for element in raw_elements]
-        output = io.BytesIO()
-        image.save(output, format="PNG")
-        return safe, output.getvalue()
+        masks = self._regions(raw_elements, geometry)
+        for mask in masks:
+            draw.rectangle(mask, fill="black")
+        safe = [self._element(element, geometry, masks) for element in raw_elements]
+        return safe, ScreenshotImage.encode(image)
 
-    @staticmethod
-    def _scale(image, size):
-        width, height = size["width"], size["height"]
-        if width <= 0 or height <= 0:
-            raise InfrastructureError("Screen coordinate size is unavailable")
-        sx, sy = image.width / width, image.height / height
-        if abs(sx / sy - 1) > 0.03:
-            raise InfrastructureError("Screen/image coordinate mapping is ambiguous")
-        return sx, sy
+    def _regions(self, elements, geometry):
+        masks = []
+        for element in elements:
+            if self.redactor.sensitive(element):
+                pixels = geometry.pixels(element)
+                if pixels is not None:
+                    masks.append(pixels)
+        return masks
 
-    def _element(self, element, draw, image, scale):
+    def _element(self, element, geometry, masks):
         item = self.redactor.records.element(element)
-        if self.redactor.sensitive(element):
-            self._draw_mask(element, draw, image, scale)
+        # A container mask also hides the text of overlapping child elements.
+        if self.redactor.sensitive(element) or geometry.touches_mask(element, masks):
             item = self._mask_text(item)
         return item
 
@@ -131,24 +131,3 @@ class ScreenMasker:
         if isinstance(value, list):
             return [ScreenMasker._mask_text(item) for item in value]
         return value
-
-    @staticmethod
-    def _draw_mask(element, draw, image, scale):
-        try:
-            rect = element.get("coordinates", {})
-            x, y, width, height = [float(rect[key]) for key in ["x", "y", "width", "height"]]
-            if width <= 0 or height <= 0:
-                raise ValueError()
-        except (KeyError, TypeError, ValueError):
-            raise InfrastructureError("Required element mask has no reliable bounds") from None
-        sx, sy = scale
-        # Add a small border so edge pixels do not reveal a character.
-        draw.rectangle(
-            (
-                max(0, (x - 2) * sx),
-                max(0, (y - 2) * sy),
-                min(image.width, (x + width + 2) * sx),
-                min(image.height, (y + height + 2) * sy),
-            ),
-            fill="black",
-        )

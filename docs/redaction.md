@@ -18,9 +18,9 @@ The host and build worker share a small SecretText source implementation. Text r
 
 Secret detection searches original nested UI strings before JSON encoding. Unicode, quotes, backslashes, and newlines therefore cannot disappear from detection through JSON escaping. Detection remains separate from text replacement.
 
-Known-secret detection, configured element-ID rules, and secure-field recognition require a pixel mask with reliable bounds. Required masking failure stops execution. Sensitive elements also hide nested text, label, name, and value fields before UI data is saved or sent to AI. Raw screenshots stay in memory until masking succeeds. The existing before/after mask-geometry check remains in place.
+Known-secret detection, configured element-ID rules, and secure-field recognition require a pixel mask with reliable bounds. Required masking failure stops execution. Sensitive elements and overlapping child records hide text, label, name, and value fields before UI data is saved or sent to AI. Raw lossless PNG screenshots stay in memory until masking succeeds. Screen size and required mask geometry are checked before and after capture; invalid coordinates and image mapping stop capture. Clean image export removes transparency and metadata. See [screenshot masking](screenshot-masking.md) for the component contracts and tests.
 
-These checks depend on the adapter supplying accurate UI text and bounds. Application-specific element-ID rules are still needed for sensitive content the UI tree does not describe reliably. Offline image tests do not establish real Android/iOS masking acceptance.
+These checks depend on the adapter supplying accurate UI text and bounds. Application-specific element-ID rules can identify sensitive fields whose values are not known, but the adapter must still expose their bounds. Separate UI and image reads cannot prove the absence of transient changes between reads. Offline image tests do not establish real Android/iOS masking acceptance.
 
 ## Verification
 

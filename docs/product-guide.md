@@ -157,6 +157,8 @@ Masking supports **element-id rules only**, with no screen-region coordinates. S
 
 Redaction removes credential values from observations and text before JSON/HTML encoding. It preserves test statuses, generated IDs, numbers, and evidence links, including when their characters happen to match a credential. Screenshot masking searches original UI strings, including Unicode and escaped characters, and masks nested text in sensitive elements. See [redaction behavior and verification](redaction.md).
 
+Screenshots use lossless PNG and are masked before storage or AI processing. CIMT rejects unreliable bounds, changed screen dimensions, and ambiguous image mapping. Masked containers also hide child UI text. Output removes image metadata and hidden transparent pixels. No screen-region setting is needed. See [screenshot masking and acceptance limits](screenshot-masking.md).
+
 ## 7. Path rules and run folders
 
 | Path | Resolution |

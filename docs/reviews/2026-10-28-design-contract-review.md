@@ -32,6 +32,8 @@ Recommended correction: search the original string values in the UI structure be
 
 Resolution, 28 October 2026: original nested UI strings now drive secret detection, and pixel tests pass for Unicode, quotes, backslashes, and newlines. Sensitive elements also mask nested UI text values. Required-mask failure still stops execution. D2 is resolved for the tested implementation; real-device masking acceptance remains open.
 
+Screenshot follow-up, 28 October 2026: lossless native capture, clean image export, finite/clipped/outward-rounded geometry, screen-size stability, and overlapping child UI text are covered by separate services and regression cases. See [screenshot masking](../screenshot-masking.md). The product owner requested skipping physical-device checks after the locked Android check, so device acceptance is still open.
+
 ## D3 — P1: instruction completion has no complete instruction inventory
 
 Locations: [scenario_verdict](../../runtime/check_results.py), lines 85–98; [ScenarioRunner._complete](../../runtime/scenario.py), lines 221–238. Related requirements: FR-14 and FR-25.

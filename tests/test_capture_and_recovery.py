@@ -50,6 +50,37 @@ class CaptureFixture:
 
 
 class CaptureRaceTests(unittest.TestCase):
+    def test_injected_lossless_reader_bypasses_the_adapter_image_tool(self):
+        fixture = CaptureFixture([SECRET_FIELD], [SECRET_FIELD])
+
+        def call(name, **arguments):
+            self.assertEqual(name, "mobile_list_elements_on_screen")
+            return fixture.call(name, **arguments)
+
+        screen = ScreenCapture(
+            call,
+            fixture.native,
+            lambda: None,
+            fixture.redactor,
+            fixture,
+            image_reader=lambda: fixture.image,
+        )
+        _, encoded = screen.snapshot()
+        with Image.open(io.BytesIO(encoded)) as image:
+            self.assertEqual(image.getpixel((15, 15)), (0, 0, 0))
+
+    def test_size_change_stops_before_pixels_are_released(self):
+        fixture = CaptureFixture([], [])
+        sizes = iter([100, 200])
+
+        def native(arguments):
+            return {"data": {"device": {"screenSize": {"width": next(sizes), "height": 100}}}}
+
+        screen = ScreenCapture(fixture.call, native, lambda: None, fixture.redactor, fixture)
+        with self.assertRaises(InfrastructureError):
+            screen.snapshot()
+        self.assertEqual(fixture.mask_calls, 0)
+
     def test_appearing_secret_stops_before_image_can_leave_capture(self):
         fixture = CaptureFixture([], [SECRET_FIELD])
         with self.assertRaises(InfrastructureError):
@@ -74,6 +105,40 @@ class CaptureRaceTests(unittest.TestCase):
         _, encoded = fixture.screen.snapshot()
         self.assertEqual(fixture.mask_calls, 1)
         self.assertTrue(encoded)
+
+    def test_container_mask_hides_child_ui_text(self):
+        child = {
+            "identifier": "Child",
+            "text": "unknown private text",
+            "coordinates": {"x": 12, "y": 12, "width": 10, "height": 10},
+        }
+        fixture = CaptureFixture([SECRET_FIELD, child], [SECRET_FIELD, child])
+        elements, _ = fixture.screen.snapshot()
+        self.assertEqual(elements[1]["text"], "<masked>")
+
+    def test_offscreen_sensitive_field_keeps_text_hidden_without_a_pixel_mask(self):
+        item = dict(SECRET_FIELD, coordinates=dict(x=120, y=10, width=20, height=20))
+        fixture = CaptureFixture([item], [item])
+        elements, encoded = fixture.screen.snapshot()
+        self.assertEqual(elements[0]["value"], "<masked>")
+        with Image.open(io.BytesIO(encoded)) as image:
+            self.assertEqual(image.getpixel((15, 15)), (255, 255, 255))
+
+    def test_text_outside_the_mask_is_still_available(self):
+        label = {
+            "identifier": "Public",
+            "text": "Public text",
+            "coordinates": {"x": 70, "y": 70, "width": 10, "height": 10},
+        }
+        fixture = CaptureFixture([SECRET_FIELD, label], [SECRET_FIELD, label])
+        elements, _ = fixture.screen.snapshot()
+        self.assertEqual(elements[1]["text"], "Public text")
+
+    def test_ui_text_without_bounds_is_hidden_when_masks_are_present(self):
+        label = {"identifier": "Unknown", "text": "unknown private text"}
+        fixture = CaptureFixture([SECRET_FIELD, label], [SECRET_FIELD, label])
+        elements, _ = fixture.screen.snapshot()
+        self.assertEqual(elements[1]["text"], "<masked>")
 
 
 class CrashFixture:

@@ -5,17 +5,21 @@ import io
 import json
 from PIL import Image
 from errors import InfrastructureError
+from capture_guard import CaptureGuard
+from mask_geometry import ScreenSize
 
 
 class ScreenCapture:
     """Keeps raw pixels in memory until masking has succeeded."""
 
-    def __init__(self, call, native, readiness, redactor, masker):
+    def __init__(self, call, native, readiness, redactor, masker, image_reader=None):
         self.call = call
         self.native = native
         self.readiness = readiness
         self.redactor = redactor
         self.masker = masker
+        self.image_reader = image_reader or self._image
+        self.guard = CaptureGuard(redactor)
 
     def raw_elements(self):
         """Read UI data from the adapter without saving the unredacted response."""
@@ -29,22 +33,30 @@ class ScreenCapture:
                         value = json.loads(text[start:])
                     except ValueError:
                         continue
-                    if isinstance(value, list):
+                    if isinstance(value, list) and all(isinstance(item, dict) for item in value):
                         return value
         raise InfrastructureError("No structured UI elements were returned")
 
     def snapshot(self):
         """Capture a screen only when device readiness and mask positions are verified."""
         self.readiness()
+        size = self._size()
         raw = self.raw_elements()
-        image = self._image()
-        size = (
-            self.native(["device", "info"]).get("data", {}).get("device", {}).get("screenSize", {})
-        )
-        raw = self._verify_mask_geometry(raw)
+        image = self.image_reader()
+        after = self.raw_elements()
+        self.guard.verify(raw, after, size, self._size())
+        self.readiness()
+        raw = after
         safe, encoded = self.masker.capture(raw, image, size)
         self._add_screen_size(safe, encoded, size)
         return safe, encoded
+
+    def _size(self):
+        value = (
+            self.native(["device", "info"]).get("data", {}).get("device", {}).get("screenSize", {})
+        )
+        size = ScreenSize.read(value)
+        return dict(width=size.width, height=size.height)
 
     def _image(self):
         result = self.call("mobile_take_screenshot")
@@ -59,20 +71,6 @@ class ScreenCapture:
         if not image:
             raise InfrastructureError("Step screenshot collection failed")
         return image
-
-    def _verify_mask_geometry(self, before):
-        # A sensitive field can appear after the first read. Always check again.
-        after = self.raw_elements()
-        if self._mask_regions(before) != self._mask_regions(after):
-            raise InfrastructureError("Required mask geometry changed during screenshot capture")
-        return after
-
-    def _mask_regions(self, elements):
-        return [
-            (element.get("identifier"), element.get("coordinates"))
-            for element in elements
-            if self.redactor.sensitive(element)
-        ]
 
     @staticmethod
     def _add_screen_size(elements, encoded, size):

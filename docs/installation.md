@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.8  
+Version: 0.9  
 Last updated: 28 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -769,3 +769,17 @@ cimt --help
 ```
 
 First-Mac verification: all 301 offline checks passed. Both installed assemblies and all Python modules match the tested source; public help works. A synthetic result passed through the real Python recorder/journal and .NET writer retains failed and exit 1 for the original status/credential collision. Pixel tests cover Unicode and escaped-character secrets. No private configuration was read or changed, and no phone or API was used. Historical reports are preserved. See [redaction behavior and limits](redaction.md).
+
+## 21. Screenshot-masking correction — 28 October 2026
+
+This update changes Python support modules only. Keep the existing native helper and publish of the host/build worker. Copy all Python files together, including screenshot_image.py, mask_geometry.py, and capture_guard.py:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+cp runtime/*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
+cimt --help
+```
+
+No new dependency, YAML field, or screen-region configuration is needed. The adapter now requests lossless PNG bytes from the native helper. JPEG is rejected at the masking boundary. Mask geometry, capture-size checks, clean image export, and container UI text handling use the separate services described in [screenshot masking](screenshot-masking.md).
+
+First-Mac verification: 343 offline checks passed. All installed Python files match source, the new modules import, and public help works. A connected Android phone was locked; its probe stopped before capture. The product owner requested skipping physical-device checks for now. No live masking pass is claimed, and Android/iOS acceptance remains open. Private configuration and retained reports were not changed.

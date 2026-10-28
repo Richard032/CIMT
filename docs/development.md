@@ -47,6 +47,8 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | mobile.py | Connect the device services used by a scenario. |
 | app_lifecycle.py, device_commands.py | Install/reset the tested app and query readiness/status. |
 | redaction.py, screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
+| screenshot_image.py | Verify lossless image input and create a clean opaque image without source metadata. |
+| mask_geometry.py, capture_guard.py | Validate coordinate conversion and compare required regions/screen size around capture. |
 | record_redaction.py | Redact text according to each result record type while preserving its control metadata. |
 | mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 

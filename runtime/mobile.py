@@ -22,7 +22,12 @@ class Mobile:
         self.status = DeviceStatus(self.commands, folder)
         self.lifecycle = AppLifecycle(self.commands, self.call)
         self.screen = ScreenCapture(
-            self.call, self.commands.native, self.readiness, redactor, ScreenMasker(redactor)
+            self.call,
+            self.commands.native,
+            self.readiness,
+            redactor,
+            ScreenMasker(redactor),
+            image_reader=self.commands.screenshot,
         )
         self.client_factory = client_factory
         self.client = None
