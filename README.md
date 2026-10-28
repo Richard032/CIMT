@@ -11,6 +11,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Requirements](docs/requirements.md): confirmed product requirements, outcome rules, and acceptance criteria.
 - [Architecture](docs/architecture.md): approved structure and policies, technology evaluation, and unresolved engineering decisions.
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
+- [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
 All three documents are version 0.3, dated 27 October 2026, based on the product-owner interview and reviews. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Adapter selection, supported toolchain versions, full schema constraints, and implementation proofs remain open.
 
