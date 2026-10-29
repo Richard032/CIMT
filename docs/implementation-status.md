@@ -202,3 +202,9 @@ Done: preserve redacted device-discovery and helper-stop errors, retain the reda
 Verified: 196 .NET tests, 155 Python tests, and 28 CLI/build/example checks passed, 379 total. A real local socket binds through the short address while its file remains in a deeply nested target folder. Link ownership, missing/occupied targets, retained/redacted logs, and diagnostics have focused cases. The initial dangling-link test exposed a cleanup defect; it was corrected and the full suite passed. No real API call, MAUI build, or physical-device action was performed by these checks.
 
 Installed: corrected host assembly matches the tested build. Private configuration and the user's reports were preserved. No actual FirstRun was rerun; the user controls the next run. See installation section 24. Physical discovery after this correction, real application execution, final adapter qualification, Jenkins, second-Mac acceptance, and other open findings remain unverified.
+
+## Requirement update — live terminal output
+
+Recorded FR-54/FR-55 and AC-27/AC-28 in requirements version 0.7 after the product owner requested visible Git, build, and debug output. Normal terminal and Jenkins execution must stream stdout/stderr/progress while commands run, identify relevant concurrent work, redact credentials across output chunks, and keep retained diagnostics. No verbose option may be required.
+
+Implementation remains pending. The current process runner collects child output and stage messages do not provide complete live command output. This documentation-only update does not alter source, installed binaries, or the user's active execution. No runtime tests were run for the requirements edit.

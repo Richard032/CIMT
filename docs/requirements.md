@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.6  
+Version: 0.7  
 Date: 29 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -116,6 +116,8 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-51 | Every command, supplied/replacement build script, reset command, and reset verification shall have documented examples and runnable demonstrations explaining configuration, invocation, expected output, and failure behaviour. Demos shall use a user-supplied application repository with secret placeholders; CIMT shall not include a demo MAUI application. |
 | FR-52 | Installed CIMT shall run independently of the current working directory and source checkout. The input folder shall be the folder containing --run-config when supplied, otherwise --config. The user shall supply only configuration, referenced test inputs, and optional application-specific scripts; CIMT shall create all necessary run-output folders beneath that input folder's CIMT output subfolder. Existing installation tools and Mac-wide coordination state remain with the installation. CIMT may create an owned short transport link in the Mac temporary directory to address helper sockets; actual helper files shall remain under CIMT output, and only a link targeting the verified owned run may be removed. |
 | FR-53 | Missing/invalid configuration and execution errors shall retain reports under the selected input folder when it is writable. If no input configuration can be selected because command syntax is invalid, use CIMT output under the launch folder. An absent, unsafe, or unwritable input/output location shall stop with an explicit terminal error; CIMT shall not redirect output to the installation or another folder. Links shall not redirect output outside its designated parent. Legacy workspace.root/reports.root settings may load for compatibility but shall not relocate output; CIMT shall disclose that they were ignored. |
+| FR-54 | CIMT shall display live Git output, build output, and debug/diagnostic output in the terminal during normal execution, including Jenkins console execution. This includes clone/fetch/submodule progress, default and replacement build-script output, compiler/build warnings and errors, CIMT/runtime/adapter diagnostics, and application/device debug output collected during testing. Both stdout and stderr shall be displayed as they become available, without waiting for the command or run to finish. A separate verbose option shall not be required. |
+| FR-55 | Live terminal output shall identify its stage and relevant build target, platform, or device so concurrent activity can be understood. Credentials shall be redacted before terminal display as required by FR-36, including secrets split across received output chunks. Private configuration and secret-bearing runtime payloads shall not be dumped to the terminal. Live display shall supplement retained run diagnostics, preserve command exit/error handling, and remain available when optional HTML detail sections are disabled. |
 
 ## 5. Outcomes and exceptional conditions
 
@@ -185,6 +187,8 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-24 | Supply Markdown headings and a testable requirement. Verify headings remain visible as context, the requirement retains its source lines and section meaning, and a passed requirement can complete without evaluating headings. Verify a heading-only document creates no requirement results. |
 | AC-25 | Supply only input configuration/texts/scripts in a fresh folder. Invoke installed CIMT from that folder and a different launch folder, including deeply nested paths, spaces, and shared settings elsewhere. Verify automatic CIMT output creation, input-relative paths, identical output placement, retained earlier reports, shared work/report identity, and owned work/link cleanup. Verify that a local helper socket can bind through its short address while its socket file remains in the long run folder. No user-created output folder shall be needed. |
 | AC-26 | Verify invalid/missing YAML produces an error report below the selected input folder. Verify legacy output roots cannot move output, a branch override cannot change the input folder, and unsafe links/unwritable output cause an explicit failure without writing elsewhere. |
+| AC-27 | Run delayed Git, build, and diagnostic-output fixtures through the existing command path. Verify stdout, stderr, and progress appear in the terminal before each producing process finishes, without a verbose option, including a noninteractive Jenkins-style console. Verify concurrent output identifies its target/platform/device and existing exit-code and timeout behavior is preserved. |
+| AC-28 | Include synthetic credentials in stdout/stderr, including a credential split across output chunks. Verify secrets never appear in terminal or retained diagnostics, private runtime/configuration payloads are not printed, and disabling optional HTML details does not disable live terminal output. |
 
 ## 8. Later release: branch comparison
 
@@ -213,3 +217,7 @@ On 29 October 2026, the product owner required execution independent of the laun
 ## Engineering clarification — version 0.6
 
 The first user-started run passed model/runtime preflight but failed at device discovery. Its native socket address was 110 bytes; the installed helper rejects macOS addresses above 103 bytes. A short owned temporary link is therefore permitted as transport metadata. Actual socket/log files and run output remain below the selected inputs. The user does not shorten paths or prepare extra folders. The source of the limit is [Mobile CLI's path validation](https://github.com/mobile-next/mobilecli/blob/main/daemon/paths.go). FR-52 and AC-25 record this engineering detail; test failure policies and output data placement are unchanged.
+
+## Review record — version 0.7
+
+On 29 October 2026, the product owner required build output, debug output, and Git output to be displayed in the terminal. FR-54/FR-55 make incremental stdout/stderr/progress visible during normal local and Jenkins execution while preserving credential redaction, context, retained diagnostics, and existing process outcomes. AC-27/AC-28 define the verification. This revision records the requirement; complete live-output streaming is not yet implemented or verified. It does not change an already active run.
