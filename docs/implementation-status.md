@@ -258,3 +258,9 @@ Requirements v0.11, architecture v0.17, product/installation guides, examples, a
 Verified: 425 offline checks passed across the existing .NET/Python/CLI/build/example/layout suites. After the final helper-stop recovery change, 237 .NET tests and 20 CLI checks passed again. The public replay fixture reaches its fake UI worker with Git and build commands disabled; its artifacts are identical to the original build. Normal-run fixtures preserve work during preflight and remove earlier work only at the next clone boundary.
 
 Installed and byte-verified the host/build-worker Release assemblies; public help passed. Installation section 28 records hashes. No API call, real app build, device action, private configuration read, or user test run was performed. Real application build/replay acceptance remains for the user.
+
+## Observed follow-up — retained build fails on missing generated resource
+
+The user-started 15:35 run confirms correct branch/commit and retained checkout/publish-job folders after failure. All four builds stop on missing template/strings.xml (MSB3030). Only the token-filled strings.template.xml is tracked; strings.xml is ignored and listed in CuRMiT-project.xml as generated output. The project still copies that output after its former generator call was removed. No app was installed or tested, and no new retained-build set was published.
+
+No new software workaround was added. The intended application resource-generation process needs clarification; unresolved templates and fabricated build metadata are not substitutes. Installation section 29 records the evidence and the secondary warnings. Earlier offline success did not establish real clean-clone build acceptance.
