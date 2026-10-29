@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.9  
+Version: 0.10  
 Date: 29 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -120,6 +120,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-55 | Live terminal output shall identify its stage and relevant build target, platform, or device so concurrent activity can be understood. Credentials shall be redacted before terminal display as required by FR-36, including secrets split across received output chunks. Private configuration and secret-bearing runtime payloads shall not be dumped to the terminal. Live display shall supplement retained run diagnostics, preserve command exit/error handling, and remain available when optional HTML detail sections are disabled. |
 | FR-56 | execution.interactive-pauses shall be an optional boolean, false when omitted. When true for run, CIMT shall display generic information about the upcoming operation and wait for terminal Enter before authenticated OpenAI model preflight, before repository access/builds, and before OpenAI-driven testing after builds. Messages shall describe credential use without revealing values and disclose possible AI charges for testing. They shall not name or prescribe private, work, or other environment-specific networks or actions. The testing checkpoint is skipped when no installable build exists. Configuration and local secret loading at startup are unchanged; checkpoints precede network use of credentials. |
 | FR-57 | Interactive waiting shall count toward the configured whole-run time limit and retain the Mac-wide run lock. The deadline shall stop a pending wait and produce an incomplete report with normal outcome precedence and owned cleanup. Closed terminal input shall stop with an infrastructure error; redirected input with pauses enabled shall fail explicitly rather than continue or hang. Jenkins shall use false or omit the setting. Checkpoint phase and waiting/continued status shall appear in retained run stages, without recording terminal response text. With pauses disabled, CIMT shall not read terminal input. validate shall not use these run checkpoints and shall retain its existing readiness contract. |
+| FR-58 | The selected repository branch and project/build configuration shall determine application build steps and tool integrations, including imported targets. CIMT and supplied application adapters shall not introduce a tool call because it existed in another branch, replace unrelated targets, or overwrite configured build properties. An application-specific compatibility change shall be limited to the known supported operation in the disposable run clone and disclosed in retained build diagnostics; other steps shall remain unchanged. |
 
 ## 5. Outcomes and exceptional conditions
 
@@ -193,6 +194,7 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-28 | Include synthetic credentials in stdout/stderr, including a credential split across output chunks. Verify secrets never appear in terminal or retained diagnostics, private runtime/configuration payloads are not printed, and disabling optional HTML details does not disable live terminal output. |
 | AC-29 | Enable interactive pauses in the per-run YAML. Verify the three generic operation messages contain no environment-specific network instructions and that OpenAI preflight, repository access/builds, and AI testing cannot start before their respective acknowledgements. Verify testing is not offered when every build failed, and waiting/continued stages are retained without secret or response text. |
 | AC-30 | Verify omitted/false pauses do not read input or change unattended execution. Verify invalid values fail configuration validation, redirected/closed input cannot continue the protected stage, deadline expiry during a wait produces incomplete output and normal cleanup/reporting, and a late acknowledgement cannot start work after the deadline. |
+| AC-31 | Run the supplied application adapter against fixtures with a copy-only pre-build, a separately configured tool, other pre-build steps, and a disabled target. Verify portable resource copying without any added tagger/Mono dependency, preservation of project-defined tools/properties/conditions, and an unchanged build-request payload. Verify the adapter delegates to the installed default workers on Android/iOS. |
 
 ## 8. Later release: branch comparison
 
@@ -233,3 +235,7 @@ On 29 October 2026, the product owner requested terminal pauses to switch betwee
 ## Review record — version 0.9
 
 On 29 October 2026, the product owner corrected the previous increment: the implementation must give generic information and wait for user input. This supersedes the network-specific messages and option in version 0.8. FR-56/FR-57 now use execution.interactive-pauses. Checkpoints describe the upcoming operation and ask for Enter without directing network changes. The same three checkpoint positions, unattended default, input privacy, deadline, cleanup, and outcome policies remain in force. Public examples and FirstRun are migrated to the generic field.
+
+## Engineering correction — version 0.10
+
+The product owner clarified that CuRMiT integration belongs to Visual Studio/project configuration. Investigation confirmed that branch testing/curmitAndNugets removed the legacy tagger command, but the supplied local adapter reintroduced it. FR-58/AC-31 explicitly require preserving the chosen branch's project build steps. The correction removes the obsolete target override and limits the ECON adapter to the known Windows resource-copy command. This is an adapter defect correction; branch selection and the generic default build-worker contract remain unchanged.

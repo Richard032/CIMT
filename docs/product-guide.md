@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.10  
+Version: 0.11  
 Date: 29 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -219,7 +219,7 @@ Long input paths need no manual shortening. CIMT manages the helper's short tran
 
 ## 8. Default and replacement build scripts
 
-Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance is blocked by the source pre-build and signing prerequisites recorded in the [build contract](build-script-contract.md). Replacement scripts are supported by the initial run engine; public-command fallback handling has regression tests. See [implementation status](implementation-status.md) for the remaining real-app acceptance work.
+Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance remains open. A corrected example adapter preserves project-configured tools and adapts only a known Windows resource-copy command; earlier runs were blocked by its obsolete tagger override. See the [build contract](build-script-contract.md). Replacement scripts are supported by the initial run engine; public-command fallback handling has regression tests. See [implementation status](implementation-status.md) for the remaining real-app acceptance work.
 
 Default scripts use configured project, configuration, framework, and build properties; they build and locate installable artifacts and app identifiers.
 
@@ -373,3 +373,7 @@ The current run engine performs one objective per target/device, with at most tw
 The internal code now uses smaller services, simple English comments, and replaceable dependencies for unit tests. This does not change the operator commands or configuration. Development rules and checks are described in the [development guide](development.md).
 
 The current worker records explicit instruction/requirement checks with expected behavior, observed behavior, status, and evidence. A functional failure affects the verdict even without a crash. Navigation completion alone cannot pass. The host catalogue accounts for requirement entries and retains explicit Markdown headings separately as context. Headings have no test result and do not block completion; their section meaning accompanies each requirement. Every applicable target/device pair has a status, evidence, or an explanation of missing evidence. Items with several conditions require all conditions to be checked; use separate paragraphs/list items when separate decisions are needed. Unknown or ambiguous prose and table rows remain unresolved rather than being dropped. See [complete mapping rules](requirement-mapping.md) and the [runnable offline example](../examples/requirement-mapping/README.md). Real-app mapping acceptance remains pending.
+
+## Project-configured build steps
+
+The selected branch and configured project determine tool integrations, including CuRMiT configured through Visual Studio/MSBuild. CIMT must preserve those steps and imported targets. Application adapters must not force a tool that a branch removed. The ECON example now adapts only one exact Windows resource-copy command inside its temporary clone, records the change, and calls the installed default worker. It adds no tagger command or Mono dependency. If the command does not match, the project remains unchanged. See [FR-58/AC-31](requirements.md).

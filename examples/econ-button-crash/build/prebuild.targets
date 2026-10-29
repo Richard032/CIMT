@@ -1,8 +1,0 @@
-<Project>
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="&quot;$(CimtMonoExecutable)&quot; &quot;$(MSBuildProjectDirectory)/../Tools/CuRMiT/CuRMiTagger.exe&quot; &quot;$(MSBuildProjectDirectory)/../CuRMiT-project.xml&quot;"
-          EnvironmentVariables="MONO_IOMAP=all" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)/Platforms/Android/Resources/values/template/strings.xml"
-          DestinationFiles="$(MSBuildProjectDirectory)/Platforms/Android/Resources/values/strings.xml" />
-  </Target>
-</Project>

@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.14  
+Version: 0.15  
 Last updated: 29 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -883,10 +883,20 @@ The previous network-specific increment passed 214 .NET unit tests, 18 existing 
 
 The generic correction replaces execution.network-switch-pauses with execution.interactive-pauses in code and public configuration. Internal classes and recorded stages now use execution-checkpoint names. Separate copied configurations must use the new field; the previous network-specific field is no longer accepted. FirstRun/application.yaml and the supplied examples have been migrated without reading or changing private YAML. Generic-correction verification: all 214 existing .NET unit tests and 18 CLI/lifecycle checks passed (232 checks), including assertions that every checkpoint message contains no network instructions. The host was republished, its installed assembly matches the tested build, and public help succeeds. No real FirstRun, authenticated OpenAI request, MAUI build, or device action was started. Actual interactive execution remains for the user.
 
-## 26. User-started Debug build follow-up — 29 October 2026
+## 26. User-started build follow-up — 29 October 2026
 
-FirstRun report_2026-10-29_14-03-22-908 confirms the generic interactive checkpoints: both OpenAI preflight and repository/build phases recorded waiting and continued. Model-access preflight passed without inference, device discovery completed, and main commit b1c95ef314311f1fc3c8d090c5d64bdb727903bd and its recorded submodules were checked out. The user's effective targets were Debug_Generic and Debug_Pride on Android/iOS.
+FirstRun report_2026-10-29_14-03-22-908 confirms the generic interactive checkpoints: both OpenAI preflight and repository/build phases recorded waiting and continued. Model-access preflight passed without inference, device discovery completed, and main commit b1c95ef314311f1fc3c8d090c5d64bdb727903bd and its recorded submodules were checked out. The targets were labelled Debug_Generic and Debug_Pride on Android/iOS, but effective-config.json specifies Release_Generic and Release_Pride as their actual configurations.
 
-All four builds exited 1 in the required CuRMiTagger.exe pre-build tool, launched by FirstRun/build/prebuild.targets through Mono. RuntimePolicyHelper calls System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeInterfaceAsObject, which throws NotSupportedException. The same blocker previously observed with Release targets remains with Debug targets. Android also reports XA0033 while parsing the installed Java version; that warning is separate from the fatal tagger exception.
+All four builds exited 1 in the required CuRMiTagger.exe pre-build tool, launched by FirstRun/build/prebuild.targets through Mono. RuntimePolicyHelper calls System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeInterfaceAsObject, which throws NotSupportedException. The labels did not select Debug configurations; both this run and the later branch run used Release configurations. Android also reports XA0033 while parsing the installed Java version; that warning is separate from the fatal tagger exception.
 
 The run correctly retained exit 3, inconclusive verdict, and incomplete completion. No installable artifact or application interaction was produced. The third checkpoint was skipped because no build succeeded. Next: establish a Mac-compatible way to run the required tagging step before retrying the application build; do not silently skip it. Diagnosis read only retained report/log files and the public build adapter. No private configuration was read, source or build behavior changed, or run restarted.
+
+## 27. Branch verification and obsolete local build override
+
+The user-started report_2026-10-29_14-22-07-934 records branch testing/curmitAndNugets and commit 8b50dd12f65e0f3ffd9f8df68013d56601473f45. An independent temporary shallow clone of that named branch returned the same commit, with message Remove Curmit tagger from pre-build execution. Its application PreBuild target contains the Windows resource-copy command, with no tagger call. The inspection initialized no submodules, built nothing, and removed its temporary clone. The developer checkout was not changed.
+
+The failing command came from FirstRun/build/prebuild.targets, injected by the earlier local adapter through CustomAfterMicrosoftCommonTargets. Thus the old CuRMiTagger call was reintroduced outside the selected project, despite correct checkout. The earlier diagnosis of a required tagger on this branch was incorrect. The Mono exception is real for the injected executable, but does not establish incompatibility of the selected branch's intended project-configured CuRMiT integration.
+
+Correction: replace the separate input folder's build/build.sh with the updated example script and remove the obsolete build/macos.targets and build/prebuild.targets files. FirstRun has been updated. The adapter now changes only the exact known Windows resource-copy command in the temporary cloned project, then calls the installed default Android/iOS worker. It does not inject a tagger, Mono, global imports, or properties. Other project-configured tools and Visual Studio/MSBuild integration remain in place. No installed host, worker, dependency, private YAML, application branch, or user build configuration needs changing for this fix. The recorded targets retain the user's Release configuration values despite their Debug labels.
+
+Verification: four example MSBuild fixture tests and four default-worker contract checks passed. They cover copying with no tagger, preservation of project-defined tools and configured properties, unrelated pre-build steps, unchanged requests, target conditions, and both platform delegates. Shell syntax and FirstRun/source script equality checks passed. These are synthetic checks, not real MAUI builds. The assistant did not rerun CIMT; signing, compilation, installation, and actual application testing remain for the user's next run. Reports and private configuration were preserved.

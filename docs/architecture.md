@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.15  
+Version: 0.16  
 Date: 29 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -309,3 +309,9 @@ ExecutionCheckpoint is an ordered run step with one responsibility: display the 
 Messages identify the operation and credential use without exposing values. The shared prompt asks for Enter. No network name, network-change instruction, application-specific preparation, or environment policy is embedded. CIMT does not infer the user's preparation from an acknowledgement; the next stage still runs its normal checks. Configuration/key loading and text/runtime preparation happen before the first checkpoint, but authenticated OpenAI requests wait for acknowledgement.
 
 An enabled checkpoint requires non-redirected input and records waiting/continued stages without terminal response text. The original deadline bounds the asynchronous wait and is checked again before continuing. Waiting consumes the run allowance and retains the Mac-wide lock. End of input is an infrastructure failure; deadline expiry is incomplete with normal precedence. RunCoordinator still cleans owned work and writes the report. validate retains its existing readiness checks without run-only pauses. Jenkins must omit the setting or use false. This generic design supersedes the environment-specific network wording from version 0.14.
+
+## 19. Project build authority and compatibility adapters
+
+The repository checkout and its selected project/configuration own application tool integration. The default build worker passes configured properties and publishes the cloned project. Application-specific scripts may adapt a known platform command in the disposable clone, but must preserve other steps, imported targets, conditions, and supplied properties. An adapter must not recreate a tool invocation removed by a newer branch.
+
+The corrected ECON example reads the current build request only to locate the cloned project. It replaces one exact Windows copy Exec with a portable MSBuild Copy in that file, preserving its surrounding target and all other content. If the known command is absent or duplicated, it leaves the project unchanged. It does not add global MSBuild imports or Mono properties, modify the request, or inject CuRMiTagger. Existing project-configured tool integrations remain authoritative. The action is logged and the clone is removed under normal cleanup. Source/branch changes are not committed to the application repository. See FR-58/AC-31 and the build-script contract.

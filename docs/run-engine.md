@@ -63,3 +63,7 @@ The host, build worker, and device worker are split into services with narrow re
 The complete mapping increment adds catalogue, scoped-status, response-validation, and reporting tests, plus a public-command failed-build matrix check. The [implementation status](implementation-status.md) records current counts and the [offline mapping demonstration](../examples/requirement-mapping/README.md) covers all five statuses. No extra paid planning call is added.
 
 Run folders now use one [shared identity](run-identity.md) from invocation through reporting/cleanup. Work and report names have exactly the same UTC millisecond timestamp; collisions advance the pair together without changing the actual start/deadline. Portable identity metadata remains in the report, and unsafe report placement is rejected.
+
+## Build-adapter correction
+
+The source branch testing/curmitAndNugets at 8b50dd12f65e0f3ffd9f8df68013d56601473f45 matches the user's latest recorded checkout and removes the legacy tagger from PreBuild. The earlier local example adapter reintroduced it through an unconditional target override. That override is now removed. The example changes only the exact Windows resource-copy command in the disposable clone and leaves project-configured tools, imports, properties, conditions, and other steps intact. No change to the core branch-selection or default build-worker code was needed. Real application acceptance still depends on a user-started retry.

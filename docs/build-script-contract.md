@@ -83,12 +83,17 @@ Resolve or explicitly configure the application's macOS pre-build compatibility 
 
 ## Main-branch example integration
 
-The [button/crash example](../examples/econ-button-crash/README.md) supplies replacement scripts that delegate to these installed defaults. A late MSBuild import runs the same CuRMiT tagger through Mono and replaces Windows copy with MSBuild Copy, only in the executable app project. Branding application IDs are explicit build properties. Source changes and generated resources stay in the disposable clone.
+The [button/crash example](../examples/econ-button-crash/README.md) supplies
+replacement scripts that delegate to these installed defaults. The selected
+branch's project/configuration remains authoritative for CuRMiT and other tools.
+The adapter changes only a single known Windows resource-copy Exec to portable
+MSBuild Copy in the disposable clone. It retains the surrounding target, other
+steps/imports/conditions, and configured properties. Missing/duplicate matches
+leave the project unchanged and are disclosed in the build log.
 
-One MSBuild fixture check verifies tagger invocation, resource copying, and isolation from unrelated projects. It does not prove that the real tagger, signed MAUI builds, or app installation succeed. The first configured public run must verify those paths; refreshed iOS profiles also need revalidation.
-
-## Replacement-script result resolution
-
-The public run path resolves artifact and app-id separately. Returned script fields take priority; YAML supplies only missing fields. A successful script may omit its result file if YAML supplies both fields. Script artifact paths must be absolute. YAML artifact paths resolve from the temporary clone root. An invalid returned field, malformed JSON, missing resolved field, or absent artifact is a failure for that target; later targets are still attempted.
-
-Small policy tests cover both sources and invalid values. Temporary-file integration tests cover no result file, partial results, and an invalid result followed by another successful target. They do not compile the real application.
+The former late target override and Mono invocation were wrong for a branch that
+removed the old tagger command. Both override files and their injected properties
+have been removed. No replacement tagger is added. Four existing example checks
+now verify copying without a tagger, project-configured tool/property preservation,
+other pre-build behavior, and conditions. All four default-worker contract checks
+also pass. Real MAUI builds and signing remain unverified after this correction.

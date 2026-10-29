@@ -65,17 +65,25 @@ Both Release_Generic and Release_Pride are configured for Android and iOS. CIMT
 clones main and its recorded submodule revisions, builds every compatible
 target/device combination, and records the source commit in the report.
 
-The source project's pre-build invokes a Windows executable and Windows copy
-command. The example's replacement scripts call CIMT's default build scripts with
-a late MSBuild target import. It runs the same tagger through the installed Mono
-runtime and uses MSBuild Copy. It does not bypass tagging or edit the developer's
-checkout. Generated version/resource changes remain in the disposable clone.
-Application IDs are explicit build properties matching the selected branding.
+The application project and selected build configuration own CuRMiT and other tool
+integration. The example adapter does not add tool calls. It replaces only the
+known Windows resource-copy Exec with portable MSBuild Copy inside the disposable
+clone, then delegates to CIMT's installed defaults. Other target steps, imports,
+conditions, and configured properties are preserved. If that exact command is
+absent or appears more than once, the project stays unchanged. The build log
+states whether a replacement was made. Application IDs remain explicit branding
+properties.
 
-The adapter's MSBuild import has been fixture-tested to invoke the tagger and
-copy resources while preserving unrelated project targets. Actual ECON builds
-through this integration still need the first configured run; fixture success is
-not a real application build result.
+The earlier adapter incorrectly forced the legacy CuRMiTagger.exe through Mono,
+even on a branch that removed that call. Its macos.targets/prebuild.targets
+files have been removed. Update build/build.sh and remove those obsolete local
+files when updating a separate copy of this example. Project-defined tool
+integration continues to work through normal MSBuild evaluation.
+
+Four small MSBuild fixture tests verify resource copying without a tagger,
+project-configured tool/property preservation, unrelated pre-build steps, and
+conditions. The default-worker contract checks also pass. These fixtures do not
+establish a successful real MAUI build, signing, installation, or test run.
 
 ## Output and limits
 
