@@ -1,6 +1,6 @@
-# Disable for Jenkins or when one network can reach all services.
+# Optional stage confirmations. Disable for unattended execution.
 execution:
-  network-switch-pauses: true
+  interactive-pauses: true
 repository:
   url: https://subgit.curtis.ch/ECON/ag-econ-mobile.git
   branch: main

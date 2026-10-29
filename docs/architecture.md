@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.14  
+Version: 0.15  
 Date: 29 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -238,7 +238,7 @@ The [product guide](product-guide.md) is the reference for the reviewed command 
 - run builds and tests. replay applies current configuration to a saved scenario and records new evidence separately.
 - Repository URL/branch/solution are explicit; no default branch is assumed.
 - Instruction text is required. Requirements and setup text are optional.
-- Device policy, at-most-two concurrency, and per-scenario reset are fixed. execution requires a positive whole-run time-limit-minutes and optionally accepts network-switch-pauses (boolean, default false).
+- Device policy, at-most-two concurrency, and per-scenario reset are fixed. execution requires a positive whole-run time-limit-minutes and optionally accepts interactive-pauses (boolean, default false).
 - Named credentials are resolved locally. Masking supports only element IDs.
 - Report detail sections are configurable; summary/outcome/coverage/stopping reasons and evidence collection remain mandatory.
 
@@ -302,10 +302,10 @@ The format/timezone/collision details left open in section 4 are now implemented
 
 The Mac lock now spans allocation, execution, cleanup, final reporting, and error reporting. Rejected invocations retain their own error reports without touching active work. The public command regression verifies shared work/report/runtime identity after cleanup; focused tests verify collisions, path origins, report copying, and unsafe placements. See [identity contract](run-identity.md). The run-identity gap is closed for the tested implementation. Full interruption history/cancellation, semantic scenario planning, setup/replay, real-app/device qualification, Jenkins, and second-Mac acceptance remain open.
 
-## 18. Optional manual network checkpoints
+## 18. Optional interactive execution checkpoints
 
-NetworkCheckpoint is an ordered run step with one responsibility: wait for a local operator acknowledgement before a network-dependent phase. RunEngine inserts it before ModelAccessCheck, before RepositoryCheckout (covering clone, submodules, and the following builds), and before UiExecution. The last checkpoint is skipped when no installable build exists. Each checkpoint reads execution.network-switch-pauses from merged configuration; omitted/false preserves unattended execution. Input/output are injected for unit tests. Production uses a StreamReader over standard input so a blocked console read does not synchronously block the coordinator.
+ExecutionCheckpoint is an ordered run step with one responsibility: display the upcoming operation and wait for the user's acknowledgement. RunEngine inserts it before ModelAccessCheck, before RepositoryCheckout (covering clone, submodules, and the following builds), and before UiExecution. The last checkpoint is skipped when no installable build exists. Each checkpoint reads execution.interactive-pauses from merged configuration; omitted/false preserves unattended execution. Input/output are injected for unit tests. Production uses a StreamReader over standard input so a blocked console read does not synchronously block the coordinator.
 
-An enabled checkpoint requires non-redirected terminal input, prints the intended network and credential use without values, and records waiting/continued stages. It does not test or change the active network. A successful Enter is only the operator's acknowledgement; normal connection/TLS checks still decide whether the next operation succeeds. The existing deadline bounds the asynchronous wait and is checked again before continuing. Waiting consumes the original run time allowance and retains the existing Mac-wide lock. End of input is an infrastructure failure; deadline expiry is incomplete with normal precedence. RunCoordinator still cleans owned work and writes the local report.
+Messages identify the operation and credential use without exposing values. The shared prompt asks for Enter. No network name, network-change instruction, application-specific preparation, or environment policy is embedded. CIMT does not infer the user's preparation from an acknowledgement; the next stage still runs its normal checks. Configuration/key loading and text/runtime preparation happen before the first checkpoint, but authenticated OpenAI requests wait for acknowledgement.
 
-Configuration, local key loading, text input resolution, and runtime preparation occur before the first checkpoint. No authenticated OpenAI request precedes it. Git/build access follows the work-network checkpoint; AI testing follows the third checkpoint. App backends and custom scripts may need additional network access; switching to a network that blocks those services does not make them reachable. These checkpoints are a manual workflow, not automatic network routing. validate retains its existing Git/input readiness checks without these run-only pauses. Jenkins must omit the setting or use false.
+An enabled checkpoint requires non-redirected input and records waiting/continued stages without terminal response text. The original deadline bounds the asynchronous wait and is checked again before continuing. Waiting consumes the run allowance and retains the Mac-wide lock. End of input is an infrastructure failure; deadline expiry is incomplete with normal precedence. RunCoordinator still cleans owned work and writes the report. validate retains its existing readiness checks without run-only pauses. Jenkins must omit the setting or use false. This generic design supersedes the environment-specific network wording from version 0.14.

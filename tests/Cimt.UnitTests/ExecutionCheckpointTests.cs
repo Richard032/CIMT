@@ -3,7 +3,7 @@ using Cimt;
 
 namespace Cimt.UnitTests;
 
-public sealed class NetworkCheckpointTests
+public sealed class ExecutionCheckpointTests
 {
     [Theory]
     [InlineData(null)]
@@ -13,26 +13,27 @@ public sealed class NetworkCheckpointTests
         using var input = new ControlledTerminalInput();
         using var output = new StringWriter();
         var state = State(setting);
-        await new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, output, true).Execute(state);
+        await new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, output, true).Execute(state);
         Assert.False(input.ReadStarted.Task.IsCompleted);
         Assert.Equal("", output.ToString());
         Assert.Empty(state.Stages);
     }
 
     [Theory]
-    [InlineData(NetworkPhase.OpenAiPreflight, "configured API key", "No inference")]
-    [InlineData(NetworkPhase.RepositoryBuild, "work network", "Git, submodules")]
-    [InlineData(NetworkPhase.OpenAiTesting, "configured API key", "may incur charges")]
-    public async Task EachCheckpointExplainsTheNextStage(NetworkPhase phase, string expected, string detail)
+    [InlineData(ExecutionPhase.OpenAiPreflight, "configured API key", "No inference")]
+    [InlineData(ExecutionPhase.RepositoryBuild, "build the application", "Git, submodules")]
+    [InlineData(ExecutionPhase.OpenAiTesting, "configured API key", "may incur charges")]
+    public async Task EachCheckpointGivesGenericInformationAboutTheNextStage(ExecutionPhase phase, string expected, string detail)
     {
         using var input = new StringReader("\n");
         using var output = new StringWriter();
         var state = State("true");
         state.Builds.Add([]);
-        await new NetworkCheckpoint(phase, input, output, false).Execute(state);
+        await new ExecutionCheckpoint(phase, input, output, false).Execute(state);
         Assert.Contains(expected, output.ToString());
         Assert.Contains(detail, output.ToString());
-        Assert.Contains("press Enter", output.ToString());
+        Assert.DoesNotContain("network", output.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Press Enter", output.ToString());
         Assert.Contains("continued", JsonSerializer.Serialize(state.Stages));
         Assert.DoesNotContain("synthetic-private-key", output.ToString());
     }
@@ -45,7 +46,7 @@ public sealed class NetworkCheckpointTests
         var calls = new List<string>();
         var state = State("true");
         var coordinator = new RunCoordinator([
-            new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, output, false),
+            new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, output, false),
             new FakeStep(_ => calls.Add("OpenAI request"))
         ], new FakeCleanup(calls), new FakeReport(calls));
 
@@ -64,8 +65,8 @@ public sealed class NetworkCheckpointTests
         using var input = new ControlledTerminalInput();
         var state = State("true");
         var error = await Assert.ThrowsAsync<ConfigurationException>(() =>
-            new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, TextWriter.Null, true).Execute(state));
-        Assert.Contains("execution.network-switch-pauses to false", error.Message);
+            new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, TextWriter.Null, true).Execute(state));
+        Assert.Contains("execution.interactive-pauses to false", error.Message);
         Assert.False(input.ReadStarted.Task.IsCompleted);
     }
 
@@ -76,7 +77,7 @@ public sealed class NetworkCheckpointTests
         var calls = new List<string>();
         var state = State("true");
         var coordinator = new RunCoordinator([
-            new NetworkCheckpoint(NetworkPhase.RepositoryBuild, input, TextWriter.Null, false),
+            new ExecutionCheckpoint(ExecutionPhase.RepositoryBuild, input, TextWriter.Null, false),
             new FakeStep(_ => calls.Add("must not clone"))
         ], new FakeCleanup(calls), new FakeReport(calls));
         Assert.Equal(3, await coordinator.Execute(state));
@@ -85,11 +86,11 @@ public sealed class NetworkCheckpointTests
     }
 
     [Fact]
-    public async Task MissingBuildsDoNotAskToSwitchBackForTesting()
+    public async Task MissingBuildsDoNotPauseForTesting()
     {
         using var input = new ControlledTerminalInput();
         var state = State("true");
-        await new NetworkCheckpoint(NetworkPhase.OpenAiTesting, input, TextWriter.Null, false).Execute(state);
+        await new ExecutionCheckpoint(ExecutionPhase.OpenAiTesting, input, TextWriter.Null, false).Execute(state);
         Assert.False(input.ReadStarted.Task.IsCompleted);
         Assert.Empty(state.Stages);
     }
@@ -100,7 +101,7 @@ public sealed class NetworkCheckpointTests
         using var input = new StringReader("private terminal response\n");
         using var output = new StringWriter();
         var state = State("true");
-        await new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, output, false).Execute(state);
+        await new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, output, false).Execute(state);
         var history = JsonSerializer.Serialize(state.Stages);
         Assert.Contains("OpenAiPreflight", history);
         Assert.Contains("waiting", history);
@@ -115,7 +116,7 @@ public sealed class NetworkCheckpointTests
         using var input = new ControlledTerminalInput();
         var state = State("true", new RunDeadline(DateTimeOffset.UtcNow.AddSeconds(-1)));
         await Assert.ThrowsAsync<RunLimitException>(() =>
-            new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, TextWriter.Null, false).Execute(state));
+            new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, TextWriter.Null, false).Execute(state));
         Assert.False(input.ReadStarted.Task.IsCompleted);
     }
 
@@ -125,9 +126,9 @@ public sealed class NetworkCheckpointTests
         using var input = new ControlledTerminalInput();
         var state = State("true", new RunDeadline(DateTimeOffset.UtcNow.AddSeconds(2)));
         var error = await Assert.ThrowsAsync<RunLimitException>(() =>
-            new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, TextWriter.Null, false)
+            new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, TextWriter.Null, false)
                 .Execute(state).WaitAsync(TimeSpan.FromSeconds(5)));
-        Assert.Contains("waiting for a network switch", error.Message);
+        Assert.Contains("waiting for user input", error.Message);
         Assert.DoesNotContain("continued", JsonSerializer.Serialize(state.Stages));
     }
 
@@ -137,7 +138,7 @@ public sealed class NetworkCheckpointTests
         using var input = new ControlledTerminalInput();
         var clock = new TestClock();
         var state = State("true", new RunDeadline(clock.GetUtcNow().AddMinutes(1), clock));
-        var execution = new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, input, TextWriter.Null, false).Execute(state);
+        var execution = new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, input, TextWriter.Null, false).Execute(state);
         await input.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         clock.Advance(TimeSpan.FromMinutes(1));
         input.Line.SetResult("");
@@ -171,7 +172,7 @@ public sealed class NetworkCheckpointTests
     private static Node WithSetting(Node root, string? value) => Node.Merge(root,
         new(null, new() { ["execution"] = new(null, value is null ? [] : new()
         {
-            ["network-switch-pauses"] = new(value, null, null, root.Origin)
+            ["interactive-pauses"] = new(value, null, null, root.Origin)
         }, null, root.Origin) }, null, root.Origin));
 
     private static RunState State(string? setting, RunDeadline? deadline = null)

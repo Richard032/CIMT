@@ -70,10 +70,10 @@ public sealed class ConfigurationValidator
 
     private static void ValidateExecution(Node execution)
     {
-        Keys(execution, "time-limit-minutes", "network-switch-pauses");
+        Keys(execution, "time-limit-minutes", "interactive-pauses");
         Positive(execution, "time-limit-minutes");
-        if (execution.Get("network-switch-pauses") is { } pauses && !bool.TryParse(pauses.Scalar, out _))
-            throw new ConfigurationException("network-switch-pauses must be true or false.");
+        if (execution.Get("interactive-pauses") is { } pauses && !bool.TryParse(pauses.Scalar, out _))
+            throw new ConfigurationException("interactive-pauses must be true or false.");
     }
 
     private static void ValidateModel(Node model)

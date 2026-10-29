@@ -27,13 +27,13 @@ public static class RunEngine
         new TextInputLoader(inputs),
         new RuntimeFilesCheck(paths),
         new WorkPreparation(folders),
-        new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, terminalInput, Console.Out, Console.IsInputRedirected),
+        new ExecutionCheckpoint(ExecutionPhase.OpenAiPreflight, terminalInput, Console.Out, Console.IsInputRedirected),
         new ModelAccessCheck(processes, paths, progress),
         new DeviceDiscovery(processes, paths, progress),
-        new NetworkCheckpoint(NetworkPhase.RepositoryBuild, terminalInput, Console.Out, Console.IsInputRedirected),
+        new ExecutionCheckpoint(ExecutionPhase.RepositoryBuild, terminalInput, Console.Out, Console.IsInputRedirected),
         new RepositoryCheckout(processes, progress),
         new ApplicationBuilds(new BuildJobFactory(paths), new ApplicationBuilder(processes, new BuildArtifactStore(), progress)),
-        new NetworkCheckpoint(NetworkPhase.OpenAiTesting, terminalInput, Console.Out, Console.IsInputRedirected),
+        new ExecutionCheckpoint(ExecutionPhase.OpenAiTesting, terminalInput, Console.Out, Console.IsInputRedirected),
         new UiExecution(processes, paths, progress)
     ];
 
