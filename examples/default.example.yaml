@@ -6,6 +6,7 @@ reports:
   sections: [requirements, scenarios, findings, interpretations, diagnostics]
 execution:
   time-limit-minutes: 60
+  network-switch-pauses: false
 ai-model:
   name: "<configured-model>"
   api-key: ""

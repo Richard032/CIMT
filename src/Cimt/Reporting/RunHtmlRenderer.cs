@@ -36,7 +36,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
 
     private string Stages(IEnumerable<object> stages)
     {
-        return "<h2>Build stages</h2><ul>" + string.Join("", stages.Select(Stage)) + "</ul>";
+        return "<h2>Run stages</h2><ul>" + string.Join("", stages.Select(Stage)) + "</ul>";
     }
 
     private string Stage(object stage)

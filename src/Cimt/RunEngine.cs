@@ -14,21 +14,26 @@ public static class RunEngine
         var processes = new RunProcess(runner);
         var progress = new RunProgress();
         var folders = new WorkDirectoryManager(Path.Combine(root, "state/owned-work.json"));
-        var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http));
+        // Console.In can block even on an async read. Use the input stream for bounded waits.
+        using var terminalInput = new StreamReader(Console.OpenStandardInput());
+        var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http), terminalInput);
         var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), new RunReportWriter());
         return await coordinator.Execute(CreateState(config, runFolders));
     }
 
     private static IRunStep[] CreateSteps(RuntimePaths paths, RunProcess processes, IRunProgress progress,
-        WorkDirectoryManager folders, ITextInputReader inputs) =>
+        WorkDirectoryManager folders, ITextInputReader inputs, TextReader terminalInput) =>
     [
         new TextInputLoader(inputs),
         new RuntimeFilesCheck(paths),
         new WorkPreparation(folders),
+        new NetworkCheckpoint(NetworkPhase.OpenAiPreflight, terminalInput, Console.Out, Console.IsInputRedirected),
         new ModelAccessCheck(processes, paths, progress),
         new DeviceDiscovery(processes, paths, progress),
+        new NetworkCheckpoint(NetworkPhase.RepositoryBuild, terminalInput, Console.Out, Console.IsInputRedirected),
         new RepositoryCheckout(processes, progress),
         new ApplicationBuilds(new BuildJobFactory(paths), new ApplicationBuilder(processes, new BuildArtifactStore(), progress)),
+        new NetworkCheckpoint(NetworkPhase.OpenAiTesting, terminalInput, Console.Out, Console.IsInputRedirected),
         new UiExecution(processes, paths, progress)
     ];
 

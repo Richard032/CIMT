@@ -44,8 +44,17 @@ cimt validate --config examples/econ-button-crash/default.private.yaml --run-con
 cimt run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
 ```
 
+The application example enables execution.network-switch-pauses. During run,
+connect to the private network before OpenAI preflight, the work network before
+repository access/builds, and the private network again before AI testing. Read
+each message and press Enter after switching. The last pause appears only when
+an installable build exists. Waiting counts toward the 60-minute run limit.
+The key value is never shown. Configuration is still loaded at startup.
+
 Jenkins runs the same command under an account with Git, signing, and device access.
-There are no separate manual device-test commands in this workflow.
+Use execution.network-switch-pauses: false in its per-run configuration. Omitted
+also means false; enabled pauses with redirected input fail explicitly. See the
+[network-switch walkthrough](../../docs/product-guide.md#manual-network-switching).
 
 Keep both phones unlocked. Locked devices are reported as incomplete and receive
 no application actions. The native automation daemon is isolated per CIMT run.

@@ -1,3 +1,6 @@
+# Disable for Jenkins or when one network can reach all services.
+execution:
+  network-switch-pauses: true
 repository:
   url: https://subgit.curtis.ch/ECON/ag-econ-mobile.git
   branch: main

@@ -59,7 +59,7 @@ Resolved on follow-up: the product owner unlocked the phone; a fresh guarded iPh
 ## Overall remaining
 
 - Complete input-entry coverage, simultaneous-device checks, and full final adapter qualification.
-- Supply the existing API key locally; verify model access and the real public-command run.
+- The existing key has been configured locally and one user-started run passed model-access preflight. Qualify inference and the real application run; a later network/TLS failure motivated optional network checkpoints.
 - Verify real APK/IPA builds through the configured macOS adapter and refreshed signing profiles.
 - Qualify the implemented lifecycle, scheduling, budget reservations, reset/login, masking, evidence, and crash recovery against the real application.
 - Complete semantic scenario decomposition, setup/replay, adaptive replay, and real-app requirement-outcome acceptance.
@@ -208,3 +208,13 @@ Installed: corrected host assembly matches the tested build. Private configurati
 Recorded FR-54/FR-55 and AC-27/AC-28 in requirements version 0.7 after the product owner requested visible Git, build, and debug output. Normal terminal and Jenkins execution must stream stdout/stderr/progress while commands run, identify relevant concurrent work, redact credentials across output chunks, and keep retained diagnostics. No verbose option may be required.
 
 Implementation remains pending. The current process runner collects child output and stage messages do not provide complete live command output. This documentation-only update does not alter source, installed binaries, or the user's active execution. No runtime tests were run for the requirements edit.
+
+## Reviewed increment — manual network-switch checkpoints
+
+Done: requirements version 0.8 adds FR-56/FR-57 and AC-29/AC-30; architecture version 0.14 and the product/installation guides define the workflow. NetworkCheckpoint handles optional terminal acknowledgement before authenticated OpenAI preflight, before repository/submodule access and all builds, and before AI testing after a successful build. Waiting counts toward the original deadline and preserves the lock, cleanup, redaction, and outcome rules. Configuration/key loading still happens at startup. No network changes, TLS bypass, automatic retry, or key display is introduced.
+
+Done: omitted/false preserves unattended execution without reading input. True requires an interactive terminal; redirected/closed input stops explicitly. The shared deadline stops pending waits, and late acknowledgement cannot start work. Checkpoint stages record waiting/continued without response text. The post-build checkpoint is skipped when no installable build exists. The HTML now labels these as run stages. FirstRun/application.yaml and the tracked ECON example enable pauses; Jenkins must use false. Private configuration was not read or changed.
+
+Verified: 214 .NET unit tests (including 18 checkpoint cases), 18 existing CLI/lifecycle checks, one macOS adapter fixture, and five public output-layout checks pass: 238 checks. The corrected host was installed, compared with the tested assembly, and checked through public help. No real FirstRun was executed, and no authenticated API request, real application build, or device action was issued. The user must exercise actual network changes and the resulting connections. Live terminal child-output streaming remains a separate pending requirement.
+
+Observed blockers retained: the user's 13:03 run passed model access, device discovery, cloning, and recorded submodules, but all four builds failed in CuRMiTagger.exe under Mono (RuntimePolicyHelper/GetRuntimeInterfaceAsObject, NotSupportedException). No installable app was produced. The later 13:18 run stopped at OpenAI transport; a no-key diagnostic showed certificate-chain validation failing on the active network. Network checkpoints enable the requested operator workflow; they do not repair app-tool compatibility or prove backend reachability from the private network. See installation section 25.

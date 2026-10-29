@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.8  
+Version: 0.9  
 Date: 29 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -34,7 +34,7 @@ cimt replay --config default.yaml --run-config app.yaml --scenario <saved-scenar
 | run | Clone, build configured targets, and execute testing instructions on startup devices. |
 | replay | Execute a saved scenario against the current repository/branch/build configuration, adapting navigation where needed and creating a new report. |
 
-The reviewed syntax above is approved. Additional flags, help output, configuration discovery, and detailed process contracts still require specification. CIMT asks no runtime clarification questions.
+The reviewed syntax above is approved. Additional flags, help output, configuration discovery, and detailed process contracts still require specification. CIMT asks no runtime clarification questions about test instructions. Optional network-switch checkpoints described below ask only for operational acknowledgement.
 
 ## 3. Configuration files and precedence
 
@@ -85,6 +85,7 @@ reports:
 
 execution:
   time-limit-minutes: 60
+  network-switch-pauses: false
 
 ai-model:
   name: "<validated-model>"
@@ -100,6 +101,35 @@ The time/budget values are illustrative. The model/pricing combination must supp
 reports.sections selects detailed sections. Run summary, final outcome, coverage, and stopping reasons always remain visible. Step screenshots and saved actions are always collected.
 
 All-startup-device selection, at-most-two device concurrency, and reset before every scenario are fixed behaviour, not optional execution switches.
+
+### Manual network switching
+
+For a local run that needs different networks, add this to app.yaml (or the per-run YAML you use):
+
+```yaml
+execution:
+  network-switch-pauses: true
+```
+
+Invoke the same command:
+
+```bash
+cimt run --config ./default.private.yaml --run-config ./application.yaml
+```
+
+CIMT pauses at these points:
+
+| Checkpoint | Your action after reading the message |
+| --- | --- |
+| Before OpenAI model access | Connect to the private network that permits OpenAI, then press Enter. CIMT will use the configured key for the model check; no inference is requested here. |
+| Before repository access and builds | Connect to the work network for Git, submodules, package restore, and builds, then press Enter. This covers all configured targets. |
+| Before AI testing, when a build succeeded | Return to the network that permits OpenAI, then press Enter. AI requests may incur charges. The application's backend must also remain reachable. |
+
+The key stays in ai-model.api-key. CIMT already loads the private YAML at startup; the pause comes before it sends an authenticated request. It never displays the key or stores your terminal response. It does not switch the network for you, relax certificate validation, or retry failed access automatically. Local input preparation happens before these checkpoints; public text links must be reachable when they are read. validate performs its existing readiness checks without these pauses.
+
+Waiting uses the normal whole-run time limit, so allow enough time for network changes. If the deadline expires, CIMT stops and reports incomplete work using the normal exit precedence. Closing terminal input stops with an infrastructure error. Do not pipe input to bypass a pause: redirected input with the setting enabled is rejected.
+
+For Jenkins or a network that can reach every required service, omit the setting or set it to false. This is the default, and no terminal input is read. If reusing a local configuration with true in Jenkins, override it to false in the Jenkins per-run YAML. The public ECON example enables the local workflow; turn it off for unattended execution.
 
 ## 6. app.yaml example
 
