@@ -174,3 +174,9 @@ Verified: the production capture/masking path returned a 1080 × 2340 Android PN
 Done: recorded repeatable readiness, disk-space, helper-status, and profile/identity matching findings in installation section 22. Removed four disposable CIMT installer archives after confirming the corresponding tools were installed. Private configuration and retained reports were preserved. Requirements and command/YAML contracts are unchanged.
 
 Remaining: real credential-entry and orientation masking acceptance, simultaneous two-device operation, full MAUI build/install/reset/crash scenarios, final adapter qualification, Jenkins, second-Mac acceptance, and the other open design findings. These current-screen smoke checks do not close those gates. See [masking details](screenshot-masking.md).
+
+## Independent test workspace — 29 October 2026
+
+Done: prepared /Users/sumkar/Development/testing/FirstRun with private settings, application configuration, three text inputs, five application build-support files, separate work/reports folders, and a local usage guide. Existing private settings were copied without displaying their contents and kept owner-readable/writable only. Public paths are relative to FirstRun's configuration files. The supplied main branch, Release_Generic/Release_Pride targets, and both physical platforms are retained. Build adapters use the installed default workers, so the test folder can run independently of the source checkout.
+
+Verified: public input/build paths exist, shell scripts have valid syntax, output roots remain in FirstRun, private configuration permissions are 600, and the installed public launcher returns help from the independent folder. No product-code change was required. Private settings were not parsed, no model access was tested, and no application validation/build/test run was started. The next step is the user's first public validate/run invocation from FirstRun. See installation section 23.

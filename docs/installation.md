@@ -798,3 +798,35 @@ Use these checks when preparing another Mac or connecting another phone:
 6. Stop the probe's own MCP client and native daemon. Keep DeviceKit installed for later runs. Check that all installed runtime modules match the source used for verification.
 
 First-Mac outcome: both physical-platform smoke checks passed sequentially; all 28 installed Python modules matched source. No product code, private YAML, application data, API key, or retained report was changed. No model call or MAUI application build was needed. The temporary aggregate results remain local under `/private/tmp/cimt-screenshot-masking-live-20261029`. Credential-entry, rotation, simultaneous device execution, real MAUI scenarios, Jenkins, and second-Mac acceptance remain open.
+
+## 23. Use an independent testing folder — 29 October 2026
+
+Installed CIMT can run from a folder outside its source checkout. Configuration paths resolve relative to the YAML file that declares each value, including after merging --config and --run-config. The installation and test workspace have separate purposes: tools and installation-wide state stay in the installation; application inputs and retained results can stay together in any writable testing folder.
+
+The first Mac's requested workspace root is /Users/sumkar/Development/testing. Each test setup has its own subfolder. The first setup is /Users/sumkar/Development/testing/FirstRun, containing default.private.yaml, application.yaml, inputs/, build/, work/, and reports/. Existing private settings were copied without displaying their contents and kept owner-readable/writable only. The three text inputs and five application build-support files were copied from the ECON example. application.yaml explicitly declares these workspace paths:
+
+```yaml
+workspace:
+  root: ./work
+reports:
+  root: ./reports
+inputs:
+  instructions: ./inputs/instructions.txt
+  requirements: ./inputs/requirements.txt
+  setup: ./inputs/setup.txt
+```
+
+The remaining application settings retain the supplied Git URL, main branch, two build configurations, and relative ./build/ script paths. Build adapters call the installed default build workers, so execution does not depend on the CIMT source folder. On another Mac, place the supplied configuration templates, text inputs, and build-support files in the chosen workspace, fill private settings locally, and use paths relative to those configuration files.
+
+Start commands from the individual test folder:
+
+```bash
+cd /Users/sumkar/Development/testing/FirstRun
+source /Users/Shared/CIMT/environment.sh
+cimt validate --config ./default.private.yaml --run-config ./application.yaml
+cimt run --config ./default.private.yaml --run-config ./application.yaml
+```
+
+Each execution allocates work/work_<date-time> and reports/report_<date-time> inside FirstRun using the same run identity. Temporary work is removed after execution; retained reports stay in that test folder. Future test setups can use their own sibling folders under testing. Keep reports outside disposable work. Jenkins can use the same folder layout and installed command under its prepared execution account.
+
+Workspace preparation checks verify public input/build paths, shell syntax, and the installed launcher from this directory. These checks do not parse private configuration, prove model access, or start an application run. No product-code change or requirement deviation is needed for this layout.
