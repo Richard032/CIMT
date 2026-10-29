@@ -37,6 +37,17 @@ The development suite passes 343 checks: 165 .NET unit tests, 155 Python tests, 
 
 ## Physical-device acceptance and limits
 
-The first Mac's inventory found an authorized Android phone. Its read-only probe stopped at the lock check before any capture or app action. The product owner then requested skipping physical-device checks for now. No aggregate live masking pass is claimed. The iOS inventory showed paired devices unavailable, and one wired device still pairing/disconnected; no ready iPhone control session was available. No raw screenshots or UI text were saved by this probe. Aggregate outcome data remains local under `/private/tmp/cimt-screenshot-masking-live-20261028`.
+On 28 October, the first Mac's Android probe stopped at the lock check, and no ready iPhone session was available. The product owner requested skipping physical checks at that time. That attempt did not establish a live masking pass. Its aggregate result remains local under `/private/tmp/cimt-screenshot-masking-live-20261028`.
+
+On 29 October, the product owner connected both devices and verification resumed. Both were online and passed the production readiness check. Android passed immediately. The connected iPhone initially had no DeviceKit helper installed, so its UI read failed before screenshot capture. Installation with an existing profile that also matched a valid local signing identity succeeded; the repeated iPhone check then passed.
+
+| Physical platform | Returned PNG | Visible selected masks | Hidden text fields | Result |
+| --- | --- | --- | --- | --- |
+| Android | 1080 × 2340 | 1 | 2 | Passed |
+| iOS | 828 × 1792 | 1 | 4 | Passed after helper installation |
+
+Each check selected a visible element with an identifier and text from the current screen, treated that identifier as a configured masking rule, and called the production Mobile.snapshot path. It verified that every pixel in the selected mask was black, corresponding returned UI text was `<masked>`, and the result was an RGB PNG with no image metadata. All 28 installed runtime modules matched source. The checks ran sequentially, without AI requests, real MAUI builds, navigation, typing, resets, or application-data changes. Installing the separate iPhone automation helper was the only device setup change. Raw screenshots and UI responses stayed in memory; the probe discarded MCP diagnostic output and retained aggregate outcomes locally under `/private/tmp/cimt-screenshot-masking-live-20261029`.
+
+This establishes a live capture/masking smoke check on both connected platforms. The selected fields were not entered credentials, and no real application scenario or orientation change was exercised. The earlier failed attempts remain part of the history.
 
 These checks depend on the adapter supplying accurate, complete UI bounds and a matching full-frame image. Element-ID rules can identify sensitive elements even when their text is not a configured secret, but the adapter must still expose those elements and their bounds. Screenshots and UI reads are separate operations: matching before/after data cannot prove that no transient change occurred between them. This implementation does not use OCR and does not claim that unlisted sensitive pixels can always be detected. Real Android/iOS credential-entry, layout/orientation, and interruption acceptance remains required; no product requirement was relaxed.

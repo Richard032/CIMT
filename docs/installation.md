@@ -1,7 +1,7 @@
 # CIMT installation and setup guide
 
-Version: 0.9  
-Last updated: 28 October 2026  
+Version: 0.10  
+Last updated: 29 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
@@ -783,3 +783,18 @@ cimt --help
 No new dependency, YAML field, or screen-region configuration is needed. The adapter now requests lossless PNG bytes from the native helper. JPEG is rejected at the masking boundary. Mask geometry, capture-size checks, clean image export, and container UI text handling use the separate services described in [screenshot masking](screenshot-masking.md).
 
 First-Mac verification: 343 offline checks passed. All installed Python files match source, the new modules import, and public help works. A connected Android phone was locked; its probe stopped before capture. The product owner requested skipping physical-device checks for now. No live masking pass is claimed, and Android/iOS acceptance remains open. Private configuration and retained reports were not changed.
+
+## 22. Connected-device masking check — 29 October 2026
+
+The product owner connected Android and iPhone, allowing the paused read-only checks to resume. Both devices were online and unlocked. Android passed the production capture/masking check with a 1080 × 2340 PNG. The iPhone initially failed to read UI because DeviceKit was absent. After installing the helper with a suitable existing signing profile, it passed with an 828 × 1792 PNG. Both checks verified black mask pixels, hidden UI text, and an RGB PNG with no image metadata. See the [masking evidence and limits](screenshot-masking.md).
+
+Use these checks when preparing another Mac or connecting another phone:
+
+1. Check available disk space before starting the adapter. This Mac initially returned `No space left on device`. Four cached CIMT installer archives were removed only after verifying their extracted tools were installed. Do not remove active tools, application repositories, signing material, or retained reports to make space. No fixed minimum free-space requirement is established by this observation.
+2. Confirm Android is authorized for USB debugging and the iPhone is paired and connected. Keep both phones unlocked. Connection alone does not prove the helper is installed or the screen is ready.
+3. Check the iPhone helper with the section 11 `agent status` command. On this connected phone, both the native helper status and Apple's installed-app query confirmed DeviceKit was absent. Do not infer installation from a previous phone's result.
+4. If the helper is missing, follow sections 11 and 13. The development profile must be unexpired, include this phone, permit DeviceKit's bundle identifier, and include a certificate whose signing identity and private key are available on this Mac. A profile covering the phone alone is insufficient. Here, two profiles covered the phone, but only one also matched an available valid signing identity. Installation with that matching profile succeeded.
+5. Verify capture through CIMT's production Mobile.snapshot path. Select a visible identified text element from the current UI and apply its element-ID masking rule. Check black pixels at the mapped mask, hidden returned UI text, image format, and metadata. Keep raw images and UI responses in memory and retain only aggregate outcomes for this read-only check. This is distinct from the older section 11 navigation probe, which saves private screen evidence.
+6. Stop the probe's own MCP client and native daemon. Keep DeviceKit installed for later runs. Check that all installed runtime modules match the source used for verification.
+
+First-Mac outcome: both physical-platform smoke checks passed sequentially; all 28 installed Python modules matched source. No product code, private YAML, application data, API key, or retained report was changed. No model call or MAUI application build was needed. The temporary aggregate results remain local under `/private/tmp/cimt-screenshot-masking-live-20261029`. Credential-entry, rotation, simultaneous device execution, real MAUI scenarios, Jenkins, and second-Mac acceptance remain open.

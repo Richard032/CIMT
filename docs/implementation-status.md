@@ -1,6 +1,6 @@
 # CIMT implementation status
 
-Updated: 28 October 2026
+Updated: 29 October 2026
 
 ## Reviewed increment 1 — adapter evaluation
 
@@ -164,3 +164,13 @@ Done: bracket capture with screen-size, UI-region, and readiness checks. Region 
 Verified: 165 .NET unit tests, 155 Python tests, and 23 CLI/build/example checks pass: 343 checks total. All installed Python modules match the tested source; new modules import and public help works. No API call, real MAUI build, or private configuration access was needed. The read-only Android attempt stopped on the locked phone before capture or app action. The product owner requested skipping physical-device checks for now; no further device actions were attempted. No screenshots or raw UI text were saved.
 
 Remaining: physical Android/iOS masking and credential-entry acceptance, accurate adapter bounds/orientation qualification, and the other open design/release work. UI and screenshot reads are not atomic; observable stability checks do not prove the absence of transient changes. That limit is documented without claiming complete privacy acceptance or relaxing FR-36.
+
+## Physical masking follow-up — 29 October 2026
+
+Done: resumed the previously skipped checks after both devices were connected. Both were online and unlocked. Android passed immediately. The iPhone initially had no DeviceKit installed and failed UI inspection before capture. Installed the helper using an existing profile matching both the phone and a valid available signing identity, then repeated the check successfully.
+
+Verified: the production capture/masking path returned a 1080 × 2340 Android PNG and an 828 × 1792 iPhone PNG. Each had one selected visible mask with all its pixels black. Two Android text fields and four iPhone text fields were hidden. Both outputs were RGB PNGs with no image metadata. Raw screenshots and UI responses stayed in memory; only aggregate results were retained locally. No navigation, typing, reset, application-data change, AI call, or real MAUI build was performed. The separate iPhone helper installation was the device setup change. All 28 installed runtime modules matched source; no product source correction was needed, so the previously recorded 343 offline checks were not rerun.
+
+Done: recorded repeatable readiness, disk-space, helper-status, and profile/identity matching findings in installation section 22. Removed four disposable CIMT installer archives after confirming the corresponding tools were installed. Private configuration and retained reports were preserved. Requirements and command/YAML contracts are unchanged.
+
+Remaining: real credential-entry and orientation masking acceptance, simultaneous two-device operation, full MAUI build/install/reset/crash scenarios, final adapter qualification, Jenkins, second-Mac acceptance, and the other open design findings. These current-screen smoke checks do not close those gates. See [masking details](screenshot-masking.md).

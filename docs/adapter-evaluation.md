@@ -1,6 +1,6 @@
 # Physical-device adapter evaluation
 
-Date: 28 October 2026  
+Date: 29 October 2026  
 Status: both candidates have Android/iPhone basic control evidence; full application qualification remains open
 
 ## Decision
@@ -101,3 +101,11 @@ The probe now checks iPhone lock readiness before application actions. An actual
 The fresh guarded iPhone-only probe passed all eight checks: unlocked readiness, Settings launch, UI elements, screenshot, swipe command, Home command, Home UI elements, and Home screenshot. Local image inspection confirmed Settings and the Home screen. Previous lock-screen attempts remain preserved; the readiness blocker is resolved for this check.
 
 The temporary MCP client and native daemon were stopped. DeviceKit remains installed. This is basic control evidence on the inspected phone/toolchain, not proof of text input, simultaneous operation, application reset/login/crash handling, Jenkins execution, or the complete final adapter gate.
+
+## Read-only production masking check — 29 October 2026
+
+Both connected platforms passed the production lossless-PNG capture and element-ID masking smoke check. Android returned 1080 × 2340 pixels; iPhone returned 828 × 1792 pixels. The selected visible mask was black, its UI text was hidden, and image metadata was absent. Checks ran sequentially without navigation, typing, app resets, AI calls, or a real MAUI build. No raw screen image or UI response was saved.
+
+The connected iPhone initially had no DeviceKit installed. Installing it with an existing profile matching the phone and an available signing identity restored UI access; the repeated check passed. Connection and pairing must therefore be checked separately from helper installation. No CIMT product-code change was needed. See [installation section 22](installation.md#22-connected-device-masking-check--29-october-2026) and [masking limits](screenshot-masking.md).
+
+This adds physical capture/masking evidence. It does not establish real credential-entry, orientation changes, simultaneous two-device operation, application reset/crash handling, or unattended Jenkins acceptance. Final adapter selection remains open.
