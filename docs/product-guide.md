@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.7  
+Version: 0.8  
 Date: 29 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -184,6 +184,8 @@ FirstRun/
 Both use the same UTC timestamp with millisecond precision. A collision advances both names together by one millisecond; it never adds a separate suffix, reuses existing data, or changes the actual start/deadline. run-identity.json retains the paired names and identity beside the report. See [run identity](run-identity.md). Reports must sit outside the temporary cleanup folder. Each clone is deleted after success, failure, incompletion, or interruption; reports remain until manually deleted.
 
 Legacy workspace.root/reports.root values still load but are ignored. CIMT prints a notice and records this in output-layout.json. reports.sections still selects report content. Missing/invalid YAML errors also stay below the selected input folder. If CIMT cannot safely write there, it reports the failure in the terminal instead of creating output elsewhere. Invalid command syntax without a selected input uses the launch folder. Installation tools and the machine-wide lock remain with the installation.
+
+Long input paths need no manual shortening. CIMT manages the helper's short transport address automatically and keeps its actual files inside the output tree. Helper failures include redacted diagnostic details; available helper logs remain in the retained report after cleanup.
 
 ## 8. Default and replacement build scripts
 

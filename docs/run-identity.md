@@ -29,6 +29,8 @@ Reports must remain outside temporary cleanup folders. The checks resolve filesy
 
 Legacy ownership records remain readable, so an earlier interrupted work folder can be removed after its path/token are verified. Existing retained reports are not renamed. Full interruption history and graceful cancellation remain separate release work.
 
+The native helper uses a short temporary link to its directory inside owned work, allowing long input paths despite macOS socket-address limits. The link is selected from the installation ownership registry and user, rather than from another run timestamp. Normal and interrupted-work cleanup verify its target and remove only that link. The actual helper files stay inside temporary work. Its redacted log is retained with the report before normal cleanup.
+
 ## Retained identity and propagation
 
 run-identity.json is saved beside index.html and uses report-relative folder names. It retains the identity, actual start, UTC folder timestamp, timezone, and paired names. It remains after clone deletion and after copying the report folder.

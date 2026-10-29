@@ -93,3 +93,9 @@ OutputLayout owns input-folder selection and containment checks. It does not cre
 Small unit cases verify shared/default versus per-run configuration, paths with spaces, creation on demand, ignored legacy roots, retained reports, missing/invalid YAML, blocked output, and escaping links. The CLI demonstration tests/check-output-layout.py invokes the real launcher from different directories with fake readiness tools and synthetic credentials. It is included in scripts/check-development.sh and can target the installed command with --command. See the [runnable example](../examples/input-folder/README.md).
 
 Verification for this increment: 181 .NET tests, 155 Python tests, and 28 CLI/build/example checks passed, 364 total. The installed launcher separately passed the same five public output-layout checks. No live API, application build, physical-device action, or private-configuration read was required.
+
+## Long helper socket paths — 29 October 2026
+
+NativeHomeLink separates the short socket address from its actual run-owned storage folder. The existing xUnit project binds a real local UNIX socket through that link, without launching CIMT or a mobile helper. Other small tests check ownership, occupied addresses, dangling targets, interrupted cleanup, shared host/worker configuration, retained logs, redaction, and useful discovery errors. Tests use ordinary temporary folders and recording command boundaries, with no new project, copied source, or alternative harness.
+
+The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/build/example checks. No live API or phone was used. The user's next actual test run remains separate acceptance evidence.

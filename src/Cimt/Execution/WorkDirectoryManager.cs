@@ -5,6 +5,17 @@ namespace Cimt;
 /// <summary>Creates and deletes only folders that belong to CIMT.</summary>
 public sealed class WorkDirectoryManager(string registry)
 {
+    private readonly NativeHomeLink nativeLink = new(registry);
+
+    public string PrepareNativeHome(string work)
+    {
+        using var ownership = ReadOwnership(work);
+        VerifyToken(work, ownership.RootElement.GetProperty("token").GetString());
+        var target = Path.Combine(work, "mobilecli");
+        Directory.CreateDirectory(target);
+        return nativeLink.Create(target);
+    }
+
     /// <summary>Create a private work folder and record proof that CIMT owns it.</summary>
     public string Create(RunFolders folders)
     {
@@ -53,8 +64,11 @@ public sealed class WorkDirectoryManager(string registry)
         if (Directory.Exists(path))
         {
             VerifyToken(path, record.RootElement.GetProperty("token").GetString());
+            nativeLink.Remove(Path.Combine(path, "mobilecli"));
             Directory.Delete(path, recursive: true);
         }
+        else
+            nativeLink.Remove(Path.Combine(path, "mobilecli"));
         File.Delete(registry);
     }
 
@@ -86,12 +100,12 @@ public sealed class WorkPreparation(WorkDirectoryManager folders) : IRunStep
     {
         folders.CleanupPrevious(state.Report);
         state.Work = folders.Create(state.Folders);
-        state.Environment["MOBILECLI_HOME"] = Path.Combine(state.Work, "mobilecli");
+        state.Environment["MOBILECLI_HOME"] = folders.PrepareNativeHome(state.Work);
         return Task.CompletedTask;
     }
 }
 
-/// <summary>Stops this run's helper, then removes its disposable work.</summary>
+/// <summary>Stops this run's helper, retains its log, then removes disposable work.</summary>
 public sealed class RunCleanup(ICommandRunner runner, RuntimePaths paths, WorkDirectoryManager folders) : IRunCleanup
 {
     public async Task Execute(RunState state)
@@ -108,17 +122,41 @@ public sealed class RunCleanup(ICommandRunner runner, RuntimePaths paths, WorkDi
             state.Exit = 3;
         }
         // Helper shutdown must not prevent deletion of an owned source clone.
+        await PreserveHelperLog(state);
         folders.Remove(state.Work);
     }
 
     private async Task StopHelper(RunState state)
     {
+        // Startup may fail before any owned helper address has been selected.
+        if (!state.Environment.ContainsKey("MOBILECLI_HOME"))
+            return;
         var stopped = await runner.Run(new("node", ["-e",
             "const {Mobilecli}=require(process.argv[1]);console.log(new Mobilecli().executeCommand(['daemon','stop'],15000));",
             paths.NativeModule], 20, state.Environment));
         if (stopped.Exit == 0)
             return;
-        state.Errors.Add("The owned native daemon could not be stopped cleanly.");
+        state.Errors.Add("The owned native daemon could not be stopped cleanly: "
+            + state.Configuration.Scrub(stopped.Stderr.Trim()));
         state.Exit = 3;
+    }
+
+    private static async Task PreserveHelperLog(RunState state)
+    {
+        var source = Path.Combine(state.Work, "mobilecli", "daemon.log");
+        if (!File.Exists(source))
+            return;
+        try
+        {
+            var text = state.Configuration.Scrub(await File.ReadAllTextAsync(source));
+            var logs = Path.Combine(state.Report, "logs");
+            Directory.CreateDirectory(logs);
+            await File.WriteAllTextAsync(Path.Combine(logs, "native-daemon.log"), text);
+        }
+        catch (Exception error)
+        {
+            state.Errors.Add("Native helper log could not be retained: " + error.GetType().Name);
+            state.Exit = 3;
+        }
     }
 }

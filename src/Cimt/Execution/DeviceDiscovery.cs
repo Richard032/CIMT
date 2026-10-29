@@ -12,7 +12,8 @@ public sealed class DeviceDiscovery(RunProcess processes, RuntimePaths paths, IR
             "const {Mobilecli}=require(process.argv[1]);const c=new Mobilecli();console.log(JSON.stringify({devices:c.getDevices({type:'real'}),binary:c.getPath()}));",
             paths.NativeModule], 30);
         if (result.Exit != 0)
-            throw new ConfigurationException("Physical-device discovery failed.");
+            throw new ConfigurationException("Physical-device discovery failed: "
+                + state.Configuration.Scrub(result.Stderr.Trim()));
         ReadDevices(state, result.Stdout);
         if (state.Devices.Count == 0)
             throw new ConfigurationException("No supported physical devices are connected.");

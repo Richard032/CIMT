@@ -41,6 +41,52 @@ public sealed class CleanupTests
         await Assert.ThrowsAsync<IOException>(() => fixture.Cleanup(new ThrowingCommand()));
         Assert.True(Directory.Exists(fixture.State.Work));
     }
+
+    [Fact]
+    public async Task MissingOwnedHelperAddressDoesNotStopAGlobalDaemon()
+    {
+        using var fixture = new CleanupFixture();
+        fixture.State.Environment.Remove("MOBILECLI_HOME");
+        var runner = new FakeCommandRunner();
+        await fixture.Cleanup(runner);
+        Assert.Empty(runner.Commands);
+    }
+
+    [Fact]
+    public async Task HelperFailureDetailsAreRetained()
+    {
+        using var fixture = new CleanupFixture();
+        await fixture.Cleanup(new FakeCommandRunner { Result = new(1, "", "socket path too long") });
+        Assert.Contains(fixture.State.Errors, error => error.Contains("socket path too long"));
+    }
+
+    [Fact]
+    public async Task HelperLogSurvivesWorkCleanup()
+    {
+        using var fixture = new CleanupFixture();
+        var home = Path.Combine(fixture.State.Work, "mobilecli");
+        Directory.CreateDirectory(home);
+        await File.WriteAllTextAsync(Path.Combine(home, "daemon.log"), "helper failed");
+        await fixture.Cleanup(new FakeCommandRunner());
+        var retained = Path.Combine(fixture.State.Report, "logs", "native-daemon.log");
+        Assert.Equal("helper failed", await File.ReadAllTextAsync(retained));
+        Assert.False(Directory.Exists(fixture.State.Work));
+    }
+
+    [Fact]
+    public async Task RetainedHelperLogRedactsConfiguredSecrets()
+    {
+        var origin = "/fixture/config.yaml";
+        var model = new Node(null, new() { ["api-key"] = new("fixture-secret", null, null, origin) }, null, origin);
+        var config = new Configuration(new Node(null, new() { ["ai-model"] = model }, null, origin));
+        using var fixture = new CleanupFixture(config);
+        var home = Path.Combine(fixture.State.Work, "mobilecli");
+        Directory.CreateDirectory(home);
+        await File.WriteAllTextAsync(Path.Combine(home, "daemon.log"), "failed fixture-secret");
+        await fixture.Cleanup(new FakeCommandRunner());
+        var retained = Path.Combine(fixture.State.Report, "logs", "native-daemon.log");
+        Assert.Equal("failed <redacted>", await File.ReadAllTextAsync(retained));
+    }
 }
 
 internal sealed class CleanupFixture : IDisposable
@@ -52,13 +98,14 @@ internal sealed class CleanupFixture : IDisposable
         get;
     }
 
-    public CleanupFixture()
+    public CleanupFixture(Configuration? configuration = null)
     {
         folders = new(Path.Combine(directory.Path, "owned.json"));
-        var config = new Configuration(new Node(null, [], null, Path.Combine(directory.Path, "config.yaml")));
+        var config = configuration ?? new Configuration(new Node(null, [], null, Path.Combine(directory.Path, "config.yaml")));
         var pair = new RunFolderAllocator().Create(directory.Path, directory.Path, DateTimeOffset.UtcNow);
         State = new(config, pair, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
         State.Work = folders.Create(pair);
+        State.Environment["MOBILECLI_HOME"] = "fixture-owned-helper";
     }
 
     public Task Cleanup(ICommandRunner runner) => new RunCleanup(runner, new RuntimePaths(directory.Path), folders).Execute(State);

@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.11  
+Version: 0.12  
 Last updated: 29 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -852,3 +852,19 @@ dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
 No new dependency, phone helper, API key, or runtime module is needed for this correction. The full offline checks plus the additional blocked-output unit case passed: 181 .NET tests, 155 Python tests, and 28 public-command/build/example checks, 364 total. The installed launcher also passed all five output-layout checks from two launch folders, including spaces, shared defaults elsewhere, retained earlier reports, legacy roots, and missing/invalid YAML. These use fake readiness tools and synthetic credentials; no API request, real build, or device action was performed.
 
 FirstRun now contains inputs only. Its previously prepared empty work/reports folders were removed; its CIMT output folder will be created by the first actual invocation. See the [runnable output-layout demonstration](../examples/input-folder/README.md). Real application, model access, and Jenkins/second-Mac acceptance remain open.
+
+## 24. Long native socket address — 29 October 2026
+
+The user-started FirstRun report_2026-10-29_12-37-16-923 passed model/runtime preflight, then stopped at physical-device discovery with exit 3. No repository clone, application build, installation, or test action was reached. The report also recorded failure to stop the owned native helper. This is a CIMT integration defect, not evidence of invalid API credentials or a disconnected phone.
+
+Diagnosis used the retained result.json, the generated work-folder name, and the installed helper's read-only daemon status command. The original address ended with work_<date-time>/mobilecli/daemon.sock and was 110 bytes long. Mobile CLI explicitly limits macOS addresses to 103 bytes; the installed binary rejected the calculated address with that same limit. A separate local socket check also rejected it. No device command or real CIMT rerun was needed to identify the path problem. See [upstream path validation](https://github.com/mobile-next/mobilecli/blob/main/daemon/paths.go).
+
+The corrected host automatically creates a short owned link under /tmp/cimt-native-<installation-and-user-hash>, pointing to the run's mobilecli directory. MOBILECLI_HOME and the Python runtime use this address. The actual socket, PID, and log files stay inside FirstRun/CIMT output/work/work_<date-time>/mobilecli. The temporary link is internal coordination metadata. Users do not create it, change their input directory, or configure a new setting. Normal and next-start owned-work cleanup remove only a link with the expected target; unrelated files/links are preserved.
+
+Discovery and helper-stop errors now retain redacted diagnostic details. Before temporary work is removed, available helper output is copied, with credential redaction, to reports/report_<date-time>/logs/native-daemon.log. Cleanup does not stop a global helper if this run never selected an owned helper address.
+
+Install from the source checkout using the host publish command in section 23. No new dependency, key, Python runtime update, or phone helper installation is needed. Keep the existing private YAML and use the same public run command yourself.
+
+Verification: 196 .NET tests, 155 Python tests, and 28 CLI/build/example checks passed, 379 total. The existing unit-test project binds a real local socket through the short link into a deeply nested folder. Small cases cover occupied links/files, target verification, missing targets, ownership, shared host/worker address, redacted diagnostics, log retention, and cleanup. A dangling-link regression initially failed; changing link removal to unlink the link itself corrected it, and the complete offline suite then passed. These checks use no real API, MAUI application build, or physical-device action.
+
+The corrected host was installed and compared with the tested assembly. Existing run reports were preserved and private configuration was not read or changed. No actual CIMT run was started during diagnosis or installation. The next physical discovery/build/application result must come from the user's retry; it has not yet been verified.

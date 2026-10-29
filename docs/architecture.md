@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.12  
+Version: 0.13  
 Date: 29 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -105,6 +105,10 @@ The user supplies configuration, referenced texts, and optional application buil
 Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. The approved temporary and report folder names are work_<date-time> and report_<date-time>, sharing a timestamp. The implemented shared identity uses UTC millisecond timestamps; collisions advance both folder names together without changing the invocation start or deadline. See [run identity](run-identity.md). The whole report folder must remain usable after clone deletion and relocation.
 
 OutputLayout owns path selection and containment checks, not folder creation. RunFolderAllocator creates the retained report parents and report folder. WorkDirectoryManager creates the paired work folder when execution needs it and removes only verified owned work. Validation and configuration errors create retained output without a clone. Installation tools, caches, and the Mac-wide lock/ownership registry remain installation concerns, separate from run-owned files.
+
+NativeHomeLink gives the helper a short absolute transport address under /tmp/cimt-native-<installation-and-user-hash>. It points to the verified work folder's mobilecli directory; actual socket, PID, and log files stay there. This avoids Mobile CLI's 103-byte macOS socket-address limit without changing the selected output layout or the user's launch directory. The name is derived from the ownership-registry path and execution user. Existing files/links are never adopted. Normal and next-start owned-work cleanup remove only a link with the expected target; missing targets are supported. The host and Python worker receive the same short address through MOBILECLI_HOME/nativeHome. No change to the device-control runtime or API configuration is needed.
+
+RunCleanup retains a redacted helper log under the report's logs/native-daemon.log before deleting temporary work. Discovery and helper-stop errors preserve redacted stderr rather than replacing the diagnostic with a generic message. If work preparation failed before selecting an owned helper address, cleanup does not issue a global helper stop. The temporary link is coordination metadata under FR-52; it does not move output data outside CIMT output.
 
 Legacy workspace.root and reports.root are accepted to preserve private configuration compatibility, but cannot relocate output. CommandApplication prints the policy and a legacy-setting notice; CommandReports stores the policy in output-layout.json. New templates omit those roots. No private file is rewritten. Command errors retain the selected layout even when YAML cannot load. With unusable command syntax and no selected input, the launch folder is the last known input location. Unsafe/unwritable output produces a terminal failure; there is no fallback report tree elsewhere. Output containment resolves existing aliases before creating folders. This replaces the earlier common-root proposal under FR-52/FR-53.
 

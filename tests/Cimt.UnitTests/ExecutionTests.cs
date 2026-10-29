@@ -114,6 +114,23 @@ public sealed class ExecutionTests
         Assert.Equal(accepted, DeviceDiscovery.ReadDevice(json) is not null);
     }
 
+    [Fact]
+    public async Task DiscoveryReportsTheRedactedHelperError()
+    {
+        using var folder = new TestDirectory();
+        var origin = Path.Combine(folder.Path, "config.yaml");
+        var key = new Node("fixture-secret", null, null, origin);
+        var model = new Node(null, new() { ["api-key"] = key }, null, origin);
+        var config = new Configuration(new Node(null, new() { ["ai-model"] = model }, null, origin));
+        var pair = new RunFolderAllocator().Create(folder.Path, folder.Path, DateTimeOffset.UtcNow);
+        var state = new RunState(config, pair, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+        var runner = new FakeCommandRunner { Result = new(1, "", "socket path too long fixture-secret") };
+        var discovery = new DeviceDiscovery(new RunProcess(runner), new RuntimePaths(folder.Path), new RunProgress());
+        var error = await Assert.ThrowsAsync<ConfigurationException>(() => discovery.Execute(state));
+        Assert.Contains("socket path too long", error.Message);
+        Assert.DoesNotContain("fixture-secret", error.Message);
+    }
+
     private static RunState State(RunDeadline? deadline = null)
     {
         var config = new Configuration(new Node(null, [], null, "/fixture/config.yaml"));
