@@ -11,6 +11,7 @@ public sealed class CommandSession(DateTimeOffset started)
     {
         get; set;
     }
+    public OutputLayout Outputs { get; set; } = new(Directory.GetCurrentDirectory());
     public RunFolders? Folders
     {
         get; set;
@@ -34,6 +35,7 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
             var options = CommandLine.Parse(arguments);
             if (options.IsHelp)
                 return ShowHelp();
+            session.Outputs = OutputLayout.ForCommand(options);
             held = acquireLock();
             return await Execute(options, session);
         }
@@ -51,14 +53,28 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
     private async Task<int> Execute(CommandOptions options, CommandSession session)
     {
         session.Configuration = configurations.Load(options);
+        session.Outputs = session.Configuration.Outputs;
         session.Configuration.Validate();
+        session.Outputs.Check();
         session.Folders = folders.Create(session.Configuration.WorkspaceRoot, session.Configuration.ReportsRoot, session.Started);
+        DescribeOutputLayout(session);
         await reports.SaveConfiguration(session);
         if (options.Command == "run")
             return await run(session.Configuration, session.Folders);
         if (options.Command != "validate")
             throw new ConfigurationException("The " + options.Command + " execution engine is not implemented yet. No application was built, installed, reset, or tested.");
         return await Validate(session);
+    }
+
+    private void DescribeOutputLayout(CommandSession session)
+    {
+        output.WriteLine("CIMT output: " + session.Outputs.Root);
+        if (session.Configuration!.HasLegacyOutputRoots)
+        {
+            const string notice = "Legacy workspace.root/reports.root settings are ignored; CIMT creates output inside the input folder.";
+            session.Messages.Add(notice);
+            output.WriteLine(notice);
+        }
     }
 
     private async Task<int> Validate(CommandSession session)
@@ -91,27 +107,9 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
 
     private RunFolders CreateErrorFolders(CommandSession session)
     {
-        try
-        {
-            return folders.Create(ErrorWorkRoot(session), reports.ErrorRoot(session.Configuration), session.Started);
-        }
-        catch (Exception error) when (error is ConfigurationException or IOException or UnauthorizedAccessException)
-        {
-            session.Messages.Add("The configured report location is unusable; this error report uses the installation reports folder.");
-            return folders.Create(Path.Combine(Configuration.InstallationRoot, "work"), reports.ErrorRoot(null), session.Started);
-        }
-    }
-
-    private static string ErrorWorkRoot(CommandSession session)
-    {
-        try
-        {
-            return session.Configuration?.WorkspaceRoot ?? Path.Combine(Configuration.InstallationRoot, "work");
-        }
-        catch (Exception error) when (error is ConfigurationException or ArgumentException)
-        {
-            return Path.Combine(Configuration.InstallationRoot, "work");
-        }
+        // Even invalid configuration must keep its error report with the selected inputs.
+        session.Outputs.Check();
+        return folders.Create(session.Outputs.WorkRoot, session.Outputs.ReportsRoot, session.Started);
     }
 
     private int ShowHelp()

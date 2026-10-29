@@ -23,6 +23,14 @@ public static class RunFolderSafety
             throw new ConfigurationException("Reports must remain outside the temporary cleanup folder.");
     }
 
+    public static void Inside(string parent, string child)
+    {
+        var relative = Path.GetRelativePath(Physical(parent), Physical(child));
+        if (relative == "." || Path.IsPathRooted(relative) || relative == ".."
+            || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new ConfigurationException("CIMT output folders must remain inside the input folder.");
+    }
+
     private static string Physical(string path)
     {
         var full = Path.GetFullPath(path);

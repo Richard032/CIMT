@@ -1,7 +1,7 @@
 # CIMT requirements
 
-Version: 0.4  
-Date: 28 October 2026  
+Version: 0.5  
+Date: 29 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -45,7 +45,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | ID | Requirement |
 | --- | --- |
 | FR-07 | CIMT shall clone a repository from a Git URL. Private repositories shall use Git authentication already configured on the Mac, without interactive login during execution. |
-| FR-08 | Clones shall live under the configured common working root in a temporary work_<date-time> folder. CIMT shall delete its run clone after successful, failed, incomplete, or interrupted execution. Reports and evidence shall survive cleanup. |
+| FR-08 | CIMT shall create temporary work automatically under <input-folder>/CIMT output/work/work_<date-time>. The user shall not create output folders. CIMT shall delete its run clone after successful, failed, incomplete, or interrupted execution. Reports and evidence shall survive cleanup. |
 | FR-09 | CIMT shall build every configured target and test it on every connected compatible device. A target build failure shall be reported while other build targets continue. |
 | FR-10 | The report shall identify the branch and resolved commit used, build target, and tested device so findings can be traced to an execution. |
 
@@ -77,7 +77,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-27 | Every supplied requirement shall have a result and supporting evidence or an explanation of why evidence is unavailable. Results shall include passed, failed, not tested, inconclusive, and overridden. Explicit Markdown document headings shall be retained as source context with their text and line numbers; they shall not receive requirement IDs or test statuses and shall not block completion. |
 | FR-28 | A test step shall be a meaningful device action or check, with its result and a screenshot captured afterward. Credentials shall be masked. Internal AI reasoning and build operations shall be logged separately from test steps. Evidence collection failures shall be disclosed rather than silently omitted. |
 | FR-29 | Reports shall include unclear instructions and interpretations, reproduction attempts, crashes, skipped/cancelled work, and relevant diagnostics. Report contents shall be configurable; disabling optional sections shall not misrepresent coverage or hide the final outcome. |
-| FR-30 | Each run shall have a retained report_<date-time> folder using the same timestamp as its temporary work_<date-time> folder, outside the temporary cleanup folder. Screenshots and recorded actions shall remain in subfolders beside the report. The folder shall be portable and archivable. Reports shall remain until manually deleted. |
+| FR-30 | CIMT shall create each retained report automatically under <input-folder>/CIMT output/reports/report_<date-time>, using the same timestamp as its temporary work_<date-time> folder, outside temporary cleanup. Run-owned builds, diagnostics, screenshots, and actions shall remain under CIMT output. The report folder shall be portable and archivable. Reports shall remain until manually deleted. |
 | FR-31 | Testing instructions shall define failure criteria. In their absence, confirmed requirement failures or app crashes mean failed; unfinished or inconclusive testing means incomplete; otherwise passed. |
 | FR-32 | Blocking infrastructure failures, including device disconnection or AI service unavailability, shall stop the run and generate a report. This rule has explicit exceptions for failed build targets, recoverable app crashes, unclear instructions, and unavailable external equipment. |
 
@@ -114,6 +114,8 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-49 | Reports shall always include summary, outcome, coverage, and stopping reasons. reports.sections shall select detailed sections; screenshot and saved-action collection remain mandatory. Device discovery policy, maximum two-device concurrency, and per-scenario reset are fixed behaviour rather than optional execution switches. |
 | FR-50 | setup.yaml shall support installation.root, toolchain.manifest, and optional validation.config/run-config for an application-readiness check without building/testing. |
 | FR-51 | Every command, supplied/replacement build script, reset command, and reset verification shall have documented examples and runnable demonstrations explaining configuration, invocation, expected output, and failure behaviour. Demos shall use a user-supplied application repository with secret placeholders; CIMT shall not include a demo MAUI application. |
+| FR-52 | Installed CIMT shall run independently of the current working directory and source checkout. The input folder shall be the folder containing --run-config when supplied, otherwise --config. The user shall supply only configuration, referenced test inputs, and optional application-specific scripts; CIMT shall create all necessary run-output folders beneath that input folder's CIMT output subfolder. Existing installation tools and Mac-wide coordination state remain with the installation. |
+| FR-53 | Missing/invalid configuration and execution errors shall retain reports under the selected input folder when it is writable. If no input configuration can be selected because command syntax is invalid, use CIMT output under the launch folder. An absent, unsafe, or unwritable input/output location shall stop with an explicit terminal error; CIMT shall not redirect output to the installation or another folder. Links shall not redirect output outside its designated parent. Legacy workspace.root/reports.root settings may load for compatibility but shall not relocate output; CIMT shall disclose that they were ignored. |
 
 ## 5. Outcomes and exceptional conditions
 
@@ -181,6 +183,8 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-22 | Verify work_<date-time> and report_<date-time> share a timestamp, report placement survives cleanup, and approved path resolution works for local and Jenkins configuration. |
 | AC-23 | Verify element-ID-only masking rules, named credential references, and failure on a required mask that cannot be applied reliably. |
 | AC-24 | Supply Markdown headings and a testable requirement. Verify headings remain visible as context, the requirement retains its source lines and section meaning, and a passed requirement can complete without evaluating headings. Verify a heading-only document creates no requirement results. |
+| AC-25 | Supply only input configuration/texts/scripts in a fresh folder. Invoke installed CIMT from that folder and a different launch folder, including paths containing spaces and shared settings elsewhere. Verify automatic CIMT output creation, input-relative paths, identical output placement, retained earlier reports, shared work/report identity, and owned work cleanup. No user-created output folder shall be needed. |
+| AC-26 | Verify invalid/missing YAML produces an error report below the selected input folder. Verify legacy output roots cannot move output, a branch override cannot change the input folder, and unsafe links/unwritable output cause an explicit failure without writing elsewhere. |
 
 ## 8. Later release: branch comparison
 
@@ -201,3 +205,7 @@ The product owner approved the command/configuration review, default and replace
 ## Review record — version 0.4
 
 On 28 October 2026, the product owner requested the document-heading correction identified in the design review. FR-27 and AC-24 now distinguish explicit Markdown headings from test expectations. The five evaluation statuses remain unchanged. Plain prose, table classification, and platform applicability are not resolved by this clarification. See [mapping rules](requirement-mapping.md) for supported heading forms.
+
+## Review record — version 0.5
+
+On 29 October 2026, the product owner required execution independent of the launch folder and source checkout, with user-supplied inputs only. All generated run folders shall be created by CIMT under the input folder's CIMT output subfolder, for example FirstRun/CIMT output. FR-08/FR-30 and FR-52/FR-53 replace the earlier shared/configurable output-root policy. The paired timestamp, retained evidence, and safe clone-cleanup rules remain in force. AC-25/AC-26 define the new checks.

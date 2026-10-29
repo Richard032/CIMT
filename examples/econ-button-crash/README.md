@@ -70,8 +70,11 @@ not a real application build result.
 
 ## Output and limits
 
-Reports go to this folder's reports/report_<date-time>; temporary source goes to
-work/work_<date-time> and is removed after the run. Screenshots, actions,
+Run this installed command from any folder; configuration and inputs need not live
+in the CIMT source checkout. The folder containing --run-config is the input folder,
+or --config when no override is supplied. Users supply inputs only. CIMT creates
+CIMT output/reports/report_<date-time> and CIMT output/work/work_<date-time>
+under that input folder. Temporary source is removed after the run. Screenshots, actions,
 interpretations, crashes, blocked paths, and coverage must be described in HTML.
 All reachable buttons is an exploration objective; hidden/equipment-dependent
 states and exhausted limits must be reported honestly.

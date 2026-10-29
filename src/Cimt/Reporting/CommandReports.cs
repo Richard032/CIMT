@@ -5,7 +5,6 @@ namespace Cimt;
 
 public interface ICommandReports
 {
-    string ErrorRoot(Configuration? configuration);
     Task SaveConfiguration(CommandSession session);
     Task Write(CommandSession session, string verdict, string completion, int exit);
 }
@@ -15,21 +14,21 @@ public sealed class CommandReports : ICommandReports
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    public string ErrorRoot(Configuration? configuration)
-    {
-        try
-        {
-            return configuration?.ReportsRoot ?? DefaultRoot();
-        }
-        catch (ConfigurationException) { return DefaultRoot(); }
-        catch (ArgumentException) { return DefaultRoot(); }
-    }
-
-    public Task SaveConfiguration(CommandSession session)
+    public async Task SaveConfiguration(CommandSession session)
     {
         var configuration = session.Configuration!;
         var json = JsonSerializer.Serialize(configuration.Sanitized(configuration.Root), JsonOptions);
-        return File.WriteAllTextAsync(Path.Combine(session.Report!, "effective-config.json"), json);
+        await File.WriteAllTextAsync(Path.Combine(session.Report!, "effective-config.json"), json);
+        // Record the new policy without changing the user's private configuration file.
+        var layout = new
+        {
+            outputFolder = "CIMT output",
+            workFolder = "work",
+            reportsFolder = "reports",
+            legacyRootSettingsIgnored = configuration.HasLegacyOutputRoots
+        };
+        await File.WriteAllTextAsync(Path.Combine(session.Report!, "output-layout.json"),
+            JsonSerializer.Serialize(layout, JsonOptions));
     }
 
     public async Task Write(CommandSession session, string verdict, string completion, int exit)
@@ -57,5 +56,4 @@ public sealed class CommandReports : ICommandReports
             + items + "</ul><p>This is a configuration/readiness report. It contains no application test results.</p></html>";
     }
 
-    private static string DefaultRoot() => Path.Combine(Configuration.InstallationRoot, "reports");
 }

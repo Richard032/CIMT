@@ -38,6 +38,7 @@ public sealed class ConfigurationValidator
     public void Validate(Node root)
     {
         Keys(root, "workspace", "reports", "repository", "build", "inputs", "credentials", "reset", "masking", "execution", "ai-model", "ai-budget");
+        // Accept old output settings so private files still load. OutputLayout ignores their paths.
         Keys(root.Get("workspace"), "root");
         ValidateReports(root.Get("reports"));
         ValidateRepository(Required(root, "repository"));

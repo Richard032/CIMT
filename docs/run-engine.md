@@ -1,10 +1,12 @@
 # Initial run engine
 
-Updated: 28 October 2026. Status: implemented and checked with simulations; real application run pending the existing API key.
+Updated: 29 October 2026. Status: implemented and checked with simulations; live model access and real application execution remain unverified.
 
 The [approved requirements](requirements.md) remain the release target. This document describes the smaller implementation that can now be exercised through cimt run. It is not a release-acceptance claim.
 
 ## Execution path
+
+OutputLayout selects the directory containing --run-config, or --config when used alone. Installed execution is independent of the launch directory and source checkout. CIMT creates CIMT output/work and CIMT output/reports below those inputs, including retained error reports when configuration cannot load. Users do not prepare output folders. Legacy output-root fields load with a notice but no longer select locations. See the [folder contract](product-guide.md#7-path-rules-and-run-folders).
 
 The .NET command holds the Mac-wide lock, loads merged YAML and text inputs, checks model access without inference, snapshots connected physical devices, clones the configured branch and its recorded submodules, and builds each applicable target/platform. Successful installable artifacts are saved under the local report. Build errors remain exit 3 while other targets are attempted.
 

@@ -54,7 +54,8 @@ public sealed class ConfigurationLoader(IConfigurationNodeReader? reader = null)
             root = Node.Merge(root, nodes.Read(extra));
         if (options.Values.TryGetValue("--branch", out var branch))
             root = Node.Merge(root, BranchOverride(options.Values["--config"], branch));
-        var configuration = new Configuration(root);
+        // Select the input folder from the command, before branch overrides change node origins.
+        var configuration = new Configuration(root, OutputLayout.ForCommand(options));
         return configuration;
     }
 

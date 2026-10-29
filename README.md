@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.3, dated 27 October 2026. The architecture is version 0.8. Product and installation guides are updated 28 October 2026 with implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.5 and architecture version 0.12, updated 29 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -24,6 +24,7 @@ The requirements baseline is version 0.3, dated 27 October 2026. The architectur
 - OpenAI-driven testing; strict per-run AI budget and configurable whole-run time limit.
 - Local HTML reports with screenshots for every test step and saved actions for adaptive replay.
 - Repository clones removed after execution; reports retained.
+- Launch installed CIMT from any folder; supply inputs only. CIMT creates generated work and reports under the input folder's CIMT output subfolder.
 
 Two-branch comparison is planned for a later release. Device-control technology remains to be selected after evaluation.
 

@@ -1,17 +1,17 @@
 # Shared run identity
 
-Implemented: 28 October 2026. Implements the shared timestamp and retained-report placement defined by FR-08, FR-30, and AC-22. The requirements baseline is unchanged.
+Implemented: 28 October 2026; input-local placement updated 29 October 2026 under FR-08, FR-30, FR-52/FR-53, and AC-22/AC-25/AC-26.
 
 ## Folder contract
 
 Each invocation captures its start time once. One identity selects the temporary and retained folder pair:
 
 ```text
-<working-root>/work_2026-10-28_14-30-00-123/
-<report-root>/report_2026-10-28_14-30-00-123/
+<input-folder>/CIMT output/work/work_2026-10-28_14-30-00-123/
+<input-folder>/CIMT output/reports/report_2026-10-28_14-30-00-123/
 ```
 
-The date-time portion is identical. Neither name has an independent counter or random suffix. The working/report roots still resolve from their declaring YAML files. They may share a common parent because the work and report folders are separate siblings.
+The date-time portion is identical. Neither name has an independent counter or random suffix. OutputLayout chooses the folder containing --run-config, or --config when used alone, and places all run-owned output under its CIMT output subfolder. Launch location and source checkout do not select output. Legacy root settings are ignored with a notice. Users do not create any output folders.
 
 The design left the precise timestamp format, timezone, and collision handling open. The implementation uses UTC and yyyy-MM-dd_HH-mm-ss-fff with invariant digits and millisecond precision. These complete the open engineering details; they do not replace the required prefixes or shared timestamp.
 
@@ -39,7 +39,7 @@ Keep the whole report folder when copying it. Evidence links remain relative. Cl
 
 ## Verification and use
 
-No command or YAML change is required. Continue to use cimt validate and cimt run as documented. New folders use the UTC format above; older report folders remain unchanged.
+Command syntax is unchanged. New YAML templates omit workspace.root/reports.root; older values still load but no longer relocate output. Continue to use cimt validate and cimt run as documented. New folders use the UTC format above; older retained report folders remain unchanged.
 
 Run the offline development checks from the source folder:
 

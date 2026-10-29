@@ -1,7 +1,7 @@
 # CIMT product documentation
 
-Version: 0.6  
-Date: 28 October 2026  
+Version: 0.7  
+Date: 29 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -41,7 +41,7 @@ The reviewed syntax above is approved. Additional flags, help output, configurat
 | File | Contents |
 | --- | --- |
 | setup.yaml | Installation root, toolchain manifest, optional application-readiness validation. |
-| default.yaml | Shared working/report roots, OpenAI model/key, run time limit, AI budget, and shared reporting settings. |
+| default.yaml | OpenAI model/key, run time limit, AI budget, and shared reporting settings. |
 | app.yaml | Repository/build configuration, named app credentials, reset commands, masking rules, text input references, and optional default overrides. |
 
 app.yaml is the reusable per-run override, not a separate fourth precedence layer. Users may choose different filenames or app configurations for different testing tasks.
@@ -75,11 +75,7 @@ Validate access under the actual executing account, including the Jenkins accoun
 ## 5. default.yaml example
 
 ```yaml
-workspace:
-  root: "./work"
-
 reports:
-  root: "./reports"
   sections:
     - requirements
     - scenarios
@@ -172,14 +168,22 @@ Screenshots use lossless PNG and are masked before storage or AI processing. CIM
 
 Absolute paths are accepted where applicable. Inherited relative values retain their declaring-file origin.
 
-For example, corresponding run folders are:
+CIMT can be launched from any folder using the installed command. Supply only configuration, text inputs, and any custom scripts. Do not create work, reports, or evidence folders. The input folder is the folder containing --run-config, or --config when no run override is supplied. For example:
 
 ```text
-<working-root>/work_2026-10-28_14-30-00-123/   # temporary
-<report-root>/report_2026-10-28_14-30-00-123/  # retained
+FirstRun/
+  default.private.yaml
+  application.yaml
+  inputs/
+  build/                                   # only if custom scripts are needed
+  CIMT output/                             # CIMT creates everything below here
+    work/work_2026-10-29_14-30-00-123/       # temporary
+    reports/report_2026-10-29_14-30-00-123/  # retained
 ```
 
 Both use the same UTC timestamp with millisecond precision. A collision advances both names together by one millisecond; it never adds a separate suffix, reuses existing data, or changes the actual start/deadline. run-identity.json retains the paired names and identity beside the report. See [run identity](run-identity.md). Reports must sit outside the temporary cleanup folder. Each clone is deleted after success, failure, incompletion, or interruption; reports remain until manually deleted.
+
+Legacy workspace.root/reports.root values still load but are ignored. CIMT prints a notice and records this in output-layout.json. reports.sections still selects report content. Missing/invalid YAML errors also stay below the selected input folder. If CIMT cannot safely write there, it reports the failure in the terminal instead of creating output elsewhere. Invalid command syntax without a selected input uses the launch folder. Installation tools and the machine-wide lock remain with the installation.
 
 ## 8. Default and replacement build scripts
 

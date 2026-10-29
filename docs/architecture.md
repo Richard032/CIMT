@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.11  
-Date: 28 October 2026  
+Version: 0.12  
+Date: 29 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -79,22 +79,34 @@ Hard termination, power loss, or host failure cannot guarantee immediate cleanup
 
 Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Approved commands and YAML fields are recorded in the product guide. Additional options and complete schema validation constraints remain to be specified.
 
-Proposed layout:
+Installed execution is independent of the launch folder and source checkout. OutputLayout selects the input folder from the explicit --run-config path, or --config if no run override is supplied. Shared settings can live elsewhere. ConfigurationLoader preserves this selection before applying branch overrides; inherited input/script paths still keep their declaring YAML origins. No configuration discovery or current-directory change is needed.
+
+The user supplies configuration, referenced texts, and optional application build/reset scripts. CIMT creates the following output layout on demand:
 
 ```text
-<CIMT home>/
-  config/default.yaml             # secrets; restricted, outside source control
-  work/work_<date-time>/repository/ # temporary run-owned clone
-  reports/report_<date-time>/
-    index.html
-    metadata.json                 # sanitized run manifest
-    inputs/                       # sanitized input snapshots
-    evidence/<target>/<device>/<scenario>/
-    actions/
-    logs/
+<input folder>/                    # for example testing/FirstRun
+  default.private.yaml            # user supplies settings and secrets
+  application.yaml                # optional run-specific configuration
+  inputs/                         # referenced user texts; exact names are configurable
+  build/                          # optional user build integration
+  CIMT output/                    # CIMT creates this entire output tree
+    work/work_<date-time>/repository/ # temporary owned clone
+    reports/report_<date-time>/
+      index.html
+      run-identity.json
+      output-layout.json          # output policy and legacy-root notice
+      inputs/                     # sanitized input snapshots
+      artifacts/                  # retained installable builds
+      evidence/
+      actions/
+      logs/
 ```
 
 Metadata/action JSON is an internal architecture proposal; HTML is the confirmed user report format. The approved temporary and report folder names are work_<date-time> and report_<date-time>, sharing a timestamp. The implemented shared identity uses UTC millisecond timestamps; collisions advance both folder names together without changing the invocation start or deadline. See [run identity](run-identity.md). The whole report folder must remain usable after clone deletion and relocation.
+
+OutputLayout owns path selection and containment checks, not folder creation. RunFolderAllocator creates the retained report parents and report folder. WorkDirectoryManager creates the paired work folder when execution needs it and removes only verified owned work. Validation and configuration errors create retained output without a clone. Installation tools, caches, and the Mac-wide lock/ownership registry remain installation concerns, separate from run-owned files.
+
+Legacy workspace.root and reports.root are accepted to preserve private configuration compatibility, but cannot relocate output. CommandApplication prints the policy and a legacy-setting notice; CommandReports stores the policy in output-layout.json. New templates omit those roots. No private file is rewritten. Command errors retain the selected layout even when YAML cannot load. With unusable command syntax and no selected input, the launch folder is the last known input location. Unsafe/unwritable output produces a terminal failure; there is no fallback report tree elsewhere. Output containment resolves existing aliases before creating folders. This replaces the earlier common-root proposal under FR-52/FR-53.
 
 ## 5. Model control and strict budgeting
 

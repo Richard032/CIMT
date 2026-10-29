@@ -1,8 +1,5 @@
 # Copy to default.private.yaml, fill api-key locally, and restrict it to its owner.
-workspace:
-  root: ./work
 reports:
-  root: ./reports
   sections: [requirements, scenarios, findings, interpretations, diagnostics]
 execution:
   time-limit-minutes: 60

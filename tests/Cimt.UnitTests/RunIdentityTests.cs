@@ -133,7 +133,7 @@ public sealed class RunIdentityTests
     }
 
     [Fact]
-    public void ConfiguredRootsKeepTheirDeclaringFileOrigin()
+    public void LegacyRootsCannotMoveOutputAwayFromTheInputFolder()
     {
         using var folder = new TestDirectory();
         var origin = Path.Combine(folder.Path, "settings", "default.yaml");
@@ -149,8 +149,8 @@ public sealed class RunIdentityTests
             }, null, origin)
         }, null, origin));
         var pair = new RunFolderAllocator().Create(config.WorkspaceRoot, config.ReportsRoot, Started);
-        Assert.Equal(Path.Combine(folder.Path, "settings", "work", "work_" + pair.Identity.Id), pair.Work);
-        Assert.Equal(Path.Combine(folder.Path, "reports", "report_" + pair.Identity.Id), pair.Report);
+        Assert.Equal(Path.Combine(folder.Path, "settings", "CIMT output", "work", "work_" + pair.Identity.Id), pair.Work);
+        Assert.Equal(Path.Combine(folder.Path, "settings", "CIMT output", "reports", "report_" + pair.Identity.Id), pair.Report);
     }
 
     [Fact]

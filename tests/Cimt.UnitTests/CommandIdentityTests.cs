@@ -61,8 +61,8 @@ internal sealed class CommandIdentityFixture : IDisposable
 {
     private readonly TestDirectory directory = new();
     public DateTimeOffset Started { get; } = new(2026, 10, 28, 14, 30, 0, TimeSpan.Zero);
-    public string WorkRoot => Path.Combine(directory.Path, "work");
-    public string ReportRoot => Path.Combine(directory.Path, "reports");
+    public string WorkRoot => Path.Combine(directory.Path, "CIMT output", "work");
+    public string ReportRoot => Path.Combine(directory.Path, "CIMT output", "reports");
     public CountingClock Clock
     {
         get;
@@ -106,12 +106,12 @@ internal sealed class CommandIdentityFixture : IDisposable
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         Loader = new(new Configuration(Node.Read(file)));
-        Reports = new(ReportRoot, Lock);
+        Reports = new(Lock);
     }
 
     public Task<int> Execute(string command) => new CommandApplication(Loader, new IdentityReadiness(),
         Run, Reports, new RunFolderAllocator(), Lock.Acquire, TextWriter.Null, TextWriter.Null, Clock)
-        .Run([command, "--config", "fixture.yaml"]);
+        .Run([command, "--config", Path.Combine(directory.Path, "fixture.yaml")]);
 
     private Task<int> Run(Configuration config, RunFolders folders)
     {
@@ -177,7 +177,7 @@ internal sealed class IdentityReadiness : IReadinessValidator
     public Task Validate(Configuration configuration, List<string> messages) => Task.CompletedTask;
 }
 
-internal sealed class IdentityCommandReports(string root, RecordingRunLock runLock) : ICommandReports
+internal sealed class IdentityCommandReports(RecordingRunLock runLock) : ICommandReports
 {
     public CommandSession? Session
     {
@@ -187,7 +187,6 @@ internal sealed class IdentityCommandReports(string root, RecordingRunLock runLo
     {
         get; private set;
     }
-    public string ErrorRoot(Configuration? configuration) => root;
     public Task SaveConfiguration(CommandSession session) => Task.CompletedTask;
     public Task Write(CommandSession session, string verdict, string completion, int exit)
     {

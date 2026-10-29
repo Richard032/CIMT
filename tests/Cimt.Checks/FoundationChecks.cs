@@ -190,7 +190,7 @@ build:
     {
         var code = Entry.Run(["run", "--config", file]).GetAwaiter().GetResult();
         Assert(code == 3, "missing runtime passed");
-        var reports = Directory.GetFiles(Path.Combine(temp, "reports"), "index.html", SearchOption.AllDirectories);
+        var reports = Directory.GetFiles(new OutputLayout(temp).ReportsRoot, "index.html", SearchOption.AllDirectories);
         Assert(reports.Length > 0, "missing HTML report");
         Assert(reports.All(p => !File.ReadAllText(p).Contains(secret)), "report leaked secret");
     }
@@ -200,7 +200,7 @@ build:
         var unrelated = Path.Combine(temp, "keep");
         Directory.CreateDirectory(unrelated);
         File.WriteAllText(Path.Combine(unrelated, "keep.txt"), "keep");
-        var owned = folders.Create(new RunFolderAllocator().Create(Path.Combine(temp, "work"), Path.Combine(temp, "reports"), DateTimeOffset.UtcNow));
+        var owned = folders.Create(new RunFolderAllocator().Create(new OutputLayout(temp).WorkRoot, new OutputLayout(temp).ReportsRoot, DateTimeOffset.UtcNow));
         Directory.CreateDirectory(Path.Combine(owned, "repository"));
         File.WriteAllText(Path.Combine(owned, "repository", "App.csproj"), "fixture");
         folders.CleanupPrevious();
@@ -210,7 +210,7 @@ build:
 
     private void ChangedOwnershipIsRejected()
     {
-        var owned = folders.Create(new RunFolderAllocator().Create(Path.Combine(temp, "work"), Path.Combine(temp, "reports"), DateTimeOffset.UtcNow));
+        var owned = folders.Create(new RunFolderAllocator().Create(new OutputLayout(temp).WorkRoot, new OutputLayout(temp).ReportsRoot, DateTimeOffset.UtcNow));
         var marker = Path.Combine(owned, ".cimt-owned");
         var token = File.ReadAllText(marker);
         File.WriteAllText(marker, "changed");
@@ -227,7 +227,7 @@ build:
 
     private void PublicRunPreservesBuildFailure()
     {
-        var existing = Directory.Exists(Path.Combine(temp, "reports")) ? Directory.GetDirectories(Path.Combine(temp, "reports")).ToHashSet() : [];
+        var existing = Directory.Exists(new OutputLayout(temp).ReportsRoot) ? Directory.GetDirectories(new OutputLayout(temp).ReportsRoot).ToHashSet() : [];
         var build = InstallFakeTools();
         var fixture = CreatePublicConfiguration(build);
         RunWithFakeTools(fixture);
@@ -267,7 +267,7 @@ build:
 
     private void VerifyPublicRun(HashSet<string> existing)
     {
-        var created = Directory.GetDirectories(Path.Combine(temp, "reports")).Single(p => !existing.Contains(p));
+        var created = Directory.GetDirectories(new OutputLayout(temp).ReportsRoot).Single(p => !existing.Contains(p));
         using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "result.json")));
         var stages = result.RootElement.GetProperty("stages").EnumerateArray().Where(e => e.GetProperty("stage").GetString() == "build").ToArray();
         Assert(stages.Length == 2 && stages[0].GetProperty("result").GetString() == "error" && stages[1].GetProperty("result").GetString() == "passed", "other target did not continue");
@@ -283,7 +283,7 @@ build:
         Assert(mapping[0].GetProperty("results").GetArrayLength() == 2, "failed build was omitted from the matrix");
         Assert(mapping[0].GetProperty("status").GetString() == "not tested", "missing evidence passed");
         Assert(File.Exists(Path.Combine(created, "requirements.json")), "catalogue was not retained");
-        Assert(!Directory.EnumerateDirectories(Path.Combine(temp, "work"), "work_*").Any(), "run clone remained");
+        Assert(!Directory.EnumerateDirectories(new OutputLayout(temp).WorkRoot, "work_*").Any(), "run clone remained");
         Assert(!File.ReadAllText(Path.Combine(created, "index.html")).Contains(secret), "secret appeared in application report");
     }
 

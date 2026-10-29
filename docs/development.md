@@ -85,3 +85,11 @@ The mapping demo uses the real input and report services with synthetic observat
 RunIdentity and RunFolders store one invocation identity and its paired paths. RunFolderAllocator chooses a free shared timestamp; RunFolderSafety checks report placement. WorkDirectoryManager receives the allocated pair rather than reading a clock. Command and run services pass the same data through their normal constructors/delegate. The clock is read once at command entry, and collision handling does not extend the deadline.
 
 Identity tests use small fixed-time and temporary-folder cases. Command tests use ordinary recording dependencies; they need no thread barriers, runtime method replacement, or constructor bypass. The public-command fixture verifies the same work/report/runtime ID after cleanup. The Python journal only stores the ID supplied by the host. See [run identity](run-identity.md) for the contract and verification.
+
+## Input-local automatic output — 29 October 2026
+
+OutputLayout owns input-folder selection and containment checks. It does not create directories. ConfigurationLoader passes an explicit layout so branch overrides cannot change the output parent. CommandApplication keeps the layout before loading YAML, allowing invalid/missing configuration errors to stay with the selected inputs. RunFolderAllocator and WorkDirectoryManager continue to own creation, identity, and cleanup.
+
+Small unit cases verify shared/default versus per-run configuration, paths with spaces, creation on demand, ignored legacy roots, retained reports, missing/invalid YAML, blocked output, and escaping links. The CLI demonstration tests/check-output-layout.py invokes the real launcher from different directories with fake readiness tools and synthetic credentials. It is included in scripts/check-development.sh and can target the installed command with --command. See the [runnable example](../examples/input-folder/README.md).
+
+Verification for this increment: 181 .NET tests, 155 Python tests, and 28 CLI/build/example checks passed, 364 total. The installed launcher separately passed the same five public output-layout checks. No live API, application build, physical-device action, or private-configuration read was required.

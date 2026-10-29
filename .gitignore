@@ -10,5 +10,6 @@ setup.yaml
 **/*.private.yaml
 examples/**/work/
 examples/**/reports/
+CIMT output/
 **/__pycache__/
 *.pyc

@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.10  
+Version: 0.11  
 Last updated: 29 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -799,26 +799,28 @@ Use these checks when preparing another Mac or connecting another phone:
 
 First-Mac outcome: both physical-platform smoke checks passed sequentially; all 28 installed Python modules matched source. No product code, private YAML, application data, API key, or retained report was changed. No model call or MAUI application build was needed. The temporary aggregate results remain local under `/private/tmp/cimt-screenshot-masking-live-20261029`. Credential-entry, rotation, simultaneous device execution, real MAUI scenarios, Jenkins, and second-Mac acceptance remain open.
 
-## 23. Use an independent testing folder — 29 October 2026
+## 23. Inputs only; CIMT creates output — 29 October 2026
 
-Installed CIMT can run from a folder outside its source checkout. Configuration paths resolve relative to the YAML file that declares each value, including after merging --config and --run-config. The installation and test workspace have separate purposes: tools and installation-wide state stay in the installation; application inputs and retained results can stay together in any writable testing folder.
+Installed CIMT runs independently of the launch directory and source checkout. The user supplies configuration, referenced test texts, and optional custom scripts. Do not create output folders and do not configure workspace.root or reports.root. CIMT creates the entire output tree automatically below the input folder.
 
-The first Mac's requested workspace root is /Users/sumkar/Development/testing. Each test setup has its own subfolder. The first setup is /Users/sumkar/Development/testing/FirstRun, containing default.private.yaml, application.yaml, inputs/, build/, work/, and reports/. Existing private settings were copied without displaying their contents and kept owner-readable/writable only. The three text inputs and five application build-support files were copied from the ECON example. application.yaml explicitly declares these workspace paths:
+The input folder is the folder containing --run-config, or --config when no run override is supplied. Shared default settings may live elsewhere. Input and custom-script paths still resolve relative to their declaring YAML file. A branch override does not change the selected input folder.
 
-```yaml
-workspace:
-  root: ./work
-reports:
-  root: ./reports
-inputs:
-  instructions: ./inputs/instructions.txt
-  requirements: ./inputs/requirements.txt
-  setup: ./inputs/setup.txt
+The first Mac's prepared inputs are in /Users/sumkar/Development/testing/FirstRun:
+
+```text
+FirstRun/
+  default.private.yaml
+  application.yaml
+  inputs/
+  build/                         # application-specific integration only
+  CIMT output/                   # created by CIMT, not by the user
+    work/work_<date-time>/        # temporary, when execution needs it
+    reports/report_<date-time>/   # retained HTML, builds, logs, and evidence
 ```
 
-The remaining application settings retain the supplied Git URL, main branch, two build configurations, and relative ./build/ script paths. Build adapters call the installed default build workers, so execution does not depend on the CIMT source folder. On another Mac, place the supplied configuration templates, text inputs, and build-support files in the chosen workspace, fill private settings locally, and use paths relative to those configuration files.
+The inputs retain the supplied Subgit repository, main branch, Release_Generic/Release_Pride targets, and Android/iOS settings. Build adapters call the installed default workers. They do not need the source checkout at execution time. Existing private settings remain owner-readable/writable only and were not read or changed during this correction. Legacy output-root values still load but are ignored with a terminal notice and a retained output-layout.json policy record. reports.sections remains supported.
 
-Start commands from the individual test folder:
+Start from FirstRun:
 
 ```bash
 cd /Users/sumkar/Development/testing/FirstRun
@@ -827,6 +829,26 @@ cimt validate --config ./default.private.yaml --run-config ./application.yaml
 cimt run --config ./default.private.yaml --run-config ./application.yaml
 ```
 
-Each execution allocates work/work_<date-time> and reports/report_<date-time> inside FirstRun using the same run identity. Temporary work is removed after execution; retained reports stay in that test folder. Future test setups can use their own sibling folders under testing. Keep reports outside disposable work. Jenkins can use the same folder layout and installed command under its prepared execution account.
+From another launch directory, point to those same files:
 
-Workspace preparation checks verify public input/build paths, shell syntax, and the installed launcher from this directory. These checks do not parse private configuration, prove model access, or start an application run. No product-code change or requirement deviation is needed for this layout.
+```bash
+source /Users/Shared/CIMT/environment.sh
+cimt validate \
+  --config /Users/sumkar/Development/testing/FirstRun/default.private.yaml \
+  --run-config /Users/sumkar/Development/testing/FirstRun/application.yaml
+```
+
+Both invocations keep output under FirstRun/CIMT output. Each invocation allocates a fresh report identity; execution creates paired temporary work when needed. Old reports remain. Temporary work cleanup does not remove reports or input files. The machine-wide lock and ownership registry remain with the CIMT installation.
+
+Missing or invalid YAML retains its error report with the selected input folder when writable. If output is blocked, unsafe, or unwritable, CIMT reports the failure in the terminal and does not create an output tree elsewhere. With invalid command syntax and no selected input, the launch folder is used. Existing links cannot redirect output outside its designated parent.
+
+Install the corrected host from the source checkout:
+
+```bash
+source /Users/Shared/CIMT/environment.sh
+dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+```
+
+No new dependency, phone helper, API key, or runtime module is needed for this correction. The full offline checks plus the additional blocked-output unit case passed: 181 .NET tests, 155 Python tests, and 28 public-command/build/example checks, 364 total. The installed launcher also passed all five output-layout checks from two launch folders, including spaces, shared defaults elsewhere, retained earlier reports, legacy roots, and missing/invalid YAML. These use fake readiness tools and synthetic credentials; no API request, real build, or device action was performed.
+
+FirstRun now contains inputs only. Its previously prepared empty work/reports folders were removed; its CIMT output folder will be created by the first actual invocation. See the [runnable output-layout demonstration](../examples/input-folder/README.md). Real application, model access, and Jenkins/second-Mac acceptance remain open.

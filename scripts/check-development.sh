@@ -20,3 +20,4 @@ dotnet test tests/Cimt.UnitTests/Cimt.UnitTests.csproj -c Release --nologo
 dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release
 "$CIMT_TEST_PYTHON" tests/check-build-contract.py
 "$CIMT_TEST_PYTHON" tests/check-example-build.py
+"$CIMT_TEST_PYTHON" tests/check-output-layout.py

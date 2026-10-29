@@ -11,13 +11,17 @@ public sealed class Configuration
         get;
     }
     public HashSet<string> Secrets => redactor.Values;
-    public string ReportsRoot => Root.Get("reports")?.Get("root")?.PathValue ?? Path.Combine(InstallationRoot, "reports");
-    public string WorkspaceRoot => Root.Get("workspace")?.Get("root")?.PathValue ?? Path.Combine(InstallationRoot, "work");
+    public OutputLayout Outputs { get; }
+    public string ReportsRoot => Outputs.ReportsRoot;
+    public string WorkspaceRoot => Outputs.WorkRoot;
+    public bool HasLegacyOutputRoots => Root.Get("workspace")?.Get("root") is not null
+        || Root.Get("reports")?.Get("root") is not null;
     public static string InstallationRoot => Environment.GetEnvironmentVariable("CIMT_INSTALL_ROOT") ?? "/Users/Shared/CIMT";
 
-    public Configuration(Node root)
+    public Configuration(Node root, OutputLayout? outputs = null)
     {
         Root = root;
+        Outputs = outputs ?? OutputLayout.ForFile(root.Origin);
         redactor = new ConfigurationSecrets(root);
     }
 
