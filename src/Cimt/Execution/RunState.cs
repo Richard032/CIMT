@@ -6,6 +6,7 @@ namespace Cimt;
 public sealed class RunState(Configuration configuration, RunFolders folders, RunDeadline deadline)
 {
     public Configuration Configuration { get; } = configuration;
+    public string Command { get; init; } = "run";
     public RunFolders Folders { get; } = folders;
     public RunIdentity Identity => Folders.Identity;
     public string Report => Folders.Report;

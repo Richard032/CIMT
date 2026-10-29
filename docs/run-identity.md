@@ -4,7 +4,7 @@ Implemented: 28 October 2026; input-local placement updated 29 October 2026 unde
 
 ## Folder contract
 
-Each invocation captures its start time once. One identity selects the temporary and retained folder pair:
+Each invocation captures its start time once. One identity selects the work and report folder pair:
 
 ```text
 <input-folder>/CIMT output/work/work_2026-10-28_14-30-00-123/
@@ -27,9 +27,9 @@ RunFolderAllocator creates the retained report first and selects the work path. 
 
 Reports must remain outside temporary cleanup folders. The checks resolve filesystem aliases, reject reports below CIMT-owned work ancestors, and protect a retained report before removing interrupted work. If an allocated work path becomes occupied before creation, CIMT stops instead of adopting it. Ownership tokens still protect deletion; their internal random values are not folder-name suffixes.
 
-Legacy ownership records remain readable, so an earlier interrupted work folder can be removed after its path/token are verified. Existing retained reports are not renamed. Full interruption history and graceful cancellation remain separate release work.
+Legacy ownership records remain readable. Earlier work is retained until a new clone for the same inputs, then removed only after its path/token are verified. Existing retained reports are not renamed. Full interruption history and graceful cancellation remain separate release work.
 
-The native helper uses a short temporary link to its directory inside owned work, allowing long input paths despite macOS socket-address limits. The link is selected from the installation ownership registry and user, rather than from another run timestamp. Normal and interrupted-work cleanup verify its target and remove only that link. The actual helper files stay inside temporary work. Its redacted log is retained with the report before normal cleanup.
+The native helper uses a short temporary link to its directory inside owned work, allowing long input paths despite macOS socket-address limits. The link is selected from the installation ownership registry and user, rather than from another run timestamp. Normal finalization verifies its target and releases the link after a successful helper stop. Interrupted-helper recovery preserves work. The actual helper files and redacted log remain in work, with a report copy.
 
 ## Retained identity and propagation
 
@@ -37,7 +37,7 @@ run-identity.json is saved beside index.html and uses report-relative folder nam
 
 The same identity is included in final run results, validation/error results, HTML, progress.json, the runtime request, and worker ui-results.json. Build/reset/helper processes receive CIMT_RUN_ID. The shared identity is ordinary host metadata; no model call is needed to create it.
 
-Keep the whole report folder when copying it. Evidence links remain relative. Cleanup removes only verified owned work, and never the retained report or its screenshots/actions.
+Keep the whole report folder when copying it. Evidence links remain relative. Only the clone boundary removes older verified owned work for the same inputs, never the retained report or its screenshots/actions.
 
 ## Verification and use
 
@@ -54,3 +54,7 @@ The focused cases cover UTC formatting, the single clock read, paired names, col
 The [offline mapping demonstration](../examples/requirement-mapping/README.md) also uses the shared allocator and includes run-identity.json in its synthetic report. It does not create a real application clone or use a phone/API. Its expected failure/incomplete result is unrelated to identity allocation.
 
 First-Mac verification: 119 .NET unit tests, 88 Python unit tests, and 23 regression/contract checks passed: 230 checks total. No live API, real MAUI build, or physical device was used. Jenkins and second-Mac execution acceptance remain separate; the same CLI and declaring-file path rules apply.
+
+## Replay provenance
+
+Retention does not change paired UTC identities. Each replay allocates its own work/report pair and preserves earlier work. Reused app artifacts are copied to the new report and retain a separate original build-run/commit reference. They are not relabelled as a new compilation. See [retention and replay](work-retention-and-replay.md). Earlier deletion-after-execution descriptions are superseded by this policy.

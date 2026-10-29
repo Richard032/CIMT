@@ -9,8 +9,8 @@ public sealed class WorkDirectoryManager(string registry)
 
     public string PrepareNativeHome(string work)
     {
-        using var ownership = ReadOwnership(work);
-        VerifyToken(work, ownership.RootElement.GetProperty("token").GetString());
+        var ownership = ReadOwnership(work);
+        VerifyToken(work, ownership.Token);
         var target = Path.Combine(work, "mobilecli");
         Directory.CreateDirectory(target);
         return nativeLink.Create(target);
@@ -30,58 +30,118 @@ public sealed class WorkDirectoryManager(string registry)
         return path;
     }
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    private sealed record OwnedWork(string Path, string Token, string? RunId = null, string? Report = null);
+
     private void Register(RunFolders folders)
     {
-        var path = folders.Work;
         var token = Guid.NewGuid().ToString("N");
-        File.WriteAllText(Path.Combine(path, ".cimt-owned"), token);
-        Directory.CreateDirectory(Path.GetDirectoryName(registry)!);
-        File.WriteAllText(registry, JsonSerializer.Serialize(new
-        {
-            path,
-            token,
-            runId = folders.Identity.Id,
-            report = folders.Report
-        }));
+        File.WriteAllText(Path.Combine(folders.Work, ".cimt-owned"), token);
+        var records = ReadRecords();
+        records.Add(new(folders.Work, token, folders.Identity.Id, folders.Report));
+        SaveRecords(records);
     }
 
-    /// <summary>Remove a previous interrupted run only when its ownership can be verified.</summary>
-    public void CleanupPrevious(string? retainedReport = null)
+    private List<OwnedWork> ReadRecords()
     {
         if (!File.Exists(registry))
-            return;
-        using var record = JsonDocument.Parse(File.ReadAllText(registry));
-        var path = record.RootElement.GetProperty("path").GetString()!;
-        if (retainedReport is not null)
-            RunFolderSafety.Outside(path, retainedReport);
-        Remove(path);
+            return [];
+        using var document = JsonDocument.Parse(File.ReadAllText(registry));
+        // Older installations stored one object. Keep its ownership proof during migration.
+        return document.RootElement.ValueKind == JsonValueKind.Array
+            ? document.RootElement.Deserialize<List<OwnedWork>>(JsonOptions)!
+            : [document.RootElement.Deserialize<OwnedWork>(JsonOptions)!];
     }
 
-    /// <summary>Verify the recorded path and token before deleting any folder.</summary>
+    private void SaveRecords(List<OwnedWork> records)
+    {
+        if (records.Count == 0)
+        {
+            File.Delete(registry);
+            return;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(registry)!);
+        File.WriteAllText(registry, JsonSerializer.Serialize(records, JsonOptions));
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(registry, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+    }
+
+    /// <summary>Delete earlier owned work for these inputs only, immediately before a new clone.</summary>
+    public void CleanupPrevious(string? retainedReport = null, string? currentWork = null)
+    {
+        foreach (var record in ReadRecords())
+        {
+            if (currentWork is not null && (record.Path == currentWork
+                || Path.GetDirectoryName(record.Path) != Path.GetDirectoryName(currentWork)))
+                continue;
+            if (retainedReport is not null)
+                RunFolderSafety.Outside(record.Path, retainedReport);
+            if (record.Report is not null)
+                RunFolderSafety.Outside(record.Path, record.Report);
+            Remove(record.Path);
+        }
+    }
+
+    /// <summary>Find the verified work folder behind an existing helper link, without deleting work.</summary>
+    public string? LinkedWork()
+    {
+        var link = new DirectoryInfo(nativeLink.LinkPath);
+        if (link.LinkTarget is null)
+        {
+            if (link.Exists || File.Exists(nativeLink.LinkPath))
+                throw new IOException("The native helper address is occupied by an unrelated item.");
+            return null;
+        }
+        var target = Path.GetFullPath(link.LinkTarget, "/tmp");
+        var record = ReadRecords().SingleOrDefault(item => Path.Combine(item.Path, "mobilecli") == target)
+            ?? throw new IOException("The native helper link has no verified owner.");
+        if (Directory.Exists(record.Path))
+            VerifyToken(record.Path, record.Token);
+        return record.Path;
+    }
+
+    public string NativeHomeAddress => nativeLink.LinkPath;
+
+    public void Verify(string work)
+    {
+        var record = ReadOwnership(work);
+        VerifyToken(work, record.Token);
+    }
+
+    /// <summary>Release only the short helper link. Keep the work folder and ownership record.</summary>
+    public void ReleaseNativeHome(string work)
+    {
+        var record = ReadOwnership(work);
+        if (Directory.Exists(work))
+            VerifyToken(work, record.Token);
+        nativeLink.Remove(Path.Combine(work, "mobilecli"));
+    }
+
+    /// <summary>Verify the recorded path and token before deleting an owned folder.</summary>
     public void Remove(string path)
     {
-        using var record = ReadOwnership(path);
+        var record = ReadOwnership(path);
         if (Directory.Exists(path))
-        {
-            VerifyToken(path, record.RootElement.GetProperty("token").GetString());
+            VerifyToken(path, record.Token);
+        var link = new DirectoryInfo(nativeLink.LinkPath);
+        if (link.LinkTarget is not null && Path.GetFullPath(link.LinkTarget, "/tmp") == Path.Combine(path, "mobilecli"))
             nativeLink.Remove(Path.Combine(path, "mobilecli"));
+        if (Directory.Exists(path))
             Directory.Delete(path, recursive: true);
-        }
-        else
-            nativeLink.Remove(Path.Combine(path, "mobilecli"));
-        File.Delete(registry);
+        SaveRecords(ReadRecords().Where(item => item.Path != path).ToList());
     }
 
-    private JsonDocument ReadOwnership(string path)
+    private OwnedWork ReadOwnership(string path)
     {
-        if (!File.Exists(registry))
-            throw new IOException("Missing ownership registry");
-        var record = JsonDocument.Parse(File.ReadAllText(registry));
-        if (record.RootElement.GetProperty("path").GetString() == path &&
-            Path.GetFileName(path).StartsWith("work_", StringComparison.Ordinal) &&
-            new DirectoryInfo(path).LinkTarget is null)
+        var record = ReadRecords().SingleOrDefault(item => item.Path == path);
+        if (record is not null && Path.GetFileName(path).StartsWith("work_", StringComparison.Ordinal)
+            && new DirectoryInfo(path).LinkTarget is null)
             return record;
-        record.Dispose();
         throw new IOException("Unverified work ownership");
     }
 
@@ -94,51 +154,63 @@ public sealed class WorkDirectoryManager(string registry)
 }
 
 /// <summary>Prepares the private work folder before other run steps use it.</summary>
-public sealed class WorkPreparation(WorkDirectoryManager folders) : IRunStep
+public sealed class WorkPreparation(WorkDirectoryManager folders, ICommandRunner runner, RuntimePaths paths) : IRunStep
 {
-    public Task Execute(RunState state)
+    public async Task Execute(RunState state)
     {
-        folders.CleanupPrevious(state.Report);
+        var previous = folders.LinkedWork();
+        if (previous is not null)
+        {
+            var environment = new Dictionary<string, string>(state.Environment)
+            {
+                ["MOBILECLI_HOME"] = folders.NativeHomeAddress
+            };
+            var stopped = await NativeHelperStop.Execute(runner, paths, environment);
+            if (stopped.Exit != 0)
+                throw new ConfigurationException("The previous owned helper could not be stopped; retained work was preserved.");
+            folders.ReleaseNativeHome(previous);
+            state.Stages.Add(new { stage = "previous helper recovery", result = "stopped; previous work preserved" });
+        }
         state.Work = folders.Create(state.Folders);
         state.Environment["MOBILECLI_HOME"] = folders.PrepareNativeHome(state.Work);
-        return Task.CompletedTask;
     }
 }
 
-/// <summary>Stops this run's helper, retains its log, then removes disposable work.</summary>
+/// <summary>Stops the owned helper and keeps work files for inspection and replay.</summary>
 public sealed class RunCleanup(ICommandRunner runner, RuntimePaths paths, WorkDirectoryManager folders) : IRunCleanup
 {
     public async Task Execute(RunState state)
     {
         if (state.Work.Length == 0)
             return;
+        folders.Verify(state.Work);
+        var stopped = false;
         try
         {
-            await StopHelper(state);
+            stopped = await StopHelper(state);
         }
         catch (Exception error)
         {
             state.Errors.Add("The owned native daemon could not be stopped: " + error.GetType().Name);
             state.Exit = 3;
         }
-        // Helper shutdown must not prevent deletion of an owned source clone.
         await PreserveHelperLog(state);
-        folders.Remove(state.Work);
+        if (stopped)
+            folders.ReleaseNativeHome(state.Work);
     }
 
-    private async Task StopHelper(RunState state)
+    private async Task<bool> StopHelper(RunState state)
     {
         // Startup may fail before any owned helper address has been selected.
         if (!state.Environment.ContainsKey("MOBILECLI_HOME"))
-            return;
-        var stopped = await runner.Run(new("node", ["-e",
-            "const {Mobilecli}=require(process.argv[1]);console.log(new Mobilecli().executeCommand(['daemon','stop'],15000));",
-            paths.NativeModule], 20, state.Environment));
+            return false;
+        var stopped = await NativeHelperStop.Execute(runner, paths, state.Environment);
         if (stopped.Exit == 0)
-            return;
+            return true;
         state.Errors.Add("The owned native daemon could not be stopped cleanly: "
             + state.Configuration.Scrub(stopped.Stderr.Trim()));
         state.Exit = 3;
+        return false;
     }
 
     private static async Task PreserveHelperLog(RunState state)
@@ -149,6 +221,7 @@ public sealed class RunCleanup(ICommandRunner runner, RuntimePaths paths, WorkDi
         try
         {
             var text = state.Configuration.Scrub(await File.ReadAllTextAsync(source));
+            await File.WriteAllTextAsync(source, text);
             var logs = Path.Combine(state.Report, "logs");
             Directory.CreateDirectory(logs);
             await File.WriteAllTextAsync(Path.Combine(logs, "native-daemon.log"), text);

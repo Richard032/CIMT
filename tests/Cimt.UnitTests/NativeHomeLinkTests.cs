@@ -144,7 +144,7 @@ public sealed class NativeHomeLinkTests
         var config = new Configuration(new Node(null, [], null, Path.Combine(folder.Path, "app.yaml")));
         var pair = new RunFolderAllocator().Create(folder.Path, folder.Path, DateTimeOffset.UtcNow);
         var state = new RunState(config, pair, new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
-        await new WorkPreparation(manager).Execute(state);
+        await new WorkPreparation(manager, new FakeCommandRunner(), new RuntimePaths(folder.Path)).Execute(state);
         try
         {
             Assert.Equal(state.Environment["MOBILECLI_HOME"], RuntimeRequest.Create(state)["nativeHome"]);

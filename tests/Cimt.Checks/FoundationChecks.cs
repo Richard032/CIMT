@@ -49,7 +49,9 @@ build:
         Check("missing runtime cannot report an application pass", MissingRuntimeCannotPass);
         Check("interrupted cleanup removes only owned work", InterruptedWorkIsRemoved);
         Check("cleanup rejects a changed ownership token", ChangedOwnershipIsRejected);
-        Check("public run continues after build failure and cleans its clone", PublicRunPreservesBuildFailure);
+        Check("public run continues after build failure and retains its clone", PublicRunPreservesBuildFailure);
+        Check("public replay reuses its app without Git or builds", PublicReplayUsesTheBuiltApp);
+        Check("new clone replaces previous work after preflight", NewCloneReplacesPreviousWork);
         Console.WriteLine($"{passed} checks passed.");
         return 0;
     }
@@ -234,6 +236,42 @@ build:
         VerifyPublicRun(existing);
     }
 
+    private void PublicReplayUsesTheBuiltApp()
+    {
+        var layout = new OutputLayout(temp);
+        var previous = Directory.GetDirectories(layout.WorkRoot, "work_*").Single();
+        var keep = Path.Combine(previous, "keep-for-replay.txt");
+        File.WriteAllText(keep, "retained source and build output");
+        var cache = File.ReadAllText(Path.Combine(layout.Root, "retained-builds.json"));
+        WriteExecutable("fakebin/git", "#!/bin/bash\nexit 86\n");
+        WriteExecutable("fixture-build", "#!/bin/bash\nexit 87\n");
+        var reports = Directory.GetDirectories(layout.ReportsRoot).ToHashSet();
+        RunWithFakeTools(Path.Combine(temp, "fixture-run.yaml"), "replay", 2);
+        var created = Directory.GetDirectories(layout.ReportsRoot).Single(path => !reports.Contains(path));
+        using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "result.json")));
+        Assert(result.RootElement.GetProperty("command").GetString() == "replay", "replay command was not recorded");
+        var stages = result.RootElement.GetProperty("stages").EnumerateArray().ToArray();
+        Assert(!stages.Any(stage => stage.GetProperty("stage").GetString() is "repository" or "build"), "replay cloned or built");
+        Assert(File.ReadAllText(keep) == "retained source and build output", "replay removed retained work");
+        Assert(File.ReadAllText(Path.Combine(layout.Root, "retained-builds.json")) == cache, "replay replaced the built-app record");
+        var artifact = result.RootElement.GetProperty("builds")[0].GetProperty("artifact").GetString()!;
+        Assert(File.ReadAllText(artifact) == "fixture only", "replay did not reuse the existing app bytes");
+    }
+
+    private void NewCloneReplacesPreviousWork()
+    {
+        var layout = new OutputLayout(temp);
+        var previous = Directory.GetDirectories(layout.WorkRoot, "work_*");
+        var keep = previous.Select(path => Path.Combine(path, "keep-for-replay.txt")).Single(File.Exists);
+        InstallFakeGit();
+        InstallFakeBuilder();
+        Environment.SetEnvironmentVariable("CIMT_FIXTURE_RETAINED_MARKER", keep);
+        try { RunWithFakeTools(Path.Combine(temp, "fixture-run.yaml")); }
+        finally { Environment.SetEnvironmentVariable("CIMT_FIXTURE_RETAINED_MARKER", null); }
+        Assert(previous.All(path => !Directory.Exists(path)), "previous work was not replaced before cloning");
+        Assert(Directory.GetDirectories(layout.WorkRoot, "work_*").Length == 1, "fresh work was not retained");
+    }
+
     private string InstallFakeTools()
     {
         Write("instructions.txt", "Explore buttons; fixture only.");
@@ -254,13 +292,13 @@ build:
         return Write("fixture-run.yaml", JsonSerializer.Serialize(Value(merged)));
     }
 
-    private void RunWithFakeTools(string fixture)
+    private void RunWithFakeTools(string fixture, string command = "run", int expected = 3)
     {
         var prior = Environment.GetEnvironmentVariable("PATH");
         try
         {
             Environment.SetEnvironmentVariable("PATH", Path.Combine(temp, "fakebin") + Path.PathSeparator + prior);
-            Assert(Entry.Run(["run", "--config", fixture]).GetAwaiter().GetResult() == 3, "build failure did not dominate outcome");
+            Assert(Entry.Run([command, "--config", fixture]).GetAwaiter().GetResult() == expected, "unexpected public command outcome");
         }
         finally { Environment.SetEnvironmentVariable("PATH", prior); }
     }
@@ -283,7 +321,7 @@ build:
         Assert(mapping[0].GetProperty("results").GetArrayLength() == 2, "failed build was omitted from the matrix");
         Assert(mapping[0].GetProperty("status").GetString() == "not tested", "missing evidence passed");
         Assert(File.Exists(Path.Combine(created, "requirements.json")), "catalogue was not retained");
-        Assert(!Directory.EnumerateDirectories(new OutputLayout(temp).WorkRoot, "work_*").Any(), "run clone remained");
+        Assert(Directory.EnumerateDirectories(new OutputLayout(temp).WorkRoot, "work_*").Any(), "run work was deleted");
         Assert(!File.ReadAllText(Path.Combine(created, "index.html")).Contains(secret), "secret appeared in application report");
     }
 
@@ -296,8 +334,10 @@ build:
 
     private string InstallFakePython() => WriteExecutable("tools/python/bin/python", """
 #!/usr/bin/env python3
-import sys,json,pathlib
+import sys,json,pathlib,os
 c=json.load(sys.stdin)
+if '--preflight' in sys.argv and os.environ.get('CIMT_FIXTURE_RETAINED_MARKER'):
+ assert pathlib.Path(os.environ['CIMT_FIXTURE_RETAINED_MARKER']).exists(), 'retained work was deleted before cloning'
 if '--preflight' not in sys.argv:
  pathlib.Path(c['report'],'identity-probe.json').write_text(json.dumps({'runId':c['runId'],'workName':pathlib.Path(c['work']).name}))
  d={'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
@@ -317,7 +357,7 @@ else: print(json.dumps({'devices':{'data':{'devices':[{'id':'fixture-device','pl
 import sys,pathlib
 a=sys.argv[1:]
 if a[0]=='clone':
- p=pathlib.Path(a[-1]);p.mkdir();(p/'App.sln').write_text('fixture');(p/'App.csproj').write_text('<Project />')
+ p=pathlib.Path(a[-1]);assert list(p.parent.parent.glob('work_*'))==[p.parent], 'old work was not removed before clone';p.mkdir();(p/'App.sln').write_text('fixture');(p/'App.csproj').write_text('<Project />')
 elif 'rev-parse' in a: print('a'*40)
 elif 'submodule' not in a: sys.exit(4)
 """);

@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.10 and architecture version 0.16, updated 29 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.11 and architecture version 0.17, updated 29 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -23,7 +23,7 @@ The requirements baseline is version 0.10 and architecture version 0.16, updated
 - Every configured build target on every compatible device.
 - OpenAI-driven testing; strict per-run AI budget and configurable whole-run time limit.
 - Local HTML reports with screenshots for every test step and saved actions for adaptive replay.
-- Repository clones removed after execution; reports retained.
+- Work retained after execution and replaced only before the next clone for those inputs; reports retained.
 - Launch installed CIMT from any folder; supply inputs only. CIMT creates generated work and reports under the input folder's CIMT output subfolder.
 
 Two-branch comparison is planned for a later release. Device-control technology remains to be selected after evaluation.
@@ -61,7 +61,7 @@ CIMT's product code and documentation remain in this GitHub repository for now. 
 
 ## Current implementation
 
-Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces configuration/readiness reports. cimt run now owns cloning, builds, device scheduling, bounded AI exploration, evidence, and cleanup for one objective per target/device. setup and replay remain explicitly unimplemented. No real application pass is claimed from implementation fixtures.
+Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces configuration/readiness reports. cimt run now owns cloning, builds, device scheduling, bounded AI exploration, evidence, and cleanup for one objective per target/device. Retained-build replay executes current instructions without cloning/building. setup and saved-action-history replay remain unfinished. No real application pass is claimed from implementation fixtures.
 
 - [Adapter evaluation](docs/adapter-evaluation.md): both candidates exercised on Android and iPhone; Appium passed 11 iPhone checks and Mobile MCP passed 8 guarded iPhone smoke checks. Final application qualification remains open.
 - [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
@@ -72,3 +72,5 @@ Run development checks with bash scripts/check-development.sh. The [development 
 - [Offline mapping demonstration](examples/requirement-mapping/README.md): runnable synthetic report; no API key or phone needed.
 
 - [Shared run identity](docs/run-identity.md): identical UTC timestamps for work/report names, safe collisions, retained metadata, and cleanup/portability checks.
+
+- [Retained work and replay](docs/work-retention-and-replay.md): deletion only before cloning, unchanged build properties, and reuse of built apps.

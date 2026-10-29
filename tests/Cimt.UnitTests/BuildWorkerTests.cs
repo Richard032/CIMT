@@ -5,7 +5,7 @@ namespace Cimt.UnitTests;
 public sealed class BuildWorkerTests
 {
     [Fact]
-    public void AndroidRequiresApkWithoutChangingTheSuppliedProperties()
+    public void AndroidPreservesAnExplicitPackageFormat()
     {
         var request = Request("android") with
         {
@@ -15,19 +15,52 @@ public sealed class BuildWorkerTests
             }
         };
         var arguments = BuildCommands.Publish(request, "/output");
-        Assert.Contains("-p:AndroidPackageFormats=apk", arguments);
+        Assert.Contains("-p:AndroidPackageFormats=aab", arguments);
+        Assert.DoesNotContain("-p:AndroidPackageFormats=apk", arguments);
         Assert.Equal("aab", request.Properties["AndroidPackageFormats"]);
     }
 
-    [Fact]
-    public void IosUsesThePhysicalDeviceBuildSettingsForBothCommands()
+    [Theory]
+    [InlineData("android")]
+    [InlineData("ios")]
+    public void MissingPropertiesAreLeftToTheProjectForBothCommands(string platform)
     {
-        var request = Request("ios");
+        var request = Request(platform);
         foreach (var arguments in new[] { BuildCommands.Publish(request, "/output"), BuildCommands.Metadata(request) })
         {
-            Assert.Contains("-p:RuntimeIdentifier=ios-arm64", arguments);
-            Assert.Contains("-p:BuildIpa=true", arguments);
+            Assert.DoesNotContain(arguments, argument => argument.StartsWith("-p:")
+                && !argument.StartsWith("-p:Configuration=") && !argument.StartsWith("-p:TargetFramework="));
         }
+    }
+
+    [Fact]
+    public void IosPreservesExplicitRuntimeAndArchiveSettings()
+    {
+        var request = Request("ios") with
+        {
+            Properties = new()
+            {
+                ["RuntimeIdentifier"] = "iossimulator-x64",
+                ["BuildIpa"] = "false",
+                ["ArchiveOnBuild"] = "false"
+            }
+        };
+        foreach (var arguments in new[] { BuildCommands.Publish(request, "/output"), BuildCommands.Metadata(request) })
+        {
+            Assert.Contains("-p:RuntimeIdentifier=iossimulator-x64", arguments);
+            Assert.Contains("-p:BuildIpa=false", arguments);
+            Assert.Contains("-p:ArchiveOnBuild=false", arguments);
+        }
+    }
+
+    [Fact]
+    public void MissingInstallableOutputExplainsHowToConfigureTheBuild()
+    {
+        using var temporary = new TestDirectory();
+        File.WriteAllText(Path.Combine(temporary.Path, "app.aab"), "fixture");
+        var error = Assert.Throws<InvalidOperationException>(() => BuildArtifacts.Resolve(Request("android"), temporary.Path));
+        Assert.Contains("No installable APK", error.Message);
+        Assert.Contains("did not override", error.Message);
     }
 
     [Theory]

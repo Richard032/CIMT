@@ -98,8 +98,7 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
         if (!await SaveArtifact(state, job))
             return;
         RecordStage(state, job, "passed");
-        // The saved artifact survives cleanup; publish intermediates do not.
-        Directory.Delete(job.Folder, recursive: true);
+        // Keep publish output and intermediates until the next clone for these inputs.
     }
 
     private static void SetBuildEnvironment(RunState state, BuildJob job)

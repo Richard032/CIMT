@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.15  
+Version: 0.16  
 Last updated: 29 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -900,3 +900,17 @@ The failing command came from FirstRun/build/prebuild.targets, injected by the e
 Correction: replace the separate input folder's build/build.sh with the updated example script and remove the obsolete build/macos.targets and build/prebuild.targets files. FirstRun has been updated. The adapter now changes only the exact known Windows resource-copy command in the temporary cloned project, then calls the installed default Android/iOS worker. It does not inject a tagger, Mono, global imports, or properties. Other project-configured tools and Visual Studio/MSBuild integration remain in place. No installed host, worker, dependency, private YAML, application branch, or user build configuration needs changing for this fix. The recorded targets retain the user's Release configuration values despite their Debug labels.
 
 Verification: four example MSBuild fixture tests and four default-worker contract checks passed. They cover copying with no tagger, preservation of project-defined tools and configured properties, unrelated pre-build steps, unchanged requests, target conditions, and both platform delegates. Shell syntax and FirstRun/source script equality checks passed. These are synthetic checks, not real MAUI builds. The assistant did not rerun CIMT; signing, compilation, installation, and actual application testing remain for the user's next run. Reports and private configuration were preserved.
+
+## 28. Retain work, preserve build properties, and replay built apps
+
+The product owner replaced deletion after execution with retention until the next clone for the same inputs. Install updated host and build-worker assemblies using section 15's publish commands. No new dependency, API key, private YAML change, phone helper, or Python module is required. Retained ownership records migrate from the earlier single-object format without losing ownership proof. New records preserve work across different input folders.
+
+Finalization keeps checkout/publish/intermediate files, stops the owned helper, saves/redacts its log, and releases a successfully stopped helper's short link. A failed stop leaves the verified link for next-run recovery. Before a later normal Git clone, only earlier verified work for those inputs is removed. Preflight failures, validation, and replay do not clear it. Reports/artifacts remain. Existing work already deleted by an older CIMT cannot be recovered by this change.
+
+The default worker no longer injects AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild. It preserves explicit YAML values and project/SDK defaults; no FirstRun properties were rewritten. Installable APK/IPA output remains necessary for device testing. Missing output is explained rather than followed by an implicit property change/rebuild.
+
+A completed build stage with successful apps creates per-input retained-builds.json with original run/repository/branch/commit/profile, relative report artifacts, and digests. cimt replay --config ./default.private.yaml --run-config ./application.yaml reuses those apps with current text inputs and credentials, verifies paths/profile/integrity, and creates a new report. There is no Git/restore/build stage, no deletion of prior work, and no automatic rebuild on cache failure. Saved action-history replay remains explicitly unfinished. See the [workflow](work-retention-and-replay.md).
+
+Verified: 237 .NET unit tests, 155 Python checks, 20 CLI/lifecycle checks, four build-contract checks, four example-adapter checks, and five public output-layout checks passed: 425 checks total. The complete suite passed before the final helper-stop recovery case; the updated .NET and CLI suites passed again after that change. The replay fixture disables Git/build commands and verifies identical app bytes and retained work. These checks use synthetic inputs and existing test projects; they do not establish a real MAUI build or device replay.
+
+Installed both updated Release assemblies on this Mac and verified byte equality with their tested local build outputs. Installed cimt.dll SHA-256: 95ddeaf75e96bf06db53c353fd1b30485ed043460be5cbb29ac28d6596a9f97f. Installed cimt-build.dll SHA-256: 98f3e8d52793a477d5df76827d710419fedee107ee0b36c6ecbab62cc04dd141. Public cimt --help succeeded. No Python modules or dependencies changed. No private configuration was read, and the assistant started no real application run; the user controls the next run.

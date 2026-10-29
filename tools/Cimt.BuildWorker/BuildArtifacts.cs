@@ -20,6 +20,9 @@ public static class BuildArtifacts
             if (File.Exists(fallback))
                 return fallback;
         }
+        if (candidates.Length == 0)
+            throw new InvalidOperationException("No installable " + (request.Platform == "android" ? "APK" : "IPA")
+                + " was produced. Configure the project/build properties to produce one, or use a replacement script. CIMT did not override the build properties.");
         throw new InvalidOperationException("Publish did not produce one unambiguous installable artifact; configure artifact fallback or a replacement script.");
     }
 

@@ -23,7 +23,7 @@ public sealed class CommandSession(DateTimeOffset started)
 /// <summary>Routes one command to a handler and converts failures into reports.</summary>
 public sealed class CommandApplication(IConfigurationLoader configurations, IReadinessValidator readiness,
     RunApplication run, ICommandReports reports, RunFolderAllocator folders, Func<IDisposable> acquireLock,
-    TextWriter output, TextWriter errors, TimeProvider? clock = null)
+    TextWriter output, TextWriter errors, TimeProvider? clock = null, RunApplication? replay = null)
 {
     /// <summary>Route one command and write a safe error report if it fails.</summary>
     public async Task<int> Run(string[] arguments)
@@ -61,6 +61,12 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
         await reports.SaveConfiguration(session);
         if (options.Command == "run")
             return await run(session.Configuration, session.Folders);
+        if (options.Command == "replay" && replay is not null)
+        {
+            if (options.Values.ContainsKey("--scenario"))
+                throw new ConfigurationException("Saved action-history replay is not implemented yet. Omit --scenario to execute current instructions using retained app builds.");
+            return await replay(session.Configuration, session.Folders);
+        }
         if (options.Command != "validate")
             throw new ConfigurationException("The " + options.Command + " execution engine is not implemented yet. No application was built, installed, reset, or tested.");
         return await Validate(session);

@@ -91,7 +91,8 @@ Run this installed command from any folder; configuration and inputs need not li
 in the CIMT source checkout. The folder containing --run-config is the input folder,
 or --config when no override is supplied. Users supply inputs only. CIMT creates
 CIMT output/reports/report_<date-time> and CIMT output/work/work_<date-time>
-under that input folder. Temporary source is removed after the run. Screenshots, actions,
+under that input folder. Work and publish output remain after execution and are
+replaced only immediately before a new clone for these inputs. Screenshots, actions,
 interpretations, crashes, blocked paths, and coverage must be described in HTML.
 All reachable buttons is an exploration objective; hidden/equipment-dependent
 states and exhausted limits must be reported honestly.
@@ -110,3 +111,13 @@ iOS uninstall/reinstall verifies the app container, not Keychain or remote backe
 state. Supply reset.command/reset.verify-command when application state requires
 additional reset. Named credential entry requires a stable element identifier so
 screenshots can be masked reliably; unavailable masking stops the run.
+
+## Replay the retained app
+
+After a completed build stage with a successful app, run the same inputs without cloning/building:
+
+```bash
+cimt replay --config ./default.private.yaml --run-config ./application.example.yaml
+```
+
+Replay uses the latest published app set for this input folder, current text inputs and credentials, and a new report. It verifies original build identity, branch/profile compatibility, paths, and artifact digests. Earlier work remains. No retained build means an explicit error, not an automatic build. Saved-action-history replay with --scenario is not implemented. The default worker now preserves project/default properties; explicitly configure APK/IPA output when the project needs it. See [retention and replay](../../docs/work-retention-and-replay.md).

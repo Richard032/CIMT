@@ -37,7 +37,7 @@ public sealed class NativeHomeLink
         var target = Path.GetFullPath(link.LinkTarget, "/tmp");
         if (target != Path.GetFullPath(expectedTarget))
             throw new IOException("The native helper link target does not match this run.");
-        // Delete the link only. The work-folder manager deletes the owned target later.
+        // Delete the link only. Retained work is removed before a later clone.
         File.Delete(LinkPath);
     }
 }

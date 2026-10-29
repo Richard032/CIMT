@@ -62,7 +62,7 @@ Resolved on follow-up: the product owner unlocked the phone; a fresh guarded iPh
 - The existing key has been configured locally and one user-started run passed model-access preflight. Qualify inference and the real application run; a later network/TLS failure motivated optional network checkpoints.
 - Verify real APK/IPA builds through the configured macOS adapter and refreshed signing profiles.
 - Qualify the implemented lifecycle, scheduling, budget reservations, reset/login, masking, evidence, and crash recovery against the real application.
-- Complete semantic scenario decomposition, setup/replay, adaptive replay, and real-app requirement-outcome acceptance.
+- Complete semantic scenario decomposition, setup, saved-action-history/adaptive replay, and real-app requirement-outcome acceptance. Current-instruction replay using retained apps is implemented below.
 - Complete runnable user command/reset demos, manifest-driven provisioning, Jenkins and second-Intel-Mac acceptance.
 - Move CIMT's own repository to Subgit later when the destination/migration is supplied.
 
@@ -244,3 +244,17 @@ Verified: four example MSBuild fixture tests and four default-worker contract ch
 The 29 October [hardcoded-behavior audit](reviews/2026-10-29-hardcoded-behavior-audit.md) confirms remaining exploration rules applied to exact tests, unconditional default-worker property overrides, fixed crash-as-failure policy, and an unconfigurable external-app restriction. It distinguishes these from explicit FirstRun copy/identity settings, known single-objective/model/context limitations, and approved fixed product rules. H1 and H3 overlap previously open design findings; they are not closed by the tagger correction.
 
 Installed consistency checks match 32 source/build-output files with no extra Python module. No runtime/configuration behavior, requirement baseline, private YAML, app source, or device state was changed during the audit. No real run, application build, or API call was performed. The report records evidence and required follow-up rather than claiming that CIMT is fully generic or release-complete.
+
+## Increment — work retention, preserved properties, and retained-app replay
+
+Done: work and publish folders remain after finalization. Older verified work for the same inputs is removed only at the next clone boundary, after preflight/device checks and any acknowledgement. Other input folders/reports are protected. Ownership records support multiple retained work folders and the legacy record format. Owned helper recovery preserves work; unsuccessful stops retain the verified link. Helper logs are redacted in work and report copies.
+
+Done: default build commands forward explicit properties unchanged and leave omitted values to the selected project/SDK. The four unconditional packaging/runtime/archive assignments were removed. Missing installable APK/IPA output reports the needed configuration instead of silently rewriting it. Audit finding H2 is resolved for the tested implementation.
+
+Done: a completed build stage's successful apps are published in per-input retained-builds.json. Replay without --scenario loads/verifies/copies those already built apps, uses current instructions/requirements/setup and credentials, applies normal limits/device policies, preserves work, and creates a new report with original build provenance. Its ordered path has no Git/submodule/restore/build steps and no fallback rebuilding. The original binary identity/compiled settings are retained. Saved-action-history adaptation and the other audit/scenario acceptance gaps remain unfinished.
+
+Requirements v0.11, architecture v0.17, product/installation guides, examples, and FirstRun public documentation are aligned. Private configuration, application.yaml, developer repositories, and existing reports are preserved.
+
+Verified: 425 offline checks passed across the existing .NET/Python/CLI/build/example/layout suites. After the final helper-stop recovery change, 237 .NET tests and 20 CLI checks passed again. The public replay fixture reaches its fake UI worker with Git and build commands disabled; its artifacts are identical to the original build. Normal-run fixtures preserve work during preflight and remove earlier work only at the next clone boundary.
+
+Installed and byte-verified the host/build-worker Release assemblies; public help passed. Installation section 28 records hashes. No API call, real app build, device action, private configuration read, or user test run was performed. Real application build/replay acceptance remains for the user.

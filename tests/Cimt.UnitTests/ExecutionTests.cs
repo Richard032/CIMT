@@ -72,7 +72,7 @@ public sealed class ExecutionTests
         var cleanup = new FakeCleanup(calls) { Fail = true };
         var state = State();
         Assert.Equal(3, await new RunCoordinator([], cleanup, new FakeReport(calls)).Execute(state));
-        Assert.Contains(state.Errors, error => error.Contains("cleanup requires attention"));
+        Assert.Contains(state.Errors, error => error.Contains("finalization requires attention"));
         Assert.Equal(["cleanup", "report"], calls);
     }
 

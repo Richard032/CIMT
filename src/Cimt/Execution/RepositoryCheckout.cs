@@ -1,7 +1,7 @@
 namespace Cimt;
 
 /// <summary>Checks out the requested branch and its recorded submodule commits.</summary>
-public sealed class RepositoryCheckout(RunProcess processes, IRunProgress progress) : IRunStep
+public sealed class RepositoryCheckout(RunProcess processes, IRunProgress progress, WorkDirectoryManager folders) : IRunStep
 {
     public async Task Execute(RunState state)
     {
@@ -22,6 +22,7 @@ public sealed class RepositoryCheckout(RunProcess processes, IRunProgress progre
     private async Task Clone(RunState state, Node repository, string clone)
     {
         progress.Write(state, "Cloning the configured branch");
+        folders.CleanupPrevious(state.Report, state.Work);
         var result = await processes.Invoke(state, "git", ["clone", "--depth", "1", "--branch",
             repository.Value("branch")!, "--single-branch", repository.Value("url")!, clone], 180);
         RequireSuccess(state, result, "Git clone failed: ");

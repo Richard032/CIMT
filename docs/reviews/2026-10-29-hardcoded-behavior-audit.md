@@ -76,3 +76,7 @@ At most two active devices, startup-only device enumeration, reset before each s
 The implementation still contains assumptions from the initial example. H1 and H2 are the closest remaining cases to the tagger mistake: generic execution imposes behavior instead of preserving the requested scope or settings. H3 and H4 require explicit policy alignment. The copy adaptation and app-ID values remain visible application-specific inputs.
 
 This audit records these differences without changing requirements to fit the code. No tests were added or run because behavior was not changed; conclusions come from source review, existing test inspection, and installed-file comparisons. A fix should use the existing test projects/frameworks and verify the user's required behavior, including counterexamples, rather than encode another workaround as the expected result.
+
+## H2 correction — retained-work increment
+
+The product owner requested the build-property fix. BuildCommands now forwards only declared properties; omitted values are evaluated by the project/SDK. Explicit Android/iOS values are preserved for publish and metadata. Missing APK/IPA output produces a clear error rather than a forced profile. H2 is resolved for the tested default-worker implementation; other findings are unchanged. The accompanying user-approved lifecycle change retains work until the next clone and adds current-instruction replay using retained apps. See [retention and replay](../work-retention-and-replay.md).

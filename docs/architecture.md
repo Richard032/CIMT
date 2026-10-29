@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.16  
+Version: 0.17  
 Date: 29 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -54,7 +54,7 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 | OpenAI gateway | Centralize model access, redact inputs, constrain output, account usage, and reserve maximum cost. |
 | Evidence store | Persist events, screenshots, actions, findings, statuses, and redacted metadata incrementally. |
 | Report renderer | Produce local HTML with relative evidence links, including a partial report without further AI calls. |
-| Finalizer | Stop workers, settle accounting, render report, remove only owned clones, and release host lock. |
+| Finalizer | Stop workers, settle accounting, render report, retain work and evidence, and release host lock. |
 
 ## 3. Proposed execution lifecycle
 
@@ -69,11 +69,11 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 9. For each scenario: reset application state, perform required setup/login, execute exact or exploratory actions, and persist screenshots and observations after each step.
 10. Recover app crashes. On the third matching same-point crash, cancel that scenario only. Continue other scenarios.
 11. Stop on completed coverage, run deadline, budget exhaustion, user interruption, or a blocking infrastructure failure. Cancel active work through the orchestrator, not independent worker decisions.
-12. Finalize observations into HTML, preserve evidence, delete the run clone, and release the lock.
+12. Finalize observations into HTML, stop/release the owned helper, retain work/build outputs/evidence, and release the lock. Earlier work for those inputs is removed only immediately before a later clone.
 
 The report must survive a failure of the model service. Reporting and cleanup cannot depend on another paid AI request.
 
-Hard termination, power loss, or host failure cannot guarantee immediate cleanup. Approved recovery: record clone ownership before use, detect interrupted runs on the next startup, remove abandoned CIMT-owned clones, preserve evidence/reports, and record the interruption. Never delete unrelated folders.
+Hard termination or host failure cannot guarantee helper shutdown. Record ownership before use, stop/release verified abandoned helpers on a later run, and preserve work/reports. Earlier work for those inputs is removed only at a new clone boundary; see section 20. Never delete unrelated folders.
 
 ## 4. Configuration and filesystem proposal
 
@@ -220,7 +220,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Configuration / CLI | setup/validate/run/replay, three YAML files, reviewed fields and path rules approved; full schema and unreviewed options remain open. |
 | Credential masking | Private YAML, direct entry, screenshot/UI masking, application rules, stop on required masking failure approved; validate implementation. |
 | Reproducible Mac setup | Pinned manifest, reuse compatible tools, silent replacement of incompatible required tools, resumable setup, and setup report approved; validate on second Intel Mac. |
-| Interrupted cleanup | Ownership tracking and next-launch cleanup approved. |
+| Interrupted cleanup | Recover owned helpers without deleting work; replace earlier verified work only before a new clone for the same inputs. |
 | Adaptive replay | Invocation/current-config/new-report behaviour approved; cross-device portability details open. |
 | Branch comparison | Deferred beyond initial release. |
 
@@ -230,12 +230,12 @@ The product owner confirmed the reviewed requirements and architecture policies 
 
 ## 12. Approved command and configuration contracts
 
-The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate, default build workers, and an initial run engine now exist; setup/replay execution remains pending. See section 14 for implementation limits.
+The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate, default build workers, and an initial run engine now exist; setup and saved-action-history replay remain pending; current-instruction replay reuses retained builds. See sections 14 and 20 for implementation limits.
 
 - setup consumes setup.yaml, including the installation root, tested toolchain manifest, and optional application validation configuration.
 - default.yaml supplies shared settings. app.yaml is a reusable per-run override. ai-model and ai-budget are separate sections.
 - validate performs configuration, file/URL, Git/branch, dependency, device, credential-presence, and model/budget configuration checks. It does not build/install/reset or issue paid AI calls. It produces a local HTML report.
-- run builds and tests. replay applies current configuration to a saved scenario and records new evidence separately.
+- run builds and tests. replay reuses retained apps with current inputs and records new evidence separately. Saved-scenario history/adaptation under FR-22 remains unfinished.
 - Repository URL/branch/solution are explicit; no default branch is assumed.
 - Instruction text is required. Requirements and setup text are optional.
 - Device policy, at-most-two concurrency, and per-scenario reset are fixed. execution requires a positive whole-run time-limit-minutes and optionally accepts interactive-pauses (boolean, default false).
@@ -260,7 +260,7 @@ The command/configuration and script contracts above were approved through the p
 
 ## 14. Implementation increment and explicit limits
 
-The .NET CLI/configuration foundation, generic default build workers, and initial single-objective run engine now exist. See [implementation status](implementation-status.md) and [run-engine notes](run-engine.md). validate checks local configuration, inputs, Git branch/tool/device readiness and writes HTML. run orchestrates a disposable branch clone, recorded submodules, builds, and a Python worker using Mobile MCP. The worker schedules all startup devices with at most two active, uses bounded OpenAI action selection, and records local evidence. This integration uses Mobile MCP provisionally; it does not close final adapter qualification. setup and replay still return explicit errors.
+The .NET CLI/configuration foundation, generic default build workers, and initial single-objective run engine now exist. See [implementation status](implementation-status.md) and [run-engine notes](run-engine.md). validate checks local configuration, inputs, Git branch/tool/device readiness and writes HTML. run orchestrates a disposable branch clone, recorded submodules, builds, and a Python worker using Mobile MCP. The worker schedules all startup devices with at most two active, uses bounded OpenAI action selection, and records local evidence. This integration uses Mobile MCP provisionally; it does not close final adapter qualification. setup and saved-action-history replay return explicit errors; replay without --scenario reuses retained apps as described in section 20.
 
 The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from snapshots and diagnostics. The support worker implements element-ID masking before screenshot storage or AI submission; missing reliable geometry stops execution. Named credentials are entered directly by the host. These paths have simulated checks but still need application acceptance.
 
@@ -314,4 +314,12 @@ An enabled checkpoint requires non-redirected input and records waiting/continue
 
 The repository checkout and its selected project/configuration own application tool integration. The default build worker passes configured properties and publishes the cloned project. Application-specific scripts may adapt a known platform command in the disposable clone, but must preserve other steps, imported targets, conditions, and supplied properties. An adapter must not recreate a tool invocation removed by a newer branch.
 
-The corrected ECON example reads the current build request only to locate the cloned project. It replaces one exact Windows copy Exec with a portable MSBuild Copy in that file, preserving its surrounding target and all other content. If the known command is absent or duplicated, it leaves the project unchanged. It does not add global MSBuild imports or Mono properties, modify the request, or inject CuRMiTagger. Existing project-configured tool integrations remain authoritative. The action is logged and the clone is removed under normal cleanup. Source/branch changes are not committed to the application repository. See FR-58/AC-31 and the build-script contract.
+The corrected ECON example reads the current build request only to locate the cloned project. It replaces one exact Windows copy Exec with a portable MSBuild Copy in that file, preserving its surrounding target and all other content. If the known command is absent or duplicated, it leaves the project unchanged. It does not add global MSBuild imports or Mono properties, modify the request, or inject CuRMiTagger. Existing project-configured tool integrations remain authoritative. The action is logged and the clone remains until replacement immediately before a later clone for these inputs. Source/branch changes are not committed to the application repository. See FR-58/AC-31 and the build-script contract.
+
+## 20. Retained work, explicit properties, and build reuse
+
+The [current retention/replay contract](work-retention-and-replay.md) supersedes earlier deletion-after-execution and next-start clone-cleanup descriptions. WorkDirectoryManager stores verified ownership records across inputs and retains legacy record compatibility. WorkPreparation recovers a linked owned helper without deleting its work, then creates a new paired work folder. RepositoryCheckout deletes only older verified work for the same inputs immediately before clone. RunCleanup stops the helper, preserves/redacts its log, and releases only a successfully stopped helper's link. ApplicationBuilder leaves publish folders/intermediates intact.
+
+BuildCommands forwards the declared property map without adding AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild. Project/SDK evaluation owns omitted values. Missing APK/IPA output is reported; no implicit property rewrite or rebuild occurs.
+
+RetainedBuildStore records one completed build stage's successful artifacts in per-input retained-builds.json, with profile/source identity, report-relative paths, and SHA-256. Replay uses a separate ordered path: current input loading, retained-build/profile/integrity validation and copying, work/helper preparation, normal model/device checks, and UI execution. It contains no repository or application-build steps. A new report records command=replay and the source build run/commit. Cache failure never enters a normal-build fallback. The original app identity/compiled settings remain authoritative; current credentials and test inputs are used. Saved-action-history/adaptive replay remains explicitly unfinished.

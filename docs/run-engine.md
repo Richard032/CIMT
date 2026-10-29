@@ -14,7 +14,7 @@ The Python support worker uses the installed Mobile MCP server and its native he
 
 Before each objective the app is reinstalled; Android data clear is verified. Optional reset and verification hooks receive CIMT_TARGET, CIMT_DEVICE, and CIMT_APP_ID, with their working directory resolved from the declaring YAML. iOS reinstall verifies the app container; Keychain/backend state requires app-specific hooks. Reset or masking failures stop the run. A locked device receives no application actions and is marked incomplete.
 
-The native daemon has a run-specific home. Ownership markers and a registry restrict clone cleanup to CIMT-created work, including interrupted work on the next run. Reports survive cleanup. This does not delete the developer's existing checkout.
+The native daemon has a run-specific home. Ownership records retain work across input folders. Finalization stops the helper and preserves work; only a new clone removes older verified work for those same inputs. Reports remain separate. The developer checkout is never adopted or deleted.
 
 ## AI limits and evidence
 
@@ -67,3 +67,7 @@ Run folders now use one [shared identity](run-identity.md) from invocation throu
 ## Build-adapter correction
 
 The source branch testing/curmitAndNugets at 8b50dd12f65e0f3ffd9f8df68013d56601473f45 matches the user's latest recorded checkout and removes the legacy tagger from PreBuild. The earlier local example adapter reintroduced it through an unconditional target override. That override is now removed. The example changes only the exact Windows resource-copy command in the disposable clone and leaves project-configured tools, imports, properties, conditions, and other steps intact. No change to the core branch-selection or default build-worker code was needed. Real application acceptance still depends on a user-started retry.
+
+## Retention and replay increment
+
+Current behavior is defined in [work retention and replay](work-retention-and-replay.md). Publish intermediates are retained. Explicit build properties are unchanged and omitted properties are left to the project. After a completed build stage, successful apps are recorded with provenance/digests. cimt replay uses those retained artifacts with current instructions, creates a new report, and has no Git/restore/build steps. Missing/changed/profile-mismatched apps stop rather than rebuild. The public regression disables Git and build fixture commands while replay still reaches its fake UI worker. Saved-action-history replay and the other listed acceptance gaps remain unfinished.

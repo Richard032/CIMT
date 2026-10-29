@@ -13,19 +13,6 @@ public static class BuildCommands
             .Concat(PropertyArguments(request)).ToArray();
 
     private static IEnumerable<string> PropertyArguments(BuildRequest request) =>
-        EffectiveProperties(request).Select(property => "-p:" + property.Key + "=" + property.Value);
-
-    public static Dictionary<string, string> EffectiveProperties(BuildRequest request)
-    {
-        var properties = new Dictionary<string, string>(request.Properties);
-        if (request.Platform == "android")
-            properties["AndroidPackageFormats"] = "apk";
-        else
-        {
-            properties["RuntimeIdentifier"] = "ios-arm64";
-            properties["BuildIpa"] = "true";
-            properties["ArchiveOnBuild"] = "true";
-        }
-        return properties;
-    }
+        // Missing values belong to the selected project and SDK, not to CIMT defaults.
+        request.Properties.Select(property => "-p:" + property.Key + "=" + property.Value);
 }

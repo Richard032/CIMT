@@ -6,6 +6,15 @@ namespace Cimt.UnitTests;
 public sealed class BuildIntegrationTests
 {
     [Fact]
+    public async Task SuccessfulBuildKeepsItsPublishFolder()
+    {
+        using var fixture = new BuildFixture();
+        var job = fixture.Job("retained");
+        await fixture.Builder.Build(fixture.State, job);
+        Assert.True(Directory.Exists(job.Folder));
+    }
+
+    [Fact]
     public async Task SuccessfulScriptCanUseYamlWithoutAResultFile()
     {
         using var fixture = new BuildFixture();

@@ -8,14 +8,15 @@ with tempfile.TemporaryDirectory(prefix='cimt-build-contract-') as tmp:
  root=pathlib.Path(tmp);bin=root/'bin';bin.mkdir();(root/'App.csproj').write_text('<Project />')
  fake=bin/'dotnet'
  fake.write_text('''#!/usr/bin/env python3
-import os,sys,pathlib
+import os,sys,pathlib,json
 args=sys.argv[1:]
 if args[0]=='msbuild':print('com.example.fixture');sys.exit(0)
 assert args[0]=='publish'
 assert '-c' in args and '-f' in args
 platform=os.environ['FIXTURE_PLATFORM']
-if platform=='ios':assert '-p:RuntimeIdentifier=ios-arm64' in args and '-p:BuildIpa=true' in args
-else:assert '-p:AndroidPackageFormats=apk' in args
+provided=json.loads(pathlib.Path(os.environ['CIMT_BUILD_REQUEST']).read_text())['properties']
+actual=dict(arg[3:].split('=',1) for arg in args if arg.startswith('-p:'))
+assert actual==provided, 'Configured build properties were changed'
 print('fixture credential: synthetic-signing-secret')
 if os.environ['FIXTURE_MODE']=='fail':sys.exit(42)
 out=pathlib.Path(args[args.index('--output')+1]);out.mkdir(exist_ok=True)

@@ -36,7 +36,7 @@ Request example:
 }
 ```
 
-Project paths remain relative to the clone root. Properties are application-specific scalar MSBuild values. Android defaults request APK output. iOS defaults request physical ios-arm64 IPA output. The scripts do not automatically alter source code or skip repository build targets.
+Project paths remain relative to the clone root. Properties are application-specific scalar MSBuild values. The worker forwards only explicit properties; omitted packaging/runtime/archive values remain under project/SDK control. It searches for installable APK/IPA output and reports a clear error if none is produced. It does not force physical/output flags or silently rebuild with changed values. The generic defaults do not alter source code or skip repository build targets.
 
 Success writes absolute artifact and app-id JSON to CIMT_BUILD_RESULT, separately from build logs. MSBuild-derived values take precedence over configured fallbacks. Multiple signed artifacts are rejected unless an explicit fallback resolves the choice. A previous result file is removed before building so failure cannot reuse stale metadata.
 
@@ -97,3 +97,7 @@ have been removed. No replacement tagger is added. Four existing example checks
 now verify copying without a tagger, project-configured tool/property preservation,
 other pre-build behavior, and conditions. All four default-worker contract checks
 also pass. Real MAUI builds and signing remain unverified after this correction.
+
+## Retained build output
+
+CIMT now retains work/publish folders after execution and removes older verified work only immediately before the next clone for the same inputs. Successful report artifacts are indexed after the build stage for replay without cloning/building. See [retention and replay](work-retention-and-replay.md), including optional explicit APK/IPA properties and saved-history replay limits. This supersedes the historical clone-cleanup descriptions above.

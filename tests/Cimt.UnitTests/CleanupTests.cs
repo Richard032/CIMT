@@ -6,29 +6,40 @@ namespace Cimt.UnitTests;
 public sealed class CleanupTests
 {
     [Fact]
-    public async Task SuccessfulHelperStopRemovesOwnedWork()
+    public async Task FailedStopKeepsTheOwnedLinkForNextLaunchRecovery()
+    {
+        using var fixture = new CleanupFixture();
+        fixture.PrepareNativeHome();
+        await fixture.Cleanup(new FakeCommandRunner { Result = new(1, "", "fixture") });
+        Assert.Equal(Path.Combine(fixture.State.Work, "mobilecli"),
+            new DirectoryInfo(fixture.State.Environment["MOBILECLI_HOME"]).LinkTarget);
+        Assert.True(Directory.Exists(fixture.State.Work));
+    }
+
+    [Fact]
+    public async Task SuccessfulHelperStopKeepsOwnedWork()
     {
         using var fixture = new CleanupFixture();
         await fixture.Cleanup(new FakeCommandRunner());
-        Assert.False(Directory.Exists(fixture.State.Work));
+        Assert.True(Directory.Exists(fixture.State.Work));
         Assert.Equal(0, fixture.State.Exit);
     }
 
     [Fact]
-    public async Task NonzeroHelperExitStillRemovesOwnedWork()
+    public async Task NonzeroHelperExitKeepsOwnedWork()
     {
         using var fixture = new CleanupFixture();
         await fixture.Cleanup(new FakeCommandRunner { Result = new(9, "", "") });
-        Assert.False(Directory.Exists(fixture.State.Work));
+        Assert.True(Directory.Exists(fixture.State.Work));
         Assert.Equal(3, fixture.State.Exit);
     }
 
     [Fact]
-    public async Task HelperExceptionStillRemovesOwnedWork()
+    public async Task HelperExceptionKeepsOwnedWork()
     {
         using var fixture = new CleanupFixture();
         await fixture.Cleanup(new ThrowingCommand());
-        Assert.False(Directory.Exists(fixture.State.Work));
+        Assert.True(Directory.Exists(fixture.State.Work));
         Assert.Equal(3, fixture.State.Exit);
         Assert.Single(fixture.State.Errors);
     }
@@ -70,7 +81,7 @@ public sealed class CleanupTests
         await fixture.Cleanup(new FakeCommandRunner());
         var retained = Path.Combine(fixture.State.Report, "logs", "native-daemon.log");
         Assert.Equal("helper failed", await File.ReadAllTextAsync(retained));
-        Assert.False(Directory.Exists(fixture.State.Work));
+        Assert.True(Directory.Exists(fixture.State.Work));
     }
 
     [Fact]
@@ -86,6 +97,7 @@ public sealed class CleanupTests
         await fixture.Cleanup(new FakeCommandRunner());
         var retained = Path.Combine(fixture.State.Report, "logs", "native-daemon.log");
         Assert.Equal("failed <redacted>", await File.ReadAllTextAsync(retained));
+        Assert.Equal("failed <redacted>", await File.ReadAllTextAsync(Path.Combine(home, "daemon.log")));
     }
 }
 
@@ -109,7 +121,13 @@ internal sealed class CleanupFixture : IDisposable
     }
 
     public Task Cleanup(ICommandRunner runner) => new RunCleanup(runner, new RuntimePaths(directory.Path), folders).Execute(State);
-    public void Dispose() => directory.Dispose();
+    public void PrepareNativeHome() => State.Environment["MOBILECLI_HOME"] = folders.PrepareNativeHome(State.Work);
+    public void Dispose()
+    {
+        if (new DirectoryInfo(folders.NativeHomeAddress).LinkTarget is not null)
+            folders.ReleaseNativeHome(State.Work);
+        directory.Dispose();
+    }
 }
 
 internal sealed class ThrowingCommand : ICommandRunner

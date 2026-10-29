@@ -15,7 +15,7 @@ public sealed class RunReportWriter : IRunReportWriter
         WriteMachineResult(state, outcome, execution, coverage);
         var renderer = new RunHtmlRenderer(state.Configuration);
         File.WriteAllText(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage));
-        Console.WriteLine("CIMT run finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
+        Console.WriteLine("CIMT " + state.Command + " finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
         return outcome.ExitCode;
     }
 
@@ -29,7 +29,7 @@ public sealed class RunReportWriter : IRunReportWriter
     {
         var value = new
         {
-            command = "run",
+            command = state.Command,
             runIdentity = state.Identity,
             sourceBranch = state.Configuration.Root.Get("repository")!.Value("branch"),
             sourceCommit = state.Commit,

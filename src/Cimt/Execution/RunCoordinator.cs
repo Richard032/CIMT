@@ -67,7 +67,7 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         }
         catch (Exception error)
         {
-            state.Errors.Add("Owned clone cleanup requires attention: " + error.GetType().Name);
+            state.Errors.Add("Owned helper finalization requires attention: " + error.GetType().Name);
             state.Exit = 3;
         }
     }

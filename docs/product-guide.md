@@ -1,11 +1,11 @@
 # CIMT product documentation
 
-Version: 0.11  
+Version: 0.12  
 Date: 29 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
-**validate, default build workers, and an initial single-objective run engine are implemented. The real app test has not yet run with this engine. setup and replay report that they are unimplemented. See the [implementation status](implementation-status.md), [installation guide](installation.md), and [runnable main-branch example](../examples/econ-button-crash/README.md). Private keys are supplied locally; none are bundled.**
+**validate, default build workers, and an initial single-objective run engine are implemented. The real app test has not yet run with this engine. setup and saved-action-history replay remain unimplemented; replay without --scenario reuses built apps for current instructions. See the [implementation status](implementation-status.md), [installation guide](installation.md), and [runnable main-branch example](../examples/econ-button-crash/README.md). Private keys are supplied locally; none are bundled.**
 
 ## 1. Purpose and environment
 
@@ -24,7 +24,7 @@ cimt setup --config setup.yaml
 cimt validate --config default.yaml --run-config app.yaml
 cimt run --config default.yaml --run-config app.yaml
 cimt run --config default.yaml --run-config app.yaml --branch feature-to-test
-cimt replay --config default.yaml --run-config app.yaml --scenario <saved-scenario-path>
+cimt replay --config default.yaml --run-config app.yaml
 ```
 
 | Command | Responsibility |
@@ -32,7 +32,7 @@ cimt replay --config default.yaml --run-config app.yaml --scenario <saved-scenar
 | setup | Prepare the Mac from installation settings and tested toolchain manifest; optionally validate a configured application's readiness. |
 | validate | Check configuration, required values, paths/text inputs, Git access/branch, tool/device readiness, credential presence, and model/budget configuration. Produce local HTML without build, installation, reset, or paid AI calls. Actual login, signing, and model access are verified during execution. |
 | run | Clone, build configured targets, and execute testing instructions on startup devices. |
-| replay | Execute a saved scenario against the current repository/branch/build configuration, adapting navigation where needed and creating a new report. |
+| replay | Reuse the latest retained app builds for these inputs, execute current text instructions, and create a new report without Git or builds. Saved-action-history replay remains unfinished. |
 
 The reviewed syntax above is approved. Additional flags, help output, configuration discovery, and detailed process contracts still require specification. CIMT asks no runtime clarification questions about test instructions. Optional execution checkpoints described below ask only for operational acknowledgement.
 
@@ -207,11 +207,11 @@ FirstRun/
   inputs/
   build/                                   # only if custom scripts are needed
   CIMT output/                             # CIMT creates everything below here
-    work/work_2026-10-29_14-30-00-123/       # temporary
+    work/work_2026-10-29_14-30-00-123/       # retained until a later clone
     reports/report_2026-10-29_14-30-00-123/  # retained
 ```
 
-Both use the same UTC timestamp with millisecond precision. A collision advances both names together by one millisecond; it never adds a separate suffix, reuses existing data, or changes the actual start/deadline. run-identity.json retains the paired names and identity beside the report. See [run identity](run-identity.md). Reports must sit outside the temporary cleanup folder. Each clone is deleted after success, failure, incompletion, or interruption; reports remain until manually deleted.
+Both use the same UTC timestamp with millisecond precision. A collision advances both names together by one millisecond; it never adds a separate suffix, reuses existing data, or changes the actual start/deadline. run-identity.json retains the paired names and identity beside the report. See [run identity](run-identity.md). Reports sit outside work replaced before a later clone. Work, publish folders, and intermediates remain after execution. Earlier verified owned work for these inputs is removed only immediately before the next clone. Validation, preflight failure, and replay do not clear it. Reports remain until manually deleted.
 
 Legacy workspace.root/reports.root values still load but are ignored. CIMT prints a notice and records this in output-layout.json. reports.sections still selects report content. Missing/invalid YAML errors also stay below the selected input folder. If CIMT cannot safely write there, it reports the failure in the terminal instead of creating output elsewhere. Invalid command syntax without a selected input uses the launch folder. Installation tools and the machine-wide lock remain with the installation.
 
@@ -311,7 +311,7 @@ Without instruction-specific failure rules: confirmed requirement failures or ap
 
 Precedence when conditions coexist: **3 → 1 → 2 → 0**. All observations remain in the report.
 
-After power loss or forced termination, next-launch recovery removes abandoned CIMT-owned clones, preserves existing evidence/reports, and records the interruption.
+After power loss or forced termination, a later run recovers the verified owned helper and preserves work. Earlier owned work for these inputs is removed only at a new clone boundary; reports remain.
 
 ## 12. Reports and replay
 
@@ -329,7 +329,7 @@ Every meaningful device action or check is a step with its result and a screensh
 
 Keep the whole report folder when copying or archiving; evidence/actions/logs use relative references so the folder remains useful after clone deletion.
 
-Replay loads saved scenario objectives, expected results, and action history, then uses current repository/branch/build settings and credentials. It resets/setup/logs in, uses the same device/time/budget/crash rules, and creates a new report leaving the original unchanged. Navigation may adapt; record all deviations. Mark inconclusive if adaptation cannot preserve original meaning.
+Current replay uses the latest published successful app builds from this input folder with current instructions/requirements/setup and credentials. It performs normal reset/device/AI/masking/limit checks, verifies the original app digests and branch/profile compatibility, and creates a new report with the original build run/commit. It does not clone, restore, or build. Missing or incompatible retained apps fail explicitly. Build-property changes cannot alter an already built app; use run for a new build. Saved-action-history replay under FR-22 is unfinished and --scenario is explicitly rejected. See the [walkthrough](work-retention-and-replay.md).
 
 ## 13. Examples, demos, and Jenkins
 
@@ -377,3 +377,7 @@ The current worker records explicit instruction/requirement checks with expected
 ## Project-configured build steps
 
 The selected branch and configured project determine tool integrations, including CuRMiT configured through Visual Studio/MSBuild. CIMT must preserve those steps and imported targets. Application adapters must not force a tool that a branch removed. The ECON example now adapts only one exact Windows resource-copy command inside its temporary clone, records the change, and calls the installed default worker. It adds no tagger command or Mono dependency. If the command does not match, the project remains unchanged. See [FR-58/AC-31](requirements.md).
+
+## Build-property and work-retention update
+
+The default worker no longer forces packaging, runtime, or archive settings. YAML properties are forwarded unchanged; remaining values come from the selected project/SDK. Configure installable output explicitly when the project needs it. CIMT reports missing APK/IPA output rather than changing the settings automatically. Existing FirstRun YAML was preserved. See [retained work and replay](work-retention-and-replay.md) for lifecycle, optional explicit properties, replay provenance, and current limitations.

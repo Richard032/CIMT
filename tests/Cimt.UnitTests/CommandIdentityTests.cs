@@ -6,6 +6,23 @@ namespace Cimt.UnitTests;
 public sealed class CommandIdentityTests
 {
     [Fact]
+    public async Task ReplayUsesItsOwnExecutionPathUnderTheMacLock()
+    {
+        using var fixture = new CommandIdentityFixture();
+        Assert.Equal(0, await fixture.Execute("replay"));
+        Assert.True(fixture.ReplayCalled);
+        Assert.True(fixture.RunHeldLock);
+    }
+
+    [Fact]
+    public async Task UnsupportedSavedHistoryCannotBeSilentlyIgnored()
+    {
+        using var fixture = new CommandIdentityFixture();
+        Assert.Equal(3, await fixture.Execute("replay", "saved-actions.json"));
+        Assert.False(fixture.ReplayCalled);
+    }
+
+    [Fact]
     public async Task InvocationReadsTheClockOnceAndPassesItsIdentityToTheRun()
     {
         using var fixture = new CommandIdentityFixture();
@@ -88,6 +105,7 @@ internal sealed class CommandIdentityFixture : IDisposable
     {
         get; set;
     }
+    public bool ReplayCalled { get; private set; }
 
     public CommandIdentityFixture()
     {
@@ -109,9 +127,20 @@ internal sealed class CommandIdentityFixture : IDisposable
         Reports = new(Lock);
     }
 
-    public Task<int> Execute(string command) => new CommandApplication(Loader, new IdentityReadiness(),
-        Run, Reports, new RunFolderAllocator(), Lock.Acquire, TextWriter.Null, TextWriter.Null, Clock)
-        .Run([command, "--config", Path.Combine(directory.Path, "fixture.yaml")]);
+    public Task<int> Execute(string command, string? scenario = null)
+    {
+        var arguments = new List<string> { command, "--config", Path.Combine(directory.Path, "fixture.yaml") };
+        if (scenario is not null)
+            arguments.AddRange(["--scenario", scenario]);
+        return new CommandApplication(Loader, new IdentityReadiness(), Run, Reports, new RunFolderAllocator(),
+            Lock.Acquire, TextWriter.Null, TextWriter.Null, Clock, Replay).Run(arguments.ToArray());
+    }
+
+    private Task<int> Replay(Configuration config, RunFolders folders)
+    {
+        ReplayCalled = true;
+        return Run(config, folders);
+    }
 
     private Task<int> Run(Configuration config, RunFolders folders)
     {
