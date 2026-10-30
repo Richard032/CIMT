@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.23  
+Version: 0.24  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -367,3 +367,9 @@ RunInterruption owns terminal/SIGTERM registration, a cancellation token, and th
 RunSignals translates SIGINT/SIGTERM into a worker flag, and RunControl checks that flag or the host marker at normal operation boundaries. ActionExecutor checks before dispatch and after readiness, and between credential focus and typing. DeviceRunner classifies adapter errors during interruption as user stops. An already in-flight device/API operation cannot be undone; a killed worker may leave a cost reservation unresolved, which stays visible in the latest saved budget. No new operation is intentionally dispatched after a cancellation boundary reports the stop.
 
 IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, and HTML pipeline. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
+
+## 26. Compact recent-action AI input
+
+ActionPromptBuilder projects the most recent 24 action records into navigation facts: action, controlLabel, ref, coordinates/direction, synthetic text, credential alias/field, actual result, and intentional repeat reason when present. Failed/overridden checks retain compact subject/source/status/requirement-ID/observed/reason summaries under findings. The builder does not mutate history. Full check records, remaining-work lists, predictive descriptions, and repeated expectation text stay in saved history/reports and are not duplicated in each recent-action input row. The complete requirement catalogue/current results and exploration-memory summaries remain separate prompt inputs.
+
+AI guidance requests a check when current evidence changes a result or adds a distinct observation, with an empty list when no new assessment exists. It still requires functional failures, final objective evidence, and complete catalogue accounting. No host-side finding suppression is introduced. All device queries, screenshot masking/verification, action settling, cancellation, report writing, budget reservation, and model settings retain their prior behavior. See [measured baseline and payload comparison](performance.md); actual end-to-end acceleration remains a live comparison gate.

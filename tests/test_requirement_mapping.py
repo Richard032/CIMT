@@ -144,6 +144,51 @@ class RequirementResultTests(unittest.TestCase):
 
 
 class MappingPromptTests(unittest.TestCase):
+    def test_recent_history_omits_repeated_checks_and_plans_without_changing_saved_records(self):
+        history = [{"action": "tap", "ref": "@e1", "controlLabel": "Save", "result": "Observed UI changed",
+                    "checks": [check("not tested")], "observation": "Long repeated explanation",
+                    "remaining": ["Explore"], "repeatReason": ""}]
+        before = json.dumps(history)
+        body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", history, [], {})
+        state = json.loads(body["input"][1]["content"][0]["text"])
+        item = state["recentActions"][0]
+        self.assertEqual(item["controlLabel"], "Save")
+        self.assertEqual(item["result"], "Observed UI changed")
+        self.assertNotIn("checks", item)
+        self.assertNotIn("observation", item)
+        self.assertNotIn("remaining", item)
+        self.assertEqual(json.dumps(history), before)
+
+    def test_compact_history_keeps_failures_and_requirement_overrides(self):
+        failure = check("failed")
+        override = check("overridden", quote="Explore only")
+        body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked",
+            [{"action": "tap", "checks": [failure, override]}], [], {})
+        state = json.loads(body["input"][1]["content"][0]["text"])
+        findings = state["recentActions"][0]["findings"]
+        self.assertEqual([row["status"] for row in findings], ["failed", "overridden"])
+        self.assertEqual(findings[0]["requirementId"], "REQ-0001")
+        self.assertEqual(findings[0]["observed"], failure["observed"])
+
+    def test_compact_history_retains_the_most_recent_24_actions(self):
+        history = [{"action": "tap", "controlLabel": str(index)} for index in range(30)]
+        body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", history, [], {})
+        recent = json.loads(body["input"][1]["content"][0]["text"])["recentActions"]
+        self.assertEqual(len(recent), 24)
+        self.assertEqual(recent[0]["controlLabel"], "6")
+        self.assertEqual(recent[-1]["controlLabel"], "29")
+
+    def test_compact_history_retains_coordinates_and_credential_aliases(self):
+        history = [{"action": "credential", "ref": "@e1", "x": 0, "y": 5,
+                    "credential": "test", "field": "username", "result": "Observed UI changed"}]
+        body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", history, [], {})
+        recent = json.loads(body["input"][1]["content"][0]["text"])["recentActions"]
+        self.assertEqual(recent, history)
+
+    def test_prompt_requests_new_assessments_instead_of_repeated_unknown_results(self):
+        body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", [], [], {})
+        self.assertIn("Do not repeat unchanged not-tested", body["input"][0]["content"])
+
     def test_permission_decisions_require_authorization_in_test_instructions(self):
         body = ActionPromptBuilder("fixture").build(
             "Explore buttons", "", "", [], b"masked", [], [], {}

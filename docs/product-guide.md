@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.18  
+Version: 0.19  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -413,3 +413,9 @@ After three unchanged attempts, or repeated travel along a path without discover
 Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal.
 
 You can open index.html while testing is running. CIMT saves a clearly labelled partial report at stage boundaries and updates it about every two seconds during device testing; reload the page to see newer saved observations. The latest AI count comes from the saved budget ledger. If the process is force-killed, the last saved page remains available and explicitly partial. A final report removes that marker. This feature starts with new runs/replays after installation; it does not rewrite the previous interrupted run.
+
+## Execution speed
+
+Recent AI action history now contains compact navigation facts and actual outcomes, with critical failure/override summaries. CIMT keeps the full history and findings in reports. The AI is asked to avoid repeating unchanged not-tested/inconclusive assessments on every step; unresolved catalogue items remain visible in the report. There is no new configuration, model, or API key.
+
+In an offline comparison using the saved run from 30 October, the latest 24 history records decreased from 46,184 to 4,840 serialized bytes (89.5%). This measures the history portion only. It does not establish the same reduction in total request size, cost, or run time. Device actions and screenshot validation still take time. See [performance findings](performance.md).

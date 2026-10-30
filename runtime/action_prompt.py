@@ -58,6 +58,9 @@ SYSTEM_PROMPT = (
     "A completed objective needs an explicit instructions check; navigation coverage alone "
     "does not prove success. Use an empty checks list when this screen proves no check. "
     "Use not tested or inconclusive with a reason when evidence is missing. "
+    "Return checks when evidence changes a result or adds a distinct observation. "
+    "Do not repeat unchanged not-tested or inconclusive catalogue results on every step; "
+    "the host retains them. Use an empty checks list when there is no new assessment. "
     "Use overridden only for a requirement that conflicts with the testing instructions, "
     "and explain that conflict. Include only observations supported by the supplied evidence. "
     "requirementResults is the complete host catalogue. For a requirements check, copy its "
@@ -108,7 +111,7 @@ class ActionPromptBuilder:
             "requirementResults": requirement_results or [],
             "setup": setup,
             "elements": elements,
-            "recentActions": history[-24:],
+            "recentActions": self._recent_actions(history),
             "credentialAliases": aliases,
             "coverage": coverage,
             "explorationMemory": exploration_memory or {},
@@ -142,6 +145,26 @@ class ActionPromptBuilder:
             },
         }
         return body
+
+    @staticmethod
+    def _recent_actions(history):
+        """Send navigation facts, not repeated check text. Full records stay in reports."""
+        fields = ["action", "controlLabel", "ref", "x", "y", "direction", "text",
+                  "credential", "field", "result", "repeatReason"]
+        finding_fields = ["subject", "source", "status", "requirementId", "observed", "reason"]
+        recent = []
+        for action in history[-24:]:
+            item = {key: action[key] for key in fields if key in action}
+            # Keep failures and overrides visible for planning and reproduction.
+            findings = [
+                {key: check[key] for key in finding_fields if key in check}
+                for check in action.get("checks", [])
+                if check.get("status") in ["failed", "overridden"]
+            ]
+            if findings:
+                item["findings"] = findings
+            recent.append(item)
+        return recent
 
     @staticmethod
     def _screen_message(state, screenshot):

@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.17 and architecture version 0.23, updated 30 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.18 and architecture version 0.24, updated 30 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -80,3 +80,5 @@ Run development checks with bash scripts/check-development.sh. The [development 
 AI decision correction now allows two bounded retries for invalid response contracts before stopping. The HTML report retains redacted unaccepted candidates separately from verified findings. See [diagnostic reporting](docs/diagnostic-reporting.md) and FR-65 in the requirements. No real test run is started by installation.
 
 Whole-scenario exploration memory now records control attempts and actual UI outcomes. Repeated paths without progress trigger replanning. Ctrl+C requests an incomplete final report, and index.html is available as a clearly marked interim report during execution. See [product usage](docs/product-guide.md) and [diagnostics](docs/diagnostic-reporting.md).
+
+AI request history now uses compact navigation/outcome facts while full records stay in reports. See [performance measurements and limits](docs/performance.md) for the saved-run timing baseline and offline payload comparison.

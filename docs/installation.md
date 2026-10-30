@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.22  
+Version: 0.23  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -996,3 +996,11 @@ Update the host and Python runtime together using the existing source installati
 The update adds whole-scenario exploration memory and bounded no-progress replanning. Terminal interruption requests controlled finalization, and the UI worker has a five-second exit grace before process-tree termination. Partial reports use the existing output folder and are refreshed about every two seconds during device testing, with atomic replacement and an explicit partial marker. Stage-boundary snapshots also cover preparation/build progress. Actual signals and forced termination are verified using temporary fake-runtime processes in the existing CLI checks, without contacting OpenAI or operating physical devices. Physical-device/API acceptance remains a user-started run/replay.
 
 Verification for this increment: 503 relevant offline checks passed (261 .NET unit tests, 207 Python unit tests, 13 runtime-policy checks, and 22 public CLI/lifecycle checks). These include actual SIGINT delivery to a temporary fake-runtime CIMT child, forced termination of a separate child after an interim report was saved, checkpoint cancellation, and a closed-pipe interruption race. The final host published successfully; installed host and all 12 changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: 97d66b943637304fef2bfef6f3a5fbf49ae7579480a8fa4318cec33ea44cf990. Original installation backup: /private/tmp/cimt-before-exploration-stop.7pl43htt. No real app run/replay, paid API request, device action, private configuration edit, or historical-report rewrite was performed for this increment.
+
+## 36. Compact AI history input — 30 October 2026
+
+This runtime-only update replaces lib/cimt-runtime/action_prompt.py with the tested source version. No host rebuild, package, helper, private configuration, model selection, or API key change is required. Use the existing runtime source installation procedure, or back up and copy that one module after verifying that no CIMT run is active. Compare its installed bytes with runtime/action_prompt.py afterward.
+
+The update preserves 24 recent navigation facts plus critical findings while avoiding duplicated full checks and old plans in AI input. Full saved history and reports remain available. Five new tests exercise projection content, immutability, bounded history, critical findings, aliases/coordinates, and prompt guidance in the existing unittest suite. Live latency improvement is not established by these offline checks; compare a later user-started run against the timing baseline in performance.md.
+
+Installation verification: the installed action_prompt.py matches the tested source byte-for-byte (SHA-256 c0e27c0ae6eceeb55166ae064ac2d353e427ab203935574bb16aaf725fcc35ee). The previous module is backed up at /private/tmp/cimt-before-compact-history.pzjfq7_7/action_prompt.py. No run was active during replacement. The host is unchanged; no real test run or API request was started.
