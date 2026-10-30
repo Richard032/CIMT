@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.25  
+Version: 0.27
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -381,3 +381,23 @@ Execution reads the effective ai-model.name for Budget and Agent. The same name 
 Budget keeps validated profiles and one cost calculation shared by reservation and usage settlement. Mini retains its 400,000-token context and USD 0.309216 reservation. Luna has a 1,050,000-token context, USD 0.20/1.20 input/output rates per million tokens, and a 2,048-token output cap. Input is conservatively charged at the 1.25-times default cache-write rate, including ordinary and cached-read tokens. Above 272,000 input tokens, the entire request uses twice the input rate and 1.5 times the output rate. Full-context reservation is USD 0.5286864. Agent explicitly sets a 30-minute cache lifetime for profiles with that priced lifetime. Mini request settings remain unchanged.
 
 A shared lock reserves funds before either device worker sends a request. Valid usage settles at the appropriate conservative rates; missing or invalid usage retains the full reservation. Unknown profiles/currencies stop before inference. These are upper-cost ledger values under the documented rate assumptions, not exact provider invoices. Rates were checked on 30 October 2026 against the [Mini model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Luna model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna), and [cache pricing guidance](https://developers.openai.com/api/docs/guides/prompt-caching). Online pricing discovery and cost reconciliation remain deferred; no additional API or administrator credential is required.
+
+## 28. One report folder per execution
+
+Every run and replay uses the report_<timestamp> folder allocated for its own invocation identity. Replay reuses retained application artifacts as build inputs, but writes a new report, device results and screenshot evidence. It does not append to or replace its source run's report. RunReportWriter saves partial/final index.html and result.json inside that allocated folder. CommandReports saves early execution errors in the same invocation's allocated folder.
+
+There is no shared reports/index.html, HTML base redirection, or cross-run latest publisher. Relative evidence links stay within each report's original folder structure. The terminal prints the timestamped index.html path belonging to that execution. Run/replay commands and identities appear in the HTML header/title; parsed early error reports also retain the command in HTML and JSON. The browser can keep an earlier report open; use the exact path printed by the execution to inspect its results.
+
+## 29. Result-first report presentation
+
+FR-70–FR-76 approve the five-section layout in the [design proposal](reviews/2026-10-30-html-report-design-proposal.md). RunHtmlRenderer composes Overview, Findings, Devices, Requirements and Activity. RunDiagnosticsRenderer owns outcome explanations, whole-run device/target rows, readable time/budget fields, stopping reasons and activity. ReportDeviceSummary derives expected rows from configuration/startup devices and adds observed scenarios; blocked/unstarted work is explicit.
+
+ReportScenario binds saved observations to stable device/target/scenario identities and exact record anchors. A step number is displayed as saved, including zero; duplicates are not silently redirected. StepHtmlRenderer renders labelled observations and evidence; ScenarioHtmlRenderer owns device-scoped steps, work and coverage. FindingHtmlRenderer renders mandatory crash/check/requirement failure cards and distinct unaccepted-response diagnostics. RequirementHtmlRenderer retains the full source/scope mapping and links unique saved steps.
+
+ReportEvidence permits contained local paths only, resolving aliases through RunFolderSafety. Missing or escaping files are explained. PNG image links retain a normal offline fallback. ReportPage embeds fixed CSS and JavaScript from assembly resources into each HTML file; no asset server or external dependency is required. The script adds section-local filters, exact-record disclosure and a native-dialog image viewer. Its DOM updates use textContent and native elements; no worker text is evaluated as code. Main content exists before JavaScript and remains available if enhancements fail.
+
+The compact journal groups operation/context/status counts. It does not infer pairings because the journal has no unique operation ID. The complete ordered journal remains available with context filters. Large execution JSON is linked through the canonical machine report rather than duplicated inline. Partial/final publication, redaction, folder isolation and verdict calculation still use the existing pipeline.
+
+DecisionRecovery supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
+
+The briefly installed shared-latest page was removed after the product owner reaffirmed the existing per-execution folder contract. No change to the allocator, timestamps, work ownership, replay build reuse, outcome precedence, or historical evidence is required.

@@ -7,7 +7,9 @@ source /Users/Shared/CIMT/environment.sh
 dotnet run --project tools/Cimt.RequirementDemo/Cimt.RequirementDemo.csproj -c Release
 ```
 
-Expected: the command prints a report path under this example's ignored reports folder. Open index.html there. There are five requirements and five statuses: passed, failed, not tested, inconclusive, and overridden. The export conflict quotes “Do not test export.” Every item retains its original label, text, line range, and generated internal ID. Missing screenshots are explicitly explained.
+Expected: the command prints a report path under this example's ignored `CIMT output/reports/report_<timestamp>/` folder. Open index.html there. There are five requirements, each scoped to simulated Android and iOS devices, and five statuses: passed, failed, not tested, inconclusive, and overridden. The export conflict quotes “Do not test export.” Every item retains its original label, text, line range, and generated internal ID.
+
+The two-platform report exercises the approved navigation, overview, failure cards and requirement links. Each simulated device has two clearly labelled synthetic checkerboard PNG records for trying the image viewer, previous/next, zoom and close. These are generated fixtures, not screenshots of a real application. Requirement checks deliberately retain missing-evidence explanations. No app, physical device or API is used.
 
 The document heading appears under “Document headings (context)”. It has no requirement ID or status. There are still five requirement results, and each retains the heading as its section context.
 

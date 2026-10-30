@@ -31,6 +31,16 @@ public sealed class RequirementHtmlTests
     }
 
     [Fact]
+    public void FilterMetadataRedactsTheDeviceDisplayName()
+    {
+        var summary = Coverage().Requirements[0];
+        var row = summary.Results[0];
+        var scope = row.Scope with { DeviceName = "Phone synthetic-secret" };
+        var coverage = new RequirementCoverage([summary with { Results = [row with { Scope = scope }] }]);
+        Assert.DoesNotContain("synthetic-secret", new RequirementHtmlRenderer(Configuration()).Render(coverage));
+    }
+
+    [Fact]
     public void OverriddenHistoricalObservationIsNotCountedAsAnEffectiveFailure()
     {
         var config = Configuration();

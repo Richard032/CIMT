@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.24  
+Version: 0.26
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1012,3 +1012,25 @@ Update lib/cimt-runtime/budget.py, agent.py, and run_ui.py together after confir
 To select Luna, set ai-model.name to gpt-5.6-luna in the existing local configuration; keep its key and USD spending limit. The existing Mini snapshot remains supported. Unknown models/currencies stop before inference. Luna accounts for default cache-write charges and the long-context tier, reserving USD 0.5286864 per request. See the [model selection procedure](product-guide.md#select-the-ai-model) and architecture section 27. Automatic price retrieval and provider cost queries are deferred. Real account/model access and physical-device comparison remain user-started acceptance checks.
 
 Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/CIMT/state/run.lock for active holders. Backup: /private/tmp/cimt-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.
+
+## 38. Per-execution report correction — 30 October 2026
+
+The product owner reaffirmed the existing contract: every run and replay has its own report_<timestamp>/index.html. Remove the briefly added shared-latest publisher and install the corrected .NET command host using the existing publish/backup procedure. Confirm no CIMT command holds the run lock before replacing the host and compare installed bytes afterward. Python runtime, build worker/scripts, credentials and YAML do not change.
+
+Remove only the generated reports/index.html entry introduced by the previous update from the existing FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget inputs. Keep every report_<timestamp> folder and its HTML, JSON, logs and screenshots unchanged. User README instructions must point to the timestamped Report path printed by the execution rather than a shared latest page.
+
+Both full runs and replays continue to allocate distinct dated folders. This correction adds clearer command/identity labels and regression coverage for isolated replay output, without starting a real application test or changing previously saved results.
+
+Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/cimt-per-run-install.UbVTdZ/previous-host.
+
+Removed only the three shared reports/index.html files introduced by the previous update, from FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget. Verified timestamped report HTML hashes were unchanged. Python runtime, build worker/scripts, private settings, application source, and saved results remain unchanged. No real run/replay, model request or device action was started.
+
+## 39. Approved report usability update — 30 October 2026
+
+Publish the host with the existing section 15 procedure and replace runtime/decision_recovery.py with the matching source version. The host embeds its report stylesheet and script; no browser server, package, key, YAML field, application change or device helper is added. Preserve private configuration and existing timestamped reports. Later user-started runs/replays produce the new five-section layout; opening an old report does not regenerate it.
+
+The worker update supplies current device/target scope to prevent remaining plans from describing other workers. It makes no extra model call and does not change budget, action, permission or crash recovery policy. Back up host/runtime files and hold the installation run lock while replacing them.
+
+Verification: 286 xUnit tests, 218 Python unit tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks passed (548 relevant offline checks). The public fixtures include replay isolation, failed builds, controlled interruption and forced-stop partial reporting, using simulated dependencies. The report script passed syntax checking. The extended offline requirement-mapping demo produced Android/iOS results and four valid opaque synthetic PNGs, with all anchors/evidence/download links checked after folder relocation. Fourteen specified text/background color pairs met 4.5:1 in static calculations. These are not completed browser, screen-reader, 200% enlargement or user-timing acceptance tests.
+
+Installed the final six-file host publication and scoped worker module under the Mac-wide lock; all installed bytes match the tested publication/source. Public installed help passed. Host SHA-256: f5b369d6f49fdb5d1dac1b8735d3b63370dbfac5c287543275ca579e9ec8bc45. Original backup: /private/tmp/cimt-report-design.BoxIlJ/previous-host and previous-runtime. Build worker/scripts, model/pricing modules, private YAML, application source and historical test reports were preserved. No real application run/replay, paid API request or physical-device action was started.
