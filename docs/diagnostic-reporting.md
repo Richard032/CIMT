@@ -4,6 +4,18 @@ Updated: 30 October 2026. Scope: FR-61–FR-69 and AC-35–AC-43 for run/replay 
 
 ## Reading the report
 
+### Approved usability design
+
+The report now uses Overview, Findings, Devices, Requirements and Activity, in that order, with wide-screen sidebar navigation and wrapping navigation on narrow screens. Overview shows every known expected/observed device-target outcome before logs. Confirmed crash occurrences and suspected terminations remain separate; fixed host crash-kind values are treated as typed classifications during redaction. Mandatory failure cards include available expectations, observations and evidence links even when optional details are disabled. Failed requirement assessments without duplicate check records are also readable.
+
+Device/scenario/record anchors are distinct. Visible step IDs are copied from saved data, including zero; an ambiguous duplicate cannot silently resolve to a different record. Findings and requirement results link unique steps. Steps label decision observations, actual outcomes, errors and recovery separately. Remaining plans retain their worker scope; future requests identify the current platform/device/target. Historical contradictory plans are not hidden or rewritten.
+
+Each applicable section has local filters/search, selected-scope and shown/total text, clearing and empty-state behavior. A deep link opens ancestor disclosures and clears conflicting filters. Overview totals remain whole-run values. Contained PNG links open an optional native-dialog viewer with scenario/type grouping, saved-step image order, zoom, keyboard/Escape and focus return. Ordinary relative links and all main content remain available without JavaScript. Missing files and escaping paths/symlinks are explained.
+
+Compact activity groups operation/context/status counts without assuming event pairings; the full ordered journal remains available. Time/duration and budget fields are readable, with exact records/downloads retained. The renderer embeds its fixed stylesheet/script in each report; no server, network dependency or changed output-folder contract is introduced. Early command/readiness/error reports use the same presentation shell and explicitly state that no app testing occurred. Historical reports are not regenerated.
+
+See the approved [design proposal](reviews/2026-10-30-html-report-design-proposal.md), FR-70–FR-76 and AC-46–AC-50. Static/unit verification does not establish browser layout, keyboard/screen-reader conformance or the proposed ten-second/two-action usability targets. Those manual acceptance checks remain to be performed on representative reports.
+
 The run header identifies command outcome, run, branch, and source commit. The mandatory Run overview shows UTC start/finish and elapsed seconds, target labels and actual build configurations, startup devices, app builds available, and the recorded AI inference count. An unavailable count is stated explicitly. Replayed artifacts retain their original source identity and build provenance.
 
 Failures and stopping reasons show the actual saved device error, cancellation of another worker, limits/device stops, functional failures, and unresolved work. An infrastructure or masking failure does not prove an application crash. Install/reset/launch commands are preparation, not passed application tests. The existing verdict, completion, exit precedence, and requirement coverage still determine the outcome.

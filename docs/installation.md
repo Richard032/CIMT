@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.25  
+Version: 0.26
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1024,3 +1024,13 @@ Both full runs and replays continue to allocate distinct dated folders. This cor
 Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/cimt-per-run-install.UbVTdZ/previous-host.
 
 Removed only the three shared reports/index.html files introduced by the previous update, from FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget. Verified timestamped report HTML hashes were unchanged. Python runtime, build worker/scripts, private settings, application source, and saved results remain unchanged. No real run/replay, model request or device action was started.
+
+## 39. Approved report usability update — 30 October 2026
+
+Publish the host with the existing section 15 procedure and replace runtime/decision_recovery.py with the matching source version. The host embeds its report stylesheet and script; no browser server, package, key, YAML field, application change or device helper is added. Preserve private configuration and existing timestamped reports. Later user-started runs/replays produce the new five-section layout; opening an old report does not regenerate it.
+
+The worker update supplies current device/target scope to prevent remaining plans from describing other workers. It makes no extra model call and does not change budget, action, permission or crash recovery policy. Back up host/runtime files and hold the installation run lock while replacing them.
+
+Verification: 286 xUnit tests, 218 Python unit tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks passed (548 relevant offline checks). The public fixtures include replay isolation, failed builds, controlled interruption and forced-stop partial reporting, using simulated dependencies. The report script passed syntax checking. The extended offline requirement-mapping demo produced Android/iOS results and four valid opaque synthetic PNGs, with all anchors/evidence/download links checked after folder relocation. Fourteen specified text/background color pairs met 4.5:1 in static calculations. These are not completed browser, screen-reader, 200% enlargement or user-timing acceptance tests.
+
+Installed the final six-file host publication and scoped worker module under the Mac-wide lock; all installed bytes match the tested publication/source. Public installed help passed. Host SHA-256: f5b369d6f49fdb5d1dac1b8735d3b63370dbfac5c287543275ca579e9ec8bc45. Original backup: /private/tmp/cimt-report-design.BoxIlJ/previous-host and previous-runtime. Build worker/scripts, model/pricing modules, private YAML, application source and historical test reports were preserved. No real application run/replay, paid API request or physical-device action was started.

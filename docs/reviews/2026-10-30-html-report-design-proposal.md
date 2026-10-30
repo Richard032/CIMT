@@ -2,13 +2,13 @@
 
 Date: 30 October 2026  
 Product: CIMT — Curtis Intelligent Mobile Test  
-Status: proposed for review; production rendering and approved requirements are unchanged
+Status: approved by the product owner on 30 October 2026; implementation and verification recorded in [diagnostic reporting](../diagnostic-reporting.md)
 
 ## 1. Purpose
 
 A developer should quickly understand what happened, on which device and build target, and where to inspect the evidence. The report must also support a detailed investigation without making every reader work through the execution log.
 
-This proposal resolves the presentation gaps in the [gap analysis](2026-10-30-html-report-usability-gap-analysis.md), using the refinements from the [Apple and Tesla comparison](2026-10-30-apple-tesla-report-design-comparison.md). It specifies behavior for a future implementation. The accompanying interactive design preview uses selected facts from the reviewed replay; it is not a regenerated report or a complete evidence browser.
+This design resolves the presentation gaps in the [gap analysis](2026-10-30-html-report-usability-gap-analysis.md), using the refinements from the [Apple and Tesla comparison](2026-10-30-apple-tesla-report-design-comparison.md). The accompanying interactive design preview uses selected facts from the reviewed replay; it is not a regenerated report or a complete evidence browser. The product owner selected implementation of the proposal. The production compact activity view uses grouped operation/status summaries rather than pairing ambiguous start/end records; all chronological records remain available. Manual browser, accessibility and user-timing checks remain qualification work rather than claimed results.
 
 ## 2. Recommended layout
 
@@ -117,4 +117,4 @@ Use the reviewed two-device replay as the baseline: identify the failed device w
 
 Traceability: A covers UX-01–UX-06 and the UX-14 baseline; B covers UX-07–UX-13; C verifies the whole design. UX-10's worker scope correction remains a separately identified correctness task. Existing FR-26–FR-30, FR-61–FR-64, FR-69 and AC-45 remain authoritative. Navigation/filter/viewer behavior and usability thresholds are proposed additions to approve before implementation.
 
-Review decisions: choose the recommended sidebar or the horizontal alternative; confirm the five sections and result-first reading order; confirm increment A as the first implementation scope. This proposal does not authorize changing test behavior, budgets, permission handling or retained evidence.
+Approved decision: implement the recommended sidebar with responsive top navigation, the five sections and the result-first reading order. Increments A and B are implemented; automated/static verification is recorded in the installation guide. Increment C's browser, assistive-technology and measured usability qualification remains open. Testing behavior, budgets, permission handling and retained evidence policies are unchanged.

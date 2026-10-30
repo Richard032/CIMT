@@ -106,6 +106,8 @@ public sealed class RunDiagnosticsTests
     {
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
+        Directory.CreateDirectory(Path.Combine(fixture.State.Report, "devices/device-1"));
+        File.WriteAllBytes(Path.Combine(fixture.State.Report, "devices/device-1/step-0000.png"), [137, 80, 78, 71]);
         var execution = JsonSerializer.Deserialize<JsonElement>("""
             {"devices":[{"device":{"id":"fixture","platform":"ios","name":"iPhone fixture"},
               "error":null,"stoppingReason":null,
@@ -125,6 +127,8 @@ public sealed class RunDiagnosticsTests
     {
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
+        Directory.CreateDirectory(Path.Combine(fixture.State.Report, "devices/device-1"));
+        File.WriteAllBytes(Path.Combine(fixture.State.Report, "devices/device-1/rejected-0001.png"), [137, 80, 78, 71]);
         var root = Node.Merge(fixture.State.Configuration.Root,
             new Node(null, new() { ["reports"] = new(null, new()
             {

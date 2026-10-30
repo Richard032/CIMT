@@ -1,5 +1,6 @@
 """Correct invalid AI decisions before recording checks or executing actions."""
 
+import json
 from action_prompt import validate_action
 from errors import InvalidAgentResponse, NoProgressAction, ExplorationStalled
 from requirement_results import RequirementResults
@@ -23,7 +24,7 @@ class DecisionRecovery:
             self.control.check()
             action = None
             try:
-                action = self._request(agent, session, feedback)
+                action = self._request(agent, session, feedback, mobile.device)
                 validate_action(action)
                 RequirementResults.validate(
                     action["checks"], session.result["requirements"], self.inputs["instructions"]
@@ -49,15 +50,25 @@ class DecisionRecovery:
                 self._event(mobile, session, "corrected", attempt, "Response accepted; no action repeated")
             return action
 
-    def _request(self, agent, session, feedback):
+    def _request(self, agent, session, feedback, device):
         arguments = [
             self.inputs["instructions"], self.inputs.get("requirements", ""),
-            self.inputs.get("setup", ""), session.elements, session.image, session.history,
+            self._scoped_setup(session, device), session.elements, session.image, session.history,
             list(self.config.get("credentials", {})), session.coverage.snapshot(),
             session.result["requirements"],
         ]
         arguments.extend([feedback, session.exploration.snapshot(session.elements)])
         return agent.choose(*arguments)
+
+    def _scoped_setup(self, session, device):
+        """Keep one worker's remaining plan separate from work on other devices."""
+        scope = {"platform": device.get("platform", ""), "deviceId": device.get("id", ""),
+                 "target": session.result["target"]}
+        return self.inputs.get("setup", "") + "\nCIMT execution scope: " + json.dumps(scope) + (
+            "\nExecute the supplied objective only for this device and target. "
+            "Report remaining work only within this scope. Other devices and targets "
+            "are scheduled independently; do not claim they were or were not tested."
+        )
 
     def _record_rejection(self, session, response, error, attempt, evidence, publish):
         rejected = {

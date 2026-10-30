@@ -23,7 +23,7 @@ public sealed class CheckReportTests
     {
         var html = Render("budget");
         Assert.Contains("Recorded checks: 1; failed: 1", html);
-        Assert.DoesNotContain("Expected saved value", html);
+        Assert.Contains("Expected saved value", html);
         Assert.Contains("Verdict: failed", html);
     }
 

@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.21  
+Version: 0.22
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -434,6 +434,16 @@ This fragment merges with your existing settings; it is not a complete standalon
 Strict spending limits remain mandatory. Mini reserves USD 0.309216 and Luna reserves USD 0.5286864 before each inference request. Luna reserves its full context at higher long-context rates, including default cache-write charges. This deliberately large reservation can stop a run early even though a typical request costs much less. Recorded usage settles at conservative rates and ignores cache-read savings; the report is not an exact invoice. No private file or selected model is changed by installing this update. Model quality and real execution speed still need a user-started comparison; multi-step plans and automatic price retrieval are not included.
 
 ## Open a run or replay report
+
+New reports use five sections: **Overview**, **Findings**, **Devices**, **Requirements** and **Activity**. Start with the whole-run device/target table. It includes blocked and unstarted combinations, separates actions from recorded steps, and separates confirmed crashes from suspected terminations. No recorded crash is not proof that an application passed.
+
+Follow a failure's recorded-step link to its exact device/scenario record. Step 0 stays step 0. Open a screenshot to use the local viewer, previous/next within the same scenario/evidence type, zoom and Escape/close. Ordinary image links remain available. Missing or unsafe files have explicit explanations. A screenshot is not labelled as an action result unless its record establishes that relationship.
+
+Use the section's device/target/status filters or text search; visible counts and selected scope describe what is shown. Clear filters restores all records. Overview totals always describe the whole run. A direct step link reveals the destination even if an earlier filter hid it. Without JavaScript, all report content and ordinary links remain available; only enhancements are omitted.
+
+Activity holds compact operation/status groups, the complete ordered journal, build provenance, redacted input details and technical downloads. Grouping does not imply that repeated operations were paired or completed. UTC time and durations are readable, with exact timestamps in details. Budget fields distinguish accounted, uncertain and pending conservative costs; they are not a verified provider invoice.
+
+The report opens directly from disk and works offline after its whole folder is moved. No browser service, new YAML field or new key is needed. Existing reports retain their previous layout; a later user-started run/replay creates a new report with this design. No real test is started by opening a report.
 
 Each invocation has its own report:
 

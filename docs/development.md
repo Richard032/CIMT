@@ -18,6 +18,8 @@ Use normal formatting: one statement per line, four spaces for indentation, and 
 
 ## Host code
 
+Report presentation is split by responsibility: RunHtmlRenderer composes sections; RunDiagnosticsRenderer explains run/device outcomes and activity; ScenarioHtmlRenderer and StepHtmlRenderer show scoped work and exact records; FindingHtmlRenderer owns mandatory readable failures; RequirementHtmlRenderer owns mapping; ReportEvidence validates local evidence paths. ReportPage embeds fixed offline CSS/JavaScript. ReportScenario and ReportDeviceSummary provide testable identity/summary rules without file or device operations. No reporting framework or extra unit-test project is used.
+
 | Location | Responsibility | How to test it |
 | --- | --- | --- |
 | src/Cimt/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
