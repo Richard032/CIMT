@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.22  
+Version: 0.24  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -996,3 +996,19 @@ Update the host and Python runtime together using the existing source installati
 The update adds whole-scenario exploration memory and bounded no-progress replanning. Terminal interruption requests controlled finalization, and the UI worker has a five-second exit grace before process-tree termination. Partial reports use the existing output folder and are refreshed about every two seconds during device testing, with atomic replacement and an explicit partial marker. Stage-boundary snapshots also cover preparation/build progress. Actual signals and forced termination are verified using temporary fake-runtime processes in the existing CLI checks, without contacting OpenAI or operating physical devices. Physical-device/API acceptance remains a user-started run/replay.
 
 Verification for this increment: 503 relevant offline checks passed (261 .NET unit tests, 207 Python unit tests, 13 runtime-policy checks, and 22 public CLI/lifecycle checks). These include actual SIGINT delivery to a temporary fake-runtime CIMT child, forced termination of a separate child after an interim report was saved, checkpoint cancellation, and a closed-pipe interruption race. The final host published successfully; installed host and all 12 changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: 97d66b943637304fef2bfef6f3a5fbf49ae7579480a8fa4318cec33ea44cf990. Original installation backup: /private/tmp/cimt-before-exploration-stop.7pl43htt. No real app run/replay, paid API request, device action, private configuration edit, or historical-report rewrite was performed for this increment.
+
+## 36. Compact AI history input — 30 October 2026
+
+This runtime-only update replaces lib/cimt-runtime/action_prompt.py with the tested source version. No host rebuild, package, helper, private configuration, model selection, or API key change is required. Use the existing runtime source installation procedure, or back up and copy that one module after verifying that no CIMT run is active. Compare its installed bytes with runtime/action_prompt.py afterward.
+
+The update preserves 24 recent navigation facts plus critical findings while avoiding duplicated full checks and old plans in AI input. Full saved history and reports remain available. Five new tests exercise projection content, immutability, bounded history, critical findings, aliases/coordinates, and prompt guidance in the existing unittest suite. Live latency improvement is not established by these offline checks; compare a later user-started run against the timing baseline in performance.md.
+
+Installation verification: the installed action_prompt.py matches the tested source byte-for-byte (SHA-256 c0e27c0ae6eceeb55166ae064ac2d353e427ab203935574bb16aaf725fcc35ee). The previous module is backed up at /private/tmp/cimt-before-compact-history.pzjfq7_7/action_prompt.py. No run was active during replacement. The host is unchanged; no real test run or API request was started.
+
+## 37. Configured model and Luna pricing support — 30 October 2026
+
+Update lib/cimt-runtime/budget.py, agent.py, and run_ui.py together after confirming that no CIMT run is active. Back up replaced files and compare installed bytes afterward. No host rebuild, package, helper, API key, administrator key, or YAML schema change is required. The configured supported model is checked before builds and used for inference. No private configuration is changed automatically.
+
+To select Luna, set ai-model.name to gpt-5.6-luna in the existing local configuration; keep its key and USD spending limit. The existing Mini snapshot remains supported. Unknown models/currencies stop before inference. Luna accounts for default cache-write charges and the long-context tier, reserving USD 0.5286864 per request. See the [model selection procedure](product-guide.md#select-the-ai-model) and architecture section 27. Automatic price retrieval and provider cost queries are deferred. Real account/model access and physical-device comparison remain user-started acceptance checks.
+
+Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/CIMT/state/run.lock for active holders. Backup: /private/tmp/cimt-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.

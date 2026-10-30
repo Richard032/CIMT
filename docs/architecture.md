@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.23  
+Version: 0.25  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -266,7 +266,7 @@ The single-run lock uses exclusive file sharing supported on macOS. YAML mapping
 
 Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
 
-The first pricing profile accepts only the explicit gpt-5.4-mini-2026-03-17 snapshot with USD accounting. Each request reserves the full model context input cost plus its enforced output cap under one shared lock; uncertain requests retain their maximum reservation. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
+The current pricing profiles accept gpt-5.4-mini-2026-03-17 and gpt-5.6-luna with USD accounting; section 27 defines their charge bounds. Each request reserves the full model context input cost plus its enforced output cap under one shared lock; uncertain requests retain their maximum reservation. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
 
 The current engine treats the supplied text as one exploration objective per target/device. Full scenario decomposition, adaptive replay, manifest-driven setup, complete credential/reset acceptance, Jenkins, and second-Mac demonstration remain required. iOS reinstall verifies the app container; Keychain/backend reset requires application hooks where relevant. These are implementation limits, not changes to the requirements baseline.
 
@@ -367,3 +367,17 @@ RunInterruption owns terminal/SIGTERM registration, a cancellation token, and th
 RunSignals translates SIGINT/SIGTERM into a worker flag, and RunControl checks that flag or the host marker at normal operation boundaries. ActionExecutor checks before dispatch and after readiness, and between credential focus and typing. DeviceRunner classifies adapter errors during interruption as user stops. An already in-flight device/API operation cannot be undone; a killed worker may leave a cost reservation unresolved, which stays visible in the latest saved budget. No new operation is intentionally dispatched after a cancellation boundary reports the stop.
 
 IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, and HTML pipeline. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
+
+## 26. Compact recent-action AI input
+
+ActionPromptBuilder projects the most recent 24 action records into navigation facts: action, controlLabel, ref, coordinates/direction, synthetic text, credential alias/field, actual result, and intentional repeat reason when present. Failed/overridden checks retain compact subject/source/status/requirement-ID/observed/reason summaries under findings. The builder does not mutate history. Full check records, remaining-work lists, predictive descriptions, and repeated expectation text stay in saved history/reports and are not duplicated in each recent-action input row. The complete requirement catalogue/current results and exploration-memory summaries remain separate prompt inputs.
+
+AI guidance requests a check when current evidence changes a result or adds a distinct observation, with an empty list when no new assessment exists. It still requires functional failures, final objective evidence, and complete catalogue accounting. No host-side finding suppression is introduced. All device queries, screenshot masking/verification, action settling, cancellation, report writing, budget reservation, and model settings retain their prior behavior. See [measured baseline and payload comparison](performance.md); actual end-to-end acceleration remains a live comparison gate.
+
+## 27. Configured model pricing profiles
+
+Execution reads the effective ai-model.name for Budget and Agent. The same name selects the access-check endpoint and the Responses model; failures do not cause a model fallback. Successful preflight names the checked model without requesting inference. The budget ledger records its model and pricing source/date. There is no YAML schema change.
+
+Budget keeps validated profiles and one cost calculation shared by reservation and usage settlement. Mini retains its 400,000-token context and USD 0.309216 reservation. Luna has a 1,050,000-token context, USD 0.20/1.20 input/output rates per million tokens, and a 2,048-token output cap. Input is conservatively charged at the 1.25-times default cache-write rate, including ordinary and cached-read tokens. Above 272,000 input tokens, the entire request uses twice the input rate and 1.5 times the output rate. Full-context reservation is USD 0.5286864. Agent explicitly sets a 30-minute cache lifetime for profiles with that priced lifetime. Mini request settings remain unchanged.
+
+A shared lock reserves funds before either device worker sends a request. Valid usage settles at the appropriate conservative rates; missing or invalid usage retains the full reservation. Unknown profiles/currencies stop before inference. These are upper-cost ledger values under the documented rate assumptions, not exact provider invoices. Rates were checked on 30 October 2026 against the [Mini model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Luna model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna), and [cache pricing guidance](https://developers.openai.com/api/docs/guides/prompt-caching). Online pricing discovery and cost reconciliation remain deferred; no additional API or administrator credential is required.

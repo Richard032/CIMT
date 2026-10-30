@@ -99,7 +99,7 @@ Exit codes: 0 passed, 1 test failure/crash, 2 incomplete, 3 configuration,
 infrastructure, or build error. Final adapter and full-product acceptance remain
 separate from this example.
 
-The first runtime supports this explicit GPT-5.4 Mini snapshot and USD accounting.
+The runtime supports this explicit GPT-5.4 Mini snapshot and gpt-5.6-luna with USD accounting. Select either through ai-model.name; see the [model selection guide](../../docs/product-guide.md#select-the-ai-model).
 Unknown model/currency pricing is rejected before inference. Maximum output is
 bounded and each request reserves its full context cost before being sent; API
 timeouts retain the worst-case reservation. This is conservative accounting rather

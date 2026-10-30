@@ -50,6 +50,9 @@ class Agent:
         return parse_action(self._request_action(body))
 
     def _request_action(self, body):
+        # Keep cache-write charges within the rate used by this pricing profile.
+        if self.budget.price.get("cache_ttl"):
+            body["prompt_cache_options"] = {"ttl": self.budget.price["cache_ttl"]}
         # Reserve before the request. Keep the full bound if usage is unknown.
         self.budget.reserve()
         response = None
