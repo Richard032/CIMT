@@ -40,10 +40,48 @@ public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunPr
             throw new ConfigurationException("No installable build was produced; no application interactions were executed.");
         progress.Write(state, "Executing instructions on startup devices (maximum two at once)");
         var result = await processes.Invoke(state, paths.Python, [paths.Worker], int.MaxValue,
-            JsonSerializer.Serialize(RuntimeRequest.Create(state)));
+            JsonSerializer.Serialize(RuntimeRequest.Create(state)), output: line => ShowActivity(state, line));
+        await SaveLog(state, result);
         state.UiExit = result.Exit is >= 0 and <= 3 ? result.Exit : 3;
         if (state.UiExit == 3)
-            state.Errors.Add("Device/AI execution failed (exit " + result.Exit + "): " + state.Configuration.Scrub(result.Stderr));
+            await ReportFailure(state, result);
+        state.Activity.Record("Device worker result", state.UiExit == 3 ? "failed" : "completed",
+            "Worker exit code: " + result.Exit, log: "logs/execution-worker.log");
         state.Exit = ExitCodes.Combine(state.Exit, state.UiExit);
+    }
+
+    private static void ShowActivity(RunState state, string line)
+    {
+        // Only the worker's already-redacted activity messages are live terminal output.
+        if (line.StartsWith("CIMT activity: ", StringComparison.Ordinal))
+            Console.WriteLine(line);
+    }
+
+    private static async Task SaveLog(RunState state, ProcessResult result)
+    {
+        var logs = Path.Combine(state.Report, "logs");
+        Directory.CreateDirectory(logs);
+        await File.WriteAllTextAsync(Path.Combine(logs, "execution-worker.log"),
+            state.Configuration.Scrub(result.Stdout + "\n" + result.Stderr));
+    }
+
+    private static async Task ReportFailure(RunState state, ProcessResult result)
+    {
+        var file = Path.Combine(state.Report, "ui-results.json");
+        JsonElement? execution = File.Exists(file)
+            ? JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(file)) : null;
+        var messages = RunDiagnostics.WorkerReasons(execution)
+            .Where(reason => reason.Category == "Infrastructure failure")
+            .Select(reason => reason.Description).ToArray();
+        if (messages.Length == 0)
+            messages = ["Device/AI execution failed (exit " + result.Exit + "). "
+                + (string.IsNullOrWhiteSpace(result.Stderr) ? "No worker error detail was returned; see logs/execution-worker.log."
+                    : result.Stderr.Trim())];
+        foreach (var message in messages)
+        {
+            var safe = state.Configuration.Scrub(message);
+            state.Errors.Add(safe);
+            Console.WriteLine(safe);
+        }
     }
 }

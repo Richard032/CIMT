@@ -71,3 +71,7 @@ The source branch testing/curmitAndNugets at 8b50dd12f65e0f3ffd9f8df68013d566014
 ## Retention and replay increment
 
 Current behavior is defined in [work retention and replay](work-retention-and-replay.md). Publish intermediates are retained. Explicit build properties are unchanged and omitted properties are left to the project. After a completed build stage, successful apps are recorded with provenance/digests. cimt replay uses those retained artifacts with current instructions, creates a new report, and has no Git/restore/build steps. Missing/changed/profile-mismatched apps stop rather than rebuild. The public regression disables Git and build fixture commands while replay still reaches its fake UI worker. Saved-action-history replay and the other listed acceptance gaps remain unfinished.
+
+## Diagnostic reporting increment
+
+New run/replay reports expose the requested mandatory overview, chronological activity, failures, and stopping reasons. Host stages and device operations share an incremental journal; per-device errors survive empty stderr and secondary cancellations stay separate. This does not change execution/masking policies or claim a real app test pass. See the [reporting contract](diagnostic-reporting.md), FR-61–FR-64, and installation section 30 for the offline checks and installed version.

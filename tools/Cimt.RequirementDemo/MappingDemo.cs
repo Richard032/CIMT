@@ -12,6 +12,8 @@ public static class MappingDemo
         var report = folders.Report;
         var state = new RunState(configuration, folders,
             new RunDeadline(folders.Identity.Started.AddMinutes(1)));
+        state.Activity.Record("Prepare synthetic mapping example", "started",
+            "Offline demonstration. No app, device, or API is used.");
         using var http = new HttpClient();
         await new TextInputLoader(new TextInputReader(http)).Execute(state);
         if (state.Requirements.Count != 5)
@@ -23,6 +25,8 @@ public static class MappingDemo
             ["name"] = "Simulated phone"
         });
         var execution = DemoObservations.Execution(state.Requirements);
+        state.Activity.Record("Record synthetic requirement observations", "completed",
+            "Five example requirements include an expected failure and unresolved work.", "Demo", "android", "synthetic-device");
         await File.WriteAllTextAsync(Path.Combine(report, "ui-results.json"), JsonSerializer.Serialize(execution));
         Console.WriteLine("Synthetic requirement-mapping demo. No app, device, or API was used.");
         return new RunReportWriter().Write(state);

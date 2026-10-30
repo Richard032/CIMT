@@ -323,6 +323,12 @@ build:
         Assert(File.Exists(Path.Combine(created, "requirements.json")), "catalogue was not retained");
         Assert(Directory.EnumerateDirectories(new OutputLayout(temp).WorkRoot, "work_*").Any(), "run work was deleted");
         Assert(!File.ReadAllText(Path.Combine(created, "index.html")).Contains(secret), "secret appeared in application report");
+        var html = File.ReadAllText(Path.Combine(created, "index.html"));
+        foreach (var section in new[] { "Run overview", "Chronological activity", "Failures and stopping reasons" })
+            Assert(html.Contains(section), "missing mandatory diagnostic section: " + section);
+        Assert(result.RootElement.GetProperty("activity").EnumerateArray().Any(item =>
+            item.GetProperty("operation").GetString() == "Build script returned"
+            && item.GetProperty("status").GetString() == "failed"), "failed build was omitted from activity");
     }
 
     private string WriteExecutable(string name, string content)

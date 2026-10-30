@@ -11,6 +11,8 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
     public RunIdentity Identity => Folders.Identity;
     public string Report => Folders.Report;
     public DateTimeOffset Started => Identity.Started;
+    public DateTimeOffset? Finished { get; set; }
+    public RunActivityLog Activity { get; } = new(folders.Report, configuration.Scrub);
     public RunDeadline Deadline { get; } = deadline;
     public string Work { get; set; } = "";
     public string Commit { get; set; } = "";
@@ -25,6 +27,7 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
     public int UiExit { get; set; } = 2;
     public List<object> Stages { get; } = [];
     public List<string> Errors { get; } = [];
+    public List<RunStopReason> StopReasons { get; } = [];
     public List<Dictionary<string, string>> Builds { get; } = [];
     public List<Dictionary<string, string>> Devices { get; } = [];
     public Dictionary<string, string> Inputs { get; } = [];
@@ -54,12 +57,12 @@ public sealed class RuntimePaths(string root)
 public sealed class RunProcess(ICommandRunner runner)
 {
     public async Task<ProcessResult> Invoke(RunState state, string tool, IEnumerable<string> arguments,
-        int maximum = 120, string? input = null)
+        int maximum = 120, string? input = null, Action<string>? output = null)
     {
         try
         {
             return await runner.Run(new(tool, arguments, state.Deadline.RemainingSeconds(maximum),
-                state.Environment, Input: input));
+                state.Environment, Input: input, OutputLine: output));
         }
         catch (ConfigurationException) when (state.Deadline.HasExpired)
         {
@@ -79,6 +82,7 @@ public sealed class RunProgress : IRunProgress
     public void Write(RunState state, string stage)
     {
         Console.WriteLine(stage);
+        state.Activity.Record("Run progress", "info", stage);
         File.WriteAllText(Path.Combine(state.Report, "progress.json"), JsonSerializer.Serialize(new
         {
             stage,

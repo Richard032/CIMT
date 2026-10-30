@@ -3,8 +3,10 @@ using Cimt;
 
 namespace Cimt.UnitTests;
 
-public sealed class ExecutionTests
+public sealed class ExecutionTests : IDisposable
 {
+    private readonly TestDirectory report = new();
+    public void Dispose() => report.Dispose();
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(0, 2, 2)]
@@ -131,10 +133,10 @@ public sealed class ExecutionTests
         Assert.DoesNotContain("fixture-secret", error.Message);
     }
 
-    private static RunState State(RunDeadline? deadline = null)
+    private RunState State(RunDeadline? deadline = null)
     {
         var config = new Configuration(new Node(null, [], null, "/fixture/config.yaml"));
-        return new(config, TestRunFolders.At("/unused-report", DateTimeOffset.UnixEpoch),
+        return new(config, TestRunFolders.At(report.Path, DateTimeOffset.UnixEpoch),
             deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
     }
 }

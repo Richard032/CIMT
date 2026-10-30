@@ -39,6 +39,8 @@ public sealed class RedactionReportTests
         using var fixture = new ReportFixture("2026");
         fixture.Write();
         Assert.Equal(fixture.State.Identity.Id, fixture.Result().GetProperty("runIdentity").GetProperty("id").GetString());
+        Assert.All(fixture.Result().GetProperty("activity").EnumerateArray(), item =>
+            Assert.True(DateTimeOffset.TryParse(item.GetProperty("timestamp").GetString(), out _)));
         Assert.Contains(fixture.State.Identity.Id, fixture.Html());
     }
 

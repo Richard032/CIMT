@@ -30,3 +30,5 @@ cimt run --config /absolute/path/default.private.yaml --run-config /absolute/pat
 ```
 
 A real run initializes all requirements before device actions. The model sees the catalogue and current statuses, and must reference known IDs. The report includes every applicable configured target/startup-device pair, including failed builds, locked devices, and objectives that did not start. Missing evidence cannot produce a pass. See [mapping rules](../../docs/requirement-mapping.md).
+
+The synthetic demo also exercises the mandatory run overview, failures/stopping reasons, and chronological activity. Entries explicitly identify synthetic observations; no install/reset/device/API operation is implied. The expected failed/incomplete outcome remains the same. See [diagnostic reporting](../../docs/diagnostic-reporting.md).

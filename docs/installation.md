@@ -1,7 +1,7 @@
 # CIMT installation and setup guide
 
-Version: 0.16  
-Last updated: 29 October 2026  
+Version: 0.17  
+Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
@@ -930,3 +930,21 @@ This investigation only read the retained clone and redacted report/logs. No pri
 Follow-up: the user-started report_2026-10-29_15-52-42-705 correctly picked up the new branch commit 3183659592c49aa0b2559da23ffa792f00cc5f52 (strings). The input configuration now explicitly selects Debug_Generic/Debug_Pride, matching the target labels. The new commit tracks Platforms/Android/Resources/values/strings.xml, which is the destination of the remaining PreBuild copy. Its expected source, values/template/strings.xml, remains absent. All four builds therefore still stop on MSB3030. Both the original Windows command and the portable replacement use the same source/destination; no path redirection was introduced. If the committed destination is now authoritative, remove the obsolete copy operation from the application project; if generation is still intended, provide the actual expected source through that build process. Do not reverse the copy or fabricate a generated file in generic CIMT. No application/project/script was edited during this investigation, and no new run was started.
 
 Read-only follow-up checks found the newly committed destination resource to be valid XML with 12 entries and no unresolved $NAME$ placeholders. Other outputs named by the tagging configuration (Platforms/iOS/Info.plist, Platforms/Android/AndroidManifest.xml, and Version.properties) are also absent in this clone. Review their intended generation or committed-input policy before assuming a clean-clone build is ready. Their absence is an observation, not a separately reproduced build failure; the current build stops at the copy task first.
+
+## 30. Detailed diagnostic reports and worker failures
+
+The user-started run report_2026-10-29_15-58-46-808 produced all four Debug Android/iOS apps from 07a777740e956d9d6ebb648df3a22701bd6b383b. Its subsequent replay report_2026-10-29_16-34-22-941 reused those apps. Both stopped at Android screenshot-mask stability validation before any AI inference request; the iPhone worker was then cancelled by the shared stop policy. The exact worker error was in ui-results.json, while the former host summary ended with an empty exit-3 message. This was an observable diagnostic-reporting defect, not evidence of a confirmed app crash.
+
+The update adds mandatory run overview, chronological activity, and failures/stopping reasons to new run/replay HTML reports. Host/device events append to activity.jsonl; result.json includes ordered activity, duration, and stopping reasons. Per-device errors now reach the host summary even when stderr is empty. Structured lifecycle messages stream to the terminal, and redacted worker output is retained under logs/execution-worker.log. The screenshot guard now describes changed regions/counts/coordinates without UI values. Its rejection and the existing shared stop policy are preserved.
+
+Install the updated host using section 15's publish command. Copy the updated runtime modules as well:
+
+```bash
+cp runtime/*.py /Users/Shared/CIMT/lib/cimt-runtime/
+```
+
+This increment adds only standard-library Python code, with no new dependency, private configuration field, API key, helper, or build-worker change. Fresh-Mac installation still uses the documented runtime installation helper, which copies these modules. Existing inputs and cimt run/cimt replay invocations remain valid; no verbosity flag is needed. Existing reports are not rewritten, and their missing historical timestamps cannot be reconstructed.
+
+Verified on the first Mac: 246 .NET unit tests, 13 runtime-policy checks, 150 Python unit tests, 20 public CLI/lifecycle checks, four build-contract checks, four example-adapter checks, and five output-layout checks passed: 442 checks total. All use synthetic inputs/fake services. The existing offline requirement demo generated a synthetic failed/incomplete report with the new sections/activity; its expected exit is 1. Static HTML structure, section, and result checks passed. Visual browser inspection was unavailable because the browser tool blocks local-file URLs; no workaround was attempted.
+
+Installed the tested Release host and all 29 Python modules, checked byte equality against source/build output, and verified public help. Installed cimt.dll SHA-256: c416f3cc25f07192775b7342e58f3ff5b5bb31f1bcc7452e0a12b98663622bb9. No private YAML was read, no new real app build/run/replay or OpenAI request was issued, and no phone was operated. Real application acceptance of the improved diagnostics remains for a user-started run. The underlying capture-stability issue is still open. See [diagnostic reporting](diagnostic-reporting.md).

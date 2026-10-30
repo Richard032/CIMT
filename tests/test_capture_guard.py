@@ -39,6 +39,17 @@ class CaptureGuardTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError):
             self.guard.verify([field(x=float("nan"))], [field(x=float("nan"))], SIZE, SIZE)
 
+    def test_changed_regions_report_coordinates_without_ui_values(self):
+        before, after = field(x=10), field(x=30)
+        before["text"] = after["text"] = "private-ui-value"
+        with self.assertRaises(InfrastructureError) as raised:
+            self.guard.verify([before], [after], SIZE, SIZE)
+        message = str(raised.exception)
+        self.assertIn("Before regions=1", message)
+        self.assertIn("After regions=1", message)
+        self.assertIn('["Password", 30', message)
+        self.assertNotIn("private-ui-value", message)
+
 
 if __name__ == "__main__":
     unittest.main()

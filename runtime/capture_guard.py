@@ -2,6 +2,7 @@
 
 from errors import InfrastructureError
 from mask_geometry import MaskRectangle, ScreenSize
+import json
 
 
 class CaptureGuard:
@@ -9,10 +10,20 @@ class CaptureGuard:
         self.redactor = redactor
 
     def verify(self, before, after, size_before, size_after):
-        if ScreenSize.read(size_before) != ScreenSize.read(size_after):
-            raise InfrastructureError("Screen coordinate size changed during screenshot capture")
-        if self._regions(before) != self._regions(after):
-            raise InfrastructureError("Required mask geometry changed during screenshot capture")
+        first_size, last_size = ScreenSize.read(size_before), ScreenSize.read(size_after)
+        if first_size != last_size:
+            raise InfrastructureError("Screen coordinate size changed during screenshot capture: "
+                + str(first_size.width) + "x" + str(first_size.height) + " -> "
+                + str(last_size.width) + "x" + str(last_size.height))
+        first, last = self._regions(before), self._regions(after)
+        if first != last:
+            raise InfrastructureError("Required mask geometry changed during screenshot capture. "
+                + self._describe("Before", first) + "; " + self._describe("After", last))
+
+    def _describe(self, label, regions):
+        # Coordinates explain the rejected capture. Never include UI text or image pixels.
+        sample = [(self.redactor.text(name), x, y, width, height) for name, x, y, width, height in regions[:10]]
+        return label + " regions=" + str(len(regions)) + " (identifier,x,y,width,height; first 10): " + json.dumps(sample)
 
     def _regions(self, elements):
         regions = []

@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.17  
-Date: 29 October 2026  
+Version: 0.18  
+Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -323,3 +323,11 @@ The [current retention/replay contract](work-retention-and-replay.md) supersedes
 BuildCommands forwards the declared property map without adding AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild. Project/SDK evaluation owns omitted values. Missing APK/IPA output is reported; no implicit property rewrite or rebuild occurs.
 
 RetainedBuildStore records one completed build stage's successful artifacts in per-input retained-builds.json, with profile/source identity, report-relative paths, and SHA-256. Replay uses a separate ordered path: current input loading, retained-build/profile/integrity validation and copying, work/helper preparation, normal model/device checks, and UI execution. It contains no repository or application-build steps. A new report records command=replay and the source build run/commit. Cache failure never enters a normal-build fallback. The original app identity/compiled settings remain authoritative; current credentials and test inputs are used. Saved-action-history/adaptive replay remains explicitly unfinished.
+
+## 21. Readable diagnostic reporting
+
+RunActivityLog owns timestamped host activity, duration/error records, and journal reading. RunCoordinator records stage/finalization boundaries; build execution records target/platform, actual configuration/framework, script outcome, artifact resolution, and log references. The Python ActivityLog records device operations under a shared thread lock in the same activity.jsonl. The host waits while that worker runs; it resumes journal appends only after worker completion/termination. Worker records stream to the terminal through an explicit activity-line callback; private process input and arbitrary process output are not forwarded by that callback.
+
+Mobile records adapter operation names and screenshot/reset outcomes without arguments or raw UI. ScenarioRunner records AI/action/startup/recovery boundaries. DeviceRunner records the original error separately from a limit/cancellation. These are diagnostics only; the existing operations, order, safety rejection, shared stop rules, and outcome policy are preserved. CaptureGuard explains changed geometry with bounded redacted identifiers/coordinates, never UI values/pixels, and still rejects the capture.
+
+RunDiagnostics derives human-readable device stopping reasons from saved worker results, including when stderr is empty. RunDiagnosticsRenderer owns the mandatory overview, ordered activity, and failures/stopping sections; RunHtmlRenderer retains scenario/coverage/evidence presentation. RunReportWriter stores one finish time and exposes activity/stopping reasons/duration in result.json. Exception locations contain no local variables, diagnostic links must remain within the report, and incomplete journal records are disclosed while earlier entries survive. See [contract, limitations, and checks](diagnostic-reporting.md). Full generic process-output streaming remains separately tracked.

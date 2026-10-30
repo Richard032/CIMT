@@ -29,6 +29,7 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         catch (RunLimitException error)
         {
             state.Errors.Add(error.Message);
+            state.StopReasons.Add(new("Run limit", "Run", state.Configuration.Scrub(error.Message)));
             state.Exit = ExitCodes.Combine(state.Exit, 2);
         }
         catch (Exception error)
@@ -47,8 +48,24 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
     private async Task ExecuteSteps(RunState state)
     {
         foreach (var step in steps)
-            await step.Execute(state);
+            await state.Activity.Run(StepName(step), () => step.Execute(state));
     }
+
+    private static string StepName(IRunStep step) => step switch
+    {
+        TextInputLoader => "Load testing inputs",
+        RuntimeFilesCheck => "Check installed runtime",
+        WorkPreparation => "Prepare working folder",
+        ExecutionCheckpoint => "Execution checkpoint",
+        ModelAccessCheck => "Check OpenAI model access",
+        DeviceDiscovery => "Discover connected devices",
+        RepositoryCheckout => "Clone repository and initialize submodules",
+        ApplicationBuilds => "Build configured applications",
+        SaveRetainedBuilds => "Save retained app metadata",
+        LoadRetainedBuilds => "Load retained apps for replay",
+        UiExecution => "Execute device tests",
+        _ => step.GetType().Name
+    };
 
     private static void RecordFailure(RunState state, Exception error)
     {
@@ -56,6 +73,7 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
             ? state.Configuration.Scrub(error.Message)
             : "Execution infrastructure failed: " + error.GetType().Name;
         state.Errors.Add(message);
+        state.StopReasons.Add(new("Infrastructure failure", "Run", message));
         state.Exit = 3;
     }
 
@@ -63,11 +81,12 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
     {
         try
         {
-            await cleanup.Execute(state);
+            await state.Activity.Run("Finalize owned helper and logs", () => cleanup.Execute(state));
         }
         catch (Exception error)
         {
             state.Errors.Add("Owned helper finalization requires attention: " + error.GetType().Name);
+            state.StopReasons.Add(new("Infrastructure failure", "Helper finalization", error.GetType().Name));
             state.Exit = 3;
         }
     }

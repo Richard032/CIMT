@@ -11,6 +11,9 @@ public sealed class RunReportRedactor(JsonTextRedactor json)
         {
             // These values come from the host, not from credential text.
             ["runIdentity"] = JsonTextRedactor.Keep,
+            ["activity"] = items => json.Items(items, item => json.Record(item,
+                ["timestamp", "operation", "status", "target", "platform", "device", "durationSeconds", "log", "exceptionType"])),
+            ["stoppingReasons"] = items => json.Items(items, item => json.Record(item, ["category"])),
             ["stages"] = items => json.Items(items,
                 item => json.Record(item, ["stage", "target", "platform", "result", "log", "sourceRunId", "sourceCommit"])),
             ["builds"] = items => json.Items(items,

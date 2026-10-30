@@ -6,6 +6,7 @@ import plistlib
 import re
 import time
 import zipfile
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
@@ -60,6 +61,7 @@ class ScenarioRunner:
         sleep=time.sleep,
         clock=time.time,
         requirements=None,
+        activity=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -70,6 +72,7 @@ class ScenarioRunner:
         self.sleep = sleep
         self.clock = clock
         self.requirements = requirements or []
+        self.activity = activity
 
     def run(self, mobile, build, result, agent, publish):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
@@ -79,7 +82,8 @@ class ScenarioRunner:
         recovery = CrashRecovery(mobile, monitor, evidence, self.redactor, publish)
         while True:
             self.control.check()
-            state = startup.check(session)
+            with self._operation("Check application startup state", mobile, build["target"]):
+                state = startup.check(session)
             if state == "stop":
                 return
             if state == "retry":
@@ -87,20 +91,27 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action = self._choose(session, agent, evidence, publish)
+            action = self._choose(mobile, session, agent, evidence, publish)
             if action["action"] == "done":
                 self._complete(session, action)
+                if self.activity:
+                    self.activity.write("Objective finished", session.result["completion"],
+                        "Verdict: " + session.result["verdict"], mobile.device, build["target"])
                 publish()
                 return
             entry, element, point = self._perform(mobile, session, action)
             try:
-                cancelled = recovery.after_action(session, entry, action, element, point)
+                with self._operation("Observe action result and check crash recovery", mobile, build["target"]):
+                    cancelled = recovery.after_action(session, entry, action, element, point)
             finally:
                 # Keep the performed action even when evidence or recovery fails.
                 self._save_action(session, entry, action)
                 publish()
             if cancelled:
                 return
+
+    def _operation(self, name, mobile, target):
+        return self.activity.operation(name, mobile.device, target) if self.activity else nullcontext()
 
     def _evidence(self, mobile, build):
         target = build["target"]
@@ -170,22 +181,23 @@ class ScenarioRunner:
         )
         return False
 
-    def _choose(self, session, agent, evidence, publish):
+    def _choose(self, mobile, session, agent, evidence, publish):
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
         session.result["coverage"] = coverage
         publish()
-        action = agent.choose(
-            self.inputs["instructions"],
-            self.inputs.get("requirements", ""),
-            self.inputs.get("setup", ""),
-            session.elements,
-            session.image,
-            session.history,
-            list(self.config.get("credentials", {})),
-            coverage,
-            session.result["requirements"],
-        )
+        with self._operation("Request AI action", mobile, session.result["target"]):
+            action = agent.choose(
+                self.inputs["instructions"],
+                self.inputs.get("requirements", ""),
+                self.inputs.get("setup", ""),
+                session.elements,
+                session.image,
+                session.history,
+                list(self.config.get("credentials", {})),
+                coverage,
+                session.result["requirements"],
+            )
         # Keep a returned finding even if the run limit expired during the request.
         CheckRecorder(self.redactor, evidence, publish).record(
             session, action.get("checks", []), self.inputs["instructions"]
@@ -205,7 +217,8 @@ class ScenarioRunner:
             "observation": action["observation"],
         }
         try:
-            self.actions.execute(mobile, action, session.elements)
+            with self._operation("Execute device action: " + action["action"], mobile, session.result["target"]):
+                self.actions.execute(mobile, action, session.elements)
             if action["action"] in ["tap", "credential"]:
                 session.coverage.activated(element)
         except ValueError as error:

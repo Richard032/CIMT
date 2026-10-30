@@ -12,9 +12,13 @@ public sealed class RunReportWriter : IRunReportWriter
             execution, state.Inputs.GetValueOrDefault("instructions", ""),
             RequirementCatalogue.Hash(state.Inputs.GetValueOrDefault("requirements", "")));
         var outcome = RunOutcomePolicy.Evaluate(state.Exit, execution, coverage);
-        WriteMachineResult(state, outcome, execution, coverage);
+        state.Activity.Record("Run finished", "finished", "Exit " + outcome.ExitCode
+            + "; verdict " + outcome.Verdict + "; completion " + outcome.Completion);
+        state.Finished = DateTimeOffset.UtcNow;
+        var activity = RunActivityLog.Read(state.Report, state.Configuration.Scrub);
+        WriteMachineResult(state, outcome, execution, coverage, activity);
         var renderer = new RunHtmlRenderer(state.Configuration);
-        File.WriteAllText(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage));
+        File.WriteAllText(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage, activity));
         Console.WriteLine("CIMT " + state.Command + " finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
         return outcome.ExitCode;
     }
@@ -25,7 +29,8 @@ public sealed class RunReportWriter : IRunReportWriter
         return File.Exists(path) ? JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(path)) : null;
     }
 
-    private static void WriteMachineResult(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage coverage)
+    private static void WriteMachineResult(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage coverage,
+        IReadOnlyList<RunActivityEntry> activity)
     {
         var value = new
         {
@@ -34,13 +39,16 @@ public sealed class RunReportWriter : IRunReportWriter
             sourceBranch = state.Configuration.Root.Get("repository")!.Value("branch"),
             sourceCommit = state.Commit,
             started = state.Started,
-            finished = DateTimeOffset.UtcNow,
+            finished = state.Finished,
+            durationSeconds = Math.Max(0, (state.Finished!.Value - state.Started).TotalSeconds),
             exitCode = outcome.ExitCode,
             verdict = outcome.Verdict,
             completion = outcome.Completion,
             stages = state.Stages,
             builds = state.Builds,
             errors = state.Errors,
+            stoppingReasons = RunDiagnostics.StopReasons(state, execution, outcome),
+            activity,
             requirementHeadings = state.RequirementHeadings,
             requirementCoverage = coverage,
             execution

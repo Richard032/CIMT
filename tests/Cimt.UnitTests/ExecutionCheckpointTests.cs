@@ -3,8 +3,10 @@ using Cimt;
 
 namespace Cimt.UnitTests;
 
-public sealed class ExecutionCheckpointTests
+public sealed class ExecutionCheckpointTests : IDisposable
 {
+    private readonly TestDirectory report = new();
+    public void Dispose() => report.Dispose();
     [Theory]
     [InlineData(null)]
     [InlineData("false")]
@@ -175,14 +177,14 @@ public sealed class ExecutionCheckpointTests
             ["interactive-pauses"] = new(value, null, null, root.Origin)
         }, null, root.Origin) }, null, root.Origin));
 
-    private static RunState State(string? setting, RunDeadline? deadline = null)
+    private RunState State(string? setting, RunDeadline? deadline = null)
     {
         const string origin = "/fixture/config.yaml";
         var root = new Node(null, new()
         {
             ["ai-model"] = new(null, new() { ["api-key"] = new("synthetic-private-key", null, null, origin) }, null, origin)
         }, null, origin);
-        return new(new Configuration(WithSetting(root, setting)), TestRunFolders.At("/unused-report", DateTimeOffset.UtcNow),
+        return new(new Configuration(WithSetting(root, setting)), TestRunFolders.At(report.Path, DateTimeOffset.UtcNow),
             deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
     }
 }

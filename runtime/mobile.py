@@ -5,18 +5,22 @@ from device_commands import NativeDevice, DeviceReadiness, DeviceStatus
 from mcp_client import Mcp
 from redaction import Redactor, ScreenMasker
 from screen_capture import ScreenCapture
+from contextlib import nullcontext
 
 
 class Mobile:
     """Exposes the device operations needed by a scenario."""
 
     def __init__(
-        self, binary, device, folder, context, redactor, commands=None, client_factory=Mcp
+        self, binary, device, folder, context, redactor, commands=None, client_factory=Mcp,
+        activity=None,
     ):
         self.device = device
         self.folder = folder
         self.context = context
         self.redactor = redactor
+        self.activity = activity
+        self.target = ""
         self.commands = commands or NativeDevice(binary, device, context, redactor)
         self.guard = DeviceReadiness(self.commands, folder)
         self.status = DeviceStatus(self.commands, folder)
@@ -43,13 +47,21 @@ class Mobile:
         self.guard.readiness()
 
     def call(self, name, timeout=45, **arguments):
-        return self.client.call(name, dict(device=self.device["id"], **arguments), timeout)
+        # Arguments can contain typed credentials. Log only the operation name and outcome.
+        with self._operation(name):
+            return self.client.call(name, dict(device=self.device["id"], **arguments), timeout)
 
     def reset(self, artifact, app_id, target):
-        self.lifecycle.reset(artifact, app_id, target)
+        self.target = target
+        with self._operation("Reset, install, and request app launch"):
+            self.lifecycle.reset(artifact, app_id, target)
 
     def snapshot(self):
-        return self.screen.snapshot()
+        with self._operation("Capture and validate masked screenshot"):
+            return self.screen.snapshot()
+
+    def _operation(self, name):
+        return self.activity.operation(name, self.device, self.target) if self.activity else nullcontext()
 
     def foreground(self):
         return self.status.foreground()

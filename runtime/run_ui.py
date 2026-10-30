@@ -14,6 +14,7 @@ from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
 from device_scheduler import DeviceScheduler
+from activity import ActivityLog
 
 
 class Execution:
@@ -23,6 +24,7 @@ class Execution:
         self.context = context
         self.config = context["config"]
         self.redactor = Redactor(self.config)
+        self.activity = ActivityLog(context["report"], self.redactor)
         self.budget = Budget(
             self.config["ai-model"]["name"],
             self.config["ai-budget"]["amount"],
@@ -50,6 +52,9 @@ class Execution:
         worker = self._device_runner()
         self.scheduler.run(self.context["devices"], worker)
         self.journal.save()
+        self.activity.write("Device test summary", "finished",
+            "Exit " + str(result_exit_code(self.journal.results))
+            + "; AI inference requests: " + str(self.budget.snapshot()["requests"]))
         return result_exit_code(self.journal.results)
 
     def _device_runner(self):
@@ -62,6 +67,7 @@ class Execution:
             actions,
             self.context["report"],
             requirements=self.context.get("requirements", []),
+            activity=self.activity,
         )
         return DeviceRunner(
             self.context,
@@ -71,10 +77,12 @@ class Execution:
             scenarios,
             self.mobile_factory,
             self.agent_factory,
+            activity=self.activity,
         )
 
     def _mobile(self, device, folder):
-        return Mobile(self.context["nativeBinary"], device, folder, self.context, self.redactor)
+        return Mobile(self.context["nativeBinary"], device, folder, self.context, self.redactor,
+                      activity=self.activity)
 
     def _agent(self):
         return Agent(self.config, self.budget, self.context["deadline"])

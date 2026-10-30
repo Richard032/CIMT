@@ -51,9 +51,9 @@ public sealed class ExecutionCheckpoint(ExecutionPhase phase, TextReader input, 
         }
     }
 
-    private void Record(RunState state, string result) => state.Stages.Add(new
+    private void Record(RunState state, string result)
     {
-        stage = "execution checkpoint: " + phase,
-        result
-    });
+        state.Stages.Add(new { stage = "execution checkpoint: " + phase, result });
+        state.Activity.Record("Execution checkpoint: " + phase, result);
+    }
 }

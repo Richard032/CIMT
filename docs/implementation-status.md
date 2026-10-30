@@ -1,6 +1,6 @@
 # CIMT implementation status
 
-Updated: 29 October 2026
+Updated: 30 October 2026
 
 ## Reviewed increment 1 — adapter evaluation
 
@@ -266,3 +266,11 @@ The user-started 15:35 run confirms correct branch/commit and retained checkout/
 No new software workaround was added. The intended application resource-generation process needs clarification; unresolved templates and fabricated build metadata are not substitutes. Installation section 29 records the evidence and the secondary warnings. Earlier offline success did not establish real clean-clone build acceptance.
 
 Follow-up: the 15:52 user run picked up new commit 31836595 and now selects Debug configurations. The newly tracked strings.xml is the copy destination (values/strings.xml); the source (values/template/strings.xml) remains missing, so the same MSB3030 persists. The unchanged original project copy and portable adaptation agree on both paths. Resolve the obsolete application copy task or its intended source-generation process; no CIMT workaround or new build was added.
+
+## Increment — readable failures, activity, overview, and stopping reasons
+
+Implemented FR-61–FR-64 / AC-35–AC-38: mandatory HTML overview with actual configurations and AI count; incremental timestamped host/device activity with durations/context; readable errors and exception locations/log links; separate original failures, worker cancellation, limits/device stops, and incomplete work. Empty worker stderr no longer hides saved device errors. Machine results include activity/stoppingReasons/durationSeconds, and structured activity appears in the terminal. Optional detail settings do not hide these sections. Mask-coordinate diagnostics preserve rejection rules and omit UI values/pixels. The scope changes reporting, not app/device/reset/limit/crash/masking execution policies; full generic process-output streaming remains separately tracked.
+
+Requirements v0.12, architecture v0.18, product guide v0.13, and the diagnostic-reporting contract are aligned. Verification passed: 442 offline checks across the existing suites (246 .NET, 163 Python/runtime, 20 CLI, four build contracts, four example adapters, five layout). The existing synthetic mapping demo produced expected exit 1/incomplete and passed static HTML/result checks. Visual browser preview was blocked by the local-file URL policy, so no visual acceptance is claimed.
+
+Installed and byte-verified the host and 29 runtime modules; public help passed. No private configuration read, real app build/test/replay, API request, or phone operation was performed for this increment. Existing reports and user inputs remain intact. The observed Android mask-stability failure and real device acceptance remain open; installation section 30 records the findings and installation hash.

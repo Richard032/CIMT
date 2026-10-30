@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 namespace Cimt;
 
 public sealed record BuildJob(string Target, string Platform, string Folder, string RequestFile,
-    string ResultFile, string Script, string RepositoryRoot, string? ArtifactFallback, string? AppIdFallback)
+    string ResultFile, string Script, string RepositoryRoot, string? ArtifactFallback, string? AppIdFallback,
+    string Configuration = "", string Framework = "")
 {
     public string LogName => Path.GetFileName(Folder) + ".log";
 }
@@ -21,7 +23,8 @@ public sealed class BuildJobFactory(RuntimePaths paths)
         Directory.CreateDirectory(folder);
         var job = new BuildJob(name, platform, folder, Path.Combine(folder, "request.json"),
             Path.Combine(folder, "result.json"), settings.Get("script")?.PathValue ?? paths.BuildScript(platform),
-            Path.Combine(state.Work, "repository"), settings.Value("artifact"), settings.Value("app-id"));
+            Path.Combine(state.Work, "repository"), settings.Value("artifact"), settings.Value("app-id"),
+            target.Value("configuration")!, settings.Value("framework")!);
         await WriteRequest(job.RequestFile, target, settings);
         return job;
     }
@@ -87,9 +90,16 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
     public async Task Build(RunState state, BuildJob job)
     {
         SetBuildEnvironment(state, job);
-        progress.Write(state, "Building " + job.Target + " for " + job.Platform);
+        progress.Write(state, "Building " + job.Target + " for " + job.Platform
+            + " (configuration: " + job.Configuration + "; framework: " + job.Framework + ")");
+        state.Activity.Record("Build application", "started", "Configuration: " + job.Configuration
+            + "; framework: " + job.Framework, job.Target, job.Platform, log: job.LogName);
+        var started = Stopwatch.GetTimestamp();
         var result = await processes.Invoke(state, "bash", [job.Script], 1800);
         await SaveLog(state, job, result);
+        state.Activity.Record("Build script returned", result.Exit == 0 ? "completed" : "failed",
+            "Exit code: " + result.Exit, job.Target, job.Platform,
+            seconds: Stopwatch.GetElapsedTime(started).TotalSeconds, log: job.LogName);
         if (result.Exit != 0)
         {
             RecordFailure(state, job, result.Exit);
@@ -98,6 +108,8 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
         if (!await SaveArtifact(state, job))
             return;
         RecordStage(state, job, "passed");
+        state.Activity.Record("Installable app artifact saved", "completed", target: job.Target,
+            platform: job.Platform, log: job.LogName);
         // Keep publish output and intermediates until the next clone for these inputs.
     }
 
@@ -126,13 +138,17 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
             // Invalid target metadata is a build failure; other targets can still run.
             RecordFailure(state, job, 0);
             state.Errors.Add(state.Configuration.Scrub(error.Message));
+            state.Activity.Record("Resolve installable build artifact", "failed", error.Message,
+                job.Target, job.Platform, log: job.LogName, error: error);
             return false;
         }
     }
 
     private static void RecordFailure(RunState state, BuildJob job, int exit)
     {
-        state.Errors.Add("Build failed: " + job.Target + " / " + job.Platform + " (exit " + exit + "). See " + job.LogName);
+        var message = "Build failed: " + job.Target + " / " + job.Platform + " (exit " + exit + "). See " + job.LogName;
+        state.Errors.Add(message);
+        state.StopReasons.Add(new("Build failure", job.Target + " / " + job.Platform, message));
         RecordStage(state, job, "error");
         state.Exit = 3;
     }

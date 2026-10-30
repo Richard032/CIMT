@@ -1,6 +1,7 @@
 """Execution and fault handling for one physical device."""
 
 import pathlib
+from contextlib import nullcontext
 from errors import InfrastructureError, LimitReached
 
 
@@ -8,7 +9,8 @@ class DeviceRunner:
     """Runs compatible targets in sequence on one device."""
 
     def __init__(
-        self, context, redactor, control, journal, scenarios, mobile_factory, agent_factory
+        self, context, redactor, control, journal, scenarios, mobile_factory, agent_factory,
+        activity=None,
     ):
         self.context = context
         self.redactor = redactor
@@ -17,6 +19,7 @@ class DeviceRunner:
         self.scenarios = scenarios
         self.mobile_factory = mobile_factory
         self.agent_factory = agent_factory
+        self.activity = activity
 
     def run(self, device, index):
         """Test one startup device and publish its final state even after an error."""
@@ -30,28 +33,43 @@ class DeviceRunner:
             "stoppingReason": None,
         }
         self.journal.publish(result)
-        mobile = self.mobile_factory(device, folder)
+        with self._operation("Prepare device adapter", device):
+            mobile = self.mobile_factory(device, folder)
         try:
-            mobile.connect()
+            with self._operation("Connect device", device):
+                mobile.connect()
             self._run_targets(mobile, result)
         except LimitReached as error:
             self._record_limit(result, error)
         except Exception as error:
             self._record_error(result, error)
         finally:
-            mobile.close()
+            with self._operation("Close device connection", device):
+                mobile.close()
             self.journal.publish(result)
 
     def _run_targets(self, mobile, result):
         agent = self.agent_factory()
         for build in self.context["builds"]:
             if build["platform"] == mobile.device["platform"]:
-                self.scenarios.run(
-                    mobile, build, result, agent, lambda: self.journal.publish(result)
-                )
+                with self._operation("Execute target", mobile.device, build["target"]):
+                    self.scenarios.run(
+                        mobile, build, result, agent, lambda: self.journal.publish(result)
+                    )
+
+    def _operation(self, name, device, target=""):
+        return self.activity.operation(name, device, target) if self.activity else nullcontext()
+
+    def _stop_event(self, result, error):
+        if self.activity:
+            target = result["scenarios"][-1]["target"] if result["scenarios"] else ""
+            self.activity.write("Device stopped", self.activity.stop_status(error), str(error),
+                result["device"], target, error=error,
+                log="devices/device-" + str(result["index"]) + "/adapter.log")
 
     def _record_limit(self, result, error):
         result["stoppingReason"] = str(error)
+        self._stop_event(result, error)
         # A locked phone affects that device. Shared limits affect every worker.
         if "locked" not in str(error):
             self.control.stop()
@@ -63,6 +81,7 @@ class DeviceRunner:
             else type(error).__name__ + ": " + str(error)
         )
         result["error"] = self.redactor.text(message)
+        self._stop_event(result, error)
         self.control.stop()
 
 

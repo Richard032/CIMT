@@ -13,13 +13,17 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         """;
 
     /// <summary>Render saved results while escaping HTML and removing configured secrets.</summary>
-    public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null)
+    public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null,
+        IReadOnlyList<RunActivityEntry>? activity = null)
     {
         // Redact parsed values first. Never run replacement over JSON or HTML markup.
         JsonElement? safeExecution = execution is { } value
             ? JsonSerializer.SerializeToElement(new ExecutionRedactor(new JsonTextRedactor(configuration.Scrub)).Execution(value))
             : null;
-        return PageStart + Header(state, outcome) + Stages(state.Stages) + Inputs(state.Report)
+        return PageStart + Header(state, outcome)
+            + new RunDiagnosticsRenderer(configuration).Render(state, outcome, safeExecution,
+                activity ?? RunActivityLog.Read(state.Report, configuration.Scrub))
+            + Stages(state.Stages) + Inputs(state.Report)
             + new RequirementHtmlRenderer(configuration).Render(coverage, state.RequirementHeadings) + Execution(safeExecution) + "<p><a href=\"result.json\">Machine-readable run result</a></p></html>";
     }
 
@@ -29,9 +33,8 @@ public sealed class RunHtmlRenderer(Configuration configuration)
             + " · Verdict: " + Encoded(outcome.Verdict) + " · Completion: " + Encoded(outcome.Completion) + "</p>"
             + "<p>Run: " + Encoded(state.Identity.Id) + " (UTC)</p>"
             + "<p>Branch: " + Encoded(state.Configuration.Root.Get("repository")!.Value("branch")!)
-            + " · Commit: " + Encoded(state.Commit) + "</p><h2>Stopping reasons and coverage limits</h2><ul>"
-            + string.Join("", state.Errors.Select(error => "<li>" + Safe(error) + "</li>"))
-            + "</ul><p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p>";
+            + " · Commit: " + Encoded(state.Commit) + "</p>"
+            + "<p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p>";
     }
 
     private string Stages(IEnumerable<object> stages)

@@ -1,7 +1,7 @@
 # CIMT requirements
 
-Version: 0.11  
-Date: 29 October 2026  
+Version: 0.12  
+Date: 30 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -123,6 +123,10 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-58 | The selected repository branch and project/build configuration shall determine application build steps and tool integrations, including imported targets. CIMT and supplied application adapters shall not introduce a tool call because it existed in another branch, replace unrelated targets, or overwrite configured build properties. An application-specific compatibility change shall be limited to the known supported operation in the disposable run clone and disclosed in retained build diagnostics; other steps shall remain unchanged. |
 | FR-59 | Default build workers shall forward explicitly configured build properties unchanged and leave omitted properties to the selected project/SDK. They shall not force packaging/runtime/archive values. If no supported installable artifact is produced, fail clearly without silently changing properties or retrying another build profile. |
 | FR-60 | CIMT shall publish per-input retained-build metadata after a completed build stage containing successful app artifacts, including original run/source identity, target/project/configuration/framework, relative artifact paths, and integrity digests without credential/signing values. Replay shall use the latest published set for those inputs, verify branch/profile/path/integrity compatibility, and stop explicitly when retained apps are unavailable or incompatible. A build stage with no successes shall not replace a prior valid set. |
+| FR-61 | Every run/replay execution report shall show a mandatory readable overview: command, paired run identity, source branch/commit, UTC start/finish, elapsed duration, requested target labels with their actual build configurations, startup devices, successful app builds available, and recorded AI inference request count. Missing counts shall be described as unavailable rather than assumed zero. |
+| FR-62 | CIMT shall record host stages and device operations incrementally in a timestamped activity journal and show a mandatory chronological HTML timeline. Entries shall identify operation, status, target/platform/device where applicable, available duration, and outcome/error. Preparation, installation/reset/launch requests, screenshot validation, AI requests, actions, recovery checks, worker cancellation, and finalization shall be distinguishable. Overlapping workers shall retain their own context. Interrupted records shall not discard earlier activity and shall be disclosed as incomplete; older reports shall not receive invented timing. |
+| FR-63 | Failures shall be readable without opening raw JSON or enabling optional detail sections. Reports shall identify failing device/target/operation, available underlying error, exception type/location, and safe links to related diagnostic logs. Empty worker stderr shall not suppress errors already recorded by device workers. Infrastructure/masking errors shall not be reported as confirmed application crashes. Diagnostic text shall be redacted before storage/display and HTML-escaped; raw prompts, private requests, UI values, credentials, and unmasked screenshots shall not be added to activity logs. Mask geometry diagnostics may include redacted identifiers/counts/coordinates without changing capture rejection rules. |
+| FR-64 | Reports shall explain why execution finished or stopped and distinguish application-test failures, infrastructure failures, shared-worker cancellation, limit/device stops, and incomplete coverage or remaining work. A secondary cancellation shall retain its own reason rather than replace the original failure. These explanations and the activity/overview sections shall remain visible when optional report details are disabled. Existing exit-code precedence, verdict/completion calculation, limits, reset, crash, and masking policies shall remain unchanged. |
 
 ## 5. Outcomes and exceptional conditions
 
@@ -200,6 +204,10 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-32 | Verify preparation/preflight, validation, replay, failed helper stop, and failed/limited runs preserve old work. Verify helper recovery keeps work; the clone boundary removes only earlier verified work for the current inputs. Verify completed publish folders remain. |
 | AC-33 | Exercise public replay with Git/build fixture commands disabled. Verify reused artifact bytes/digests, original build provenance, a new report/current inputs, unchanged prior work/metadata, and no clone/build stages. Verify missing/changed/unsafe/mismatched retained apps stop before execution, without fallback rebuilding. |
 | AC-34 | Verify publish and metadata commands preserve explicit Android/iOS properties and inject no packaging/runtime/archive values when omitted. Verify unsupported/missing installable output produces a clear error. |
+| AC-35 | Verify run/replay overviews show actual configuration separately from labels, source/run identity, UTC times/duration, devices, successful builds, and the recorded AI count. Verify unavailable counts are not displayed as zero. |
+| AC-36 | Use fake overlapping device operations and host/build stages. Verify timestamp ordering, context, duration/status, incremental journal records, redacted messages, and preservation of earlier events after a truncated journal line. Verify existing reports without a journal explicitly state that timing is unavailable. |
+| AC-37 | Reproduce a fake Android capture failure with empty worker stderr and an iPhone cancellation. Verify terminal/final JSON/HTML expose the actual worker failure and separate cancellation, with no claimed application crash. Verify escaped/redacted error details, working in-report log links, rejected escaping links, and geometry diagnostics containing no UI values. |
+| AC-38 | Disable optional report details. Verify overview, chronological activity, failures/stopping reasons, and unresolved-work explanations remain visible. Exercise the existing public run/replay fixtures and preserve their exit, retention, masking, and coverage semantics. |
 
 ## 8. Later release: branch comparison
 
@@ -248,3 +256,7 @@ The product owner clarified that CuRMiT integration belongs to Visual Studio/pro
 ## Review record — version 0.11
 
 On 29 October 2026, the product owner required build-property preservation, retention of work until the next clone, and replay using the already built app. FR-08/FR-30/FR-38/FR-48 replace deletion-after-execution/startup policies. FR-59/FR-60 and AC-32–AC-34 define property forwarding, retained artifacts, and replay without Git/build. Paired identities, ownership protections, secrets, reports, and run limits remain in force. Current-instruction replay is implemented; saved-action-history adaptation remains unfinished rather than being silently approximated. See [work retention and replay](work-retention-and-replay.md).
+
+## Review record — version 0.12
+
+On 30 October 2026, the product owner requested implementation of readable failures, chronological activity, run overview, and stopping reasons in the HTML report. FR-61–FR-64 and AC-35–AC-38 specify this increment. Timestamped lifecycle diagnostics also appear in the terminal. This does not relax masking/stability checks or other execution policies, and does not claim completion of the separately tracked full Git/build stdout/stderr streaming requirement. See [diagnostic reporting](diagnostic-reporting.md).

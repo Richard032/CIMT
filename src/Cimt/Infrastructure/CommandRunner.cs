@@ -4,7 +4,8 @@ namespace Cimt;
 
 /// <summary>Describes one process call. Input can contain secrets and must not be logged.</summary>
 public sealed record ProcessCommand(string Executable, IEnumerable<string> Arguments, int TimeoutSeconds,
-    Dictionary<string, string>? Environment = null, string? WorkingDirectory = null, string? Input = null);
+    Dictionary<string, string>? Environment = null, string? WorkingDirectory = null, string? Input = null,
+    Action<string>? OutputLine = null);
 
 public sealed record ProcessResult(int Exit, string Stdout, string Stderr);
 
@@ -22,10 +23,23 @@ public sealed class CommandRunner : ICommandRunner
         using var process = Process.Start(CreateStartInfo(command))
             ?? throw new ConfigurationException("Unable to start a required tool.");
         // Read both streams together. A full error stream must not block the child.
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
+        var stdout = Read(process.StandardOutput, command.OutputLine);
+        var stderr = Read(process.StandardError, command.OutputLine);
         await WaitForCompletion(process, command);
         return new(process.ExitCode, await stdout, await stderr);
+    }
+
+    private static async Task<string> Read(StreamReader reader, Action<string>? output)
+    {
+        if (output is null)
+            return await reader.ReadToEndAsync();
+        var text = new System.Text.StringBuilder();
+        while (await reader.ReadLineAsync() is { } line)
+        {
+            text.AppendLine(line);
+            output(line);
+        }
+        return text.ToString();
     }
 
     private static ProcessStartInfo CreateStartInfo(ProcessCommand command)
