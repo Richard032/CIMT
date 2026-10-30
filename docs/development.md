@@ -114,3 +114,7 @@ The Python unittest suite tests identity/ref changes, long-history retention, pe
 ## Compact AI history verification — 30 October 2026
 
 MappingPromptTests in the existing Python unittest suite verifies the public prompt builder's recent-action projection: navigation facts, observed outcomes, aliases/coordinates, critical failures/overrides, the most recent 24 records, and preservation of the caller's full history. Requirement catalogue and exploration-memory coverage remain exercised by their existing tests. The performance comparison reads only saved redacted execution records; it sends no request and changes no report. See performance.md for byte counts and measurement limits.
+
+## Configured-model budget checks
+
+The existing RuntimeChecks cover Mini reservation/accounting and Luna cache-write charges, the exact 272,000-token boundary, whole-request long-context rates, maximum/invalid/uncertain usage, an unfunded request, and model metadata in the ledger. ConfiguredModelTests in the existing runtime component suite verify both access-check names, no fallback on access failure, Luna inference/cache lifetime, unchanged Mini request settings, and preflight model reporting without paid calls. Use the existing development checks; no additional test infrastructure or API key is needed.

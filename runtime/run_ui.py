@@ -46,7 +46,8 @@ class Execution:
         if preflight:
             self.agent_factory().check_access()
             print(
-                "Model access and local runtime/pricing checks passed. No inference request made."
+                "Model access and local runtime/pricing checks passed for "
+                + self.config["ai-model"]["name"] + ". No inference request made."
             )
             return 0
         pathlib.Path(self.context["report"], "devices").mkdir(exist_ok=True)

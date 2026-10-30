@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.18  
+Version: 0.19  
 Date: 30 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -70,8 +70,8 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 
 | ID | Requirement |
 | --- | --- |
-| FR-23 | CIMT shall use OpenAI. Screenshots, UI text, requirements, and relevant source code may be processed by the cloud AI service, with credential redaction as required below. |
-| FR-24 | A strict AI spending limit shall apply across the entire run, including concurrent device workers. CIMT shall reserve the maximum possible cost before each request and shall not issue a request the remaining budget cannot cover. Conservative early stopping is accepted. |
+| FR-23 | CIMT shall use OpenAI and the effective ai-model.name for model-access validation and every inference request. CIMT shall not silently substitute another model. Screenshots, UI text, requirements, and relevant source code may be processed by the cloud AI service, with credential redaction as required below. |
+| FR-24 | A strict AI spending limit shall apply across the entire run, including concurrent device workers. CIMT shall reserve the maximum possible cost before each request and shall not issue a request the remaining budget cannot cover. Conservative early stopping is accepted. The selected model shall have a validated pricing profile covering its context limit, output cap, cache-write charges, and long-context rates where applicable. Unsupported model/currency combinations shall stop before inference. |
 | FR-25 | A configurable time limit shall apply to the entire run. CIMT shall also support completion based on coverage of all testing instructions. Exhausting time or budget with work outstanding shall stop testing and produce an incomplete result. |
 | FR-26 | CIMT shall generate one local HTML report, grouped by build target, device, and scenario, with observed behaviour and evidence. |
 | FR-27 | Every supplied requirement shall have a result and supporting evidence or an explanation of why evidence is unavailable. Results shall include passed, failed, not tested, inconclusive, and overridden. Explicit Markdown document headings shall be retained as source context with their text and line numbers; they shall not receive requirement IDs or test statuses and shall not block completion. |
@@ -221,6 +221,7 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-41 | Verify three unchanged taps prevent a fourth execution, repeated navigation cycles trigger replanning, an exact repeat quote plus reason allows intentional repeats, invented quotes are rejected, and exhausted no-progress replanning stops only its scenario while preserving findings and remaining work. |
 | AC-42 | In the existing offline test infrastructure, interrupt a temporary fake-runtime CIMT process once with SIGINT and verify controlled exit, helper cleanup, final incomplete HTML/JSON, user interruption reason, preserved observations, and no private data. Verify interruption during a checkpoint and before process/action dispatch, signal/marker propagation, and existing failure precedence. |
 | AC-43 | Verify partial HTML/JSON exists before completion, includes latest saved observations/budget, never marks completion or a finish time prematurely, and is replaced by final output. Force-terminate a separate fake-runtime process and verify its last atomic interim report remains readable. |
+| AC-44 | Verify the configured supported model is used for access checks and inference without fallback or paid preflight. Verify Mini retains its rates and Luna reserves cache-write/long-context upper costs, reprices the entire request above 272,000 input tokens, retains uncertain usage, and rejects unfunded/unsupported requests. |
 
 ## 8. Later release: branch comparison
 
@@ -289,3 +290,7 @@ On 30 October 2026, after a user-started run repeatedly tapped unchanged control
 ## Performance refinement — version 0.18
 
 On 30 October 2026, the product owner requested faster execution. The first optimization narrows recent-action AI input under FR-66/AC-40: compact navigation/outcome facts and critical findings replace duplicated full check bodies, old plans, and predictive descriptions. The prompt requests new assessments rather than repeated unchanged unknown results. Full reports, source catalogue, exploration memory, screenshot validation, readiness/crash checks, limits, and model configuration retain their existing behavior. Offline payload measurements are not claims of measured live latency improvement.
+
+## Configured model and Luna support — version 0.19
+
+On 30 October 2026, the product owner retained strict budget enforcement and approved adding gpt-5.6-luna to the validated pricing profiles. FR-23/FR-24 and AC-44 describe configured-model selection and conservative per-request accounting. Automatic online pricing, provider cost polling, and generic user-defined prices are deferred. Private YAML is not changed automatically.

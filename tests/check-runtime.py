@@ -20,6 +20,66 @@ MODEL = "gpt-5.4-mini-2026-03-17"
 
 
 class RuntimeChecks(unittest.TestCase):
+    def test_luna_reserves_full_context_with_cache_and_long_context_charges(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        self.assertEqual(budget.bound, Decimal("0.5286864"))
+
+    def test_luna_short_usage_includes_default_cache_write_upper_rate(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        budget.finish({"input_tokens": 100, "output_tokens": 20})
+        self.assertEqual(budget.accounted, Decimal("0.000049"))
+        self.assertEqual(budget.pending, 0)
+
+    def test_luna_threshold_uses_short_context_rates(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        budget.finish({"input_tokens": 272000, "output_tokens": 20})
+        self.assertEqual(budget.accounted, Decimal("0.068024"))
+
+    def test_luna_above_threshold_reprices_the_entire_request(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        budget.finish({"input_tokens": 272001, "output_tokens": 20})
+        self.assertEqual(budget.accounted, Decimal("0.1360365"))
+
+    def test_luna_missing_usage_keeps_full_reservation(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        budget.finish(None)
+        self.assertEqual(budget.uncertain, Decimal("0.5286864"))
+        self.assertEqual(budget.pending, 0)
+
+    def test_luna_excessive_input_keeps_full_reservation_and_stops(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        with self.assertRaises(InfrastructureError):
+            budget.finish({"input_tokens": 1050001, "output_tokens": 20})
+        self.assertEqual(budget.uncertain, budget.bound)
+
+    def test_luna_full_usage_stays_within_reserved_cost(self):
+        budget = Budget("gpt-5.6-luna", 1, "USD")
+        budget.reserve()
+        budget.finish({"input_tokens": 1050000, "output_tokens": 2048})
+        self.assertEqual(budget.accounted, budget.bound)
+
+    def test_luna_unfunded_action_makes_no_api_request(self):
+        budget = Budget("gpt-5.6-luna", ".52", "USD")
+        calls = []
+        agent = Agent(
+            {"ai-model": {"name": "gpt-5.6-luna", "api-key": "synthetic"}},
+            budget, time.time() + 30,
+            transport=SimpleNamespace(request=lambda *args: calls.append(args)),
+        )
+        with self.assertRaises(LimitReached):
+            agent.choose("test", "", "", [], b"image-fixture", [], [], {})
+        self.assertFalse(calls)
+
+    def test_luna_ledger_identifies_the_configured_model(self):
+        ledger = Budget("gpt-5.6-luna", 1, "USD").snapshot()
+        self.assertEqual(ledger["model"], "gpt-5.6-luna")
+        self.assertEqual(ledger["maximumRequestReservation"], "0.5286864")
+
     def test_two_workers_compete_for_final_reservation(self):
         budget = Budget(MODEL, 1, "USD")
         budget.limit = budget.bound

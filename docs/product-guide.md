@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.19  
+Version: 0.20  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -96,7 +96,7 @@ ai-budget:
   currency: USD
 ```
 
-The time/budget values are illustrative. The model/pricing combination must support conservative upper bounds; supported currencies and price validation remain implementation decisions. Strict budget enforcement is mandatory, with no disable switch.
+The time/budget values are illustrative. Current supported profiles are gpt-5.4-mini-2026-03-17 and gpt-5.6-luna, with USD accounting and validated conservative pricing bounds. Strict budget enforcement is mandatory, with no disable switch. See [model selection](#select-the-ai-model).
 
 reports.sections selects detailed sections. Run summary, final outcome, coverage, and stopping reasons always remain visible. Step screenshots and saved actions are always collected.
 
@@ -367,7 +367,7 @@ Use the [step reviews](implementation-status.md) to distinguish implemented foun
 
 The [button/crash example](../examples/econ-button-crash/README.md) contains both build targets, platform settings, instructions, requirements, setup notes, and application-specific macOS build support. Its public cimt run invocation uses the configured main branch. Reports and disposable work are local subfolders of that example. The existing API key belongs in ignored, owner-only default.private.yaml, never the tracked template.
 
-The current run engine performs one objective per target/device, with at most two devices active. It reports observed controls, attempted controls, remaining paths, screenshots, and confirmed or suspected terminations. It cannot promise to reach hidden or equipment-dependent buttons. Limits and blocking conditions produce incomplete reports. Only the documented model snapshot/USD profile is currently supported; other models need a validated pricing bound before use. See [run-engine limits](run-engine.md).
+The current run engine performs one objective per target/device, with at most two devices active. It reports observed controls, attempted controls, remaining paths, screenshots, and confirmed or suspected terminations. It cannot promise to reach hidden or equipment-dependent buttons. Limits and blocking conditions produce incomplete reports. The supported USD profiles are gpt-5.4-mini-2026-03-17 and gpt-5.6-luna; other models need a validated pricing bound before use. See [run-engine limits](run-engine.md).
 
 
 The internal code now uses smaller services, simple English comments, and replaceable dependencies for unit tests. This does not change the operator commands or configuration. Development rules and checks are described in the [development guide](development.md).
@@ -419,3 +419,16 @@ You can open index.html while testing is running. CIMT saves a clearly labelled 
 Recent AI action history now contains compact navigation facts and actual outcomes, with critical failure/override summaries. CIMT keeps the full history and findings in reports. The AI is asked to avoid repeating unchanged not-tested/inconclusive assessments on every step; unresolved catalogue items remain visible in the report. There is no new configuration, model, or API key.
 
 In an offline comparison using the saved run from 30 October, the latest 24 history records decreased from 46,184 to 4,840 serialized bytes (89.5%). This measures the history portion only. It does not establish the same reduction in total request size, cost, or run time. Device actions and screenshot validation still take time. See [performance findings](performance.md).
+
+## Select the AI model
+
+CIMT uses the effective ai-model.name for both access validation during run/replay and testing. To select Luna, change only this existing field in your local configuration, keeping the current API key and ai-budget settings:
+
+```yaml
+ai-model:
+  name: gpt-5.6-luna
+```
+
+This fragment merges with your existing settings; it is not a complete standalone configuration. The supported profiles are gpt-5.4-mini-2026-03-17 and gpt-5.6-luna, both in USD. CIMT does not switch models automatically. The validate command remains a readiness check without provider calls; run/replay check actual access to the configured model without inference before building/testing. Access checks cannot establish every inference capability or account limit.
+
+Strict spending limits remain mandatory. Mini reserves USD 0.309216 and Luna reserves USD 0.5286864 before each inference request. Luna reserves its full context at higher long-context rates, including default cache-write charges. This deliberately large reservation can stop a run early even though a typical request costs much less. Recorded usage settles at conservative rates and ignores cache-read savings; the report is not an exact invoice. No private file or selected model is changed by installing this update. Model quality and real execution speed still need a user-started comparison; multi-step plans and automatic price retrieval are not included.

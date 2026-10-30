@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stdout
 from types import SimpleNamespace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
@@ -29,6 +30,7 @@ from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
+from run_ui import Execution
 from rpc_messages import RpcMessages
 from screen_capture import ScreenCapture
 
@@ -201,6 +203,72 @@ class StopAfterFocusMobile(FakeMobile):
         super().call(name, **arguments)
         if name == 'mobile_click_on_screen_at_coordinates':
             self.control.interrupt()
+
+
+class ConfiguredModelTests(unittest.TestCase):
+    def test_access_check_uses_the_selected_model_without_inference(self):
+        for model in [MODEL, "gpt-5.6-luna"]:
+            with self.subTest(model=model):
+                calls = []
+                budget = Budget(model, 1, "USD")
+                agent = Agent({"ai-model": {"name": model, "api-key": "synthetic"}},
+                              budget, time.time() + 30,
+                              transport=SimpleNamespace(request=lambda path: calls.append(path)))
+                agent.check_access()
+                self.assertEqual(calls, ["models/" + model])
+                self.assertEqual(budget.requests, 0)
+
+    def test_access_failure_does_not_switch_models(self):
+        calls = []
+
+        def denied(path):
+            calls.append(path)
+            raise InfrastructureError("OpenAI API request failed with HTTP 403")
+
+        agent = Agent({"ai-model": {"name": "gpt-5.6-luna", "api-key": "synthetic"}},
+                      Budget("gpt-5.6-luna", 1, "USD"), time.time() + 30,
+                      transport=SimpleNamespace(request=denied))
+        with self.assertRaises(InfrastructureError):
+            agent.check_access()
+        self.assertEqual(calls, ["models/gpt-5.6-luna"])
+
+    def test_inference_uses_luna_with_the_priced_cache_lifetime(self):
+        transport = ScriptedTransport([action()])
+        agent = Agent({"ai-model": {"name": "gpt-5.6-luna", "api-key": "synthetic"}},
+                      Budget("gpt-5.6-luna", 1, "USD"), time.time() + 30,
+                      transport=transport)
+        agent.choose("Explore", "", "", [], b"masked", [], [], {})
+        body = transport.bodies[0]
+        self.assertEqual(body["model"], "gpt-5.6-luna")
+        self.assertEqual(body["prompt_cache_options"], {"ttl": "30m"})
+        self.assertEqual(body["service_tier"], "default")
+        self.assertEqual(body["reasoning"], {"effort": "low"})
+        self.assertEqual(body["max_output_tokens"], 2048)
+
+    def test_mini_inference_keeps_its_existing_cache_behavior(self):
+        agent, _, transport = api_agent([action()])
+        agent.choose("Explore", "", "", [], b"masked", [], [], {})
+        self.assertEqual(transport.bodies[0]["model"], MODEL)
+        self.assertNotIn("prompt_cache_options", transport.bodies[0])
+
+    def test_preflight_reports_and_journals_the_configured_model(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = {"ai-model": {"name": "gpt-5.6-luna", "api-key": "synthetic"},
+                      "ai-budget": {"amount": 1, "currency": "USD"}}
+            calls = []
+            agent = Agent(config, Budget("gpt-5.6-luna", 1, "USD"), time.time() + 30,
+                          transport=SimpleNamespace(request=lambda path: calls.append(path)))
+            execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                  agent_factory=lambda: agent)
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(execution.run(preflight=True), 0)
+            ledger = json.loads(pathlib.Path(folder, "ai-budget.json").read_text())
+            self.assertEqual(ledger["model"], "gpt-5.6-luna")
+            self.assertEqual(ledger["requests"], 0)
+            self.assertIn("passed for gpt-5.6-luna", output.getvalue())
+            self.assertEqual(calls, ["models/gpt-5.6-luna"])
+            self.assertFalse(pathlib.Path(folder, "devices").exists())
 
 
 class ScenarioTests(unittest.TestCase):
