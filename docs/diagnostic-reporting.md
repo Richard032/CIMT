@@ -40,7 +40,9 @@ The existing .NET unit-test project exercises overview metadata, failure/cancell
 
 Checks use synthetic inputs, fake services, and local files. They do not establish real device/app acceptance. Existing report folders and private YAML are not rewritten; richer reporting starts with new runs/replays after installation.
 
-Final verification: 442 checks passed in the existing offline suites. The tested host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+Earlier diagnostic increment: 442 checks passed in the existing offline suites. That host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+
+Approved usability increment: 548 relevant offline checks passed (286 xUnit, 218 Python unit, 22 runtime-policy and 22 public CLI/lifecycle). Script syntax, report anchor/link integrity after relocation, four synthetic PNGs and fourteen static text/background color pairs were checked. The final host and scoped worker module were installed and byte-verified; public help passed. Browser layout, keyboard/screen-reader qualification, text-enlargement behavior and user-timing measurements remain open. The runnable two-platform example is [requirement mapping](../examples/requirement-mapping/README.md); its expected exit 1 describes synthetic failures, not a real app test.
 
 ## Screenshot transition retries
 
