@@ -7,3 +7,7 @@ class LimitReached(Exception):
 
 class InfrastructureError(Exception):
     """A required tool, response, or safety check did not work."""
+
+
+class CaptureChanged(InfrastructureError):
+    """The screen changed between the checks around one screenshot."""

@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.20  
+Version: 0.21  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -333,3 +333,11 @@ Mobile records adapter operation names and screenshot/reset outcomes without arg
 RunDiagnostics derives human-readable device stopping reasons from saved worker results, including when stderr is empty. RunDiagnosticsRenderer owns the mandatory overview, ordered activity, and failures/stopping sections; RunHtmlRenderer retains scenario/coverage/evidence presentation. RunReportWriter stores one finish time and exposes activity/stopping reasons/duration in result.json. Exception locations contain no local variables, diagnostic links must remain within the report, and incomplete journal records are disclosed while earlier entries survive. See [contract, limitations, and checks](diagnostic-reporting.md). Full generic process-output streaming remains separately tracked.
 
 ScenarioRunner saves the latest redacted AI remaining-work list before recording checks or checking limits. A finalization boundary publishes each started scenario even if preparation or execution raises an error. Incomplete scenarios include known unresolved requirement/control counts, or an explicit unfinished-objective note when no specific pending work is known. Control counts are refreshed after actions; old plans are replaced rather than accumulated. Explicit completion uses the current plan and coverage rules. The existing HTML scenario and stopping-reason renderers consume this saved list without inferring new actions or rewriting historical reports.
+
+## 22. Stable screenshot retries and missing evidence
+
+CaptureGuard raises CaptureChanged only for valid screen-size or required-region changes between the two UI checks. Invalid geometry still raises InfrastructureError directly. ScreenCapture owns at most three fresh attempts, each with full readiness/UI/size/image checks. It discards changing frames and waits 250 ms between attempts, bounded by the existing whole-run deadline. It never retries arbitrary tool, device-lock, image-format, or masking errors. Exhaustion raises an evidence/infrastructure error, not a confirmed app crash.
+
+Mobile supplies the run deadline and a callback that records each retry in the existing activity journal. No raw UI text, pixels, credentials, extra inference request, app action, or screenshot-bypass option is introduced. The existing masked-evidence path saves the accepted image and the HTML step renderer displays it. Scenarios with no accepted screenshot now show an explicit unavailable-evidence message. Existing report folders remain unchanged. This supersedes the immediate-stop policy for a transient valid geometry change; all candidate rejection checks remain in force.
+
+Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.

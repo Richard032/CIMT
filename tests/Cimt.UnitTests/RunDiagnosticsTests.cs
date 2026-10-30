@@ -34,6 +34,33 @@ public sealed class RunDiagnosticsTests
     }
 
     [Fact]
+    public async Task ReportExplainsWhenNoVerifiedScreenshotWasSaved()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        Assert.Contains("No verified screenshot was saved for this scenario", fixture.Html());
+    }
+
+    [Fact]
+    public async Task ReportDisplaysSavedPermissionDialogScreenshot()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"fixture","platform":"ios","name":"iPhone fixture"},
+              "error":null,"stoppingReason":null,
+              "scenarios":[{"target":"Debug_Pride","completion":"incomplete","verdict":"inconclusive",
+                "steps":[{"action":"reset/install/launch","observation":"Bluetooth permission dialog",
+                  "screenshot":"devices/device-1/step-0000.png"}],"crashes":[]}]}]}
+            """);
+        var html = new RunHtmlRenderer(fixture.State.Configuration).Render(
+            fixture.State, new(2, "inconclusive", "incomplete"), execution);
+        Assert.Contains("src=\"devices/device-1/step-0000.png\"", html);
+        Assert.Contains("Bluetooth permission dialog", html);
+        Assert.DoesNotContain("No verified screenshot was saved", html);
+    }
+
+    [Fact]
     public async Task UnfinishedWorkAppearsInStoppingReasonsAndScenarioDetails()
     {
         using var fixture = new DiagnosticFixture();

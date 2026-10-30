@@ -29,3 +29,7 @@ The existing .NET unit-test project exercises overview metadata, failure/cancell
 Checks use synthetic inputs, fake services, and local files. They do not establish real device/app acceptance. Existing report folders and private YAML are not rewritten; richer reporting starts with new runs/replays after installation.
 
 Final verification: 442 checks passed in the existing offline suites. The tested host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+
+## Screenshot transition retries
+
+New captures can retry a valid screen/mask-region transition at most three times, with 250 ms waits inside the run deadline. The timeline identifies discarded attempts without raw UI text or pixels. The final accepted masked image follows the existing evidence links and HTML step display. If all attempts fail, the report keeps the underlying evidence error and explicitly says that no verified screenshot was saved. This supersedes the earlier no-retry description for transient valid geometry changes; invalid geometry, image, device, and tool failures still stop immediately. Historical missing screenshots are not reconstructed.

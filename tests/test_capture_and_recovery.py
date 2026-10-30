@@ -12,7 +12,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
 from PIL import Image
 from crashes import CrashRecovery, StartupGuard, TerminationObservation
-from errors import InfrastructureError
+from errors import InfrastructureError, LimitReached
 from redaction import Redactor, ScreenMasker
 from screen_capture import ScreenCapture
 
@@ -24,20 +24,23 @@ SECRET_FIELD = {
 
 
 class CaptureFixture:
-    """Supply two UI reads around one screenshot. No image is written to disk."""
+    """Supply UI reads around fresh screenshots. No image is written to disk."""
 
     def __init__(self, before, after):
-        self.reads = iter([before, after])
+        self.reads = iter([before, after] * ScreenCapture.MAX_ATTEMPTS)
         self.mask_calls = 0
+        self.image_calls = 0
         self.redactor = Redactor({"masking": {"rules": [{"element-id": "Password"}]}})
         self.masker = ScreenMasker(self.redactor)
         stream = io.BytesIO()
         Image.new("RGB", (100, 100), "white").save(stream, format="PNG")
         self.image = stream.getvalue()
-        self.screen = ScreenCapture(self.call, self.native, lambda: None, self.redactor, self)
+        self.screen = ScreenCapture(self.call, self.native, lambda: None, self.redactor, self,
+            sleep=lambda _: None)
 
     def call(self, name, **arguments):
         if name == "mobile_take_screenshot":
+            self.image_calls += 1
             return {"content": [{"type": "image", "data": base64.b64encode(self.image).decode()}]}
         return {"content": [{"type": "text", "text": json.dumps(next(self.reads))}]}
 
@@ -71,27 +74,102 @@ class CaptureRaceTests(unittest.TestCase):
 
     def test_size_change_stops_before_pixels_are_released(self):
         fixture = CaptureFixture([], [])
-        sizes = iter([100, 200])
+        sizes = iter([100, 200] * ScreenCapture.MAX_ATTEMPTS)
 
         def native(arguments):
             return {"data": {"device": {"screenSize": {"width": next(sizes), "height": 100}}}}
 
-        screen = ScreenCapture(fixture.call, native, lambda: None, fixture.redactor, fixture)
+        screen = ScreenCapture(fixture.call, native, lambda: None, fixture.redactor, fixture,
+            sleep=lambda _: None)
         with self.assertRaises(InfrastructureError):
             screen.snapshot()
         self.assertEqual(fixture.mask_calls, 0)
 
     def test_appearing_secret_stops_before_image_can_leave_capture(self):
         fixture = CaptureFixture([], [SECRET_FIELD])
-        with self.assertRaises(InfrastructureError):
+        with self.assertRaisesRegex(InfrastructureError, "No verified screenshot after 3"):
             fixture.screen.snapshot()
         self.assertEqual(fixture.mask_calls, 0)
+        self.assertEqual(fixture.image_calls, 3)
 
     def test_disappearing_secret_stops_capture(self):
         fixture = CaptureFixture([SECRET_FIELD], [])
         with self.assertRaises(InfrastructureError):
             fixture.screen.snapshot()
         self.assertEqual(fixture.mask_calls, 0)
+
+    def test_permission_dialog_is_captured_after_the_transition_settles(self):
+        dialog = {"type": "Alert", "label": "Allow Bluetooth?"}
+        fixture = CaptureFixture([SECRET_FIELD], [dialog])
+        fixture.reads = iter([[SECRET_FIELD], [dialog], [dialog], [dialog]])
+        retries = []
+        fixture.screen.on_retry = lambda attempt, error: retries.append(attempt)
+        elements, encoded = fixture.screen.snapshot()
+        self.assertEqual(elements[0], dialog)
+        self.assertTrue(encoded)
+        self.assertEqual(retries, [1])
+        self.assertEqual(fixture.image_calls, 2)
+        self.assertEqual(fixture.mask_calls, 1)
+
+    def test_retry_masks_a_sensitive_field_that_appeared(self):
+        fixture = CaptureFixture([], [SECRET_FIELD])
+        fixture.reads = iter([[], [SECRET_FIELD], [SECRET_FIELD], [SECRET_FIELD]])
+        elements, encoded = fixture.screen.snapshot()
+        self.assertEqual(elements[0]["value"], "<masked>")
+        with Image.open(io.BytesIO(encoded)) as image:
+            self.assertEqual(image.getpixel((15, 15)), (0, 0, 0))
+        self.assertEqual(fixture.mask_calls, 1)
+
+    def test_retry_returns_the_fresh_image_instead_of_the_rejected_frame(self):
+        fixture = CaptureFixture([], [SECRET_FIELD])
+        fixture.reads = iter([[], [SECRET_FIELD], [], []])
+        stream = io.BytesIO()
+        Image.new("RGB", (100, 100), "red").save(stream, format="PNG")
+        frames = iter([stream.getvalue(), fixture.image])
+        fixture.screen.image_reader = lambda: next(frames)
+        _, encoded = fixture.screen.snapshot()
+        with Image.open(io.BytesIO(encoded)) as image:
+            self.assertEqual(image.getpixel((70, 70)), (255, 255, 255))
+
+    def test_invalid_required_bounds_are_not_retried(self):
+        invalid = dict(SECRET_FIELD, coordinates=None)
+        fixture = CaptureFixture([invalid], [invalid])
+        retries = []
+        fixture.screen.on_retry = lambda *args: retries.append(args)
+        with self.assertRaisesRegex(InfrastructureError, "no reliable bounds"):
+            fixture.screen.snapshot()
+        self.assertFalse(retries)
+        self.assertEqual(fixture.image_calls, 1)
+        self.assertEqual(fixture.mask_calls, 0)
+
+    def test_run_deadline_stops_before_another_capture(self):
+        fixture = CaptureFixture([], [SECRET_FIELD])
+        now = [0]
+        waits = []
+        fixture.screen.clock = lambda: now[0]
+        fixture.screen.deadline = 0.1
+
+        def wait(seconds):
+            waits.append(seconds)
+            now[0] += seconds
+
+        fixture.screen.sleep = wait
+        with self.assertRaisesRegex(LimitReached, "Whole-run time limit"):
+            fixture.screen.snapshot()
+        self.assertEqual(waits, [0.1])
+        self.assertEqual(fixture.image_calls, 1)
+        self.assertEqual(fixture.mask_calls, 0)
+
+    def test_device_lock_is_not_retried(self):
+        fixture = CaptureFixture([], [])
+
+        def locked():
+            raise LimitReached("iPhone is locked")
+
+        fixture.screen.readiness = locked
+        with self.assertRaisesRegex(LimitReached, "locked"):
+            fixture.screen.snapshot()
+        self.assertEqual(fixture.image_calls, 0)
 
     def test_unchanged_secret_is_masked(self):
         fixture = CaptureFixture([SECRET_FIELD], [SECRET_FIELD])

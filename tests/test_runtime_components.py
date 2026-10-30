@@ -235,6 +235,13 @@ class ScenarioTests(unittest.TestCase):
             result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 2
         )
 
+    def test_permission_block_is_incomplete_without_an_application_failure(self):
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(
+            completion="blocked", checks=[], remaining=["Permission decision needs test authorization"])])
+        self.assertEqual(result["completion"], "incomplete")
+        self.assertEqual(result["verdict"], "inconclusive")
+        self.assertFalse(result["crashes"])
+
     def test_returned_failure_survives_a_limit_during_the_request(self):
         result = {"scenarios": []}
         agent = StopThenReportFailure(self.control)
@@ -373,7 +380,7 @@ class BoundaryTests(unittest.TestCase):
         import base64
 
         redactor = Redactor({"masking": {"rules": [{"element-id": "Password"}]}})
-        positions = iter([10, 30])
+        positions = iter([10, 30] * ScreenCapture.MAX_ATTEMPTS)
         masked = []
 
         def call(name, **arguments):
@@ -395,6 +402,7 @@ class BoundaryTests(unittest.TestCase):
             lambda: None,
             redactor,
             SimpleNamespace(capture=lambda *args: masked.append(args)),
+            sleep=lambda _: None,
         )
         with self.assertRaises(InfrastructureError):
             screen.snapshot()

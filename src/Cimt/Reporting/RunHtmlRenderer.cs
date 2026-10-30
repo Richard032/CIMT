@@ -88,6 +88,9 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         var body = "<h4>" + Encoded(Field(scenario, "target")) + " — "
             + Encoded(Field(scenario, "verdict", "inconclusive")) + " / " + Encoded(Field(scenario, "completion")) + "</h4>";
         body += Coverage(scenario) + Findings(scenario) + Checks(scenario);
+        if (!scenario.TryGetProperty("steps", out var steps)
+            || !steps.EnumerateArray().Any(step => Field(step, "screenshot").Length > 0))
+            body += "<p>No verified screenshot was saved for this scenario. See failures and stopping reasons.</p>";
         if (scenario.TryGetProperty("remaining", out var remaining) && remaining.GetArrayLength() > 0)
             body += "<p>Remaining/blocked work:</p><pre>" + Encoded(remaining.ToString()) + "</pre>";
         if (Detail("interpretations") && scenario.TryGetProperty("interpretation", out var interpretation))

@@ -144,6 +144,22 @@ class RequirementResultTests(unittest.TestCase):
 
 
 class MappingPromptTests(unittest.TestCase):
+    def test_permission_decisions_require_authorization_in_test_instructions(self):
+        body = ActionPromptBuilder("fixture").build(
+            "Explore buttons", "", "", [], b"masked", [], [], {}
+        )
+        policy = body["input"][0]["content"]
+        self.assertIn("Do not accept or deny a permission request unless", policy)
+        self.assertIn("completion blocked", policy)
+
+    def test_per_run_permission_instruction_reaches_the_model_unchanged(self):
+        instructions = "For this run, allow Bluetooth permission for the tested app."
+        body = ActionPromptBuilder("fixture").build(
+            instructions, "", "", [], b"masked", [], [], {}
+        )
+        state = json.loads(body["input"][1]["content"][0]["text"])
+        self.assertEqual(state["instructions"], instructions)
+
     def test_heading_context_reaches_the_model_without_an_extra_result(self):
         rows = RequirementResults.initial([dict(DEFINITION, headingContext="# Requirements")])
         body = ActionPromptBuilder("fixture").build(

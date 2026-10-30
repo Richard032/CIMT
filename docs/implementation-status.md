@@ -288,3 +288,13 @@ Removed the Windows resource-copy replacement from the source ECON example and b
 Requirements v0.14 (FR-58/AC-31), architecture v0.20, product v0.15, installation v0.19, and the build contract/example are aligned. Existing retained apps and work are preserved; a normal run is needed to produce an app with the unchanged project. No real app build, OpenAI request, or phone operation was performed. The app icon/startup issue remains under investigation.
 
 Verified: all four existing example-build fixture checks passed; shell syntax and equality of all three wrapper copies passed. No installed binary/runtime replacement was required.
+
+## Correction — screenshots across OS permission transitions
+
+Implemented bounded fresh-capture retries for valid screen-size or sensitive-region changes, including the observed Bluetooth permission alert during initial capture. CaptureChanged is separate from invalid geometry and arbitrary infrastructure failures. ScreenCapture retries at most three times, waits 250 ms within the run deadline, and releases only a newly validated masked image. Mobile logs discarded attempts without UI values or pixels. HTML now explicitly identifies scenarios with no verified screenshot instead of leaving missing evidence unexplained.
+
+Requirements v0.15 (FR-28/FR-36/AC-10), architecture v0.21, product v0.16, installation v0.20, and the screenshot/diagnostic guides are aligned. The initial failure made no AI requests and saved no image, so historical evidence is not recoverable. Existing app behavior, verdict policy, masking checks, private input files, and reports are preserved. Full physical-device acceptance and the separate wrong-app/foreground issue remain open.
+
+Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+
+Verification: 449 relevant offline checks passed (249 .NET, 167 Python unit, 13 runtime policy, 20 public CLI). The published host and five changed Python modules were installed and byte-verified; installed help passed. Only TestRun_SingleDevice_SingleTarget's text instruction/README was updated locally. No private configuration, existing report, application source, or device state was changed, and no live run or API request was started.
