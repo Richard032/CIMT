@@ -66,13 +66,11 @@ clones main and its recorded submodule revisions, builds every compatible
 target/device combination, and records the source commit in the report.
 
 The application project and selected build configuration own CuRMiT and other tool
-integration. The example adapter does not add tool calls. It replaces only the
-known Windows resource-copy Exec with portable MSBuild Copy inside the disposable
-clone, then delegates to CIMT's installed defaults. Other target steps, imports,
-conditions, and configured properties are preserved. If that exact command is
-absent or appears more than once, the project stays unchanged. The build log
-states whether a replacement was made. Application IDs remain explicit branding
-properties.
+integration. The example wrappers delegate directly to CIMT's installed defaults
+without reading or editing project files or build requests. The earlier Windows
+resource-copy replacement has been removed. Platform-specific build commands
+belong to the application project; unsupported commands fail visibly. Application
+IDs remain explicit branding properties.
 
 The earlier adapter incorrectly forced the legacy CuRMiTagger.exe through Mono,
 even on a branch that removed that call. Its macos.targets/prebuild.targets
@@ -80,9 +78,9 @@ files have been removed. Update build/build.sh and remove those obsolete local
 files when updating a separate copy of this example. Project-defined tool
 integration continues to work through normal MSBuild evaluation.
 
-Four small MSBuild fixture tests verify resource copying without a tagger,
-project-configured tool/property preservation, unrelated pre-build steps, and
-conditions. The default-worker contract checks also pass. These fixtures do not
+Four small MSBuild fixture tests verify unchanged project/request files, visible
+failure of an unsupported Windows command, project-defined portable copying and
+tools/properties, unrelated pre-build steps, and conditions. The default-worker contract checks also pass. These fixtures do not
 establish a successful real MAUI build, signing, installation, or test run.
 
 ## Output and limits

@@ -86,17 +86,17 @@ Resolve or explicitly configure the application's macOS pre-build compatibility 
 The [button/crash example](../examples/econ-button-crash/README.md) supplies
 replacement scripts that delegate to these installed defaults. The selected
 branch's project/configuration remains authoritative for CuRMiT and other tools.
-The adapter changes only a single known Windows resource-copy Exec to portable
-MSBuild Copy in the disposable clone. It retains the surrounding target, other
-steps/imports/conditions, and configured properties. Missing/duplicate matches
-leave the project unchanged and are disclosed in the build log.
+The wrappers delegate directly without reading or editing the application project
+or build request. Resource-copy commands, tools, imports, conditions, and explicit
+properties remain owned by the project/configuration. An unsupported Windows
+command fails normally; CIMT does not replace or hide it.
 
 The former late target override and Mono invocation were wrong for a branch that
 removed the old tagger command. Both override files and their injected properties
 have been removed. No replacement tagger is added. Four existing example checks
-now verify copying without a tagger, project-configured tool/property preservation,
-other pre-build behavior, and conditions. All four default-worker contract checks
-also pass. Real MAUI builds and signing remain unverified after this correction.
+verify project/request preservation, visible failure of an unchanged Windows
+command, project-configured portable copying/tools/properties, other pre-build
+behavior, and conditions. Real MAUI build/startup acceptance remains separate.
 
 ## Retained build output
 

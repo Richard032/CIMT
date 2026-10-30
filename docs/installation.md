@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.18  
+Version: 0.19  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -958,3 +958,13 @@ For an existing installation, stop active CIMT runs, then copy runtime/scenario.
 Verified: 247 .NET unit tests, 158 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks passed (438 checks). The regression tests use fake relaunch/capture failures and check the saved pending list, latest-plan replacement, completion, coverage counts, redaction, and HTML stopping/scenario sections. The initial sandboxed .NET attempt could not open its process pipe; verification succeeded with the required local process permissions.
 
 Installed only scenario.py and checked byte equality against source. Installed SHA-256: 3ae9b06e184ff4610abe679082ad22c61fd321986c039616e447b88e1ca3c2ea. No private YAML or historical report was read or changed, no real run/replay or API request was started, and no phone was operated. New run/replay reports use the correction; the iPhone launch problem remains open.
+
+## 32. Build wrappers no longer rewrite the application project
+
+The product owner requested removal of the Windows resource-copy workaround. The example, FirstRun, and TestRun_SingleDevice_SingleTarget build/build.sh files now only delegate to the installed default platform build script. The selected project/configuration owns resource copying and all other build steps. This supersedes the older adapter descriptions in this guide. No installed host/runtime or private configuration update is needed.
+
+For another existing input folder, replace its copied build/build.sh with examples/econ-button-crash/build/build.sh. Keep its configured platform entry scripts. The wrappers no longer read the build request or write application project files. An original unsupported build step must be fixed in the application project or an explicitly user-supplied build script.
+
+This changes future normal builds. Replay still uses retained apps and will not rebuild them. Existing retained work, apps, reports, private configuration, and the application repository were not changed. No real app build, API request, or device test was started for this correction.
+
+Verification for section 32: all four existing example-build checks passed, including visible failure of the unchanged Windows command. Shell syntax checks passed, and the source wrapper matches both local copies byte-for-byte. These fixture checks do not establish real app build or startup success.

@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.14  
+Version: 0.15  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -219,7 +219,7 @@ Long input paths need no manual shortening. CIMT manages the helper's short tran
 
 ## 8. Default and replacement build scripts
 
-Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance remains open. A corrected example adapter preserves project-configured tools and adapts only a known Windows resource-copy command; earlier runs were blocked by its obsolete tagger override. See the [build contract](build-script-contract.md). Replacement scripts are supported by the initial run engine; public-command fallback handling has regression tests. See [implementation status](implementation-status.md) for the remaining real-app acceptance work.
+Default Android/iOS build scripts are implemented and installed. Their simulated request/result checks pass; actual application build acceptance remains open. The example wrappers delegate to the installed defaults without editing project files; both the earlier tagger override and resource-copy replacement have been removed. See the [build contract](build-script-contract.md). Replacement scripts are supported by the initial run engine; public-command fallback handling has regression tests. See [implementation status](implementation-status.md) for the remaining real-app acceptance work.
 
 Default scripts use configured project, configuration, framework, and build properties; they build and locate installable artifacts and app identifiers.
 
@@ -376,7 +376,7 @@ The current worker records explicit instruction/requirement checks with expected
 
 ## Project-configured build steps
 
-The selected branch and configured project determine tool integrations, including CuRMiT configured through Visual Studio/MSBuild. CIMT must preserve those steps and imported targets. Application adapters must not force a tool that a branch removed. The ECON example now adapts only one exact Windows resource-copy command inside its temporary clone, records the change, and calls the installed default worker. It adds no tagger command or Mono dependency. If the command does not match, the project remains unchanged. See [FR-58/AC-31](requirements.md).
+The selected branch and configured project determine tool integrations, including CuRMiT configured through Visual Studio/MSBuild. CIMT must preserve those steps and imported targets. Application adapters must not force a tool that a branch removed. The ECON example calls the installed default worker without editing the project or build request. It adds no tagger command, Mono dependency, or resource-copy replacement. Platform-specific compatibility must be handled by the application project; original build failures remain visible. See [FR-58/AC-31](requirements.md).
 
 ## Build-property and work-retention update
 

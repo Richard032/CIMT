@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.19  
+Version: 0.20  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -314,7 +314,7 @@ An enabled checkpoint requires non-redirected input and records waiting/continue
 
 The repository checkout and its selected project/configuration own application tool integration. The default build worker passes configured properties and publishes the cloned project. Application-specific scripts may adapt a known platform command in the disposable clone, but must preserve other steps, imported targets, conditions, and supplied properties. An adapter must not recreate a tool invocation removed by a newer branch.
 
-The corrected ECON example reads the current build request only to locate the cloned project. It replaces one exact Windows copy Exec with a portable MSBuild Copy in that file, preserving its surrounding target and all other content. If the known command is absent or duplicated, it leaves the project unchanged. It does not add global MSBuild imports or Mono properties, modify the request, or inject CuRMiTagger. Existing project-configured tool integrations remain authoritative. The action is logged and the clone remains until replacement immediately before a later clone for these inputs. Source/branch changes are not committed to the application repository. See FR-58/AC-31 and the build-script contract.
+The ECON example wrappers delegate directly to the installed default Android/iOS build scripts. They do not read or rewrite the application project or build request, replace resource-copy commands, inject a tagger, or add MSBuild imports/properties. The selected project owns platform-specific steps and tool integration. Original build errors propagate unchanged. This supersedes the earlier resource-copy compatibility rewrite. See FR-58/AC-31 and the build-script contract.
 
 ## 20. Retained work, explicit properties, and build reuse
 

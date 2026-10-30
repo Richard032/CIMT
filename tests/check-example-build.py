@@ -53,25 +53,32 @@ WORKER
         self.project.write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>'
             '<TargetFramework>net10.0</TargetFramework></PropertyGroup>' + targets + '</Project>')
 
-    def run_adapter(self, platform='android'):
+    def run_adapter(self, platform='android', expect_success=True):
         result = subprocess.run(['bash', str(SOURCE / 'examples/econ-button-crash/build' / (platform + '.sh'))],
             env=self.environment, capture_output=True, text=True)
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        if expect_success:
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        else:
+            self.assertNotEqual(0, result.returncode, 'The original failing build was hidden')
         self.assertEqual(self.original_request, self.request.read_bytes(), 'Build properties were changed')
         return result.stdout
 
-    def test_copy_only_branch_does_not_require_or_inject_a_tagger(self):
+    def test_windows_command_is_preserved_and_its_failure_is_not_hidden(self):
         self.write_project('<Target Name="PreBuild" BeforeTargets="PreBuildEvent">' + WINDOWS_COPY + '</Target>')
-        self.run_adapter()
-        self.assertEqual('<resources />', (self.resources / 'strings.xml').read_text())
-        self.assertNotIn('CuRMi', self.project.read_text())
-        self.assertNotIn('CustomAfterMicrosoftCommonTargets', self.project.read_text())
+        original = self.project.read_bytes()
+        self.run_adapter(expect_success=False)
+        self.assertEqual(original, self.project.read_bytes())
+        self.assertFalse((self.resources / 'strings.xml').exists())
 
     def test_project_configured_tool_and_properties_are_preserved(self):
         self.write_project('<Target Name="ConfiguredTool" BeforeTargets="PreBuild">'
             '<WriteLinesToFile File="$(MSBuildProjectDirectory)/configured-tool.txt" Lines="$(FixtureSetting)" />'
-            '</Target><Target Name="PreBuild" BeforeTargets="PreBuildEvent">' + WINDOWS_COPY + '</Target>')
+            '</Target><Target Name="PreBuild" BeforeTargets="PreBuildEvent">'
+            '<Copy SourceFiles="$(MSBuildProjectDirectory)/Platforms/Android/Resources/values/template/strings.xml" '
+            'DestinationFiles="$(MSBuildProjectDirectory)/Platforms/Android/Resources/values/strings.xml" /></Target>')
+        original = self.project.read_bytes()
         self.run_adapter('ios')
+        self.assertEqual(original, self.project.read_bytes())
         self.assertEqual('from configuration', (self.app / 'configured-tool.txt').read_text().strip())
         self.assertTrue((self.resources / 'strings.xml').exists())
 
@@ -86,7 +93,9 @@ WORKER
     def test_project_target_condition_is_preserved(self):
         self.write_project('<Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="false">'
             + WINDOWS_COPY + '</Target>')
+        original = self.project.read_bytes()
         self.run_adapter()
+        self.assertEqual(original, self.project.read_bytes())
         self.assertFalse((self.resources / 'strings.xml').exists())
         self.assertIn('Condition="false"', self.project.read_text())
 

@@ -280,3 +280,11 @@ Installed and byte-verified the host and 29 runtime modules; public help passed.
 Fixed the empty remaining-work list observed after iPhone relaunch failed. Each returned AI plan is saved with redaction before checks/limits can stop execution. A scenario finalization boundary retains that plan and adds known unresolved requirement/control counts on errors or early returns; a generic unfinished-objective message covers unknown pending work. Counts reflect accepted actions even if later capture fails. Later plans replace older ones, and completion clears obsolete tasks. Existing exit, verdict, crash, reset, device, and masking policies are preserved.
 
 Requirements v0.13 (FR-64/AC-38), architecture v0.19, product guide v0.14, diagnostic contract, and installation v0.18 are aligned. Relevant existing suites passed 438 checks: 247 .NET, 158 Python unit, 13 runtime policy, and 20 CLI/lifecycle. Eight Python and one HTML regression tests were added. Installed scenario.py matches tested source byte-for-byte; existing reports/private inputs remain untouched. No real app test or API call was started. The iPhone launch/control investigation and other acceptance gaps remain open.
+
+## Correction — remove project rewriting from supplied build wrappers
+
+Removed the Windows resource-copy replacement from the source ECON example and both local test input folders. The shared wrapper only delegates to the installed default platform script. Project files and build requests stay unchanged; platform compatibility and tool integration belong to the selected application project. This supersedes the earlier copy-rewrite adapter behavior. Configured target/platform/branch values and private settings are unchanged.
+
+Requirements v0.14 (FR-58/AC-31), architecture v0.20, product v0.15, installation v0.19, and the build contract/example are aligned. Existing retained apps and work are preserved; a normal run is needed to produce an app with the unchanged project. No real app build, OpenAI request, or phone operation was performed. The app icon/startup issue remains under investigation.
+
+Verified: all four existing example-build fixture checks passed; shell syntax and equality of all three wrapper copies passed. No installed binary/runtime replacement was required.
