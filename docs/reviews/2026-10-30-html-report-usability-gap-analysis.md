@@ -4,6 +4,8 @@ Date: 30 October 2026
 Product: CIMT — Curtis Intelligent Mobile Test  
 Status: analysis and proposed improvements; implementation is not authorized by this document
 
+Follow-up: the [Apple and Tesla comparison](2026-10-30-apple-tesla-report-design-comparison.md) supports these findings and refines the proposed implementation order. It moves accessibility/responsive work into the first increment and separates primary section navigation from device/target selection. These are recommendations, not implemented changes.
+
 ## 1. Assessment
 
 The report retains useful evidence, but it is difficult to use for the normal developer question: **What failed, on which device, and how can I reproduce it?** It reads mainly as an expanded execution log. The developer must search through preparation and technical detail before reaching the application results.
