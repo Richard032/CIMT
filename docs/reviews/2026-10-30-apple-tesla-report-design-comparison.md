@@ -4,6 +4,8 @@ Date: 30 October 2026
 Product: CIMT — Curtis Intelligent Mobile Test  
 Status: research and design recommendations; no report redesign implemented
 
+Next review artifact: the [HTML report design proposal](2026-10-30-html-report-design-proposal.md) specifies the page structure, interaction rules and implementation increments. It remains a proposal for approval.
+
 ## 1. Conclusion and scope
 
 The comparison supports the main conclusion of the [HTML report gap analysis](2026-10-30-html-report-usability-gap-analysis.md): developers need outcomes, affected devices and failure evidence before the execution journal. The reviewed report contains Android results, but the information order makes them easy to miss.
