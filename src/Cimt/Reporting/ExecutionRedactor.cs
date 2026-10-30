@@ -26,7 +26,9 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["checks"] = items => json.Items(items, Check),
             ["requirements"] = items => json.Items(items, Requirement),
             ["steps"] = items => json.Items(items, Step),
-            ["crashes"] = items => json.Items(items, Crash)
+            ["crashes"] = items => json.Items(items, Crash),
+            ["rejectedResponses"] = items => json.Items(items, item =>
+                json.Record(item, ["attempt", "step", "status", "screenshot"]))
         });
 
     private JsonNode Check(JsonElement value) => json.Record(value,

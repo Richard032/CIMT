@@ -87,9 +87,8 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         var body = "<h4>" + Encoded(Field(scenario, "target")) + " — "
             + Encoded(Field(scenario, "verdict", "inconclusive")) + " / " + Encoded(Field(scenario, "completion")) + "</h4>";
-        body += Coverage(scenario) + Findings(scenario) + Checks(scenario);
-        if (!scenario.TryGetProperty("steps", out var steps)
-            || !steps.EnumerateArray().Any(step => Field(step, "screenshot").Length > 0))
+        body += Coverage(scenario) + Findings(scenario) + Checks(scenario) + RejectedResponses(scenario);
+        if (!HasScreenshot(scenario, "steps") && !HasScreenshot(scenario, "rejectedResponses"))
             body += "<p>No verified screenshot was saved for this scenario. See failures and stopping reasons.</p>";
         if (scenario.TryGetProperty("remaining", out var remaining) && remaining.GetArrayLength() > 0)
             body += "<p>Remaining/blocked work:</p><pre>" + Encoded(remaining.ToString()) + "</pre>";
@@ -101,6 +100,10 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         return body;
     }
 
+    private static bool HasScreenshot(JsonElement scenario, string collection) =>
+        scenario.TryGetProperty(collection, out var rows)
+        && rows.EnumerateArray().Any(row => Field(row, "screenshot").Length > 0);
+
     private string Coverage(JsonElement scenario)
     {
         if (!scenario.TryGetProperty("coverage", out var coverage))
@@ -108,6 +111,19 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         return "<p>Observed control/state combinations: " + Encoded(Field(coverage, "observedControls", "0"))
             + "; activated: " + Encoded(Field(coverage, "attemptedControls", "0"))
             + "; outstanding: " + Encoded(Field(coverage, "outstandingObservedControls", "0")) + ".</p>";
+    }
+
+    private string RejectedResponses(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("rejectedResponses", out var responses) || responses.GetArrayLength() == 0)
+            return "";
+        // Keep these diagnostics visible even when optional report sections are disabled.
+        return "<h5>Unaccepted AI responses</h5><p>These responses failed validation. Their proposed actions were not executed, "
+            + "and their observations are unverified and are not used for the test verdict.</p>"
+            + string.Join("", responses.EnumerateArray().Select(response =>
+                Details("Attempt " + Field(response, "attempt") + ": " + Field(response, "error"), response.ToString())
+                + (response.TryGetProperty("screenshot", out var screenshot) ? Image(screenshot.ToString())
+                    : "<p>No screenshot was saved for this rejected response.</p>")));
     }
 
     private string Findings(JsonElement scenario)

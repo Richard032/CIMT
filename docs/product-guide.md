@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.16  
+Version: 0.17  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -397,3 +397,9 @@ An OS permission question is a normal test screen. If it appears while a screens
 Accepted screenshots appear with recorded steps. If no screenshot passed verification, the HTML says so and retains the stopping reason. Older rejected captures cannot be recovered; new run/replay execution is needed to collect new evidence. No private YAML change is required.
 
 Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+
+## AI response correction
+
+CIMT checks an AI decision before recording its observations or executing its action. If the answer has inconsistent reporting fields, an unknown requirement ID, an invalid instruction override quotation, or malformed action JSON, CIMT requests a corrected answer. It allows at most two corrections after the initial answer. Each correction uses a fresh masked screen and counts toward the same AI spending and whole-run time limits. No extra configuration is needed.
+
+The HTML report shows Unaccepted AI responses with the validation reason, candidate response, and available masked decision screenshot. These observations are unverified and do not determine the test verdict; accepted findings remain. The chronological activity shows rejection and recovery, and AI accounting includes correction requests. If all three answers are invalid, execution stops with an infrastructure error and incomplete work. Time/budget exhaustion keeps its normal outcome. This policy does not retry refusals, incomplete provider output, transport errors, device errors, or failed masking/storage.

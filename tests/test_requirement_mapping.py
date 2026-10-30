@@ -178,9 +178,14 @@ class MappingPromptTests(unittest.TestCase):
         )
         state = json.loads(body["input"][1]["content"][0]["text"])
         self.assertEqual(state["requirementResults"], rows)
-        fields = body["text"]["format"]["schema"]["properties"]["checks"]["items"]["required"]
-        self.assertIn("requirementId", fields)
-        self.assertIn("instructionQuote", fields)
+        variants = body["text"]["format"]["schema"]["properties"]["checks"]["items"]["anyOf"]
+        for variant in variants:
+            self.assertIn("requirementId", variant["required"])
+            self.assertIn("instructionQuote", variant["required"])
+        self.assertEqual(variants[0]["properties"]["source"]["enum"], ["instructions"])
+        self.assertEqual(variants[0]["properties"]["requirementId"]["enum"], [""])
+        self.assertEqual(variants[1]["properties"]["source"]["enum"], ["requirements"])
+        self.assertEqual(variants[1]["properties"]["requirementId"]["pattern"], r"\S")
 
 
 class MemoryEvidence:

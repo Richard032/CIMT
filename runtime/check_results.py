@@ -1,6 +1,6 @@
 """Explicit test observations and a verdict policy without device or API calls."""
 
-from errors import InfrastructureError
+from errors import InfrastructureError, InvalidAgentResponse
 
 CHECK_FIELDS = [
     "subject",
@@ -13,7 +13,7 @@ CHECK_FIELDS = [
     "instructionQuote",
 ]
 CHECK_STATUSES = ["passed", "failed", "not tested", "inconclusive", "overridden"]
-CHECK_SCHEMA = {
+CHECK_OBJECT_SCHEMA = {
     "type": "object",
     "properties": {
         "subject": {"type": "string"},
@@ -30,40 +30,58 @@ CHECK_SCHEMA = {
 }
 
 
+def _source_schema(source, identifier):
+    """Tie the source and ID together in the schema sent to OpenAI."""
+    return dict(CHECK_OBJECT_SCHEMA, properties=dict(
+        CHECK_OBJECT_SCHEMA["properties"],
+        source={"type": "string", "enum": [source]},
+        requirementId=identifier,
+    ))
+
+
+CHECK_SCHEMA = {"anyOf": [
+    _source_schema("instructions", {"type": "string", "enum": [""]}),
+    _source_schema("requirements", {"type": "string", "pattern": r"\S"}),
+]}
+
+
 def validate_checks(checks):
     """Reject missing or ambiguous results before they can affect a verdict."""
     if not isinstance(checks, list):
-        raise InfrastructureError("Test checks must be a list")
-    for check in checks:
-        _validate_check(check)
+        raise InvalidAgentResponse("checks must be a list")
+    for index, check in enumerate(checks):
+        try:
+            _validate_check(check)
+        except InvalidAgentResponse as error:
+            raise InvalidAgentResponse("checks[" + str(index) + "]: " + str(error)) from None
 
 
 def _validate_check(check):
     if not isinstance(check, dict) or set(check) != set(CHECK_FIELDS):
-        raise InfrastructureError("A test check has invalid fields")
+        raise InvalidAgentResponse("A test check has invalid fields")
     if any(not isinstance(value, str) for value in check.values()):
-        raise InfrastructureError("Test check values must be text")
+        raise InvalidAgentResponse("Test check values must be text")
     if not check["subject"].strip() or check["source"] not in ["instructions", "requirements"]:
-        raise InfrastructureError("A test check needs a subject and a valid source")
+        raise InvalidAgentResponse("A test check needs a subject and a valid source")
     if check["status"] not in CHECK_STATUSES:
-        raise InfrastructureError("A test check has an invalid status")
+        raise InvalidAgentResponse("A test check has an invalid status")
     if check["source"] == "requirements" and not check["requirementId"].strip():
-        raise InfrastructureError("A requirement check needs its catalogue ID")
+        raise InvalidAgentResponse("A requirement check needs its catalogue ID")
     if check["source"] == "instructions" and check["requirementId"]:
-        raise InfrastructureError("An instructions check cannot use a requirement ID")
+        raise InvalidAgentResponse("An instructions check cannot use a requirement ID")
     if check["status"] == "overridden" and not check["instructionQuote"].strip():
-        raise InfrastructureError("An overridden requirement needs an instruction quote")
+        raise InvalidAgentResponse("An overridden requirement needs an instruction quote")
     _validate_evidence(check)
 
 
 def _validate_evidence(check):
     if check["status"] in ["passed", "failed"]:
         if not check["expected"].strip() or not check["observed"].strip():
-            raise InfrastructureError("A decided check needs expected and observed behavior")
+            raise InvalidAgentResponse("A decided check needs expected and observed behavior")
     elif not check["reason"].strip():
-        raise InfrastructureError("An unresolved or overridden check needs an explanation")
+        raise InvalidAgentResponse("An unresolved or overridden check needs an explanation")
     if check["status"] == "overridden" and check["source"] != "requirements":
-        raise InfrastructureError("Only a requirement can be overridden by instructions")
+        raise InvalidAgentResponse("Only a requirement can be overridden by instructions")
 
 
 def scenario_verdict(checks, has_crash, complete, requirements=None):

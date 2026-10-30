@@ -61,6 +61,36 @@ public sealed class RunDiagnosticsTests
     }
 
     [Fact]
+    public async Task RejectedResponsesAreVisibleRedactedAndEscapedWithOptionalDetailsDisabled()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var root = Node.Merge(fixture.State.Configuration.Root,
+            new Node(null, new() { ["reports"] = new(null, new()
+            {
+                ["sections"] = new(null, null, [new("budget", null, null, fixture.Inputs.RunFile)], fixture.Inputs.RunFile)
+            }, null, fixture.Inputs.RunFile) }, null, fixture.Inputs.RunFile));
+        var config = new Configuration(root);
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"fixture","platform":"ios"},"error":null,"scenarios":[{
+              "target":"Debug_Pride","verdict":"inconclusive","completion":"incomplete","steps":[],
+              "rejectedResponses":[{"attempt":1,"step":1,"status":"unaccepted","error":"checks[0]: invalid ID",
+                "response":{"checks":[{"status":"failed","requirementId":"synthetic-credential",
+                  "observed":"<script>synthetic-credential</script>"}]},
+                "screenshot":"devices/device-1/rejected-0001.png"}]}]}]}
+            """);
+        var html = new RunHtmlRenderer(config).Render(fixture.State, new(3, "inconclusive", "incomplete"), execution);
+        Assert.Contains("Unaccepted AI responses", html);
+        Assert.Contains("not used for the test verdict", html);
+        Assert.Contains("checks[0]: invalid ID", html);
+        Assert.Contains("src=\"devices/device-1/rejected-0001.png\"", html);
+        Assert.DoesNotContain("No verified screenshot was saved", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+        Assert.DoesNotContain("<script>", html);
+        Assert.Contains("failed", html);
+    }
+
+    [Fact]
     public async Task UnfinishedWorkAppearsInStoppingReasonsAndScenarioDetails()
     {
         using var fixture = new DiagnosticFixture();

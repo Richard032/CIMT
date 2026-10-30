@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.15  
+Version: 0.16  
 Date: 30 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -128,6 +128,8 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-63 | Failures shall be readable without opening raw JSON or enabling optional detail sections. Reports shall identify failing device/target/operation, available underlying error, exception type/location, and safe links to related diagnostic logs. Empty worker stderr shall not suppress errors already recorded by device workers. Infrastructure/masking errors shall not be reported as confirmed application crashes. Diagnostic text shall be redacted before storage/display and HTML-escaped; raw prompts, private requests, UI values, credentials, and unmasked screenshots shall not be added to activity logs. Mask geometry diagnostics may include redacted identifiers/counts/coordinates without changing capture rejection rules. |
 | FR-64 | Reports shall explain why execution finished or stopped and distinguish application-test failures, infrastructure failures, shared-worker cancellation, limit/device stops, and incomplete coverage or remaining work. A secondary cancellation shall retain its own reason rather than replace the original failure. Each started scenario shall retain the latest redacted AI unfinished-work list even when an error or limit prevents a final AI response. Incomplete scenarios shall also list unresolved requirement and observed-control counts where known; when no specific pending work is known, state that the objective has not finished and coverage is unconfirmed. Later plans replace earlier plans, and confirmed completion clears obsolete pending work. These explanations and the activity/overview sections shall remain visible when optional report details are disabled. Existing exit-code precedence, verdict/completion calculation, limits, reset, crash, and masking policies shall remain unchanged. |
 
+| FR-65 | Before recording checks or executing the proposed action, CIMT shall validate the complete AI response, including check/source consistency, known requirement IDs, and instruction override quotations. The response schema shall distinguish instruction checks (empty requirement ID) from requirement checks (nonblank ID). For a correctable response-contract error, allow at most two correction requests after the initial request, with redacted validation feedback and a fresh fully masked screen before each correction. Every request shall use the shared budget/deadline and stop signal. Never repeat an executed action, rewrite the source/ID silently, or accept part of an invalid response. Retain each rejected candidate, its error, attempt, decision-step context, and the masked evidence used, as redacted unaccepted diagnostics visible in HTML/JSON even when optional details are disabled. Unaccepted observations shall not affect verdicts; earlier accepted findings shall remain. Log rejection/recovery in chronological activity. Exhaustion shall retain partial results and use the existing blocking AI failure policy; limits, refusals, incomplete provider responses, transport/device/masking/storage failures shall not be retried by this correction policy. |
+
 ## 5. Outcomes and exceptional conditions
 
 These rules distinguish a test finding from an inability to execute. Instructions may customize test failure criteria, but cannot turn unexecuted work into a verified pass.
@@ -140,6 +142,7 @@ These rules distinguish a test finding from an inability to execute. Instruction
 | Build target fails | Record failure and continue other targets. |
 | Equipment unavailable | Skip dependent scenarios, explain, and continue. |
 | No devices at startup | Stop and report. |
+| Correctable AI response error | Validate before side effects; request correction at most twice, retaining unaccepted diagnostics under FR-65. |
 | Device disconnect / blocking AI or infrastructure failure | Stop run and report partial execution. |
 | Time or AI budget exhausted | Stop and report incomplete execution. |
 | User interruption | Stop execution and preserve/report observations and work where possible. Do not clear work at finalization. |
@@ -208,6 +211,7 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-36 | Use fake overlapping device operations and host/build stages. Verify timestamp ordering, context, duration/status, incremental journal records, redacted messages, and preservation of earlier events after a truncated journal line. Verify existing reports without a journal explicitly state that timing is unavailable. |
 | AC-37 | Reproduce a fake Android capture failure with empty worker stderr and an iPhone cancellation. Verify terminal/final JSON/HTML expose the actual worker failure and separate cancellation, with no claimed application crash. Verify escaped/redacted error details, working in-report log links, rejected escaping links, and geometry diagnostics containing no UI values. |
 | AC-38 | Disable optional report details. Verify overview, chronological activity, failures/stopping reasons, and unresolved-work explanations remain visible. Interrupt a scenario during reset, capture, relaunch, or after an AI response reaches a limit: verify its latest redacted pending work and known coverage gaps survive, with an explicit unfinished-objective fallback when needed. Verify later plans replace earlier plans and completed scenarios clear obsolete pending work. Exercise the existing public run/replay fixtures and preserve their exit, retention, masking, and coverage semantics. |
+| AC-39 | Verify a contradictory check, unknown requirement ID, invalid override quote, and malformed JSON can be corrected before any action/result mutation. Verify no more than three responses per decision, one execution of an accepted action, a fresh masked screen/current refs for correction, shared budget/deadline/cancellation, and no retries of transport/refusal/incomplete/masking/storage failures. Preserve accepted failures and redacted rejected candidates, including unaccepted failed observations and missing-evidence explanations. Verify mandatory HTML diagnostics remain redacted and escaped with optional details disabled, and exhaustion produces an infrastructure error with incomplete work. |
 
 ## 8. Later release: branch comparison
 
@@ -264,3 +268,7 @@ On 30 October 2026, the product owner requested implementation of readable failu
 On 30 October 2026, the product owner requested removal of the Windows resource-copy replacement. FR-58/AC-31 now require the supplied ECON wrappers to delegate without editing the application project. This supersedes the earlier compatibility-rewrite allowance; users may still supply their own build scripts.
 
 On 30 October 2026, the product owner requested screenshots in the report after a permission prompt stopped initial capture. FR-28/FR-36 and AC-10 now describe bounded fresh-capture retries for screen transitions, continued protection of rejected images, normal permission-screen handling, and explicit missing-screenshot disclosure.
+
+## Review record — version 0.16
+
+On 30 October 2026, the product owner approved implementation of the reviewed AI response correction. FR-65/AC-39 add two bounded correction attempts before classifying a response-contract error as blocking. This refines the existing immediate-stop behavior for invalid AI responses. Blocking failure after exhaustion still stops the run; unaccepted observations never become verified findings, and accepted failures cannot be erased by correction. Public YAML and terminal commands do not change.
