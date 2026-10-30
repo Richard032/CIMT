@@ -133,11 +133,80 @@ public sealed class ExecutionTests : IDisposable
         Assert.DoesNotContain("fixture-secret", error.Message);
     }
 
-    private RunState State(RunDeadline? deadline = null)
+    [Fact]
+    public async Task UserInterruptionStopsLaterStepsAndStillCleansAndReports()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        var state = State(cancellation: interruption.Token);
+        var calls = new List<string>();
+        var steps = new[] { new FakeStep(_ => interruption.Request()),
+            new FakeStep(_ => calls.Add("must not run")) };
+        Assert.Equal(2, await new RunCoordinator(steps, new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
+        Assert.Equal(["cleanup", "report"], calls);
+        Assert.Contains(state.StopReasons, reason => reason.Category == "User interruption");
+        Assert.True(File.Exists(Path.Combine(report.Path, "stop-requested")));
+    }
+
+    [Fact]
+    public async Task InterruptedRunDoesNotEraseAnEarlierFailure()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        var state = State(cancellation: interruption.Token);
+        state.Exit = 1;
+        interruption.Request();
+        var calls = new List<string>();
+        Assert.Equal(1, await new RunCoordinator([], new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
+    }
+
+    [Fact]
+    public async Task CancellationPreventsAnotherProcessFromStarting()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        interruption.Request();
+        var runner = new FakeCommandRunner();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new RunProcess(runner).Invoke(State(cancellation: interruption.Token), "unused", []));
+        Assert.Empty(runner.Commands);
+    }
+
+    [Fact]
+    public void RepeatedStopRequestsAreSafe()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        interruption.Request();
+        interruption.Request();
+        Assert.True(interruption.Token.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task CancellationActivityIsStoppedRatherThanFailed()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var state = State();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => state.Activity.Run("Interrupted operation",
+            () => Task.FromCanceled(cancellation.Token)));
+        Assert.Contains(RunActivityLog.Read(state.Report, state.Configuration.Scrub),
+            row => row.Operation == "Interrupted operation" && row.Status == "stopped");
+    }
+
+    [Fact]
+    public async Task PipeFailureDuringInterruptionDoesNotCreateAnInfrastructureFailure()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        var state = State(cancellation: interruption.Token);
+        var calls = new List<string>();
+        var step = new FakeStep(_ => { interruption.Request(); throw new IOException("pipe closed"); });
+        Assert.Equal(2, await new RunCoordinator([step], new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
+        Assert.Contains(state.StopReasons, reason => reason.Category == "User interruption");
+        Assert.Empty(state.Errors);
+    }
+
+    private RunState State(RunDeadline? deadline = null, CancellationToken cancellation = default)
     {
         var config = new Configuration(new Node(null, [], null, "/fixture/config.yaml"));
         return new(config, TestRunFolders.At(report.Path, DateTimeOffset.UnixEpoch),
-            deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+            deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1))) { Cancellation = cancellation };
     }
 }
 

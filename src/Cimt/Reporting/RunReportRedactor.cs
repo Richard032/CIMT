@@ -7,7 +7,7 @@ namespace Cimt;
 public sealed class RunReportRedactor(JsonTextRedactor json)
 {
     public JsonNode Run(JsonElement value) => json.Record(value,
-        ["command", "sourceBranch", "sourceCommit", "started", "finished", "exitCode", "verdict", "completion"], new()
+        ["command", "sourceBranch", "sourceCommit", "started", "finished", "updated", "inProgress", "exitCode", "verdict", "completion"], new()
         {
             // These values come from the host, not from credential text.
             ["runIdentity"] = JsonTextRedactor.Keep,

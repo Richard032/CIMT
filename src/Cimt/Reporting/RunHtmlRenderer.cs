@@ -14,13 +14,15 @@ public sealed class RunHtmlRenderer(Configuration configuration)
 
     /// <summary>Render saved results while escaping HTML and removing configured secrets.</summary>
     public string Render(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage? coverage = null,
-        IReadOnlyList<RunActivityEntry>? activity = null)
+        IReadOnlyList<RunActivityEntry>? activity = null, bool inProgress = false)
     {
         // Redact parsed values first. Never run replacement over JSON or HTML markup.
         JsonElement? safeExecution = execution is { } value
             ? JsonSerializer.SerializeToElement(new ExecutionRedactor(new JsonTextRedactor(configuration.Scrub)).Execution(value))
             : null;
-        return PageStart + Header(state, outcome)
+        return PageStart + (inProgress
+            ? "<p><strong>Partial report — run in progress or finalization interrupted.</strong> Reload this page for newer saved observations. The run has not been confirmed complete.</p>" : "")
+            + Header(state, outcome)
             + new RunDiagnosticsRenderer(configuration).Render(state, outcome, safeExecution,
                 activity ?? RunActivityLog.Read(state.Report, configuration.Scrub))
             + Stages(state.Stages) + Inputs(state.Report)
@@ -87,7 +89,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
     {
         var body = "<h4>" + Encoded(Field(scenario, "target")) + " — "
             + Encoded(Field(scenario, "verdict", "inconclusive")) + " / " + Encoded(Field(scenario, "completion")) + "</h4>";
-        body += Coverage(scenario) + Findings(scenario) + Checks(scenario) + RejectedResponses(scenario);
+        body += Coverage(scenario) + Exploration(scenario) + Findings(scenario) + Checks(scenario) + RejectedResponses(scenario);
         if (!HasScreenshot(scenario, "steps") && !HasScreenshot(scenario, "rejectedResponses"))
             body += "<p>No verified screenshot was saved for this scenario. See failures and stopping reasons.</p>";
         if (scenario.TryGetProperty("remaining", out var remaining) && remaining.GetArrayLength() > 0)
@@ -124,6 +126,15 @@ public sealed class RunHtmlRenderer(Configuration configuration)
                 Details("Attempt " + Field(response, "attempt") + ": " + Field(response, "error"), response.ToString())
                 + (response.TryGetProperty("screenshot", out var screenshot) ? Image(screenshot.ToString())
                     : "<p>No screenshot was saved for this rejected response.</p>")));
+    }
+
+    private string Exploration(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("exploration", out var memory))
+            return "";
+        var count = memory.TryGetProperty("paths", out var paths) ? paths.GetArrayLength() : 0;
+        return "<p>Remembered exploration paths: " + count + ". Repeated unchanged actions are redirected; this does not prove exhaustive coverage.</p>"
+            + (Detail("scenarios") ? Details("Exploration memory and observed outcomes", memory.ToString()) : "");
     }
 
     private string Findings(JsonElement scenario)
@@ -177,7 +188,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         var action = step.TryGetProperty("action", out var value)
             ? value.ValueKind == JsonValueKind.Object ? Field(value, "action") : value.ToString() : "check";
         var body = "<li><p>" + Encoded(action) + ": " + Safe(Field(step, "observation")) + "</p>"
-            + Notes(step, ["actionError", "crash", "recovery", "navigation", "evidenceError"]);
+            + Notes(step, ["controlLabel", "observedOutcome", "actionError", "crash", "recovery", "navigation", "evidenceError"]);
         if (step.TryGetProperty("screenshot", out var screenshot))
             body += Image(screenshot.ToString());
         return body + "</li>";

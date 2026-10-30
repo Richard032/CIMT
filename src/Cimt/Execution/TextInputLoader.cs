@@ -44,12 +44,17 @@ public sealed class TextInputLoader(ITextInputReader reader) : IRunStep
     private async Task<string> ReadInput(RunState state, Node source)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(state.Deadline.RemainingSeconds(20)));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, state.Cancellation);
         try
         {
-            var text = await reader.Read(source, timeout.Token);
+            var text = await reader.Read(source, cancellation.Token);
             if (text.Length > 1000000)
                 throw new ConfigurationException("A text input exceeds the supported one-million-character limit.");
             return state.Configuration.Scrub(text);
+        }
+        catch (OperationCanceledException) when (state.Cancellation.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException) when (state.Deadline.HasExpired)
         {

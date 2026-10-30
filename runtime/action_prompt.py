@@ -19,6 +19,8 @@ FIELDS = {
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
+    "repeatInstruction": {"type": "string"},
+    "repeatReason": {"type": "string"},
     "remaining": {"type": "array", "items": {"type": "string"}},
     "completion": {"type": "string", "enum": ["continue", "complete", "blocked"]},
     "checks": {"type": "array", "items": CHECK_SCHEMA},
@@ -67,6 +69,11 @@ SYSTEM_PROMPT = (
     "not extra requirements; never create checks or missing-work entries for headings. "
     "Other unclear catalogue items need an explanation; never invent a pass. "
     "Work through all applicable catalogue items. "
+    "Use explorationMemory to continue the existing plan. Prior refs are not current control identities. "
+    "Assess the observed outcome of the PREVIOUS action, not the result of the action you are proposing. "
+    "Do not repeatedly tap an unchanged control. Try an untested path, return, or describe a blocked path. "
+    "Only for an explicit repeat/reproduction test, set repeatInstruction to its exact instruction quote "
+    "and repeatReason to explain the intentional repeat; otherwise leave both empty. "
     "For overridden, instructionQuote must be an exact nonempty quote from testing instructions "
     "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
     "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive."
@@ -91,6 +98,7 @@ class ActionPromptBuilder:
         coverage,
         requirement_results=None,
         correction_feedback=None,
+        exploration_memory=None,
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
         state = {
@@ -103,6 +111,7 @@ class ActionPromptBuilder:
             "recentActions": history[-24:],
             "credentialAliases": aliases,
             "coverage": coverage,
+            "explorationMemory": exploration_memory or {},
         }
         if correction_feedback:
             state["correctionFeedback"] = correction_feedback

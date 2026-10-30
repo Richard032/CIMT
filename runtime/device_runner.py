@@ -42,7 +42,10 @@ class DeviceRunner:
         except LimitReached as error:
             self._record_limit(result, error)
         except Exception as error:
-            self._record_error(result, error)
+            if self.control.interrupted:
+                self._record_limit(result, LimitReached("User interrupted execution; partial observations were retained"))
+            else:
+                self._record_error(result, error)
         finally:
             with self._operation("Close device connection", device):
                 mobile.close()

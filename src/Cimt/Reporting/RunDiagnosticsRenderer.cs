@@ -24,7 +24,7 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
             && budget.TryGetProperty("requests", out var count) ? count.ToString() : "Unavailable; no recorded AI request count";
         return "<h2>Run overview</h2><dl>"
             + Row("Command", state.Command) + Row("Started (UTC)", state.Started.ToUniversalTime().ToString("O"))
-            + Row("Finished (UTC)", finished.ToUniversalTime().ToString("O"))
+            + Row(state.Finished is null ? "Snapshot updated (UTC)" : "Finished (UTC)", finished.ToUniversalTime().ToString("O"))
             + Row("Elapsed seconds", Math.Max(0, (finished - state.Started).TotalSeconds).ToString("0.000", CultureInfo.InvariantCulture))
             + Row("Successful app builds available", state.Builds.Count.ToString(CultureInfo.InvariantCulture))
             + Row("AI inference requests", requests) + "</dl>"

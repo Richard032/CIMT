@@ -14,6 +14,7 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
     public DateTimeOffset? Finished { get; set; }
     public RunActivityLog Activity { get; } = new(folders.Report, configuration.Scrub);
     public RunDeadline Deadline { get; } = deadline;
+    public CancellationToken Cancellation { get; init; }
     public string Work { get; set; } = "";
     public string Commit { get; set; } = "";
     public string? NativeBinary
@@ -57,12 +58,16 @@ public sealed class RuntimePaths(string root)
 public sealed class RunProcess(ICommandRunner runner)
 {
     public async Task<ProcessResult> Invoke(RunState state, string tool, IEnumerable<string> arguments,
-        int maximum = 120, string? input = null, Action<string>? output = null)
+        int maximum = 120, string? input = null, Action<string>? output = null, int stopGraceSeconds = 0)
     {
         try
         {
-            return await runner.Run(new(tool, arguments, state.Deadline.RemainingSeconds(maximum),
-                state.Environment, Input: input, OutputLine: output));
+            state.Cancellation.ThrowIfCancellationRequested();
+            var result = await runner.Run(new(tool, arguments, state.Deadline.RemainingSeconds(maximum),
+                state.Environment, Input: input, OutputLine: output, Cancellation: state.Cancellation,
+                StopGraceSeconds: stopGraceSeconds));
+            state.Cancellation.ThrowIfCancellationRequested();
+            return result;
         }
         catch (ConfigurationException) when (state.Deadline.HasExpired)
         {

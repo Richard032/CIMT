@@ -7,6 +7,66 @@ namespace Cimt.UnitTests;
 public sealed class RunDiagnosticsTests
 {
     [Fact]
+    public async Task InterimReportIsIncompleteAndDoesNotFinalizeTheRun()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        new RunReportWriter().Snapshot(fixture.State);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
+        var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
+        Assert.Contains("Partial report", html);
+        Assert.Equal("incomplete", result.GetProperty("completion").GetString());
+        Assert.True(result.GetProperty("inProgress").GetBoolean());
+        Assert.Null(fixture.State.Finished);
+        Assert.DoesNotContain(RunActivityLog.Read(fixture.State.Report, fixture.State.Configuration.Scrub),
+            entry => entry.Operation == "Run finished");
+    }
+
+    [Fact]
+    public async Task FinalReportReplacesTheInterimMarker()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var reports = new RunReportWriter();
+        reports.Snapshot(fixture.State);
+        reports.Write(fixture.State);
+        Assert.DoesNotContain("Partial report", await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html")));
+        var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
+        Assert.False(result.GetProperty("inProgress").GetBoolean());
+        Assert.NotNull(fixture.State.Finished);
+        Assert.False(File.Exists(Path.Combine(fixture.State.Report, "index.html.partial")));
+    }
+
+    [Fact]
+    public async Task InterimReportUsesLatestWorkerSnapshotAndBudget()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ui-results.json"), fixture.Execution.GetRawText());
+        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ai-budget.json"), "{\"requests\":7}");
+        new RunReportWriter().Snapshot(fixture.State);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
+        Assert.Contains("Required mask geometry changed", html);
+        Assert.Contains("AI inference requests</dt><dd>7", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+    }
+
+    [Fact]
+    public async Task InterruptedFinalReportKeepsFailureAndForcesIncomplete()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        using var cancellation = new CancellationTokenSource();
+        var state = new RunState(fixture.State.Configuration, fixture.State.Folders, fixture.State.Deadline)
+            { Cancellation = cancellation.Token, Exit = 1 };
+        cancellation.Cancel();
+        Assert.Equal(1, new RunReportWriter().Write(state));
+        var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(state.Report, "result.json")));
+        Assert.Equal("failed", result.GetProperty("verdict").GetString());
+        Assert.Equal("incomplete", result.GetProperty("completion").GetString());
+    }
+
+    [Fact]
     public async Task OverviewShowsActualConfigurationAndRecordedAiCount()
     {
         using var fixture = new DiagnosticFixture();

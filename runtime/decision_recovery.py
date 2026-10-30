@@ -1,7 +1,7 @@
 """Correct invalid AI decisions before recording checks or executing actions."""
 
 from action_prompt import validate_action
-from errors import InvalidAgentResponse
+from errors import InvalidAgentResponse, NoProgressAction, ExplorationStalled
 from requirement_results import RequirementResults
 
 MAX_DECISION_ATTEMPTS = 3
@@ -28,6 +28,7 @@ class DecisionRecovery:
                 RequirementResults.validate(
                     action["checks"], session.result["requirements"], self.inputs["instructions"]
                 )
+                session.exploration.validate(session.elements, action, self.inputs["instructions"])
             except InvalidAgentResponse as error:
                 rejected = self._record_rejection(
                     session, action if action is not None else error.response,
@@ -35,6 +36,8 @@ class DecisionRecovery:
                 )
                 self._event(mobile, session, "rejected", attempt, str(error))
                 if attempt == MAX_DECISION_ATTEMPTS:
+                    if isinstance(error, NoProgressAction):
+                        raise ExplorationStalled("Exploration blocked: repeated actions made no observed progress") from error
                     raise InvalidAgentResponse(
                         "AI response correction exhausted after " + str(MAX_DECISION_ATTEMPTS)
                         + " attempts: " + str(error)
@@ -53,8 +56,7 @@ class DecisionRecovery:
             list(self.config.get("credentials", {})), session.coverage.snapshot(),
             session.result["requirements"],
         ]
-        if feedback:
-            arguments.append(feedback)
+        arguments.extend([feedback, session.exploration.snapshot(session.elements)])
         return agent.choose(*arguments)
 
     def _record_rejection(self, session, response, error, attempt, evidence, publish):
@@ -83,6 +85,7 @@ class DecisionRecovery:
     def _refresh(self, mobile, session, publish):
         self.control.check()
         session.elements, session.image = mobile.snapshot()
+        session.exploration.observe(session.elements)
         session.coverage.observe(session.elements)
         session.result["coverage"] = session.coverage.snapshot()
         publish()

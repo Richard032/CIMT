@@ -28,7 +28,7 @@ class CoverageTracker:
         """Add enabled controls from the current screen to the coverage record."""
         self.state = screen_key(elements)
         for element in elements:
-            if self._is_control(element):
+            if self.is_control(element):
                 label = (
                     element.get("label")
                     or element.get("text")
@@ -38,7 +38,7 @@ class CoverageTracker:
                 self.observed[self._key(element)] = label
 
     @staticmethod
-    def _is_control(element):
+    def is_control(element):
         kinds = ["button", "switch", "checkbox", "tab", "radio", "cell"]
         return element.get("enabled") is not False and any(
             kind in element.get("type", "").lower() for kind in kinds

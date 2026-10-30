@@ -58,6 +58,8 @@ public static class RunDiagnostics
 
     private static string StopCategory(string reason)
     {
+        if (reason.StartsWith("User interrupted", StringComparison.Ordinal))
+            return "User interruption";
         if (reason.StartsWith("Run stopped after another worker", StringComparison.Ordinal))
             return "Cancelled after another worker stopped";
         if (reason.Contains("locked", StringComparison.OrdinalIgnoreCase))

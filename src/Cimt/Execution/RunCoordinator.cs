@@ -14,6 +14,7 @@ public interface IRunCleanup
 public interface IRunReportWriter
 {
     int Write(RunState state);
+    void Snapshot(RunState state) { }
 }
 
 /// <summary>Runs the steps in order and always performs cleanup and reporting.</summary>
@@ -32,6 +33,12 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
             state.StopReasons.Add(new("Run limit", "Run", state.Configuration.Scrub(error.Message)));
             state.Exit = ExitCodes.Combine(state.Exit, 2);
         }
+        catch (Exception) when (state.Cancellation.IsCancellationRequested)
+        {
+            const string message = "User interrupted execution; partial observations and remaining work were retained.";
+            state.StopReasons.Add(new("User interruption", "Run", message));
+            state.Exit = ExitCodes.Combine(state.Exit, 2);
+        }
         catch (Exception error)
         {
             RecordFailure(state, error);
@@ -47,8 +54,14 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
 
     private async Task ExecuteSteps(RunState state)
     {
+        reports.Snapshot(state);
+        state.Cancellation.ThrowIfCancellationRequested();
         foreach (var step in steps)
+        {
+            state.Cancellation.ThrowIfCancellationRequested();
             await state.Activity.Run(StepName(step), () => step.Execute(state));
+            reports.Snapshot(state);
+        }
     }
 
     private static string StepName(IRunStep step) => step switch

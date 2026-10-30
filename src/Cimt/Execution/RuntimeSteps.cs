@@ -32,15 +32,23 @@ public sealed class ModelAccessCheck(RunProcess processes, RuntimePaths paths, I
 }
 
 /// <summary>Runs the device worker after successful builds are available.</summary>
-public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunProgress progress) : IRunStep
+public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunProgress progress,
+    IRunReportWriter? reports = null) : IRunStep
 {
     public async Task Execute(RunState state)
     {
         if (state.Builds.Count == 0)
             throw new ConfigurationException("No installable build was produced; no application interactions were executed.");
         progress.Write(state, "Executing instructions on startup devices (maximum two at once)");
-        var result = await processes.Invoke(state, paths.Python, [paths.Worker], int.MaxValue,
-            JsonSerializer.Serialize(RuntimeRequest.Create(state)), output: line => ShowActivity(state, line));
+        var worker = processes.Invoke(state, paths.Python, [paths.Worker], int.MaxValue,
+            JsonSerializer.Serialize(RuntimeRequest.Create(state)), output: line => ShowActivity(state, line),
+            stopGraceSeconds: 5);
+        while (!worker.IsCompleted)
+        {
+            await Task.WhenAny(worker, Task.Delay(TimeSpan.FromSeconds(2)));
+            reports?.Snapshot(state);
+        }
+        var result = await worker;
         await SaveLog(state, result);
         state.UiExit = result.Exit is >= 0 and <= 3 ? result.Exit : 3;
         if (state.UiExit == 3)

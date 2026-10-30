@@ -7,16 +7,19 @@ from errors import InfrastructureError
 class ActionExecutor:
     """Maps allowed actions to device calls. It cannot run shell commands."""
 
-    def __init__(self, config, redactor, deadline, sleep=time.sleep, clock=time.time):
+    def __init__(self, config, redactor, deadline, sleep=time.sleep, clock=time.time, check=lambda: None):
         self.config = config
         self.redactor = redactor
         self.deadline = deadline
         self.sleep = sleep
+        self.check = check
         self.clock = clock
 
     def execute(self, mobile, action, elements):
         """Validate and execute one allowed action on the current screen."""
+        self.check()
         mobile.readiness()
+        self.check()
         handlers = {
             "tap": self._tap,
             "credential": self._credential,
@@ -57,6 +60,7 @@ class ActionExecutor:
         # Register the mask before typing. The next screenshot must hide this field.
         self.redactor.ids.add(identifier)
         mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
+        self.check()
         mobile.call("mobile_type_keys", text=value, submit=False)
 
     def _credential_value(self, action):
