@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.19  
+Version: 0.20  
 Date: 30 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -77,7 +77,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-27 | Every supplied requirement shall have a result and supporting evidence or an explanation of why evidence is unavailable. Results shall include passed, failed, not tested, inconclusive, and overridden. Explicit Markdown document headings shall be retained as source context with their text and line numbers; they shall not receive requirement IDs or test statuses and shall not block completion. |
 | FR-28 | A test step shall be a meaningful device action or check, with its result and a screenshot captured afterward. Credentials shall be masked. Internal AI reasoning and build operations shall be logged separately from test steps. Verified masked screenshots shall be displayed with recorded steps in the HTML report. OS permission prompts are normal test screens, not application failures by themselves. The AI shall accept or deny them only when explicitly authorized by the testing instructions. Without an authorized decision, a blocking prompt shall leave the affected path blocked/incomplete, without a permission-only application failure or runtime clarification question. Evidence collection failures shall be disclosed rather than silently omitted; a scenario with no verified screenshot shall state this explicitly in HTML. |
 | FR-29 | Reports shall include unclear instructions and interpretations, reproduction attempts, crashes, skipped/cancelled work, and relevant diagnostics. Report contents shall be configurable; disabling optional sections shall not misrepresent coverage or hide the final outcome. |
-| FR-30 | CIMT shall create each retained report automatically under <input-folder>/CIMT output/reports/report_<date-time>, using the same timestamp as its work_<date-time> folder. Reports shall sit outside work replaced before a later clone. Run-owned builds, diagnostics, screenshots, and actions shall remain under CIMT output. The report folder shall be portable and archivable. Reports shall remain until manually deleted. |
+| FR-30 | CIMT shall create each retained report automatically under <input-folder>/CIMT output/reports/report_<date-time>, using the same timestamp as its work_<date-time> folder. Reports shall sit outside work replaced before a later clone. Run-owned builds, diagnostics, screenshots, and actions shall remain under CIMT output. The report folder shall be portable and archivable. Reports shall remain until manually deleted. CIMT shall also publish the newest run or replay at <input-folder>/CIMT output/reports/index.html, refreshing it with partial/final results and parsed execution-error reports. The stable page shall preserve evidence links into its timestamped folder, show run identity and command, and be printed in the terminal. Validation/setup shall not replace it. Opening or reloading the stable page shall load the newest saved execution; archived timestamped reports shall remain unchanged. |
 | FR-31 | Testing instructions shall define failure criteria. In their absence, confirmed requirement failures or app crashes mean failed; unfinished or inconclusive testing means incomplete; otherwise passed. |
 | FR-32 | Blocking infrastructure failures, including device disconnection or AI service unavailability, shall stop the run and generate a report. This rule has explicit exceptions for failed build targets, recoverable app crashes, unclear instructions, and unavailable external equipment. |
 
@@ -222,6 +222,7 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-42 | In the existing offline test infrastructure, interrupt a temporary fake-runtime CIMT process once with SIGINT and verify controlled exit, helper cleanup, final incomplete HTML/JSON, user interruption reason, preserved observations, and no private data. Verify interruption during a checkpoint and before process/action dispatch, signal/marker propagation, and existing failure precedence. |
 | AC-43 | Verify partial HTML/JSON exists before completion, includes latest saved observations/budget, never marks completion or a finish time prematurely, and is replaced by final output. Force-terminate a separate fake-runtime process and verify its last atomic interim report remains readable. |
 | AC-44 | Verify the configured supported model is used for access checks and inference without fallback or paid preflight. Verify Mini retains its rates and Luna reserves cache-write/long-context upper costs, reprices the entire request above 272,000 input tokens, retains uncertain usage, and rejects unfunded/unsupported requests. |
+| AC-45 | Verify a run followed by replay updates the stable latest HTML to the replay identity, with correct relative screenshots/logs/JSON and visible command. Verify partial/final replacement, early execution errors, validation exclusion, immutable earlier reports, and nonfatal publication failure. Reject symbolic-link staging files before writing. Exercise the existing public replay command fixture. |
 
 ## 8. Later release: branch comparison
 
@@ -294,3 +295,7 @@ On 30 October 2026, the product owner requested faster execution. The first opti
 ## Configured model and Luna support — version 0.19
 
 On 30 October 2026, the product owner retained strict budget enforcement and approved adding gpt-5.6-luna to the validated pricing profiles. FR-23/FR-24 and AC-44 describe configured-model selection and conservative per-request accounting. Automatic online pricing, provider cost polling, and generic user-defined prices are deferred. Private YAML is not changed automatically.
+
+## Latest execution report — version 0.20
+
+On 30 October 2026, the product owner requested a fix after an older HTML report remained open while a newer replay report existed. FR-30 and AC-45 add one stable per-input-folder entry for run and replay, including partial/final and early execution-error output. The saved timestamped report remains the portable archive. The stable page updates on disk; an already open page must be reloaded. There is no automatic browser navigation or rewriting of archived reports.

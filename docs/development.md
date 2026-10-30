@@ -118,3 +118,9 @@ MappingPromptTests in the existing Python unittest suite verifies the public pro
 ## Configured-model budget checks
 
 The existing RuntimeChecks cover Mini reservation/accounting and Luna cache-write charges, the exact 272,000-token boundary, whole-request long-context rates, maximum/invalid/uncertain usage, an unfunded request, and model metadata in the ledger. ConfiguredModelTests in the existing runtime component suite verify both access-check names, no fallback on access failure, Luna inference/cache lifetime, unchanged Mini request settings, and preflight model reporting without paid calls. Use the existing development checks; no additional test infrastructure or API key is needed.
+
+## Latest report publication
+
+LatestReportPublisher owns only the stable execution HTML entry. RunReportWriter supplies its already-redacted page after saving the dated report; CommandReports also publishes parsed early run/replay errors. RunEngine supplies the per-input reports root. Keep model/device execution separate from this filesystem concern.
+
+LatestReportTests in the existing xUnit project verify run/replay replacement, partial/final output, base-relative evidence resolution, validation exclusion, early error reporting, immutable archives, and failure/symlink handling. The existing Cimt.Checks public replay fixture verifies the stable page identifies the replay and its actual evidence folder. All use temporary folders or simulated runtimes; no private settings, paid requests or physical phones are needed.

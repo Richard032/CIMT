@@ -7,7 +7,7 @@ namespace Cimt;
 public sealed class RunHtmlRenderer(Configuration configuration)
 {
     private const string PageStart = """
-        <!doctype html><html lang="en"><meta charset="utf-8"><title>CIMT application test</title>
+        <!doctype html><html lang="en"><meta charset="utf-8">
         <style>body{font:16px system-ui;max-width:1150px;margin:2rem auto;padding:1rem;color:#172333}
         img{max-width:280px;max-height:520px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f4f8;padding:1rem}li{margin:.7rem 0}</style>
         """;
@@ -20,7 +20,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         JsonElement? safeExecution = execution is { } value
             ? JsonSerializer.SerializeToElement(new ExecutionRedactor(new JsonTextRedactor(configuration.Scrub)).Execution(value))
             : null;
-        return PageStart + (inProgress
+        return PageStart + "<title>CIMT " + Encoded(state.Command) + " — " + Encoded(state.Identity.Id) + "</title>" + (inProgress
             ? "<p><strong>Partial report — run in progress or finalization interrupted.</strong> Reload this page for newer saved observations. The run has not been confirmed complete.</p>" : "")
             + Header(state, outcome)
             + new RunDiagnosticsRenderer(configuration).Render(state, outcome, safeExecution,
@@ -34,6 +34,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         return "<h1>CIMT application test</h1><p>Exit: " + outcome.ExitCode
             + " · Verdict: " + Encoded(outcome.Verdict) + " · Completion: " + Encoded(outcome.Completion) + "</p>"
             + "<p>Run: " + Encoded(state.Identity.Id) + " (UTC)</p>"
+            + "<p>Command: " + Encoded(state.Command) + " · <a href=\"../index.html\">Latest run or replay in this input folder</a></p>"
             + "<p>Branch: " + Encoded(state.Configuration.Root.Get("repository")!.Value("branch")!)
             + " · Commit: " + Encoded(state.Commit) + "</p>"
             + "<p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p>";

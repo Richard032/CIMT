@@ -22,7 +22,7 @@ public static class RunEngine
         using var terminalInput = new StreamReader(Console.OpenStandardInput());
         using var interruption = new RunInterruption(runFolders.Report);
         interruption.Listen();
-        var reports = new RunReportWriter();
+        var reports = new RunReportWriter(new LatestReportPublisher(config.ReportsRoot));
         var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http), terminalInput, runner, replay, reports);
         var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), reports);
         return await coordinator.Execute(CreateState(config, runFolders, replay, interruption.Token));

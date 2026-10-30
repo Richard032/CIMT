@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.25  
+Version: 0.26  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -381,3 +381,11 @@ Execution reads the effective ai-model.name for Budget and Agent. The same name 
 Budget keeps validated profiles and one cost calculation shared by reservation and usage settlement. Mini retains its 400,000-token context and USD 0.309216 reservation. Luna has a 1,050,000-token context, USD 0.20/1.20 input/output rates per million tokens, and a 2,048-token output cap. Input is conservatively charged at the 1.25-times default cache-write rate, including ordinary and cached-read tokens. Above 272,000 input tokens, the entire request uses twice the input rate and 1.5 times the output rate. Full-context reservation is USD 0.5286864. Agent explicitly sets a 30-minute cache lifetime for profiles with that priced lifetime. Mini request settings remain unchanged.
 
 A shared lock reserves funds before either device worker sends a request. Valid usage settles at the appropriate conservative rates; missing or invalid usage retains the full reservation. Unknown profiles/currencies stop before inference. These are upper-cost ledger values under the documented rate assumptions, not exact provider invoices. Rates were checked on 30 October 2026 against the [Mini model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Luna model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna), and [cache pricing guidance](https://developers.openai.com/api/docs/guides/prompt-caching). Online pricing discovery and cost reconciliation remain deferred; no additional API or administrator credential is required.
+
+## 28. Stable latest run/replay HTML
+
+LatestReportPublisher writes <input-folder>/CIMT output/reports/index.html after the timestamped HTML has been saved. It publishes the same redacted content with an HTML base pointing to that execution's report_<timestamp>/ directory. Relative screenshots, logs, inputs, and result.json therefore resolve to the correct saved evidence without copying assets. The browser stays at the stable URL; opening/reloading it loads the newest saved run or replay. Dated HTML remains self-contained relative to its own evidence and links back to the latest entry. Titles and headers identify the command and run identity.
+
+RunEngine supplies the publisher to RunReportWriter. Snapshots and final reports use the same path, including interruption finalization. CommandSession retains the parsed command so CommandReports can publish early run/replay errors too. Validation/setup do not replace the latest execution. One Mac-wide run lock serializes writers; no directory modification-time scan selects the latest page.
+
+Publication writes a staging file then replaces the stable HTML atomically. The publisher checks the allocated report name/location and rejects linked entry/staging files. An update failure emits a safe warning, keeps the dated report, and does not alter the test outcome; the terminal prints the latest path only after successful publication. This guarantees complete individual HTML files, not a transaction across HTML and JSON. Updating an already open browser page is left to the user; no JavaScript, redirect or extra server is required.

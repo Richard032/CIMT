@@ -328,6 +328,11 @@ build:
         var created = Directory.GetDirectories(layout.ReportsRoot).Single(path => !reports.Contains(path));
         using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(created, "result.json")));
         Assert(result.RootElement.GetProperty("command").GetString() == "replay", "replay command was not recorded");
+        var latest = File.ReadAllText(Path.Combine(layout.ReportsRoot, "index.html"));
+        Assert(latest.Contains("Command: replay"), "latest HTML does not identify replay");
+        Assert(latest.Contains("<base href=\"" + Path.GetFileName(created) + "/\">"), "latest HTML points to older evidence");
+        Assert(latest.Contains(result.RootElement.GetProperty("runIdentity").GetProperty("id").GetString()!),
+            "latest HTML does not contain the replay identity");
         var stages = result.RootElement.GetProperty("stages").EnumerateArray().ToArray();
         Assert(!stages.Any(stage => stage.GetProperty("stage").GetString() is "repository" or "build"), "replay cloned or built");
         Assert(File.ReadAllText(keep) == "retained source and build output", "replay removed retained work");

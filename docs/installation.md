@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.24  
+Version: 0.25  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1012,3 +1012,15 @@ Update lib/cimt-runtime/budget.py, agent.py, and run_ui.py together after confir
 To select Luna, set ai-model.name to gpt-5.6-luna in the existing local configuration; keep its key and USD spending limit. The existing Mini snapshot remains supported. Unknown models/currencies stop before inference. Luna accounts for default cache-write charges and the long-context tier, reserving USD 0.5286864 per request. See the [model selection procedure](product-guide.md#select-the-ai-model) and architecture section 27. Automatic price retrieval and provider cost queries are deferred. Real account/model access and physical-device comparison remain user-started acceptance checks.
 
 Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/CIMT/state/run.lock for active holders. Backup: /private/tmp/cimt-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.
+
+## 38. Stable latest run/replay report — 30 October 2026
+
+Publish and install the updated .NET command host using the existing procedure. The Python runtime, default build worker/scripts, credentials and YAML schema do not change. Back up the installed host, confirm no CIMT command holds the Mac run lock, replace the published files, and compare installed bytes.
+
+Future runs and replays maintain CIMT output/reports/index.html under their selected input folder, including partial/final reports and early execution errors. Both the stable and timestamped paths appear in terminal output. Open/bookmark the stable file and reload after execution; previously opened dated pages remain historical. Evidence links use the current dated folder, while validation/setup leave latest unchanged.
+
+For existing input folders on this Mac, initialize the stable page from the newest saved run/replay using its recorded run identity, not directory modification times. Copy only its already-redacted HTML, add the matching relative HTML base, and preserve all original reports and evidence. This is a local installation migration, not another test run. Other Macs can create the entry through their next normal run/replay.
+
+Verification for latest-report publication: all 270 existing/new xUnit cases and 22 public CLI/lifecycle checks passed (292 relevant offline checks). The public replay fixture checks the stable HTML command, identity and dated evidence base. The initial sandbox-restricted test attempt could not create local test sockets; the same existing test projects then passed with local process/socket access. No alternate test infrastructure was introduced. The host published successfully, all six installed host files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: b64f548f70595b96630c55fba9577b64a442aae05522d163c92d28f89680f707. Backup: /private/tmp/cimt-latest-report-install.n8npUc/previous-host. Python runtime, build worker/scripts and private configuration are unchanged.
+
+Initialized stable entries for the existing FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget inputs using saved execution identities. The dual-platform entry selects replay 2026-10-30_16-43-21-093, with all 68 HTML image links resolving to existing files. Original selected HTML files were verified unchanged by hash. No real run/replay, API request, app build or phone action was started.

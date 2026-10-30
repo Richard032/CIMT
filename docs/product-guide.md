@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.20  
+Version: 0.21  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -432,3 +432,17 @@ ai-model:
 This fragment merges with your existing settings; it is not a complete standalone configuration. The supported profiles are gpt-5.4-mini-2026-03-17 and gpt-5.6-luna, both in USD. CIMT does not switch models automatically. The validate command remains a readiness check without provider calls; run/replay check actual access to the configured model without inference before building/testing. Access checks cannot establish every inference capability or account limit.
 
 Strict spending limits remain mandatory. Mini reserves USD 0.309216 and Luna reserves USD 0.5286864 before each inference request. Luna reserves its full context at higher long-context rates, including default cache-write charges. This deliberately large reservation can stop a run early even though a typical request costs much less. Recorded usage settles at conservative rates and ignores cache-read savings; the report is not an exact invoice. No private file or selected model is changed by installing this update. Model quality and real execution speed still need a user-started comparison; multi-step plans and automatic price retrieval are not included.
+
+## Open the latest run or replay
+
+Open or bookmark this stable path for each input folder:
+
+```text
+<input-folder>/CIMT output/reports/index.html
+```
+
+After either cimt run or cimt replay, reload that page to see the newest saved execution. The terminal prints `Latest run/replay report:` as well as the timestamped report path. The page shows the command and run identity; browser titles distinguish run from replay. Snapshots update the same page while execution is active, retaining the partial marker until finalization. You must reload to see updates; CIMT does not move existing browser tabs automatically.
+
+Screenshots, logs and machine-readable results stay inside the matching report_<timestamp> folder. Earlier dated reports remain unchanged and are the files to archive/share. A dated execution report links to the latest entry in its input folder. Validation reports do not replace the latest run/replay. A parsed run/replay that fails before testing replaces latest with its error report, preventing an older success from looking current. If latest publication fails, CIMT warns and retains the dated report path.
+
+For TestRun_ios_android_SingleTarget, use `/Users/sumkar/Development/Testing/TestRun_ios_android_SingleTarget/CIMT output/reports/index.html`. This includes the latest replay, not only full build/test runs.
