@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.20  
+Version: 0.22  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -333,3 +333,21 @@ Mobile records adapter operation names and screenshot/reset outcomes without arg
 RunDiagnostics derives human-readable device stopping reasons from saved worker results, including when stderr is empty. RunDiagnosticsRenderer owns the mandatory overview, ordered activity, and failures/stopping sections; RunHtmlRenderer retains scenario/coverage/evidence presentation. RunReportWriter stores one finish time and exposes activity/stopping reasons/duration in result.json. Exception locations contain no local variables, diagnostic links must remain within the report, and incomplete journal records are disclosed while earlier entries survive. See [contract, limitations, and checks](diagnostic-reporting.md). Full generic process-output streaming remains separately tracked.
 
 ScenarioRunner saves the latest redacted AI remaining-work list before recording checks or checking limits. A finalization boundary publishes each started scenario even if preparation or execution raises an error. Incomplete scenarios include known unresolved requirement/control counts, or an explicit unfinished-objective note when no specific pending work is known. Control counts are refreshed after actions; old plans are replaced rather than accumulated. Explicit completion uses the current plan and coverage rules. The existing HTML scenario and stopping-reason renderers consume this saved list without inferring new actions or rewriting historical reports.
+
+## 22. Stable screenshot retries and missing evidence
+
+CaptureGuard raises CaptureChanged only for valid screen-size or required-region changes between the two UI checks. Invalid geometry still raises InfrastructureError directly. ScreenCapture owns at most three fresh attempts, each with full readiness/UI/size/image checks. It discards changing frames and waits 250 ms between attempts, bounded by the existing whole-run deadline. It never retries arbitrary tool, device-lock, image-format, or masking errors. Exhaustion raises an evidence/infrastructure error, not a confirmed app crash.
+
+Mobile supplies the run deadline and a callback that records each retry in the existing activity journal. No raw UI text, pixels, credentials, extra inference request, app action, or screenshot-bypass option is introduced. The existing masked-evidence path saves the accepted image and the HTML step renderer displays it. Scenarios with no accepted screenshot now show an explicit unavailable-evidence message. Existing report folders remain unchanged. This supersedes the immediate-stop policy for a transient valid geometry change; all candidate rejection checks remain in force.
+
+Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+
+## 23. Bounded AI response correction
+
+DecisionRecovery owns one decision's correction loop; ScenarioRunner owns navigation and CheckRecorder owns accepted findings/evidence. Agent still performs one budgeted API request per call. The check schema uses nested anyOf object variants: instruction checks require an empty requirementId, and requirement checks require a nonblank ID. Host validation still checks catalogue membership, exact override quotations, and evidence fields. InvalidAgentResponse is the only recoverable error category. Refusal/incomplete provider output and other infrastructure errors retain their existing behavior.
+
+Each decision permits the initial request plus at most two corrections. Validate the complete candidate before updating the remaining-work plan or check ledger. Record the rejected candidate as untrusted text through generic redaction, not the typed action/check metadata exemptions. Publish its unaccepted diagnostic before saving the already masked decision image. Storage failure retains the diagnostic and evidenceError, then stops normally. Rejected candidates never count as checks, coverage activations, action history, or verified findings. Existing accepted checks remain authoritative.
+
+Before a correction, check shared cancellation/deadline and take a fresh fully verified masked snapshot. Update observed coverage and send the current screen with redacted rejection feedback; do not replay a previous action. Every correction uses normal request cost reservation and settlement. As with ordinary decisions, screen capture and later action are not atomic; correction introduces no stronger screen-stability guarantee. Normal device/action validation still applies.
+
+The scenario stores rejectedResponses with attempt (1–3 within that decision), step context, error, redacted candidate, status=unaccepted, and the decision screenshot or evidenceError. The rejected screenshot is the screen supplied for that candidate, not a later screen. Activity records rejection and successful correction under device/target context; the existing request-operation timing and AI ledger include all attempts. HTML always exposes an Unaccepted AI responses section, explains its verdict exclusion, and escapes candidate text. Correction exhaustion raises an explicit blocking AI infrastructure error; existing exit precedence, shared cancellation, report retention, and incomplete-work handling apply. No new YAML setting or retry of app actions is introduced.

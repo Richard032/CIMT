@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.19  
+Version: 0.21  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -968,3 +968,23 @@ For another existing input folder, replace its copied build/build.sh with exampl
 This changes future normal builds. Replay still uses retained apps and will not rebuild them. Existing retained work, apps, reports, private configuration, and the application repository were not changed. No real app build, API request, or device test was started for this correction.
 
 Verification for section 32: all four existing example-build checks passed, including visible failure of the unchanged Windows command. Shell syntax checks passed, and the source wrapper matches both local copies byte-for-byte. These fixture checks do not establish real app build or startup success.
+
+## 33. Permission-dialog screenshot transitions
+
+The user-started report_2026-10-30_12-36-25-944 reached the ECON login screen. The first UI read found password controls; the second read found the OS Bluetooth permission alert. The capture guard rejected the unstable image, stopping execution before any AI request or saved step screenshot. This was an infrastructure/evidence stop, with no confirmed app crash. The report could not display an image that had not passed masking verification.
+
+Update the host and runtime together for bounded fresh-frame capture retries and explicit HTML missing-evidence text. Use the existing host publish procedure and copy runtime/errors.py, runtime/capture_guard.py, runtime/screen_capture.py, runtime/mobile.py, and runtime/action_prompt.py to lib/cimt-runtime in the installation. Fresh-Mac setup already copies these modules. No new dependency, YAML setting, API key, build script, helper, or application change is required.
+
+Each capture gets at most three fresh attempts after valid geometry changes, with 250 ms waits counted toward the run deadline. Rejected images remain in memory and are discarded, while invalid data/device/tool errors still stop immediately. Accepted screenshots appear in new HTML reports; historical screenshots cannot be recovered. This correction is verified offline; the next user-started run/replay must confirm physical-device permission handling.
+
+Verification for section 33: 249 .NET unit tests, 167 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks passed (449 checks). Six new capture cases, two HTML cases, two permission-prompt contract cases, and one blocked-permission outcome case cover this correction. No live model/device acceptance is claimed from these fixtures.
+
+Installed the published host and all five changed runtime modules after checking that no run was active; byte comparisons and installed public help passed. Installed cimt.dll SHA-256: 3ba63065404c21431d7d755c48bca01bd072bf1b8f29145fd2f78ce36e74e0d8. The local TestRun_SingleDevice_SingleTarget instruction file alone authorizes Allow/equivalent permission choices for ECON-M; no global automatic approval action was added. Private YAML and historical reports are unchanged, and no real run/replay, paid request, or phone action was started.
+
+## 34. AI response correction update — 30 October 2026
+
+Install the updated host and Python modules together so the HTML report understands rejectedResponses. The source installation procedure in section 14 still applies; there is no new package, API credential, YAML field, or device helper. This update adds runtime/decision_recovery.py and changes action_prompt.py, agent.py, check_results.py, requirement_results.py, errors.py, scenario.py, and record_redaction.py. Publish the host to a staging folder, run the existing offline checks, then copy the published host and runtime modules to the installed CIMT paths. Keep a backup of replaced installed files until verification passes.
+
+The behavior is automatic for run and replay: at most three AI responses per decision, fresh masked evidence before corrections, shared budget/deadline enforcement, and mandatory unaccepted-response diagnostics. The command-line help check and byte comparison can verify installation without starting a real app test. Live API schema acceptance and physical-device execution remain separate acceptance checks and are not implied by offline verification.
+
+Verification for this increment: 467 relevant offline checks passed (250 .NET unit tests, 184 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks). The final host was published successfully. The installed host and eight changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: df3f2d9d51693a5011b74954531d3d183eb7d7fe8fd8af3bfb5888d778ee0bc2. Backup: /private/tmp/cimt-before-decision-correction.e8hvj7ht. No real app run/replay, paid API request, or phone action was started.

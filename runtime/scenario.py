@@ -15,6 +15,7 @@ from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
+from decision_recovery import DecisionRecovery
 
 UNFINISHED_OBJECTIVE = "Testing objective has not finished; coverage is not confirmed"
 
@@ -75,6 +76,7 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
+        self.decisions = DecisionRecovery(inputs, config, redactor, control, activity)
 
     def run(self, mobile, build, result, agent, publish):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
@@ -201,17 +203,7 @@ class ScenarioRunner:
         session.result["coverage"] = coverage
         publish()
         with self._operation("Request AI action", mobile, session.result["target"]):
-            action = agent.choose(
-                self.inputs["instructions"],
-                self.inputs.get("requirements", ""),
-                self.inputs.get("setup", ""),
-                session.elements,
-                session.image,
-                session.history,
-                list(self.config.get("credentials", {})),
-                coverage,
-                session.result["requirements"],
-            )
+            action = self.decisions.choose(mobile, session, agent, evidence, publish)
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.result["remaining"] = list(action["remaining"])

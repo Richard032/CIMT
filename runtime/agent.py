@@ -30,6 +30,7 @@ class Agent:
         aliases,
         coverage,
         requirement_results=None,
+        correction_feedback=None,
     ):
         """Request one action after the shared budget has reserved its maximum cost."""
         body = self.prompts.build(
@@ -42,6 +43,7 @@ class Agent:
             aliases,
             coverage,
             requirement_results,
+            correction_feedback,
         )
         return parse_action(self._request_action(body))
 

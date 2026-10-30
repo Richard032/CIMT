@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.15  
+Version: 0.17  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -386,6 +386,20 @@ The default worker no longer forces packaging, runtime, or archive settings. YAM
 
 New run/replay HTML reports always include Run overview, Chronological activity, and Failures and stopping reasons. Read these before optional raw diagnostic sections. The overview shows actual build configuration alongside the target label, source identity, UTC times, available builds/devices, and recorded AI request count. The timeline shows operations that started, completed, failed, stopped, or were cancelled, including duration and device/target context. Expand exception details and follow related log links when needed. These sections remain visible even when optional report sections are disabled.
 
-A worker's real error is now carried into the run summary even when its stderr is empty. Infrastructure and masking failures remain distinct from application-test failures. A second device cancelled after a blocking failure has a separate explanation. activity.jsonl, result.json, and related logs remain local with the portable report. An older report has no reconstructed timestamps. Changed mask geometry still stops testing; extra diagnostics do not bypass protection. See [diagnostic reporting](diagnostic-reporting.md). Existing command/YAML inputs are unchanged; no extra verbosity option is required.
+A worker's real error is now carried into the run summary even when its stderr is empty. Infrastructure and masking failures remain distinct from application-test failures. A second device cancelled after a blocking failure has a separate explanation. activity.jsonl, result.json, and related logs remain local with the portable report. An older report has no reconstructed timestamps. Changed mask geometry rejects that frame. Capture now tries up to three fresh frames for screen transitions, then stops if no verified image is possible; invalid masking data still stops immediately. See [diagnostic reporting](diagnostic-reporting.md). Existing command/YAML inputs are unchanged; no extra verbosity option is required.
 
 Remaining/blocked work keeps the latest AI plan even if a scenario stops during preparation, an action, recovery, or a run limit. Incomplete scenarios also show known untested requirement/control counts. If specific tasks are unavailable, CIMT states that the objective is unfinished and coverage is unconfirmed. Completed scenarios clear obsolete pending tasks. This correction applies to new reports; existing reports are preserved.
+
+## Permission dialogs and screenshot availability
+
+An OS permission question is a normal test screen. If it appears while a screenshot is being checked, CIMT discards that changing frame and tries a fresh capture, up to three attempts with 250 ms between attempts. The wait counts toward the run limit. Only verified masked images reach the report or AI. Retry activity is visible in the timeline. Missing/invalid mask geometry, invalid images, tool errors, or a locked device still stop safely.
+
+Accepted screenshots appear with recorded steps. If no screenshot passed verification, the HTML says so and retains the stopping reason. Older rejected captures cannot be recovered; new run/replay execution is needed to collect new evidence. No private YAML change is required.
+
+Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+
+## AI response correction
+
+CIMT checks an AI decision before recording its observations or executing its action. If the answer has inconsistent reporting fields, an unknown requirement ID, an invalid instruction override quotation, or malformed action JSON, CIMT requests a corrected answer. It allows at most two corrections after the initial answer. Each correction uses a fresh masked screen and counts toward the same AI spending and whole-run time limits. No extra configuration is needed.
+
+The HTML report shows Unaccepted AI responses with the validation reason, candidate response, and available masked decision screenshot. These observations are unverified and do not determine the test verdict; accepted findings remain. The chronological activity shows rejection and recovery, and AI accounting includes correction requests. If all three answers are invalid, execution stops with an infrastructure error and incomplete work. Time/budget exhaustion keeps its normal outcome. This policy does not retry refusals, incomplete provider output, transport errors, device errors, or failed masking/storage.

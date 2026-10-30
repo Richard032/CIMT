@@ -32,6 +32,8 @@ class Mobile:
             redactor,
             ScreenMasker(redactor),
             image_reader=self.commands.screenshot,
+            deadline=context.get("deadline"),
+            on_retry=self._capture_retry,
         )
         self.client_factory = client_factory
         self.client = None
@@ -59,6 +61,12 @@ class Mobile:
     def snapshot(self):
         with self._operation("Capture and validate masked screenshot"):
             return self.screen.snapshot()
+
+    def _capture_retry(self, attempt, error):
+        if self.activity:
+            self.activity.write("Retry unstable screenshot", "retrying",
+                "Discarded capture " + str(attempt) + " of " + str(ScreenCapture.MAX_ATTEMPTS)
+                + "; waiting for a stable screen. " + str(error), self.device, self.target)
 
     def _operation(self, name):
         return self.activity.operation(name, self.device, self.target) if self.activity else nullcontext()

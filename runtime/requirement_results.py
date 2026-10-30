@@ -1,6 +1,6 @@
 """Requirement results for one target/device objective. No device or API access."""
 
-from errors import InfrastructureError
+from errors import InvalidAgentResponse
 
 UNRESOLVED = {"not tested", "inconclusive"}
 
@@ -28,14 +28,14 @@ class RequirementResults:
     @staticmethod
     def validate(checks, rows, instructions):
         known = {row["id"] for row in rows}
-        for check in checks:
+        for index, check in enumerate(checks):
             if check["source"] != "requirements":
                 continue
             if check["requirementId"] not in known:
-                raise InfrastructureError("A check refers to an unknown requirement ID")
+                raise InvalidAgentResponse("checks[" + str(index) + "].requirementId is not in the catalogue")
             if check["status"] == "overridden" and check["instructionQuote"] not in instructions:
-                raise InfrastructureError(
-                    "A requirement override does not quote the testing instructions"
+                raise InvalidAgentResponse(
+                    "checks[" + str(index) + "].instructionQuote must quote the testing instructions"
                 )
 
     @staticmethod

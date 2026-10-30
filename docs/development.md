@@ -38,6 +38,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | check_results.py | Validate explicit observations and calculate the scenario verdict. |
 | check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
+| decision_recovery.py | Correct invalid decisions before check recording/actions; retain redacted rejected candidates. |
 | actions.py | Validate and execute allowed actions; enter credentials locally. |
 | coverage_tracker.py | Track observed and activated controls. |
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
@@ -99,3 +100,7 @@ Verification for this increment: 181 .NET tests, 155 Python tests, and 28 CLI/bu
 NativeHomeLink separates the short socket address from its actual run-owned storage folder. The existing xUnit project binds a real local UNIX socket through that link, without launching CIMT or a mobile helper. Other small tests check ownership, occupied addresses, dangling targets, interrupted cleanup, shared host/worker configuration, retained logs, redaction, and useful discovery errors. Tests use ordinary temporary folders and recording command boundaries, with no new project, copied source, or alternative harness.
 
 The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/build/example checks. No live API or phone was used. The user's next actual test run remains separate acceptance evidence.
+
+## Response correction tests — 30 October 2026
+
+Use the existing Python unittest suite and xUnit project. ScriptedTransport returns queued synthetic provider responses through Agent's normal constructor; fake phones expose changed screens or capture failures. Cases cover correction before one tap, bounded exhaustion, unknown IDs/override quotations, malformed JSON, redaction of invalid metadata and feedback, fresh refs, preserved accepted/rejected failures, budget/deadline stops, and no retries for unrelated errors. The HTML case verifies mandatory visibility, redaction, escaping, and screenshot links. No live OpenAI or device access is required.

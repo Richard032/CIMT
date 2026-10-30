@@ -44,8 +44,13 @@ class RecordRedactor:
                 "checks": lambda items: self._items(items, self.check),
                 "requirements": lambda items: self._items(items, self.requirement),
                 "crashes": lambda items: self._items(items, self.crash),
+                "rejectedResponses": lambda items: self._items(items, self.rejected_response),
             },
         )
+
+    def rejected_response(self, value):
+        # The candidate response is untrusted data, including its source and ID fields.
+        return self._record(value, ["attempt", "step", "status", "screenshot"])
 
     def device(self, value):
         return self._record(value, ["id", "platform"])

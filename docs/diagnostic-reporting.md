@@ -1,6 +1,6 @@
 # Readable run diagnostics
 
-Updated: 30 October 2026. Scope: FR-61–FR-64 and AC-35–AC-38 for run/replay execution reports.
+Updated: 30 October 2026. Scope: FR-61–FR-65 and AC-35–AC-39 for run/replay execution reports.
 
 ## Reading the report
 
@@ -29,3 +29,13 @@ The existing .NET unit-test project exercises overview metadata, failure/cancell
 Checks use synthetic inputs, fake services, and local files. They do not establish real device/app acceptance. Existing report folders and private YAML are not rewritten; richer reporting starts with new runs/replays after installation.
 
 Final verification: 442 checks passed in the existing offline suites. The tested host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+
+## Screenshot transition retries
+
+New captures can retry a valid screen/mask-region transition at most three times, with 250 ms waits inside the run deadline. The timeline identifies discarded attempts without raw UI text or pixels. The final accepted masked image follows the existing evidence links and HTML step display. If all attempts fail, the report keeps the underlying evidence error and explicitly says that no verified screenshot was saved. This supersedes the earlier no-retry description for transient valid geometry changes; invalid geometry, image, device, and tool failures still stop immediately. Historical missing screenshots are not reconstructed.
+
+## Unaccepted AI responses
+
+For FR-65/AC-39, each rejected candidate is retained under its scenario as rejectedResponses, separately from checks and executed steps. Every entry contains its attempt, decision-step context, redacted validation error/candidate, and the already masked screen used for that decision, or an evidenceError. Candidate fields are untrusted data: even source, status, and requirementId are redacted. Raw provider envelopes, private requests, prompts, and unmasked images are not added. This is a diagnostic record, not a verified finding or hidden reasoning.
+
+The mandatory HTML section exposes these candidates even with optional details disabled. A failed observation in an unaccepted response remains inspectable after successful correction; it does not automatically fail the app or disappear from history. Previously accepted failures remain effective. Rejection and successful recovery appear in chronological activity with attempt and device/target context. Exhaustion is an explicit AI response-correction infrastructure error; other workers retain their separate cancellation reasons. Rejected remaining-work lists do not replace the last accepted plan.

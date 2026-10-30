@@ -13,7 +13,7 @@ Developers supply a Git repository, configurable build targets, plain-text testi
 - [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
 - [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
 
-The requirements baseline is version 0.14 and architecture version 0.20, updated 30 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+The requirements baseline is version 0.16 and architecture version 0.22, updated 30 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
 
 ## Initial release
 
@@ -76,3 +76,5 @@ Run development checks with bash scripts/check-development.sh. The [development 
 - [Retained work and replay](docs/work-retention-and-replay.md): deletion only before cloning, unchanged build properties, and reuse of built apps.
 
 - [Readable diagnostic reports](docs/diagnostic-reporting.md): run overview, ordered activity, failures, and stopping reasons.
+
+AI decision correction now allows two bounded retries for invalid response contracts before stopping. The HTML report retains redacted unaccepted candidates separately from verified findings. See [diagnostic reporting](docs/diagnostic-reporting.md) and FR-65 in the requirements. No real test run is started by installation.

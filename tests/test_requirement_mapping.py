@@ -144,6 +144,22 @@ class RequirementResultTests(unittest.TestCase):
 
 
 class MappingPromptTests(unittest.TestCase):
+    def test_permission_decisions_require_authorization_in_test_instructions(self):
+        body = ActionPromptBuilder("fixture").build(
+            "Explore buttons", "", "", [], b"masked", [], [], {}
+        )
+        policy = body["input"][0]["content"]
+        self.assertIn("Do not accept or deny a permission request unless", policy)
+        self.assertIn("completion blocked", policy)
+
+    def test_per_run_permission_instruction_reaches_the_model_unchanged(self):
+        instructions = "For this run, allow Bluetooth permission for the tested app."
+        body = ActionPromptBuilder("fixture").build(
+            instructions, "", "", [], b"masked", [], [], {}
+        )
+        state = json.loads(body["input"][1]["content"][0]["text"])
+        self.assertEqual(state["instructions"], instructions)
+
     def test_heading_context_reaches_the_model_without_an_extra_result(self):
         rows = RequirementResults.initial([dict(DEFINITION, headingContext="# Requirements")])
         body = ActionPromptBuilder("fixture").build(
@@ -162,9 +178,14 @@ class MappingPromptTests(unittest.TestCase):
         )
         state = json.loads(body["input"][1]["content"][0]["text"])
         self.assertEqual(state["requirementResults"], rows)
-        fields = body["text"]["format"]["schema"]["properties"]["checks"]["items"]["required"]
-        self.assertIn("requirementId", fields)
-        self.assertIn("instructionQuote", fields)
+        variants = body["text"]["format"]["schema"]["properties"]["checks"]["items"]["anyOf"]
+        for variant in variants:
+            self.assertIn("requirementId", variant["required"])
+            self.assertIn("instructionQuote", variant["required"])
+        self.assertEqual(variants[0]["properties"]["source"]["enum"], ["instructions"])
+        self.assertEqual(variants[0]["properties"]["requirementId"]["enum"], [""])
+        self.assertEqual(variants[1]["properties"]["source"]["enum"], ["requirements"])
+        self.assertEqual(variants[1]["properties"]["requirementId"]["pattern"], r"\S")
 
 
 class MemoryEvidence:

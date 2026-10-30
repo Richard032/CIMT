@@ -1,0 +1,96 @@
+"""Correct invalid AI decisions before recording checks or executing actions."""
+
+from action_prompt import validate_action
+from errors import InvalidAgentResponse
+from requirement_results import RequirementResults
+
+MAX_DECISION_ATTEMPTS = 3
+
+
+class DecisionRecovery:
+    """Owns bounded response correction. It never executes a device action."""
+
+    def __init__(self, inputs, config, redactor, control, activity=None):
+        self.inputs = inputs
+        self.config = config
+        self.redactor = redactor
+        self.control = control
+        self.activity = activity
+
+    def choose(self, mobile, session, agent, evidence, publish):
+        feedback = []
+        for attempt in range(1, MAX_DECISION_ATTEMPTS + 1):
+            self.control.check()
+            action = None
+            try:
+                action = self._request(agent, session, feedback)
+                validate_action(action)
+                RequirementResults.validate(
+                    action["checks"], session.result["requirements"], self.inputs["instructions"]
+                )
+            except InvalidAgentResponse as error:
+                rejected = self._record_rejection(
+                    session, action if action is not None else error.response,
+                    error, attempt, evidence, publish,
+                )
+                self._event(mobile, session, "rejected", attempt, str(error))
+                if attempt == MAX_DECISION_ATTEMPTS:
+                    raise InvalidAgentResponse(
+                        "AI response correction exhausted after " + str(MAX_DECISION_ATTEMPTS)
+                        + " attempts: " + str(error)
+                    ) from error
+                feedback.append({"error": rejected["error"], "response": rejected["response"]})
+                self._refresh(mobile, session, publish)
+                continue
+            if feedback:
+                self._event(mobile, session, "corrected", attempt, "Response accepted; no action repeated")
+            return action
+
+    def _request(self, agent, session, feedback):
+        arguments = [
+            self.inputs["instructions"], self.inputs.get("requirements", ""),
+            self.inputs.get("setup", ""), session.elements, session.image, session.history,
+            list(self.config.get("credentials", {})), session.coverage.snapshot(),
+            session.result["requirements"],
+        ]
+        if feedback:
+            arguments.append(feedback)
+        return agent.choose(*arguments)
+
+    def _record_rejection(self, session, response, error, attempt, evidence, publish):
+        rejected = {
+            "attempt": attempt,
+            "step": len(session.result["steps"]),
+            "status": "unaccepted",
+            "error": self.redactor.text(str(error)),
+            # Invalid metadata is untrusted text too; do not use the typed action redactor.
+            "response": self.redactor.object(response),
+        }
+        records = session.result.setdefault("rejectedResponses", [])
+        records.append(rejected)
+        publish()
+        try:
+            rejected["screenshot"] = evidence.save_image(
+                "rejected-" + str(len(records)).zfill(4) + ".png", session.image
+            )
+        except Exception as error:
+            rejected["evidenceError"] = self.redactor.text(str(error))
+            publish()
+            raise
+        publish()
+        return rejected
+
+    def _refresh(self, mobile, session, publish):
+        self.control.check()
+        session.elements, session.image = mobile.snapshot()
+        session.coverage.observe(session.elements)
+        session.result["coverage"] = session.coverage.snapshot()
+        publish()
+
+    def _event(self, mobile, session, status, attempt, message):
+        if self.activity:
+            self.activity.write(
+                "AI response correction", status,
+                "Attempt " + str(attempt) + "/" + str(MAX_DECISION_ATTEMPTS) + ": " + message,
+                mobile.device, session.result["target"],
+            )

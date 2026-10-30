@@ -12,6 +12,11 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
+from action_prompt import parse_action
+from activity import ActivityLog
+from decision_recovery import DecisionRecovery
+from scenario import ScenarioSession
+from evidence import ScenarioEvidence
 from actions import ActionExecutor
 from agent import Agent
 from app_lifecycle import AppLifecycle
@@ -19,7 +24,7 @@ from budget import Budget
 from coverage_tracker import CoverageTracker
 from device_commands import DeviceReadiness
 from device_runner import result_exit_code
-from errors import InfrastructureError, LimitReached
+from errors import InfrastructureError, LimitReached, InvalidAgentResponse
 from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
@@ -63,6 +68,35 @@ def action(kind="done", **values):
     }
     result.update(values)
     return result
+
+
+class ScriptedTransport:
+    """Return queued API responses and record requests without network access."""
+
+    def __init__(self, responses):
+        self.responses = iter(responses)
+        self.bodies = []
+
+    def request(self, path, body):
+        self.bodies.append(body)
+        value = next(self.responses)
+        if isinstance(value, Exception):
+            raise value
+        return {
+            "status": "completed",
+            "usage": {"input_tokens": 10, "output_tokens": 10},
+            "output": [{"type": "message", "content": [{
+                "type": "output_text", "text": value if isinstance(value, str) else json.dumps(value),
+            }]}],
+        }
+
+
+def api_agent(responses, budget=None):
+    budget = budget or Budget(MODEL, 5, "USD")
+    transport = ScriptedTransport(responses)
+    agent = Agent({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
+                  budget, time.time() + 30, transport=transport)
+    return agent, budget, transport
 
 
 class FakeAgent:
@@ -116,6 +150,46 @@ class FakeMobile:
         self.calls.append((name, arguments))
 
 
+class ChangingScreenMobile(FakeMobile):
+    """Expose a different button after the first decision is rejected."""
+
+    def __init__(self, folder):
+        super().__init__(folder)
+        self.captures = 0
+
+    def snapshot(self):
+        self.captures += 1
+        if self.captures > 1:
+            return [dict(BUTTON, ref="@e2", identifier="ButtonB"), SIZE], b"fresh masked screen"
+        return super().snapshot()
+
+
+class DeadlineTransport(ScriptedTransport):
+    """Expire the run while the first response is in flight."""
+
+    def __init__(self, responses, control):
+        super().__init__(responses)
+        self.control = control
+
+    def request(self, path, body):
+        response = super().request(path, body)
+        self.control.deadline = 0
+        return response
+
+
+class FailingRefreshMobile(FakeMobile):
+    """Fail only the capture requested after an AI response."""
+
+    def __init__(self, folder, transport):
+        super().__init__(folder)
+        self.transport = transport
+
+    def snapshot(self):
+        if self.transport.bodies:
+            raise InfrastructureError("mask unavailable")
+        return super().snapshot()
+
+
 class ScenarioTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -134,7 +208,7 @@ class ScenarioTests(unittest.TestCase):
             "artifact": "fixture.apk",
         }
 
-    def create_runner(self, requirements=None):
+    def create_runner(self, requirements=None, activity=None):
         return ScenarioRunner(
             {"instructions": "Explore buttons"},
             {},
@@ -144,6 +218,7 @@ class ScenarioTests(unittest.TestCase):
             self.root,
             sleep=lambda _: None,
             requirements=requirements,
+            activity=activity,
         )
 
     def run_scenario(self, mobile, actions, runner=None):
@@ -234,6 +309,13 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(
             result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 2
         )
+
+    def test_permission_block_is_incomplete_without_an_application_failure(self):
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(
+            completion="blocked", checks=[], remaining=["Permission decision needs test authorization"])])
+        self.assertEqual(result["completion"], "incomplete")
+        self.assertEqual(result["verdict"], "inconclusive")
+        self.assertFalse(result["crashes"])
 
     def test_returned_failure_survives_a_limit_during_the_request(self):
         result = {"scenarios": []}
@@ -327,6 +409,174 @@ class ScenarioTests(unittest.TestCase):
         self.assertFalse(any("private-fixture" in snapshot for snapshot in snapshots))
 
 
+    def test_invalid_check_is_corrected_before_a_single_tap(self):
+        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
+        agent, budget, transport = api_agent([bad, action("tap", ref="@e1"), action()])
+        mobile = FakeMobile(self.root)
+        result = {"scenarios": []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        taps = [name for name, _ in mobile.calls if name == "mobile_click_on_screen_at_coordinates"]
+        self.assertEqual(len(taps), 1)
+        self.assertEqual(budget.requests, 3)
+        self.assertEqual(result["scenarios"][0]["verdict"], "passed")
+        feedback = json.loads(transport.bodies[1]["input"][1]["content"][0]["text"])
+        self.assertIn("checks[0]", feedback["correctionFeedback"][0]["error"])
+        rejected = result["scenarios"][0]["rejectedResponses"][0]
+        self.assertEqual(rejected["status"], "unaccepted")
+        self.assertTrue((self.root / rejected["screenshot"]).exists())
+
+    def test_three_invalid_responses_stop_without_a_tap(self):
+        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
+        agent, budget, _ = api_agent([bad, bad, bad])
+        mobile = FakeMobile(self.root)
+        result = {"scenarios": []}
+        with self.assertRaisesRegex(InvalidAgentResponse, "exhausted after 3 attempts"):
+            self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual(budget.requests, 3)
+        self.assertFalse(any(name.startswith("mobile_click") for name, _ in mobile.calls))
+        self.assertEqual(len(result["scenarios"][0]["rejectedResponses"]), 3)
+        self.assertTrue(result["scenarios"][0]["remaining"])
+
+    def test_unknown_catalogue_id_is_corrected_before_recording(self):
+        bad = action(checks=[dict(check(), source="requirements", requirementId="UNKNOWN")])
+        agent, _, _ = api_agent([bad, action()])
+        result = {"scenarios": []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        scenario = result["scenarios"][0]
+        self.assertEqual(len(scenario["checks"]), 1)
+        self.assertIn("catalogue", scenario["rejectedResponses"][0]["error"])
+
+    def test_invalid_override_quote_is_corrected_before_recording(self):
+        definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
+        mapped = dict(check(), source="requirements", requirementId="REQ-0001")
+        bad = dict(mapped, status="overridden", instructionQuote="invented", reason="Conflict")
+        agent, _, _ = api_agent([action(checks=[bad]), action(checks=[mapped, check()])])
+        result = {"scenarios": []}
+        self.create_runner(definitions).run(FakeMobile(self.root, elements=[]), self.build,
+                                            result, agent, lambda: None)
+        scenario = result["scenarios"][0]
+        self.assertEqual(scenario["requirements"][0]["status"], "passed")
+        self.assertEqual(len(scenario["checks"]), 2)
+        self.assertIn("instructionQuote", scenario["rejectedResponses"][0]["error"])
+
+    def test_rejected_failure_remains_in_diagnostics_after_correction(self):
+        bad = action(checks=[check("failed"), dict(check(), requirementId="REQ-0001")])
+        agent, _, _ = api_agent([bad, action()])
+        result = {"scenarios": []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        scenario = result["scenarios"][0]
+        self.assertEqual(scenario["rejectedResponses"][0]["response"]["checks"][0]["status"], "failed")
+        self.assertEqual(len(scenario["checks"]), 1)
+
+    def test_rejected_metadata_and_correction_feedback_are_redacted(self):
+        self.redactor = Redactor({"credentials": {"test": {"password": "synthetic-secret"}}})
+        runner = self.create_runner()
+        bad = action(checks=[dict(check(), requirementId="synthetic-secret")])
+        agent, _, transport = api_agent([bad, action()])
+        result = {"scenarios": []}
+        runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertNotIn("synthetic-secret", json.dumps(result))
+        self.assertNotIn("synthetic-secret", json.dumps(transport.bodies))
+
+    def test_malformed_json_can_be_corrected(self):
+        agent, _, _ = api_agent(["{broken", action()])
+        result = {"scenarios": []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertEqual(result["scenarios"][0]["rejectedResponses"][0]["response"], "{broken")
+
+    def test_budget_limit_stops_correction_before_another_api_request(self):
+        budget = Budget(MODEL, 5, "USD")
+        budget.limit = budget.bound
+        agent, _, transport = api_agent(["{broken", action()], budget)
+        result = {"scenarios": []}
+        with self.assertRaises(LimitReached):
+            self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 1)
+        self.assertTrue(result["scenarios"][0]["rejectedResponses"])
+
+    def test_generic_infrastructure_error_is_not_retried(self):
+        agent, _, transport = api_agent([InfrastructureError("transport failed"), action()])
+        with self.assertRaisesRegex(InfrastructureError, "transport failed"):
+            self.runner.run(FakeMobile(self.root), self.build, {"scenarios": []}, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 1)
+
+    def test_refusal_does_not_enter_correction(self):
+        response = {"status": "completed", "output": [{"type": "message", "content": [
+            {"type": "refusal", "refusal": "fixture"}]}]}
+        with self.assertRaises(InfrastructureError) as raised:
+            parse_action(response)
+        self.assertNotIsInstance(raised.exception, InvalidAgentResponse)
+
+
+    def test_correction_uses_a_fresh_screen_and_new_element_refs(self):
+        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
+        agent, _, transport = api_agent([bad, action("tap", ref="@e2"), action()])
+        mobile = ChangingScreenMobile(self.root)
+        self.runner.run(mobile, self.build, {"scenarios": []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]["input"][1]["content"][0]["text"])
+        self.assertEqual(state["elements"][0]["ref"], "@e2")
+        taps = [arguments for name, arguments in mobile.calls if name.startswith("mobile_click")]
+        self.assertEqual(taps, [{"ref": "@e2"}])
+
+    def test_expired_deadline_prevents_a_correction_request(self):
+        transport = DeadlineTransport(["{broken", action()], self.control)
+        agent = Agent({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
+                      Budget(MODEL, 5, "USD"), time.time() + 30, transport=transport)
+        result = {"scenarios": []}
+        with self.assertRaisesRegex(LimitReached, "Whole-run time limit"):
+            self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 1)
+        self.assertEqual(len(result["scenarios"][0]["rejectedResponses"]), 1)
+
+    def test_accepted_failure_survives_later_response_corrections(self):
+        bad = action(checks=[dict(check(), requirementId="REQ-0001")])
+        agent, _, _ = api_agent([action("tap", ref="@e1", checks=[check("failed")]), bad, action()])
+        result = {"scenarios": []}
+        self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+        self.assertEqual(result["scenarios"][0]["verdict"], "failed")
+
+    def test_correction_capture_error_is_not_retried(self):
+        transport = ScriptedTransport(["{broken", action()])
+        agent = Agent({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
+                      Budget(MODEL, 5, "USD"), time.time() + 30, transport=transport)
+        with self.assertRaisesRegex(InfrastructureError, "mask unavailable"):
+            self.runner.run(FailingRefreshMobile(self.root, transport), self.build, {"scenarios": []}, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 1)
+
+
+    def test_activity_records_rejection_and_recovery_with_device_target(self):
+        output = io.StringIO()
+        activity = ActivityLog(self.root, self.redactor, output=output)
+        agent, _, _ = api_agent(["{broken", action()])
+        self.create_runner(activity=activity).run(FakeMobile(self.root, elements=[]), self.build,
+                                                {"scenarios": []}, agent, lambda: None)
+        rows = [json.loads(line) for line in activity.path.read_text().splitlines()]
+        attempts = [row for row in rows if row["operation"] == "AI response correction"]
+        self.assertEqual([row["status"] for row in attempts], ["rejected", "corrected"])
+        self.assertTrue(all(row["target"] == "Release" and row["device"] == "fixture" for row in attempts))
+        self.assertNotIn("{broken", output.getvalue())
+
+    def test_rejected_diagnostic_survives_storage_failure_without_retry(self):
+        session = ScenarioSession({"target": "Release", "steps": [], "requirements": []},
+                                  "com.example.app", "com.example.app", [], b"masked")
+        recovery = DecisionRecovery({"instructions": "Explore"}, {}, self.redactor, self.control)
+        agent, _, transport = api_agent(["{broken", action()])
+        # An existing file cannot also be the evidence folder.
+        blocked_folder = self.root / "not-a-folder"
+        blocked_folder.write_text("fixture")
+        evidence = ScenarioEvidence(blocked_folder, self.root)
+        with self.assertRaises(OSError):
+            recovery.choose(FakeMobile(self.root), session, agent, evidence, lambda: None)
+        self.assertEqual(len(transport.bodies), 1)
+        self.assertEqual(session.result["rejectedResponses"][0]["response"], "{broken")
+        self.assertIn("evidenceError", session.result["rejectedResponses"][0])
+
+    def test_incomplete_provider_response_is_not_a_correction_error(self):
+        with self.assertRaises(InfrastructureError) as raised:
+            parse_action({"status": "incomplete", "output": []})
+        self.assertNotIsInstance(raised.exception, InvalidAgentResponse)
+
+
 class StopThenReportFailure:
     """Simulate a limit reached while the model is returning a finding."""
 
@@ -373,7 +623,7 @@ class BoundaryTests(unittest.TestCase):
         import base64
 
         redactor = Redactor({"masking": {"rules": [{"element-id": "Password"}]}})
-        positions = iter([10, 30])
+        positions = iter([10, 30] * ScreenCapture.MAX_ATTEMPTS)
         masked = []
 
         def call(name, **arguments):
@@ -395,6 +645,7 @@ class BoundaryTests(unittest.TestCase):
             lambda: None,
             redactor,
             SimpleNamespace(capture=lambda *args: masked.append(args)),
+            sleep=lambda _: None,
         )
         with self.assertRaises(InfrastructureError):
             screen.snapshot()
