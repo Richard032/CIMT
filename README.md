@@ -83,4 +83,4 @@ Whole-scenario exploration memory now records control attempts and actual UI out
 
 AI request history now uses compact navigation/outcome facts while full records stay in reports. See [performance measurements and limits](docs/performance.md) for the saved-run timing baseline and offline payload comparison.
 
-Open or bookmark `<input-folder>/CIMT output/reports/index.html` for the newest saved run or replay. Reload it after execution; timestamped reports remain archives. See the [latest report procedure](docs/product-guide.md#open-the-latest-run-or-replay).
+Each run and replay has its own `<input-folder>/CIMT output/reports/report_<date-time>/index.html`. Open the exact Report path printed by that execution. See the [report folder procedure](docs/product-guide.md#open-a-run-or-replay-report).

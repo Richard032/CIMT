@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace Cimt;
 
 /// <summary>Writes partial and final machine results and their HTML view.</summary>
-public sealed class RunReportWriter(LatestReportPublisher? latest = null) : IRunReportWriter
+public sealed class RunReportWriter : IRunReportWriter
 {
     public int Write(RunState state)
     {
@@ -18,7 +18,7 @@ public sealed class RunReportWriter(LatestReportPublisher? latest = null) : IRun
         catch (UnauthorizedAccessException error) { Console.Error.WriteLine("Interim report could not be updated: " + error.GetType().Name); }
     }
 
-    private int WriteReport(RunState state, bool final)
+    private static int WriteReport(RunState state, bool final)
     {
         var execution = ReadExecution(state.Report);
         var coverage = RequirementReportBuilder.Build(state.Requirements, RequirementScopes.Create(state),
@@ -36,15 +36,9 @@ public sealed class RunReportWriter(LatestReportPublisher? latest = null) : IRun
         var activity = RunActivityLog.Read(state.Report, state.Configuration.Scrub);
         WriteMachineResult(state, outcome, execution, coverage, activity, final);
         var renderer = new RunHtmlRenderer(state.Configuration);
-        var html = renderer.Render(state, outcome, execution, coverage, activity, !final);
-        WriteAtomic(Path.Combine(state.Report, "index.html"), html);
-        var latestSaved = latest?.Publish(state.Folders, html) == true;
+        WriteAtomic(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage, activity, !final));
         if (final)
-        {
             Console.WriteLine("CIMT " + state.Command + " finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
-            if (latestSaved)
-                Console.WriteLine("Latest run/replay report: " + latest!.EntryPath);
-        }
         return outcome.ExitCode;
     }
 

@@ -433,16 +433,16 @@ This fragment merges with your existing settings; it is not a complete standalon
 
 Strict spending limits remain mandatory. Mini reserves USD 0.309216 and Luna reserves USD 0.5286864 before each inference request. Luna reserves its full context at higher long-context rates, including default cache-write charges. This deliberately large reservation can stop a run early even though a typical request costs much less. Recorded usage settles at conservative rates and ignores cache-read savings; the report is not an exact invoice. No private file or selected model is changed by installing this update. Model quality and real execution speed still need a user-started comparison; multi-step plans and automatic price retrieval are not included.
 
-## Open the latest run or replay
+## Open a run or replay report
 
-Open or bookmark this stable path for each input folder:
+Each invocation has its own report:
 
 ```text
-<input-folder>/CIMT output/reports/index.html
+<input-folder>/CIMT output/reports/report_<date-time>/index.html
 ```
 
-After either cimt run or cimt replay, reload that page to see the newest saved execution. The terminal prints `Latest run/replay report:` as well as the timestamped report path. The page shows the command and run identity; browser titles distinguish run from replay. Snapshots update the same page while execution is active, retaining the partial marker until finalization. You must reload to see updates; CIMT does not move existing browser tabs automatically.
+Use the exact Report path printed when cimt run or cimt replay finishes. A replay creates a new timestamped report folder even though it reuses application builds from an earlier execution. Its own index.html contains all recorded device results and relative screenshot/log links for that replay. Earlier report folders remain unchanged.
 
-Screenshots, logs and machine-readable results stay inside the matching report_<timestamp> folder. Earlier dated reports remain unchanged and are the files to archive/share. A dated execution report links to the latest entry in its input folder. Validation reports do not replace the latest run/replay. A parsed run/replay that fails before testing replaces latest with its error report, preventing an older success from looking current. If latest publication fails, CIMT warns and retains the dated report path.
+Partial snapshots and final output update the index.html inside the same allocated folder. A partial page is labelled until finalization, including after cancellation. Reload that execution's page for newer saved observations. Headers and browser titles identify run versus replay and the execution identity. Early execution errors keep their own command and identity too.
 
-For TestRun_ios_android_SingleTarget, use `/Users/sumkar/Development/Testing/TestRun_ios_android_SingleTarget/CIMT output/reports/index.html`. This includes the latest replay, not only full build/test runs.
+CIMT does not create a shared latest HTML file at reports/index.html. An already open report remains that execution's report; it does not become a later replay. For the reviewed dual-platform replay, open report_2026-10-30_16-43-21-093/index.html inside TestRun_ios_android_SingleTarget/CIMT output/reports.

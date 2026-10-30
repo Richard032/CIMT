@@ -46,13 +46,6 @@ public sealed class CommandReports : ICommandReports
         await File.WriteAllTextAsync(Path.Combine(session.Report!, "result.json"), JsonSerializer.Serialize(value, JsonOptions));
         var html = Render(session.Folders!.Identity, verdict, completion, exit, messages, session.Command);
         await File.WriteAllTextAsync(Path.Combine(session.Report!, "index.html"), html);
-        // Early run/replay failures must not leave an older successful report as latest.
-        if (session.Command is "run" or "replay")
-        {
-            var latest = new LatestReportPublisher(session.Outputs.ReportsRoot);
-            if (latest.Publish(session.Folders!, html))
-                Console.WriteLine("Latest run/replay report: " + latest.EntryPath);
-        }
     }
 
     private static string Render(RunIdentity identity, string verdict, string completion, int exit, IEnumerable<string> messages, string? command)

@@ -76,6 +76,6 @@ Current behavior is defined in [work retention and replay](work-retention-and-re
 
 New run/replay reports expose the requested mandatory overview, chronological activity, failures, and stopping reasons. Host stages and device operations share an incremental journal; per-device errors survive empty stderr and secondary cancellations stay separate. This does not change execution/masking policies or claim a real app test pass. See the [reporting contract](diagnostic-reporting.md), FR-61–FR-64, and installation section 30 for the offline checks and installed version.
 
-## Stable latest report
+## One report folder for each run or replay
 
-Both run and replay now update `<input-folder>/CIMT output/reports/index.html`, including partial snapshots, finalization after interruption, and parsed early execution errors. The terminal prints this stable path after successful publication. Open or reload it for the latest execution; dated reports remain separate archives. An HTML base keeps screenshots, logs and JSON linked to that run's dated folder. Validation/setup do not replace this execution entry. See the [operator procedure](product-guide.md#open-the-latest-run-or-replay).
+Every run and replay has a separate report_<timestamp>/index.html under its input folder's CIMT output/reports. Replay reuses builds, while its device results, diagnostics and screenshots belong to the newly allocated report. Partial/final snapshots and early errors use that invocation's folder. The terminal prints the exact dated HTML path; command and identity identify its contents. No shared reports/index.html or evidence-base redirection is created. See the [operator procedure](product-guide.md#open-a-run-or-replay-report).

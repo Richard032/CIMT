@@ -34,7 +34,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         return "<h1>CIMT application test</h1><p>Exit: " + outcome.ExitCode
             + " · Verdict: " + Encoded(outcome.Verdict) + " · Completion: " + Encoded(outcome.Completion) + "</p>"
             + "<p>Run: " + Encoded(state.Identity.Id) + " (UTC)</p>"
-            + "<p>Command: " + Encoded(state.Command) + " · <a href=\"../index.html\">Latest run or replay in this input folder</a></p>"
+            + "<p>Command: " + Encoded(state.Command) + "</p>"
             + "<p>Branch: " + Encoded(state.Configuration.Root.Get("repository")!.Value("branch")!)
             + " · Commit: " + Encoded(state.Commit) + "</p>"
             + "<p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p>";
