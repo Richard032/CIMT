@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.18  
+Version: 0.19  
 Date: 30 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -331,3 +331,5 @@ RunActivityLog owns timestamped host activity, duration/error records, and journ
 Mobile records adapter operation names and screenshot/reset outcomes without arguments or raw UI. ScenarioRunner records AI/action/startup/recovery boundaries. DeviceRunner records the original error separately from a limit/cancellation. These are diagnostics only; the existing operations, order, safety rejection, shared stop rules, and outcome policy are preserved. CaptureGuard explains changed geometry with bounded redacted identifiers/coordinates, never UI values/pixels, and still rejects the capture.
 
 RunDiagnostics derives human-readable device stopping reasons from saved worker results, including when stderr is empty. RunDiagnosticsRenderer owns the mandatory overview, ordered activity, and failures/stopping sections; RunHtmlRenderer retains scenario/coverage/evidence presentation. RunReportWriter stores one finish time and exposes activity/stopping reasons/duration in result.json. Exception locations contain no local variables, diagnostic links must remain within the report, and incomplete journal records are disclosed while earlier entries survive. See [contract, limitations, and checks](diagnostic-reporting.md). Full generic process-output streaming remains separately tracked.
+
+ScenarioRunner saves the latest redacted AI remaining-work list before recording checks or checking limits. A finalization boundary publishes each started scenario even if preparation or execution raises an error. Incomplete scenarios include known unresolved requirement/control counts, or an explicit unfinished-objective note when no specific pending work is known. Control counts are refreshed after actions; old plans are replaced rather than accumulated. Explicit completion uses the current plan and coverage rules. The existing HTML scenario and stopping-reason renderers consume this saved list without inferring new actions or rewriting historical reports.

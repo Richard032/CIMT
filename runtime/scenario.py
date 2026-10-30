@@ -16,6 +16,8 @@ from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 
+UNFINISHED_OBJECTIVE = "Testing objective has not finished; coverage is not confirmed"
+
 
 @dataclass
 class ScenarioSession:
@@ -76,6 +78,21 @@ class ScenarioRunner:
 
     def run(self, mobile, build, result, agent, publish):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
+        scenario = self._new_result(build)
+        result["scenarios"].append(scenario)
+        try:
+            publish()
+            self._run(mobile, build, scenario, agent, publish)
+        finally:
+            # Errors and limits must not hide work that still needs testing.
+            if scenario["completion"] != "complete":
+                self._add_unresolved_work(scenario)
+                if not scenario["remaining"]:
+                    scenario["remaining"].append(UNFINISHED_OBJECTIVE)
+            publish()
+
+    def _run(self, mobile, build, result, agent, publish):
+        """Order device and AI operations for the current objective."""
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
         startup = StartupGuard(mobile, evidence, publish)
@@ -120,10 +137,7 @@ class ScenarioRunner:
         folder.mkdir(mode=0o700, exist_ok=True)
         return ScenarioEvidence(folder, self.report)
 
-    def _prepare(self, mobile, build, device_result, evidence, publish):
-        result = self._new_result(build)
-        device_result["scenarios"].append(result)
-        publish()
+    def _prepare(self, mobile, build, result, evidence, publish):
         executable = application_executable(build, mobile.device["platform"])
         self.control.check()
         mobile.reset(build["artifact"], build["app-id"], build["target"])
@@ -149,7 +163,7 @@ class ScenarioRunner:
             "verdict": "inconclusive",
             "completion": "incomplete",
             "steps": [],
-            "remaining": [],
+            "remaining": [UNFINISHED_OBJECTIVE],
             "crashes": [],
             "checks": [],
             "requirements": RequirementResults.initial(self.requirements),
@@ -198,6 +212,11 @@ class ScenarioRunner:
                 coverage,
                 session.result["requirements"],
             )
+        # Save the latest plan before checks or limits can stop this scenario.
+        action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
+        session.result["remaining"] = list(action["remaining"])
+        if action["action"] != "done" and not session.result["remaining"]:
+            session.result["remaining"].append(UNFINISHED_OBJECTIVE)
         # Keep a returned finding even if the run limit expired during the request.
         CheckRecorder(self.redactor, evidence, publish).record(
             session, action.get("checks", []), self.inputs["instructions"]
@@ -227,6 +246,7 @@ class ScenarioRunner:
         return entry, element, point
 
     def _save_action(self, session, entry, action):
+        session.result["coverage"] = session.coverage.snapshot()
         session.result["steps"].append(self.redactor.records.step(entry))
         result = entry.get("crash", entry.get("actionError", "action completed"))
         session.history.append(self.redactor.records.action(dict(action, result=result)))
@@ -234,18 +254,29 @@ class ScenarioRunner:
     @staticmethod
     def _complete(session, action):
         result = session.result
-        result["remaining"] = action["remaining"]
-        outstanding = session.coverage.outstanding()
-        if outstanding:
-            result["remaining"].append(
-                str(len(outstanding)) + " observed control/state combinations were not activated"
-            )
-        unresolved = RequirementResults.unresolved(result["requirements"])
-        if unresolved:
-            result["remaining"].append(str(unresolved) + " requirements have no decided result")
+        # The saved list was already redacted when the response was received.
+        result["remaining"] = list(action["remaining"])
+        result["coverage"] = session.coverage.snapshot()
+        ScenarioRunner._add_unresolved_work(result)
         result["interpretation"] = action["observation"]
         complete = action["completion"] == "complete" and not result["remaining"]
         result["completion"] = "complete" if complete else "incomplete"
         result["verdict"] = scenario_verdict(
             result.get("checks", []), bool(result["crashes"]), complete, result["requirements"]
         )
+
+    @staticmethod
+    def _add_unresolved_work(result):
+        """Include known coverage gaps even when no final AI response was returned."""
+        outstanding = result.get("coverage", {}).get("outstandingObservedControls", 0)
+        messages = []
+        if outstanding:
+            messages.append(
+                str(outstanding) + " observed control/state combinations were not activated"
+            )
+        unresolved = RequirementResults.unresolved(result["requirements"])
+        if unresolved:
+            messages.append(str(unresolved) + " requirements have no decided result")
+        for message in messages:
+            if message not in result["remaining"]:
+                result["remaining"].append(message)

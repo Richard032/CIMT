@@ -258,6 +258,74 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(scenario["steps"][-1]["action"]["action"], "tap")
         self.assertIn("evidenceError", scenario["steps"][-1])
 
+    def test_remaining_plan_survives_failed_relaunch(self):
+        mobile = FailedRelaunch(self.root, foreground=["com.example.app", "home"])
+        result = {"scenarios": []}
+        with self.assertRaisesRegex(InfrastructureError, "launch timed out"):
+            self.runner.run(mobile, self.build, result,
+                FakeAgent([action("tap", ref="@e1", remaining=["Explore settings buttons"])]), lambda: None)
+        self.assertIn("Explore settings buttons", result["scenarios"][0]["remaining"])
+        self.assertEqual(result["scenarios"][0]["completion"], "incomplete")
+
+    def test_reset_failure_reports_unfinished_objective(self):
+        mobile = FakeMobile(self.root)
+        mobile.reset_error = InfrastructureError("reset failed")
+        result = {"scenarios": []}
+        with self.assertRaises(InfrastructureError):
+            self.runner.run(mobile, self.build, result, FakeAgent([]), lambda: None)
+        self.assertIn("Testing objective has not finished; coverage is not confirmed",
+            result["scenarios"][0]["remaining"])
+
+    def test_remaining_plan_is_saved_before_a_returned_response_hits_the_limit(self):
+        result = {"scenarios": []}
+        agent = StopThenReportFailure(self.control)
+        with self.assertRaises(LimitReached):
+            self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+        self.assertIn("Check other buttons", result["scenarios"][0]["remaining"])
+
+    def test_failure_includes_unresolved_requirements_and_controls(self):
+        definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
+        result = {"scenarios": []}
+        with self.assertRaises(InfrastructureError):
+            self.create_runner(definitions).run(
+                FailedRelaunch(self.root, foreground=["com.example.app", "home"]), self.build,
+                result, FakeAgent([action("tap", ref="@missing")]), lambda: None)
+        remaining = result["scenarios"][0]["remaining"]
+        self.assertIn("1 requirements have no decided result", remaining)
+        self.assertIn("1 observed control/state combinations were not activated", remaining)
+
+    def test_accepted_action_is_not_reported_as_unactivated_after_capture_failure(self):
+        result = {"scenarios": []}
+        with self.assertRaises(InfrastructureError):
+            self.runner.run(FailingPostActionCapture(self.root), self.build, result,
+                FakeAgent([action("tap", ref="@e1")]), lambda: None)
+        scenario = result["scenarios"][0]
+        self.assertEqual(scenario["coverage"]["outstandingObservedControls"], 0)
+        self.assertFalse(any("were not activated" in item for item in scenario["remaining"]))
+
+    def test_completed_objective_clears_earlier_remaining_plan(self):
+        result, _ = self.run_scenario(FakeMobile(self.root), [
+            action("tap", ref="@e1", remaining=["Check the opened page"]), action()])
+        self.assertEqual(result["remaining"], [])
+        self.assertEqual(result["completion"], "complete")
+
+    def test_latest_remaining_plan_replaces_older_plan(self):
+        result, _ = self.run_scenario(FakeMobile(self.root), [
+            action("tap", ref="@e1", remaining=["Old pending task"]),
+            action(completion="blocked", remaining=["Current pending task"])])
+        self.assertEqual(result["remaining"], ["Current pending task"])
+
+    def test_remaining_plan_is_redacted_before_publishing(self):
+        self.runner.redactor = Redactor({"credentials": {"login": {"password": "private-fixture"}}})
+        result = {"scenarios": []}
+        snapshots = []
+        with self.assertRaises(InfrastructureError):
+            self.runner.run(FailingPostActionCapture(self.root), self.build, result,
+                FakeAgent([action("tap", ref="@e1", remaining=["Retry private-fixture"])]),
+                lambda: snapshots.append(json.dumps(result)))
+        self.assertIn("Retry <redacted>", result["scenarios"][0]["remaining"])
+        self.assertFalse(any("private-fixture" in snapshot for snapshot in snapshots))
+
 
 class StopThenReportFailure:
     """Simulate a limit reached while the model is returning a finding."""
@@ -267,7 +335,7 @@ class StopThenReportFailure:
 
     def choose(self, *arguments):
         self.control.stop()
-        return action(checks=[check("failed")])
+        return action(checks=[check("failed")], remaining=["Check other buttons"])
 
 
 class FailingPostActionCapture(FakeMobile):
@@ -277,6 +345,13 @@ class FailingPostActionCapture(FakeMobile):
         if any(name.startswith("mobile_click") for name, _ in self.calls):
             raise InfrastructureError("capture failed")
         return super().snapshot()
+
+
+class FailedRelaunch(FakeMobile):
+    def call(self, name, **arguments):
+        super().call(name, **arguments)
+        if name == "mobile_launch_app":
+            raise InfrastructureError("launch timed out")
 
 
 class BoundaryTests(unittest.TestCase):

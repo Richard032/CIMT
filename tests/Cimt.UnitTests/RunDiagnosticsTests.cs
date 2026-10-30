@@ -34,6 +34,27 @@ public sealed class RunDiagnosticsTests
     }
 
     [Fact]
+    public async Task UnfinishedWorkAppearsInStoppingReasonsAndScenarioDetails()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"fixture","platform":"ios","name":"iPhone fixture"},
+              "error":"launch timed out","stoppingReason":null,
+              "scenarios":[{"target":"Debug_Generic","completion":"incomplete","verdict":"inconclusive",
+                "steps":[],"crashes":[],"remaining":["Explore settings buttons","2 requirements have no decided result"]}]}]}
+            """);
+        var html = new RunHtmlRenderer(fixture.State.Configuration).Render(
+            fixture.State, new(3, "inconclusive", "incomplete"), execution);
+        Assert.Contains("Remaining or blocked work", html);
+        Assert.Contains("Remaining/blocked work:", html);
+        Assert.Contains("Explore settings buttons", html);
+        Assert.Contains(RunDiagnostics.WorkerReasons(execution),
+            reason => reason.Category == "Remaining or blocked work" && reason.Message == "Explore settings buttons");
+        Assert.Contains("2 requirements have no decided result", html);
+    }
+
+    [Fact]
     public async Task MandatoryDiagnosticsRemainWhenOptionalSectionsAreDisabled()
     {
         using var fixture = new DiagnosticFixture();

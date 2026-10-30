@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.17  
+Version: 0.18  
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -948,3 +948,13 @@ This increment adds only standard-library Python code, with no new dependency, p
 Verified on the first Mac: 246 .NET unit tests, 13 runtime-policy checks, 150 Python unit tests, 20 public CLI/lifecycle checks, four build-contract checks, four example-adapter checks, and five output-layout checks passed: 442 checks total. All use synthetic inputs/fake services. The existing offline requirement demo generated a synthetic failed/incomplete report with the new sections/activity; its expected exit is 1. Static HTML structure, section, and result checks passed. Visual browser inspection was unavailable because the browser tool blocks local-file URLs; no workaround was attempted.
 
 Installed the tested Release host and all 29 Python modules, checked byte equality against source/build output, and verified public help. Installed cimt.dll SHA-256: c416f3cc25f07192775b7342e58f3ff5b5bb31f1bcc7452e0a12b98663622bb9. No private YAML was read, no new real app build/run/replay or OpenAI request was issued, and no phone was operated. Real application acceptance of the improved diagnostics remains for a user-started run. The underlying capture-stability issue is still open. See [diagnostic reporting](diagnostic-reporting.md).
+
+## 31. Remaining work after an interrupted scenario
+
+The 30 October replay exposed a reporting defect: the AI returned pending tasks, but the final scenario list stayed empty after iPhone relaunch failed. ScenarioRunner now saves each returned plan before check recording and limit handling, and finalizes pending work after preparation/execution errors. It includes known unresolved requirement/control counts and an unfinished-objective fallback. Completed scenarios clear earlier plans. No device-control or launch policy changed.
+
+For an existing installation, stop active CIMT runs, then copy runtime/scenario.py to the installed lib/cimt-runtime/scenario.py. The normal fresh-Mac runtime installation helper already copies this file. No host rebuild, dependency, configuration change, or API key setup is needed for this fix.
+
+Verified: 247 .NET unit tests, 158 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks passed (438 checks). The regression tests use fake relaunch/capture failures and check the saved pending list, latest-plan replacement, completion, coverage counts, redaction, and HTML stopping/scenario sections. The initial sandboxed .NET attempt could not open its process pipe; verification succeeded with the required local process permissions.
+
+Installed only scenario.py and checked byte equality against source. Installed SHA-256: 3ae9b06e184ff4610abe679082ad22c61fd321986c039616e447b88e1ca3c2ea. No private YAML or historical report was read or changed, no real run/replay or API request was started, and no phone was operated. New run/replay reports use the correction; the iPhone launch problem remains open.

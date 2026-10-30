@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.13  
+Version: 0.14  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -387,3 +387,5 @@ The default worker no longer forces packaging, runtime, or archive settings. YAM
 New run/replay HTML reports always include Run overview, Chronological activity, and Failures and stopping reasons. Read these before optional raw diagnostic sections. The overview shows actual build configuration alongside the target label, source identity, UTC times, available builds/devices, and recorded AI request count. The timeline shows operations that started, completed, failed, stopped, or were cancelled, including duration and device/target context. Expand exception details and follow related log links when needed. These sections remain visible even when optional report sections are disabled.
 
 A worker's real error is now carried into the run summary even when its stderr is empty. Infrastructure and masking failures remain distinct from application-test failures. A second device cancelled after a blocking failure has a separate explanation. activity.jsonl, result.json, and related logs remain local with the portable report. An older report has no reconstructed timestamps. Changed mask geometry still stops testing; extra diagnostics do not bypass protection. See [diagnostic reporting](diagnostic-reporting.md). Existing command/YAML inputs are unchanged; no extra verbosity option is required.
+
+Remaining/blocked work keeps the latest AI plan even if a scenario stops during preparation, an action, recovery, or a run limit. Incomplete scenarios also show known untested requirement/control counts. If specific tasks are unavailable, CIMT states that the objective is unfinished and coverage is unconfirmed. Completed scenarios clear obsolete pending tasks. This correction applies to new reports; existing reports are preserved.
