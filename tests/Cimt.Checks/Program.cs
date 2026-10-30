@@ -4,6 +4,9 @@ using System.Runtime.Versioning;
 
 [assembly: SupportedOSPlatform("macos")]
 
+if (args.FirstOrDefault() == "--public-command-probe")
+    return await Entry.Run(args.Skip(1).ToArray());
+
 if (args.Contains("--lock-probe"))
 {
     try
@@ -19,7 +22,7 @@ Directory.CreateDirectory(temporary);
 Environment.SetEnvironmentVariable("CIMT_INSTALL_ROOT", temporary);
 try
 {
-    return new FoundationChecks(temporary).Run();
+    return await new FoundationChecks(temporary).Run();
 }
 finally
 {

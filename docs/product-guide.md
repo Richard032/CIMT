@@ -1,11 +1,11 @@
 # CIMT product documentation
 
-Version: 0.17  
+Version: 0.18  
 Date: 30 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
-**validate, default build workers, and an initial single-objective run engine are implemented. The real app test has not yet run with this engine. setup and saved-action-history replay remain unimplemented; replay without --scenario reuses built apps for current instructions. See the [implementation status](implementation-status.md), [installation guide](installation.md), and [runnable main-branch example](../examples/econ-button-crash/README.md). Private keys are supplied locally; none are bundled.**
+**validate, default build workers, and an initial single-objective run engine are implemented. User-started real-app runs have exercised device interaction; full end-to-end acceptance remains open. setup and saved-action-history replay remain unimplemented; replay without --scenario reuses built apps for current instructions. See the [implementation status](implementation-status.md), [installation guide](installation.md), and [runnable main-branch example](../examples/econ-button-crash/README.md). Private keys are supplied locally; none are bundled.**
 
 ## 1. Purpose and environment
 
@@ -403,3 +403,13 @@ Permission decisions are controlled by testing instructions. The AI guidance req
 CIMT checks an AI decision before recording its observations or executing its action. If the answer has inconsistent reporting fields, an unknown requirement ID, an invalid instruction override quotation, or malformed action JSON, CIMT requests a corrected answer. It allows at most two corrections after the initial answer. Each correction uses a fresh masked screen and counts toward the same AI spending and whole-run time limits. No extra configuration is needed.
 
 The HTML report shows Unaccepted AI responses with the validation reason, candidate response, and available masked decision screenshot. These observations are unverified and do not determine the test verdict; accepted findings remain. The chronological activity shows rejection and recovery, and AI accounting includes correction requests. If all three answers are invalid, execution stops with an infrastructure error and incomplete work. Time/budget exhaustion keeps its normal outcome. This policy does not retry refusals, incomplete provider output, transport errors, device errors, or failed masking/storage.
+
+## Exploration progress and stopping a run
+
+CIMT remembers explored controls, outcomes, untried paths, and the pending plan for each device/target scenario. Each AI request receives a relevant memory summary with current control references. Reports show observed outcomes and the saved exploration memory. An unchanged screen is recorded as such; a successful tap alone does not verify the requested behavior.
+
+After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Replanning is bounded. If it cannot find a useful next action, only that scenario stops incomplete and other work continues. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
+
+Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal.
+
+You can open index.html while testing is running. CIMT saves a clearly labelled partial report at stage boundaries and updates it about every two seconds during device testing; reload the page to see newer saved observations. The latest AI count comes from the saved budget ledger. If the process is force-killed, the last saved page remains available and explicitly partial. A final report removes that marker. This feature starts with new runs/replays after installation; it does not rewrite the previous interrupted run.

@@ -43,7 +43,7 @@ public sealed class RunActivityLog(string report, Func<string, string> scrub)
         }
         catch (Exception error)
         {
-            Record(operation, error is RunLimitException ? "stopped" : "failed", error.Message,
+            Record(operation, error is RunLimitException or OperationCanceledException ? "stopped" : "failed", error.Message,
                 seconds: Stopwatch.GetElapsedTime(started).TotalSeconds, error: error);
             throw;
         }

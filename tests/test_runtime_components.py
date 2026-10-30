@@ -62,6 +62,8 @@ def action(kind="done", **values):
         "credential": "",
         "field": "",
         "observation": "fixture",
+        "repeatInstruction": "",
+        "repeatReason": "",
         "remaining": [],
         "completion": "complete",
         "checks": [check()] if kind == "done" else [],
@@ -190,6 +192,17 @@ class FailingRefreshMobile(FakeMobile):
         return super().snapshot()
 
 
+class StopAfterFocusMobile(FakeMobile):
+    def __init__(self, folder, control):
+        super().__init__(folder, elements=[dict(BUTTON, identifier='LoginUser'), SIZE])
+        self.control = control
+
+    def call(self, name, **arguments):
+        super().call(name, **arguments)
+        if name == 'mobile_click_on_screen_at_coordinates':
+            self.control.interrupt()
+
+
 class ScenarioTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -234,7 +247,7 @@ class ScenarioTests(unittest.TestCase):
         )
         self.assertEqual(result["completion"], "incomplete")
         self.assertEqual(result["requirements"][0]["status"], "not tested")
-        self.assertEqual(agent.calls[0][-1][0]["id"], "REQ-0001")
+        self.assertEqual(agent.calls[0][8][0]["id"], "REQ-0001")
 
     def test_mapped_requirement_and_objective_can_complete(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
@@ -575,6 +588,64 @@ class ScenarioTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError) as raised:
             parse_action({"status": "incomplete", "output": []})
         self.assertNotIsInstance(raised.exception, InvalidAgentResponse)
+
+
+    def test_unchanged_taps_are_replanned_without_executing_a_fourth_tap(self):
+        tap = action('tap', ref='@e1')
+        agent, _, _ = api_agent([tap, tap, tap, tap, action()])
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        taps = [name for name, _ in mobile.calls if name.startswith('mobile_click')]
+        self.assertEqual(len(taps), 3)
+        scenario = result['scenarios'][0]
+        self.assertEqual(len(scenario['rejectedResponses']), 1)
+        self.assertEqual(scenario['exploration']['paths'][0]['attempts'], 3)
+
+    def test_failed_replanning_stops_only_the_affected_scenario(self):
+        tap = action('tap', ref='@e1')
+        agent, _, _ = api_agent([tap] * 6)
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['completion'], 'incomplete')
+        self.assertTrue(any('Exploration blocked' in item for item in scenario['remaining']))
+        self.assertFalse(self.control.stopped.is_set())
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
+
+    def test_model_receives_memory_with_observed_previous_outcome(self):
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        self.runner.run(FakeMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['explorationMemory']['currentControls'][0]['attempts'], 1)
+        self.assertEqual(state['recentActions'][0]['result'], 'No observed UI change after the action')
+        self.assertEqual(state['recentActions'][0]['controlLabel'], 'Open')
+
+    def test_user_stop_prevents_an_action_after_ai_returns(self):
+        self.control.interrupt()
+        mobile = FakeMobile(self.root)
+        executor = ActionExecutor({}, self.redactor, self.control.deadline, check=self.control.check)
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            executor.execute(mobile, action('tap', ref='@e1'), mobile.elements)
+        self.assertFalse(mobile.calls)
+
+
+    def test_interrupted_credential_focus_is_retained_without_typing_the_secret(self):
+        config = {'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}}
+        redactor = Redactor(config)
+        executor = ActionExecutor(config, redactor, self.control.deadline, check=self.control.check)
+        runner = ScenarioRunner({'instructions': 'Explore'}, config, redactor, self.control, executor,
+                                self.root, sleep=lambda _: None)
+        mobile = StopAfterFocusMobile(self.root, self.control)
+        result = {'scenarios': []}
+        agent = FakeAgent([action('credential', ref='@e1', credential='test', field='username')])
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
+        self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
+        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['actionError'])
+        self.assertNotIn('synthetic-user', json.dumps(result))
 
 
 class StopThenReportFailure:

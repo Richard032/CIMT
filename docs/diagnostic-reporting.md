@@ -1,6 +1,6 @@
 # Readable run diagnostics
 
-Updated: 30 October 2026. Scope: FR-61–FR-65 and AC-35–AC-39 for run/replay execution reports.
+Updated: 30 October 2026. Scope: FR-61–FR-69 and AC-35–AC-43 for run/replay execution reports.
 
 ## Reading the report
 
@@ -39,3 +39,9 @@ New captures can retry a valid screen/mask-region transition at most three times
 For FR-65/AC-39, each rejected candidate is retained under its scenario as rejectedResponses, separately from checks and executed steps. Every entry contains its attempt, decision-step context, redacted validation error/candidate, and the already masked screen used for that decision, or an evidenceError. Candidate fields are untrusted data: even source, status, and requirementId are redacted. Raw provider envelopes, private requests, prompts, and unmasked images are not added. This is a diagnostic record, not a verified finding or hidden reasoning.
 
 The mandatory HTML section exposes these candidates even with optional details disabled. A failed observation in an unaccepted response remains inspectable after successful correction; it does not automatically fail the app or disappear from history. Previously accepted failures remain effective. Rejection and successful recovery appear in chronological activity with attempt and device/target context. Exhaustion is an explicit AI response-correction infrastructure error; other workers retain their separate cancellation reasons. Rejected remaining-work lists do not replace the last accepted plan.
+
+## Exploration outcomes and interrupted runs
+
+Step details show the selected control and the observed UI outcome after execution, including rejected coordinates or unavailable evidence. Saved exploration memory includes all known control paths, attempts, transitions, and the accepted pending plan. It does not claim every observed change is a functional pass. Current-control, pending-path, and stalled-path summaries help the next AI decision continue the scenario. No-progress proposals are retained as unaccepted diagnostics; exhausted no-progress replanning leaves the scenario incomplete without cancelling unrelated work.
+
+The host catches Ctrl+C/SIGTERM and records User interruption separately from infrastructure failure. It keeps earlier findings and applies normal exit precedence. Interim index.html and result.json are written through the same production rendering/redaction pipeline at stage boundaries and about every two seconds during UI execution. The JSON inProgress/updated fields and HTML partial marker identify snapshots; finished remains null until finalization. Latest budget data is read from ai-budget.json, including pending reservations when an API request has not settled. Each file is replaced atomically. A force-killed process leaves the preceding complete snapshot, which is explicitly not a confirmed final result. Existing reports are not retroactively regenerated.

@@ -1,15 +1,15 @@
 # CIMT installation and setup guide
 
-Version: 0.21  
+Version: 0.22  
 Last updated: 30 October 2026  
-Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application execution and acceptance pending  
+Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
 ## 1. Purpose and current status
 
 This document describes how to prepare another supported Mac, install CIMT, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
 
-The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. cimt validate produces readiness reports; setup and replay remain unimplemented and return an explicit error. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
+The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. cimt validate produces readiness reports; setup and saved-action-history replay remain unimplemented; replay without --scenario reuses retained builds with current testing instructions. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
 
 The agreed initial host scope is **Intel Macs**. This guide does not claim support for every macOS release, Apple Silicon, or every possible Xcode/device combination. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
@@ -988,3 +988,11 @@ Install the updated host and Python modules together so the HTML report understa
 The behavior is automatic for run and replay: at most three AI responses per decision, fresh masked evidence before corrections, shared budget/deadline enforcement, and mandatory unaccepted-response diagnostics. The command-line help check and byte comparison can verify installation without starting a real app test. Live API schema acceptance and physical-device execution remain separate acceptance checks and are not implied by offline verification.
 
 Verification for this increment: 467 relevant offline checks passed (250 .NET unit tests, 184 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks). The final host was published successfully. The installed host and eight changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: df3f2d9d51693a5011b74954531d3d183eb7d7fe8fd8af3bfb5888d778ee0bc2. Backup: /private/tmp/cimt-before-decision-correction.e8hvj7ht. No real app run/replay, paid API request, or phone action was started.
+
+## 35. Exploration memory, interruption, and interim reports — 30 October 2026
+
+Update the host and Python runtime together using the existing source installation procedure. New modules are exploration_memory.py and run_signals.py; changes also affect action_prompt.py, agent.py, actions.py, coverage_tracker.py, decision_recovery.py, device_runner.py, errors.py, run_control.py, run_ui.py, and scenario.py. There is no new package, helper, private input, API key, or YAML option. Keep a backup before replacing installed files and compare copied bytes afterward.
+
+The update adds whole-scenario exploration memory and bounded no-progress replanning. Terminal interruption requests controlled finalization, and the UI worker has a five-second exit grace before process-tree termination. Partial reports use the existing output folder and are refreshed about every two seconds during device testing, with atomic replacement and an explicit partial marker. Stage-boundary snapshots also cover preparation/build progress. Actual signals and forced termination are verified using temporary fake-runtime processes in the existing CLI checks, without contacting OpenAI or operating physical devices. Physical-device/API acceptance remains a user-started run/replay.
+
+Verification for this increment: 503 relevant offline checks passed (261 .NET unit tests, 207 Python unit tests, 13 runtime-policy checks, and 22 public CLI/lifecycle checks). These include actual SIGINT delivery to a temporary fake-runtime CIMT child, forced termination of a separate child after an interim report was saved, checkpoint cancellation, and a closed-pipe interruption race. The final host published successfully; installed host and all 12 changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: 97d66b943637304fef2bfef6f3a5fbf49ae7579480a8fa4318cec33ea44cf990. Original installation backup: /private/tmp/cimt-before-exploration-stop.7pl43htt. No real app run/replay, paid API request, device action, private configuration edit, or historical-report rewrite was performed for this increment.

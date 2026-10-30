@@ -5,7 +5,7 @@ namespace Cimt;
 /// <summary>Describes one process call. Input can contain secrets and must not be logged.</summary>
 public sealed record ProcessCommand(string Executable, IEnumerable<string> Arguments, int TimeoutSeconds,
     Dictionary<string, string>? Environment = null, string? WorkingDirectory = null, string? Input = null,
-    Action<string>? OutputLine = null);
+    Action<string>? OutputLine = null, CancellationToken Cancellation = default, int StopGraceSeconds = 0);
 
 public sealed record ProcessResult(int Exit, string Stdout, string Stderr);
 
@@ -20,12 +20,22 @@ public sealed class CommandRunner : ICommandRunner
 {
     public async Task<ProcessResult> Run(ProcessCommand command)
     {
+        command.Cancellation.ThrowIfCancellationRequested();
         using var process = Process.Start(CreateStartInfo(command))
             ?? throw new ConfigurationException("Unable to start a required tool.");
         // Read both streams together. A full error stream must not block the child.
         var stdout = Read(process.StandardOutput, command.OutputLine);
         var stderr = Read(process.StandardError, command.OutputLine);
-        await WaitForCompletion(process, command);
+        try
+        {
+            await WaitForCompletion(process, command);
+        }
+        catch (Exception) when (command.Cancellation.IsCancellationRequested)
+        {
+            // Drain the closed pipes before reporting cancellation to the coordinator.
+            await Task.WhenAll(stdout, stderr);
+            throw;
+        }
         return new(process.ExitCode, await stdout, await stderr);
     }
 
@@ -63,7 +73,8 @@ public sealed class CommandRunner : ICommandRunner
 
     private static async Task WaitForCompletion(Process process, ProcessCommand command)
     {
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(command.TimeoutSeconds));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(command.TimeoutSeconds));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, command.Cancellation);
         try
         {
             if (command.Input is not null)
@@ -73,10 +84,17 @@ public sealed class CommandRunner : ICommandRunner
             }
             await process.WaitForExitAsync(cancellation.Token);
         }
-        catch (OperationCanceledException)
+        catch (Exception error) when (error is OperationCanceledException || command.Cancellation.IsCancellationRequested)
         {
-            process.Kill(entireProcessTree: true);
+            if (command.Cancellation.IsCancellationRequested && command.StopGraceSeconds > 0)
+                await Task.WhenAny(process.WaitForExitAsync(), Task.Delay(TimeSpan.FromSeconds(command.StopGraceSeconds)));
+            if (!process.HasExited)
+            {
+                try { process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) when (process.HasExited) { }
+            }
             await process.WaitForExitAsync();
+            command.Cancellation.ThrowIfCancellationRequested();
             throw new ConfigurationException("A required operation timed out.");
         }
     }

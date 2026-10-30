@@ -28,7 +28,7 @@ build:
     - {name: second, configuration: Release, project: App.csproj, ios: {framework: net10.0-ios}}
 """;
 
-    public int Run()
+    public async Task<int> Run()
     {
         file = Write("default.yaml", text);
         root = Node.Read(file);
@@ -52,8 +52,86 @@ build:
         Check("public run continues after build failure and retains its clone", PublicRunPreservesBuildFailure);
         Check("public replay reuses its app without Git or builds", PublicReplayUsesTheBuiltApp);
         Check("new clone replaces previous work after preflight", NewCloneReplacesPreviousWork);
+        await Check("one SIGINT produces a final incomplete report", () => InterruptedPublicRun(false));
+        await Check("forced process termination retains a valid interim report", () => InterruptedPublicRun(true));
         Console.WriteLine($"{passed} checks passed.");
         return 0;
+    }
+
+    private async Task Check(string name, Func<Task> action)
+    {
+        await action();
+        passed++;
+        Console.WriteLine("PASS " + name);
+    }
+
+    private async Task InterruptedPublicRun(bool force)
+    {
+        var fixture = CreatePublicConfiguration(InstallFakeTools());
+        fixture = Write("interrupt-run.yaml", File.ReadAllText(fixture).Replace("\"Failed\"", "\"Release\""));
+        var layout = new OutputLayout(temp);
+        var existing = Directory.GetDirectories(layout.ReportsRoot).ToHashSet();
+        var info = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false, RedirectStandardInput = true,
+            RedirectStandardOutput = true, RedirectStandardError = true
+        };
+        foreach (var arg in new[] { typeof(FoundationChecks).Assembly.Location, "--public-command-probe", "run", "--config", fixture })
+            info.ArgumentList.Add(arg);
+        info.Environment["PATH"] = Path.Combine(temp, "fakebin") + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
+        info.Environment["CIMT_FIXTURE_WAIT_FOR_INTERRUPT"] = "1";
+        using var child = Process.Start(info)!;
+        var stdout = child.StandardOutput.ReadToEndAsync();
+        var stderr = child.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        try
+        {
+            string? report = null;
+            while (report is null)
+            {
+                report = Directory.GetDirectories(layout.ReportsRoot).FirstOrDefault(path =>
+                    !existing.Contains(path) && File.Exists(Path.Combine(path, "interrupt-ready")));
+                if (child.HasExited)
+                    throw new Exception("Interrupt probe exited early: " + await stderr);
+                if (report is null)
+                    await Task.Delay(50, timeout.Token);
+            }
+            var html = Path.Combine(report, "index.html");
+            while (!File.Exists(html) || !File.ReadAllText(html).Contains("Synthetic progress"))
+                await Task.Delay(50, timeout.Token);
+            Assert(File.ReadAllText(html).Contains("Partial report"), "missing interim marker");
+            if (force)
+                child.Kill(entireProcessTree: true);
+            else
+            {
+                var signal = new ProcessStartInfo("/bin/kill") { UseShellExecute = false };
+                signal.ArgumentList.Add("-INT");
+                signal.ArgumentList.Add(child.Id.ToString());
+                using var send = Process.Start(signal)!;
+                await send.WaitForExitAsync(timeout.Token);
+                Assert(send.ExitCode == 0, "SIGINT was not delivered");
+            }
+            await child.WaitForExitAsync(timeout.Token);
+            await Task.WhenAll(stdout, stderr);
+            using var result = JsonDocument.Parse(File.ReadAllText(Path.Combine(report, "result.json")));
+            Assert(result.RootElement.GetProperty("completion").GetString() == "incomplete", "interrupt produced completion");
+            Assert(result.RootElement.GetProperty("inProgress").GetBoolean() == force, "wrong final/interim status");
+            Assert(File.ReadAllText(html).Contains("Synthetic progress"), "saved observations lost");
+            Assert(!File.ReadAllText(html).Contains(secret), "report leaked secret");
+            if (!force)
+            {
+                Assert(child.ExitCode == 2, "SIGINT did not preserve incomplete outcome");
+                Assert(File.ReadAllText(html).Contains("User interruption"), "missing user stop reason");
+            }
+        }
+        finally
+        {
+            if (!child.HasExited)
+            {
+                child.Kill(entireProcessTree: true);
+                await child.WaitForExitAsync();
+            }
+        }
     }
 
     private void Check(string name, Action action)
@@ -340,13 +418,21 @@ build:
 
     private string InstallFakePython() => WriteExecutable("tools/python/bin/python", """
 #!/usr/bin/env python3
-import sys,json,pathlib,os
+import sys,json,pathlib,os,time
 c=json.load(sys.stdin)
 if '--preflight' in sys.argv and os.environ.get('CIMT_FIXTURE_RETAINED_MARKER'):
  assert pathlib.Path(os.environ['CIMT_FIXTURE_RETAINED_MARKER']).exists(), 'retained work was deleted before cloning'
 if '--preflight' not in sys.argv:
  pathlib.Path(c['report'],'identity-probe.json').write_text(json.dumps({'runId':c['runId'],'workName':pathlib.Path(c['work']).name}))
  d={'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
+ if os.environ.get('CIMT_FIXTURE_WAIT_FOR_INTERRUPT'):
+  s=d['devices'][0]['scenarios'][0];s['completion']='incomplete';s['steps']=[{'action':'tap','observation':'Synthetic progress','observedOutcome':'No observed UI change'}]
+  p=pathlib.Path(c['report'],'ui-results.json');p.write_text(json.dumps(d))
+  pathlib.Path(c['report'],'interrupt-ready').write_text('ready')
+  while not pathlib.Path(c['report'],'stop-requested').exists():time.sleep(0.05)
+  d['devices'][0]['stoppingReason']='User interrupted execution'
+  q=p.with_suffix('.partial');q.write_text(json.dumps(d));q.replace(p)
+  sys.exit(2)
  pathlib.Path(c['report'],'ui-results.json').write_text(json.dumps(d))
 print('Simulated runtime interface; no API or device actions.')
 """);

@@ -10,7 +10,8 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
-from errors import InfrastructureError
+from errors import InfrastructureError, ExplorationStalled
+from exploration_memory import ExplorationMemory
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
@@ -32,6 +33,7 @@ class ScenarioSession:
     active: str = ""
     history: list = field(default_factory=list)
     coverage: CoverageTracker = field(default_factory=CoverageTracker)
+    exploration: ExplorationMemory = field(default_factory=ExplorationMemory)
 
 
 def application_executable(build, platform):
@@ -85,6 +87,10 @@ class ScenarioRunner:
         try:
             publish()
             self._run(mobile, build, scenario, agent, publish)
+        except ExplorationStalled as error:
+            scenario["remaining"].append(str(error))
+            if self.activity:
+                self.activity.write("Exploration stopped", "blocked", str(error), mobile.device, build["target"])
         finally:
             # Errors and limits must not hide work that still needs testing.
             if scenario["completion"] != "complete":
@@ -118,12 +124,20 @@ class ScenarioRunner:
                         "Verdict: " + session.result["verdict"], mobile.device, build["target"])
                 publish()
                 return
-            entry, element, point = self._perform(mobile, session, action)
+            before = session.elements
+            entry, element, point = self._action_context(session, action)
             try:
+                self._perform(mobile, session, action, entry, element)
                 with self._operation("Observe action result and check crash recovery", mobile, build["target"]):
                     cancelled = recovery.after_action(session, entry, action, element, point)
+            except Exception as error:
+                # An interruption may arrive after only part of a credential action.
+                entry.setdefault("actionError", self.redactor.text(str(error)))
+                raise
             finally:
                 # Keep the performed action even when evidence or recovery fails.
+                session.exploration.record(before, session.elements, action, entry)
+                session.result["exploration"] = self.redactor.object(session.exploration.saved())
                 self._save_action(session, entry, action)
                 publish()
             if cancelled:
@@ -198,6 +212,7 @@ class ScenarioRunner:
         return False
 
     def _choose(self, mobile, session, agent, evidence, publish):
+        session.exploration.observe(session.elements)
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
         session.result["coverage"] = coverage
@@ -207,6 +222,8 @@ class ScenarioRunner:
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.result["remaining"] = list(action["remaining"])
+        session.exploration.plan = list(action["remaining"])
+        session.result["exploration"] = self.redactor.object(session.exploration.saved())
         if action["action"] != "done" and not session.result["remaining"]:
             session.result["remaining"].append(UNFINISHED_OBJECTIVE)
         # Keep a returned finding even if the run limit expired during the request.
@@ -217,7 +234,7 @@ class ScenarioRunner:
         publish()
         return action
 
-    def _perform(self, mobile, session, action):
+    def _action_context(self, session, action):
         element = next(
             (element for element in session.elements if element.get("ref") == action["ref"]), {}
         )
@@ -227,6 +244,9 @@ class ScenarioRunner:
             "action": self.redactor.records.action(action),
             "observation": action["observation"],
         }
+        return entry, element, point
+
+    def _perform(self, mobile, session, action, entry, element):
         try:
             with self._operation("Execute device action: " + action["action"], mobile, session.result["target"]):
                 self.actions.execute(mobile, action, session.elements)
@@ -235,13 +255,13 @@ class ScenarioRunner:
         except ValueError as error:
             entry["actionError"] = str(error)
         self.sleep(min(0.4, max(0, self.control.deadline - self.clock())))
-        return entry, element, point
 
     def _save_action(self, session, entry, action):
         session.result["coverage"] = session.coverage.snapshot()
         session.result["steps"].append(self.redactor.records.step(entry))
-        result = entry.get("crash", entry.get("actionError", "action completed"))
-        session.history.append(self.redactor.records.action(dict(action, result=result)))
+        result = entry.get("crash", entry.get("actionError", entry.get("observedOutcome", "Action result unavailable")))
+        session.history.append(self.redactor.records.action(dict(
+            action, result=result, controlLabel=entry.get("controlLabel", ""))))
 
     @staticmethod
     def _complete(session, action):

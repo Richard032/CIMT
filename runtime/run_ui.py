@@ -15,6 +15,7 @@ from run_control import RunControl
 from scenario import ScenarioRunner
 from device_scheduler import DeviceScheduler
 from activity import ActivityLog
+from run_signals import RunSignals
 
 
 class Execution:
@@ -30,7 +31,7 @@ class Execution:
             self.config["ai-budget"]["amount"],
             self.config["ai-budget"]["currency"],
         )
-        self.control = RunControl(context["deadline"])
+        self.control = RunControl(context["deadline"], stop_file=pathlib.Path(context["report"]) / "stop-requested")
         self.journal = RunJournal(
             context["report"], self.redactor, self.budget, context.get("runId", "")
         )
@@ -58,7 +59,7 @@ class Execution:
         return result_exit_code(self.journal.results)
 
     def _device_runner(self):
-        actions = ActionExecutor(self.config, self.redactor, self.context["deadline"])
+        actions = ActionExecutor(self.config, self.redactor, self.context["deadline"], check=self.control.check)
         scenarios = ScenarioRunner(
             self.context["inputs"],
             self.config,
@@ -92,7 +93,9 @@ def main(stream, arguments):
     """Read the private request from stdin and return a documented exit code."""
     try:
         context = json.load(stream)
-        return Execution(context).run(preflight="--preflight" in arguments)
+        execution = Execution(context)
+        with RunSignals(execution.control):
+            return execution.run(preflight="--preflight" in arguments)
     except (InfrastructureError, LimitReached) as error:
         print("CIMT execution stopped: " + str(error), file=sys.stderr)
         return 3 if isinstance(error, InfrastructureError) else 2

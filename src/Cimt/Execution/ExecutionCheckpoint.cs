@@ -15,11 +15,17 @@ public sealed class ExecutionCheckpoint(ExecutionPhase phase, TextReader input, 
 
         using var timeout = new CancellationTokenSource(
             TimeSpan.FromSeconds(state.Deadline.RemainingSeconds(int.MaxValue)));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, state.Cancellation);
         Record(state, "waiting");
         output.WriteLine(Message());
         output.WriteLine("Press Enter to continue. Waiting counts toward the run time limit.");
         await output.FlushAsync();
-        await WaitForEnter(timeout.Token);
+        try { await WaitForEnter(cancellation.Token); }
+        catch (RunLimitException) when (state.Cancellation.IsCancellationRequested)
+        {
+            state.Cancellation.ThrowIfCancellationRequested();
+            throw;
+        }
         // A late acknowledgement must not start the next stage after the deadline.
         state.Deadline.RemainingSeconds(int.MaxValue);
         Record(state, "continued");

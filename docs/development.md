@@ -41,6 +41,8 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | decision_recovery.py | Correct invalid decisions before check recording/actions; retain redacted rejected candidates. |
 | actions.py | Validate and execute allowed actions; enter credentials locally. |
 | coverage_tracker.py | Track observed and activated controls. |
+| exploration_memory.py | Retain scenario paths/outcomes and reject no-progress repetitions. |
+| run_signals.py | Convert terminal signals into worker stop flags. |
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
@@ -104,3 +106,7 @@ The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/b
 ## Response correction tests — 30 October 2026
 
 Use the existing Python unittest suite and xUnit project. ScriptedTransport returns queued synthetic provider responses through Agent's normal constructor; fake phones expose changed screens or capture failures. Cases cover correction before one tap, bounded exhaustion, unknown IDs/override quotations, malformed JSON, redaction of invalid metadata and feedback, fresh refs, preserved accepted/rejected failures, budget/deadline stops, and no retries for unrelated errors. The HTML case verifies mandatory visibility, redaction, escaping, and screenshot links. No live OpenAI or device access is required.
+
+## Exploration and interruption verification — 30 October 2026
+
+The Python unittest suite tests identity/ref changes, long-history retention, pending paths, observed outcomes, no-progress taps and navigation cycles, explicit repeat quotes, scenario-only blocking, prompt memory, user-stop signals/markers, and adapter-error classification. Existing xUnit tests cover cancellation between stages and at checkpoints/process boundaries, cleanup/reporting, failure precedence, and partial/final report lifecycle. The existing Cimt.Checks program adds temporary public-command probes: send one SIGINT to its own child and verify final incomplete output; force-kill a separate child after observing partial HTML and verify the atomic snapshot survives. All helpers are synthetic and remain in the existing test infrastructure. No test project, external provider, or physical device is added.

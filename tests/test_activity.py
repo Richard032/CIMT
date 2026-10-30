@@ -16,6 +16,8 @@ from errors import InfrastructureError, LimitReached
 from evidence import RunJournal
 from redaction import Redactor
 from run_control import RunControl
+from run_signals import RunSignals
+import signal
 
 
 class ActivityTests(unittest.TestCase):
@@ -30,6 +32,35 @@ class ActivityTests(unittest.TestCase):
 
     def records(self):
         return [json.loads(line) for line in (self.root / "activity.jsonl").read_text().splitlines()]
+
+    def test_stop_marker_is_a_user_interruption(self):
+        marker = self.root / 'stop-requested'
+        control = RunControl(100, clock=lambda: 0, stop_file=marker)
+        marker.write_text('User interruption')
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            control.check()
+
+    def test_interrupt_signal_sets_stop_flag_and_restores_previous_handler(self):
+        control = RunControl(100, clock=lambda: 0)
+        before = signal.getsignal(signal.SIGINT)
+        with RunSignals(control):
+            signal.raise_signal(signal.SIGINT)
+            self.assertTrue(control.interrupted)
+        self.assertEqual(signal.getsignal(signal.SIGINT), before)
+
+    def test_interrupted_adapter_error_is_saved_as_user_stop(self):
+        control = RunControl(100, clock=lambda: 0)
+        journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+        def interrupted_connect():
+            control.interrupt()
+            raise BrokenPipeError('helper stopped')
+        mobile = SimpleNamespace(connect=interrupted_connect, close=lambda: None, device=self.device)
+        runner = DeviceRunner({'report': str(self.root), 'builds': []}, self.redactor, control,
+            journal, None, lambda *args: mobile, lambda: None, activity=self.activity)
+        runner.run(self.device, 1)
+        result = journal.results[0]
+        self.assertIsNone(result['error'])
+        self.assertIn('User interrupted', result['stoppingReason'])
 
     def test_completed_operation_records_duration_and_context(self):
         ticks = iter([10, 12.25])

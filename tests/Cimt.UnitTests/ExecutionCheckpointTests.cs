@@ -177,7 +177,20 @@ public sealed class ExecutionCheckpointTests : IDisposable
             ["interactive-pauses"] = new(value, null, null, root.Origin)
         }, null, root.Origin) }, null, root.Origin));
 
-    private RunState State(string? setting, RunDeadline? deadline = null)
+    [Fact]
+    public async Task UserInterruptionCancelsThePendingCheckpoint()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var input = new ControlledTerminalInput();
+        var state = State("true", cancellation: cancellation.Token);
+        var waiting = new ExecutionCheckpoint(ExecutionPhase.RepositoryBuild, input, TextWriter.Null, false).Execute(state);
+        await input.ReadStarted.Task;
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+        Assert.DoesNotContain("continued", JsonSerializer.Serialize(state.Stages));
+    }
+
+    private RunState State(string? setting, RunDeadline? deadline = null, CancellationToken cancellation = default)
     {
         const string origin = "/fixture/config.yaml";
         var root = new Node(null, new()
@@ -185,7 +198,7 @@ public sealed class ExecutionCheckpointTests : IDisposable
             ["ai-model"] = new(null, new() { ["api-key"] = new("synthetic-private-key", null, null, origin) }, null, origin)
         }, null, origin);
         return new(new Configuration(WithSetting(root, setting)), TestRunFolders.At(report.Path, DateTimeOffset.UtcNow),
-            deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1)));
+            deadline ?? new RunDeadline(DateTimeOffset.UtcNow.AddMinutes(1))) { Cancellation = cancellation };
     }
 }
 
