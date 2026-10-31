@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.27
-Date: 30 October 2026  
+Version: 0.30
+Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -209,7 +209,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 
 | Topic | State / next evidence |
 | --- | --- |
-| Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
+| Intel host / physical devices by default, optional virtual devices / OpenAI / YAML / local HTML | Confirmed product choices. |
 | Device adapter | Both candidates demonstrated Android/iPhone basic control. Mobile MCP passed eight guarded iPhone smoke checks; the preference remains provisional and the full selection gate remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
@@ -366,6 +366,8 @@ RunInterruption owns terminal/SIGTERM registration, a cancellation token, and th
 
 RunSignals translates SIGINT/SIGTERM into a worker flag, and RunControl checks that flag or the host marker at normal operation boundaries. ActionExecutor checks before dispatch and after readiness, and between credential focus and typing. DeviceRunner classifies adapter errors during interruption as user stops. An already in-flight device/API operation cannot be undone; a killed worker may leave a cost reservation unresolved, which stays visible in the latest saved budget. No new operation is intentionally dispatched after a cancellation boundary reports the stop.
 
+ActivityLog reads the shared user-interruption flag/marker when an operation raises. During a known user stop it records and propagates the existing LimitReached interruption reason, so nested operations do not introduce failed/Broken pipe rows. It does not block cleanup entry or change already saved failures; successful cleanup remains completed. ScenarioRunner retains a stoppingReason on interrupted action records, and StepHtmlRenderer displays stopped with that reason while preserving an earlier crash classification. DeviceRunner handles close errors under the same stop/error policy and publishes its final state in a finally block. A genuine close failure without interruption remains an infrastructure failure; a later cleanup error does not replace the original device error.
+
 IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, and HTML pipeline. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
 
 ## 26. Compact recent-action AI input
@@ -401,3 +403,11 @@ The compact journal groups operation/context/status counts. It does not infer pa
 DecisionRecovery supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
 
 The briefly installed shared-latest page was removed after the product owner reaffirmed the existing per-execution folder contract. No change to the allocator, timestamps, work ownership, replay build reuse, outcome precedence, or historical evidence is required.
+
+## 30. Virtual-device execution
+
+The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
+
+### Generic image-to-screen tolerance
+
+MaskGeometry compares the horizontal and vertical image-to-screen scale ratio against 0.95–1.05, inclusive. The same policy applies to both platforms and physical/virtual devices, without a native-density special case. It expands masks on each axis by the rounded-up full-screen scale drift plus the existing two-pixel border, then clips to image bounds. CaptureGuard retains screen-size and sensitive-region stability checks. This corrects the simulator rounding failure while protecting secret edges at the wider accepted tolerance. See [screenshot masking](screenshot-masking.md).

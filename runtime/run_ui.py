@@ -25,13 +25,14 @@ class Execution:
         self.context = context
         self.config = context["config"]
         self.redactor = Redactor(self.config)
-        self.activity = ActivityLog(context["report"], self.redactor)
         self.budget = Budget(
             self.config["ai-model"]["name"],
             self.config["ai-budget"]["amount"],
             self.config["ai-budget"]["currency"],
         )
         self.control = RunControl(context["deadline"], stop_file=pathlib.Path(context["report"]) / "stop-requested")
+        self.activity = ActivityLog(context["report"], self.redactor,
+                                   interrupted=lambda: self.control.interrupted)
         self.journal = RunJournal(
             context["report"], self.redactor, self.budget, context.get("runId", "")
         )

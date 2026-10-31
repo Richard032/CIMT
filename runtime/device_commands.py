@@ -7,6 +7,7 @@ import re
 import subprocess
 import time
 from errors import InfrastructureError, LimitReached
+from device_target import DeviceTarget
 
 
 class NativeDevice:
@@ -65,7 +66,10 @@ class DeviceReadiness:
 
     def readiness(self):
         """Check the platform lock state before any app interaction."""
-        if self.device["platform"] == "ios":
+        target = DeviceTarget(self.device, self.run_command)
+        if target.is_ios_simulator:
+            target.verify_simulator()
+        elif self.device["platform"] == "ios":
             self._iphone()
         else:
             self._android()
@@ -100,7 +104,7 @@ class DeviceReadiness:
 
     def _android(self):
         result = self.run_command(
-            ["adb", "-s", self.device["id"], "shell", "dumpsys", "window", "policy"],
+            ["adb", "-s", DeviceTarget(self.device, self.run_command).adb_serial(), "shell", "dumpsys", "window", "policy"],
             capture_output=True,
             text=True,
             timeout=15,
@@ -130,11 +134,14 @@ class DeviceStatus:
         """Check whether the tested app process still exists."""
         if self.device["platform"] == "android":
             r = self.run_command(
-                ["adb", "-s", self.device["id"], "shell", "pidof", app_id],
+                ["adb", "-s", DeviceTarget(self.device, self.run_command).adb_serial(), "shell", "pidof", app_id],
                 capture_output=True,
                 timeout=15,
             )
             return r.returncode == 0 and bool(r.stdout.strip())
+        target = DeviceTarget(self.device, self.run_command)
+        if target.is_ios_simulator:
+            return target.simulator_running(app_id)
         path = pathlib.Path(self.context["work"]) / ("processes-" + self.folder.name + ".json")
         try:
             self.run_command(

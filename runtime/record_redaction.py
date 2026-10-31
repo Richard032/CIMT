@@ -53,7 +53,7 @@ class RecordRedactor:
         return self._record(value, ["attempt", "step", "status", "screenshot"])
 
     def device(self, value):
-        return self._record(value, ["id", "platform"])
+        return self._record(value, ["id", "platform", "type"])
 
     def element(self, value):
         return self._record(value, ["ref", "type", "enabled"])

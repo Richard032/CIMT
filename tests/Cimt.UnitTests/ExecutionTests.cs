@@ -113,7 +113,7 @@ public sealed class ExecutionTests : IDisposable
             state,
             id = "fixture-device"
         });
-        Assert.Equal(accepted, DeviceDiscovery.ReadDevice(json) is not null);
+        Assert.Equal(accepted, DeviceInventory.ReadDevice(json) is not null);
     }
 
     [Fact]

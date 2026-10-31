@@ -2,6 +2,7 @@
 
 import subprocess
 from errors import InfrastructureError
+from device_target import DeviceTarget
 
 
 class AppLifecycle:
@@ -47,7 +48,7 @@ class AppLifecycle:
         if self.commands.device["platform"] != "android":
             return
         result = self.commands.run_command(
-            ["adb", "-s", self.commands.device["id"], "shell", "pm", "clear", app_id],
+            ["adb", "-s", DeviceTarget(self.commands.device, self.commands.run_command).adb_serial(), "shell", "pm", "clear", app_id],
             capture_output=True,
             text=True,
             timeout=30,

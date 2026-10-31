@@ -19,12 +19,14 @@ public sealed class StepHtmlRenderer(Configuration configuration, ReportEvidence
         var id = Field(step, "step");
         var title = (id.Length == 0 ? "Unnumbered record" : "Step " + id) + " — " + ReportScenario.Action(step);
         var status = Field(step, "crash").Length > 0 ? Field(step, "crash")
+            : Field(step, "stoppingReason").Length > 0 ? "stopped"
             : Field(step, "actionError").Length > 0 ? "action error" : "recorded";
         var body = "<details id=\"" + context.StepAnchor(index) + "\""
             + Attributes(context.DeviceLabel, context.Target, status) + "><summary>" + Encode(title)
             + " — " + Safe(Field(step, "controlLabel")) + " " + Badge(status) + "</summary>";
         body += "<dl>" + Note(step, "observation", "Decision observation")
-            + Note(step, "observedOutcome", "Observed outcome") + Note(step, "actionError", "Action error")
+            + Note(step, "stoppingReason", "Stopping reason") + Note(step, "observedOutcome", "Observed outcome")
+            + Note(step, "actionError", "Action error")
             + Note(step, "crash", "Crash/termination evidence") + Note(step, "recovery", "Recovery")
             + Note(step, "navigation", "Navigation") + Note(step, "evidenceError", "Unavailable evidence") + "</dl>";
         if (Field(step, "screenshot").Length > 0)

@@ -101,3 +101,7 @@ behavior, and conditions. Real MAUI build/startup acceptance remains separate.
 ## Retained build output
 
 CIMT now retains work/publish folders after execution and removes older verified work only immediately before the next clone for the same inputs. Successful report artifacts are indexed after the build stage for replay without cloning/building. See [retention and replay](work-retention-and-replay.md), including optional explicit APK/IPA properties and saved-history replay limits. This supersedes the historical clone-cleanup descriptions above.
+
+## Explicit iOS Simulator builds
+
+With an explicit `RuntimeIdentifier: iossimulator-*`, the default worker uses `dotnet build` and packages one top-level `.app` as a simulator ZIP. It does not create or label this as a phone IPA. Both commands forward the supplied properties unchanged. See [virtual devices](virtual-devices.md) for Intel example settings and prerequisites. Existing physical publish behavior remains the default.
