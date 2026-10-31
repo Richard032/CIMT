@@ -37,18 +37,18 @@ class ScenarioSession:
 
 
 def application_executable(build, platform):
-    """Read the IPA identity without installing or modifying it."""
+    """Read the iOS app identity from its IPA or simulator ZIP."""
     if platform != "ios":
         return build["app-id"]
     with zipfile.ZipFile(build["artifact"]) as archive:
         name = next(
             name
             for name in archive.namelist()
-            if re.match(r"^Payload/[^/]+\.app/Info.plist$", name)
+            if re.match(r"^(?:Payload/)?[^/]+\.app/Info.plist$", name)
         )
         info = plistlib.loads(archive.read(name))
     if info["CFBundleIdentifier"] != build["app-id"]:
-        raise InfrastructureError("IPA identity differs from build metadata")
+        raise InfrastructureError("iOS app identity differs from build metadata")
     return info["CFBundleExecutable"]
 
 

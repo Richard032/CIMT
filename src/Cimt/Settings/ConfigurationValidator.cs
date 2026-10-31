@@ -70,7 +70,13 @@ public sealed class ConfigurationValidator
 
     private static void ValidateExecution(Node execution)
     {
-        Keys(execution, "time-limit-minutes", "interactive-pauses");
+        Keys(execution, "time-limit-minutes", "interactive-pauses", "device-kind", "device-ids");
+        if (execution.Value("device-kind") is { } kind && kind is not ("physical" or "virtual"))
+            throw new ConfigurationException("device-kind must be physical or virtual.");
+        if (execution.Get("device-ids") is { } ids && (ids.List is null || ids.List.Count == 0
+            || ids.List.Any(id => string.IsNullOrWhiteSpace(id.Scalar))
+            || ids.List.Select(id => id.Text).Distinct().Count() != ids.List.Count))
+            throw new ConfigurationException("device-ids must be a nonempty list of unique device identifiers.");
         Positive(execution, "time-limit-minutes");
         if (execution.Get("interactive-pauses") is { } pauses && !bool.TryParse(pauses.Scalar, out _))
             throw new ConfigurationException("interactive-pauses must be true or false.");

@@ -52,6 +52,7 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
         var targets = configuration.Root.Get("build")?.Get("targets")?.List ?? [];
         var provenance = state.Stages.Select(stage => JsonSerializer.SerializeToElement(stage)).Where(stage => Field(stage, "sourceRunId").Length > 0);
         return "<h3>Run facts</h3><dl class=\"facts\">" + Row("Command", state.Command)
+            + Row("Device environment", new DeviceSelection(configuration.Root.Get("execution")).Kind)
             + Row("Started (UTC)", Time(state.Started)) + Row(state.Finished is null ? "Snapshot updated (UTC)" : "Finished (UTC)", Time(finished))
             + Row("Elapsed", Duration((finished - state.Started).TotalSeconds)) + Row("Successful app builds available", state.Builds.Count.ToString(CultureInfo.InvariantCulture)) + "</dl>"
             + Budget(execution) + string.Join("", provenance.Select(stage => "<dl>" + Row("Source build run", Field(stage, "sourceRunId")) + Row("Source build commit", Field(stage, "sourceCommit")) + "</dl>"))
@@ -59,7 +60,7 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
                 + Row("Snapshot / finish (UTC)", finished.ToUniversalTime().ToString("O"))
                 + Row("Elapsed seconds", Math.Max(0, (finished - state.Started).TotalSeconds).ToString("0.000", CultureInfo.InvariantCulture)) + "</dl><h4>Requested targets and actual build configurations</h4><ul>"
                 + string.Join("", targets.Select(target => "<li>" + Encode(target.Value("name")) + " — configuration: " + Encode(target.Value("configuration")) + "</li>"))
-                + "</ul><h4>Startup devices</h4><ul>" + string.Join("", state.Devices.Select(device => "<li>" + Encode(device.GetValueOrDefault("platform")) + " / " + Safe(device.GetValueOrDefault("name", "")) + "</li>")) + "</ul>")
+                + "</ul><h4>Startup devices</h4><ul>" + string.Join("", state.Devices.Select(device => "<li>" + Encode(device.GetValueOrDefault("platform")) + " / " + Encode(device.GetValueOrDefault("type", "real")) + " / " + Safe(device.GetValueOrDefault("name", "")) + "</li>")) + "</ul>")
             + "<p>Install/reset/launch commands and screenshot checks are preparation. They do not establish a passed application test.</p>";
     }
 

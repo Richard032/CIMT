@@ -4,7 +4,7 @@ namespace Cimt.Build;
 public static class BuildCommands
 {
     public static string[] Publish(BuildRequest request, string output) =>
-        new[] { "publish", request.Project, "-c", request.Configuration, "-f", request.Framework, "--output", output }
+        new[] { request.IsIosSimulator ? "build" : "publish", request.Project, "-c", request.Configuration, "-f", request.Framework, "--output", output }
             .Concat(PropertyArguments(request)).ToArray();
 
     public static string[] Metadata(BuildRequest request) =>

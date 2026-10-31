@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.27
-Date: 30 October 2026  
+Version: 0.28
+Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -209,7 +209,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 
 | Topic | State / next evidence |
 | --- | --- |
-| Intel host / physical devices / OpenAI / YAML / local HTML | Confirmed product choices. |
+| Intel host / physical devices by default, optional virtual devices / OpenAI / YAML / local HTML | Confirmed product choices. |
 | Device adapter | Both candidates demonstrated Android/iPhone basic control. Mobile MCP passed eight guarded iPhone smoke checks; the preference remains provisional and the full selection gate remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
@@ -401,3 +401,7 @@ The compact journal groups operation/context/status counts. It does not infer pa
 DecisionRecovery supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
 
 The briefly installed shared-latest page was removed after the product owner reaffirmed the existing per-execution folder contract. No change to the allocator, timestamps, work ownership, replay build reuse, outcome precedence, or historical evidence is required.
+
+## 30. Virtual-device execution
+
+The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.

@@ -1,7 +1,7 @@
 # CIMT requirements
 
-Version: 0.21
-Date: 30 October 2026  
+Version: 0.22
+Date: 31 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -21,11 +21,11 @@ Users are developers testing during daily work and Jenkins pipelines executing n
 
 ## 3. Scope
 
-The initial release covers any .NET MAUI application configured for Android and iOS, single-branch testing, local execution on Intel Macs, and connected physical devices.
+The initial release covers any .NET MAUI application configured for Android and iOS, single-branch testing, local execution on Intel Macs, and connected physical devices or explicitly selected local virtual devices.
 
 App independence means application details are supplied through configuration and text inputs rather than hardcoded product logic. It does not mean every possible hardware-dependent behaviour can be automated without preparation.
 
-Two-branch before/after comparison is a later requirement. Apple Silicon hosts, simulator/emulator support, cloud device hosting, a graphical interface, authenticated web input retrieval, automatic equipment preparation, and video recording are not committed initial-release requirements.
+Two-branch before/after comparison is a later requirement. Apple Silicon hosts, cloud device hosting, a graphical interface, authenticated web input retrieval, automatic equipment preparation, and video recording are not committed initial-release requirements.
 
 ## 4. Functional requirements
 
@@ -146,6 +146,12 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-74 | Saved masked PNG evidence shall have contextual labels and an optional in-report viewer with previous/next within its scenario/evidence type, zoom, close/Escape, keyboard operation and return focus. An ordinary contained relative image link shall remain available. Missing/rejected files and unsafe paths, including escaping symlinks, shall be disclosed; no unverified capture shall be reconstructed. Capture timing shall not be invented. |
 | FR-75 | Activity shall offer compact operation/status groups and the full timestamp-ordered journal. Without unique operation identities, the compact view shall not assume start/end pairings or imply completion. Raw duplicated execution payloads shall be secondary downloads rather than the main reading path. Display readable UTC time, duration and conservative budget fields while retaining exact timestamps/ledger data. Cost displays shall distinguish accounted, uncertain and pending amounts from a provider invoice. |
 | FR-76 | New report components shall use semantic regions/headings, contextual image descriptions, labelled native controls, visible keyboard focus and text alongside status color. Narrow layouts and 200% text enlargement shall retain results and navigation. Reports shall remain offline, movable and isolated per execution under FR-30/AC-45, with embedded presentation assets, contained relative evidence and existing redaction/escaping/partial-publication policies. Browser/accessibility acceptance shall be recorded separately from static/unit verification. |
+| FR-77 | CIMT shall support physical devices (default) or virtual devices through `execution.device-kind: physical|virtual`, with the same run/replay commands and test workflow. Virtual includes Android Emulator and iOS Simulator. |
+| FR-78 | An optional `execution.device-ids` list shall restrict the startup snapshot to online devices of the selected kind. Missing requested IDs shall stop the run without substituting devices. Without the list, use all online devices of that kind. CIMT shall not alter unrelated devices. |
+| FR-79 | Virtual builds shall use explicit compatible build properties. iOS Simulator shall require an explicit `iossimulator-*` RID, build a `.app` bundle and retain a simulator ZIP. Android shall use an APK compatible with its emulator ABI. CIMT shall not silently rewrite tested source or configured properties. |
+| FR-80 | The common device workflow shall preserve readiness, reset, lossless masked evidence, crash classification, two-device concurrency and strict shared budget policies. Platform queries shall account for simulator lifecycle and Android AVD-name/ADB-serial differences. Hardware limitations shall not be reported as verified app defects. |
+| FR-81 | Replay shall reject retained apps from another physical/virtual environment. Reports shall record the selected environment and native device types. Prerequisite installation and real-run validation findings shall be documented. |
+
 
 ## 5. Outcomes and exceptional conditions
 
@@ -240,6 +246,8 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-48 | Verify contained PNG paths and unavailable/escaping/symlink evidence. Manually exercise viewer previous/next, zoom, Escape, focus return and ordinary image links with keyboard and without JavaScript. Move the complete report folder and open it offline. |
 | AC-49 | Preserve every activity record in timestamp order, including malformed-line warnings and unmatched starts. Verify compact status groups do not imply pairing. Verify readable UTC/duration, missing values, cost categories and raw journal/result/ledger access. |
 | AC-50 | Check five-section navigation, semantics, labels and escaping in automated checks; manually check narrow windows, 200% text enlargement, contrast, keyboard focus and screen-reader behavior. With the reviewed two-device report, target ten seconds to identify the failed device and no more than two navigation actions to reach a triggering step and screenshot. Record measured results and limits; do not claim conformance from markup checks alone. |
+| AC-51 | Verify physical defaults, virtual selection on both platforms, missing-ID rejection, explicit simulator build properties, simulator ZIP identity, replay environment rejection and platform readiness/process queries in existing unit suites. Copy the previous test inputs, change execution environment and necessary build architecture settings, run on both virtual platforms and report build/control limitations separately from application findings. |
+
 
 ## 8. Later release: branch comparison
 
@@ -320,3 +328,7 @@ On 30 October 2026, the product owner reaffirmed that every execution, including
 ### Report design approval
 
 On 30 October 2026, the product owner approved the [report design proposal](reviews/2026-10-30-html-report-design-proposal.md) and authorized implementation. FR-70–FR-76 and AC-46–AC-50 record that approval. The implemented compact activity view groups statuses instead of pairing repeated operations because the saved journal has no unique operation IDs. Browser/manual accessibility and user-timing qualification remain explicit acceptance work. No verdict, spending, permission, build or device-execution policy is changed by the presentation design.
+
+## Virtual-device approval — version 0.22
+
+On 31 October 2026, the product owner requested a copy of the last test using emulators on both platforms and authorized an abstraction to use real or virtual devices through the same workflow. FR-77–FR-81 and AC-51 extend the earlier physical-only scope. Mixing both environments in one run and automatic virtual-device provisioning are outside this increment. Explicit simulator/ABI build properties are necessary differences from the physical-device example. See [virtual-device design and installation](virtual-devices.md).

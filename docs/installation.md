@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.26
+Version: 0.27
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1034,3 +1034,17 @@ The worker update supplies current device/target scope to prevent remaining plan
 Verification: 286 xUnit tests, 218 Python unit tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks passed (548 relevant offline checks). The public fixtures include replay isolation, failed builds, controlled interruption and forced-stop partial reporting, using simulated dependencies. The report script passed syntax checking. The extended offline requirement-mapping demo produced Android/iOS results and four valid opaque synthetic PNGs, with all anchors/evidence/download links checked after folder relocation. Fourteen specified text/background color pairs met 4.5:1 in static calculations. These are not completed browser, screen-reader, 200% enlargement or user-timing acceptance tests.
 
 Installed the final six-file host publication and scoped worker module under the Mac-wide lock; all installed bytes match the tested publication/source. Public installed help passed. Host SHA-256: f5b369d6f49fdb5d1dac1b8735d3b63370dbfac5c287543275ca579e9ec8bc45. Original backup: /private/tmp/cimt-report-design.BoxIlJ/previous-host and previous-runtime. Build worker/scripts, model/pricing modules, private YAML, application source and historical test reports were preserved. No real application run/replay, paid API request or physical-device action was started.
+
+## 40. Virtual-device execution
+
+The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
+
+### Findings from 31 October 2026
+
+- Installed the Android emulator and API 36 Google APIs x86_64 image with the existing SDK Manager. Its command completed successfully. The manager emitted its deprecation warning and `avdmanager` emitted a missing `devices.xml` warning; the named AVD was created and booted successfully despite that warning.
+- Created dedicated `CIMT_Android_API36` and `CIMT_iPhone` devices. The iPhone uses the already installed iOS 18.5 runtime. Left the existing online iPad simulator unchanged.
+- Verified Android boot completion and unlocked state, iOS Simulator UDID/readiness and live launchctl process format. Installed the standard DeviceKit helper, version 0.0.35, on the dedicated iPhone Simulator. No third-party tool source changes were made.
+- Installed CIMT's host, build worker and five affected runtime modules, preserving a backup at `/private/tmp/cimt-virtual-backup`. Verified installed file bytes. Host SHA256: `b56b0ee062c42a15d94245efba8a97e08a0077f35d9ef2f29faf777e89328f84`.
+- Offline validation passed: 295 .NET unit tests, 226 Python unit tests, 22 runtime-policy checks and 22 public CLI checks. The copied private YAML, input texts and build wrappers are byte-identical to the previous run. Real application build and exploration are separate qualification steps.
+- The first real run command was rejected before process startup by automatic approval review, which requested explicit approval to send masked private-app screenshots and UI text to OpenAI. That approval is pending. No app testing or paid inference was performed by that rejected command.
+- A separate configuration-validation attempt in the restricted shell could not acquire installation-state access and returned `UnauthorizedAccessException`; its report is not evidence of an emulator or application defect. Normal CIMT execution requires access to its installed state directory.

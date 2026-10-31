@@ -1,7 +1,7 @@
 # CIMT product documentation
 
-Version: 0.22
-Date: 30 October 2026  
+Version: 0.23
+Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -11,7 +11,7 @@ Product: CIMT — Curtis Intelligent Mobile Test
 
 CIMT supports everyday testing of any configured .NET MAUI application. Developers invoke a terminal command; Jenkins pipelines invoke the same command on their Intel Mac execution node.
 
-Give CIMT a Git repository/branch, configurable build targets, plain-text testing instructions, and optional requirements/setup inputs. CIMT builds the app, operates physical devices, and generates local HTML observations with evidence. It complements the existing validation system; AI exploration does not guarantee complete bug discovery.
+Give CIMT a Git repository/branch, configurable build targets, plain-text testing instructions, and optional requirements/setup inputs. CIMT builds the app, operates selected physical or virtual devices, and generates local HTML observations with evidence. It complements the existing validation system; AI exploration does not guarantee complete bug discovery.
 
 One installation serves multiple repositories, with only one active run per Mac. All supported devices connected at startup participate, at most two simultaneously. New connections are excluded. Both platforms need not be present.
 
@@ -456,3 +456,7 @@ Use the exact Report path printed when cimt run or cimt replay finishes. A repla
 Partial snapshots and final output update the index.html inside the same allocated folder. A partial page is labelled until finalization, including after cancellation. Reload that execution's page for newer saved observations. Headers and browser titles identify run versus replay and the execution identity. Early execution errors keep their own command and identity too.
 
 CIMT does not create a shared latest HTML file at reports/index.html. An already open report remains that execution's report; it does not become a later replay. For the reviewed dual-platform replay, open report_2026-10-30_16-43-21-093/index.html inside TestRun_ios_android_SingleTarget/CIMT output/reports.
+
+## Virtual-device execution
+
+The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
