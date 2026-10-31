@@ -6,7 +6,8 @@ import sys
 from actions import ActionExecutor
 from agent import Agent
 from budget import Budget
-from device_runner import DeviceRunner, result_exit_code
+from device_runner import DeviceRunner
+from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError, LimitReached
 from evidence import RunJournal
 from mobile import Mobile

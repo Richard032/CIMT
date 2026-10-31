@@ -5,8 +5,16 @@ class LimitReached(Exception):
     """The run cannot continue within its allowed time, budget, or device state."""
 
 
+class DeviceLocked(LimitReached):
+    """Only this device must wait for its user to unlock it."""
+
+
 class InfrastructureError(Exception):
     """A required tool, response, or safety check did not work."""
+
+
+class AppLaunchError(InfrastructureError):
+    """The adapter answered, but could not launch this device's tested app."""
 
 
 class InvalidAgentResponse(InfrastructureError):

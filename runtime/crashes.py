@@ -4,6 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from errors import InfrastructureError
+from stopping_policy.policy import matching_crash_limit_reached
 
 
 class CrashCounter:
@@ -100,7 +101,7 @@ class StartupGuard:
             return "ready"
         self.failures += 1
         self._record(session)
-        if self.failures >= 3:
+        if matching_crash_limit_reached(self.failures):
             session.result["remaining"].append(
                 "Scenario cancelled after three matching startup terminations"
             )
@@ -185,7 +186,7 @@ class CrashRecovery:
         session.result["crashes"].append(crash)
         session.result["verdict"] = "failed"
         entry.update(crash=crash["kind"], matchingAttempt=count)
-        if count >= 3:
+        if matching_crash_limit_reached(count):
             session.result["remaining"].append(
                 "Scenario cancelled after three matching crashing attempts"
             )

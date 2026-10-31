@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.33
+Version: 0.34
 Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -32,6 +32,7 @@ flowchart TD
     W --> A[Device adapter]
     A --> D[Startup snapshot of physical Android / iOS devices]
     W --> P[OpenAI gateway and shared budget ledger]
+    W --> K[Execution Stopping Policy]
     O --> E[Local event and evidence store]
     W --> E
     B --> E
@@ -74,6 +75,20 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 The report must survive a failure of the model service. Reporting and cleanup cannot depend on another paid AI request.
 
 Hard termination or host failure cannot guarantee helper shutdown. Record ownership before use, stop/release verified abandoned helpers on a later run, and preserve work/reports. Earlier work for those inputs is removed only at a new clone boundary; see section 20. Never delete unrelated folders.
+
+### Execution Stopping Policy layer
+
+The separate `runtime/stopping_policy/` layer owns failure scope, the three-matching-crash threshold and aggregate exit precedence. Its policy.py functions have no device, storage, timing or AI calls. DeviceRunner applies failure-scope decisions, startup/crash services supply their observed counts, and the execution coordinator uses its final exit result. RunControl still enforces shared stop signals and the deadline. This layer is separate from AI planning and context selection; it does not choose application actions or judge progress.
+
+An answered `mobile_launch_app` tool result that reports failure becomes a typed AppLaunchError at the RPC result boundary. It stops the affected device, preserves the error and partial observations, and lets other active/queued devices continue. The rule applies equally to Android, iOS, physical and virtual devices, including initial launch and recovery relaunch. Device locks use the typed DeviceLocked limit and remain local. Scope never depends on matching words in an error message.
+
+MCP connection/protocol/timeouts, failed reset verification, masking/storage failures and shared AI failures retain their blocking infrastructure behavior. Budget, deadline and user interruption remain whole-run stops. Three matching crashes still stop only the affected scenario. A local launch error still produces exit 3 at final aggregation; another device's success cannot hide it. See [execution stopping](execution-stopping.md).
+
+### Layer folders — DR-01
+
+Every explicitly defined architectural layer has its own clearly named folder. The current dedicated policy layers are Test Planning and Exploration in `runtime/test_planning/` and Execution Stopping Policy in `runtime/stopping_policy/`. The planning layer consumes supplied observations and AI decisions. The stopping layer depends only on typed runtime errors and supplied counts/results. Neither layer calls devices, storage or providers. Execution components call these layers; the layers do not import execution components or each other.
+
+Configuration, orchestration, device adapters, evidence and reporting in the component table remain components with their existing source boundaries; that table does not define each component as an additional architectural layer. Any new layer must document its responsibility and dependencies and receive its own source folder. Packaging must include each full layer folder, including its package entry point. Tests remain in the existing test suites.
 
 ## 4. Configuration and filesystem proposal
 

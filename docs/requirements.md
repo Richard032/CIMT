@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.27
+Version: 0.28
 Date: 31 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -79,7 +79,7 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-29 | Reports shall include unclear instructions and interpretations, reproduction attempts, crashes, skipped/cancelled work, and relevant diagnostics. Report contents shall be configurable; disabling optional sections shall not misrepresent coverage or hide the final outcome. |
 | FR-30 | CIMT shall create one retained report folder for every invocation, including replay, under <input-folder>/CIMT output/reports/report_<date-time>, using the same timestamp as its work_<date-time> folder. That invocation's HTML, results, diagnostics and evidence shall remain in its report folder. Replay may reuse built applications, but shall not reuse or overwrite an earlier report. CIMT shall print the execution's own index.html path and identify its command and run identity in HTML. No shared latest HTML or evidence-base redirection shall be created. Reports shall sit outside work replaced before a later clone, remain portable/archivable, and remain until manually deleted. |
 | FR-31 | Testing instructions shall define failure criteria. In their absence, confirmed requirement failures or app crashes mean failed; unfinished or inconclusive testing means incomplete; otherwise passed. |
-| FR-32 | Blocking infrastructure failures, including device disconnection or AI service unavailability, shall stop the run and generate a report. This rule has explicit exceptions for failed build targets, recoverable app crashes, unclear instructions, and unavailable external equipment. |
+| FR-32 | Blocking infrastructure failures, including device disconnection or AI service unavailability, shall stop the run and generate a report. This rule has explicit exceptions for failed build targets, recoverable app crashes, unclear instructions, unavailable external equipment, and an adapter-reported failure to launch or relaunch the tested app. Such a launch failure shall stop only the affected device; other active and queued devices shall continue within the shared time/budget limits. Its error and partial observations shall remain in the combined report and final exit result. A failed adapter connection or transport remains a blocking infrastructure failure even when it occurs during a launch request. |
 
 ### Mac provisioning and credentials
 
@@ -207,6 +207,12 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 - The first release shall not claim complete bug discovery or deterministic AI judgment.
 - Supported macOS, Xcode, .NET, device OS, and device-control versions require validation and a published compatibility matrix.
 
+### Design requirements
+
+| ID | Requirement |
+| --- | --- |
+| DR-01 | Every architectural layer shall have its own clearly named source folder. Its implementation shall stay within that folder. Components within a layer may use subfolders, but a component does not become another layer merely because it is in a separate file. The architecture shall identify each layer's responsibility, folder and allowed dependencies. Build and installation packaging shall include each complete layer folder. |
+
 ## 7. First-release acceptance criteria
 
 | ID | Demonstration |
@@ -274,6 +280,8 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-60 | Verify AI recovery can retrieve history, continue across more than three loop episodes, request recovery before the counter threshold, explain blocking and stop on cancellation without further app actions. |
 | AC-61 | Verify HTML context/recovery summaries and token/cache usage are visible, escaped/redacted and distinguish missing cache details from zero. Preserve typed IDs at both report boundaries. |
 | AC-62 | Verify shared-budget reservations and conservative settlement still apply to context and recovery requests. Record purpose and available usage without presenting an upper bound as an invoice. |
+| AC-63 | With existing fake-device tests, make an iOS app launch fail and verify Android still completes, then reverse the platforms. Preserve the launch error and combined exit 3 without a false cancellation of the continuing device. Verify adapter transport errors and shared limits still stop the whole run. |
+| AC-64 | Review each named architectural layer's folder and documented dependency boundary under DR-01. Verify the source installer includes the complete Test Planning and Exploration and Execution Stopping Policy packages. |
 
 ## 8. Later release: branch comparison
 
@@ -371,3 +379,7 @@ The product owner approved a persistent AI plan, incremental application mapping
 ## AI-owned context and recovery approval — version 0.27
 
 The product owner made AI ownership of context relevance a highest-priority requirement and required recovery for every detected unproductive loop. FR-88–FR-94 supersede earlier fixed history projections and semantic-recovery exhaustion. Mechanical limits, safety rules, source authority, formatting correction and crash policies remain. The trailing second item in the implementation request was explicitly withdrawn. No new mobile test run is authorised for this increment.
+
+## Device launch isolation and layer folders — version 0.28
+
+The product owner reaffirmed that an iOS startup failure must not cancel Android testing, requested a separate layer for stopping rules, and required a separate source folder for every architectural layer. FR-32 now explicitly isolates adapter-reported app launch failures; DR-01 and AC-63/AC-64 record the layer-folder and verification requirements. Shared infrastructure, time/budget, user interruption, masking and reset-verification policies retain their existing scope.

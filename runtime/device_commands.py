@@ -6,7 +6,7 @@ import pathlib
 import re
 import subprocess
 import time
-from errors import InfrastructureError, LimitReached
+from errors import DeviceLocked, InfrastructureError, LimitReached
 from device_target import DeviceTarget
 
 
@@ -96,7 +96,7 @@ class DeviceReadiness:
                 timeout=20,
             )
             if json.loads(path.read_text()).get("result", {}).get("passcodeRequired") is not False:
-                raise LimitReached("iPhone is locked; application interaction was not started")
+                raise DeviceLocked("iPhone is locked; application interaction was not started")
         except (OSError, subprocess.SubprocessError, ValueError):
             raise InfrastructureError("iPhone readiness could not be verified") from None
         finally:
@@ -113,7 +113,7 @@ class DeviceReadiness:
         if result.returncode or len(states) != 1:
             raise InfrastructureError("Android lock readiness could not be verified")
         if states[0] != "false":
-            raise LimitReached("Android phone is locked; application interaction was not started")
+            raise DeviceLocked("Android phone is locked; application interaction was not started")
 
 
 class DeviceStatus:

@@ -22,8 +22,10 @@ fi
 "$CIMT_INSTALL_ROOT/tools/python/bin/python" -m pip install --disable-pip-version-check -r "$SOURCE_ROOT/runtime/requirements.txt"
 mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime"
 cp "$SOURCE_ROOT/runtime/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
-mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime/test_planning"
-cp "$SOURCE_ROOT/runtime/test_planning/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/test_planning/"
+for runtime_package in test_planning stopping_policy; do
+  mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package"
+  cp "$SOURCE_ROOT/runtime/$runtime_package/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package/"
+done
 # This module moved into the planning package. Do not leave two implementations.
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/exploration_memory.py"
 echo "CIMT support runtime installed."

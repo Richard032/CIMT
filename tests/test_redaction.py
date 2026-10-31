@@ -14,7 +14,7 @@ from PIL import Image
 from check_recorder import CheckRecorder
 from check_results import scenario_verdict
 from coverage_tracker import CoverageTracker
-from device_runner import result_exit_code
+from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError
 from evidence import RunJournal
 from redaction import Redactor, ScreenMasker

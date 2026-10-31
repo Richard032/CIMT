@@ -24,8 +24,8 @@ from app_lifecycle import AppLifecycle
 from budget import Budget
 from coverage_tracker import CoverageTracker
 from device_commands import DeviceReadiness
-from device_runner import result_exit_code
-from errors import InfrastructureError, LimitReached, InvalidAgentResponse
+from stopping_policy.policy import result_exit_code
+from errors import AppLaunchError, InfrastructureError, LimitReached, InvalidAgentResponse
 from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
@@ -941,6 +941,24 @@ class BoundaryTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError) as raised:
             RpcMessages.result({"id": 1, "error": {"secret": "private fixture"}}, 1)
         self.assertNotIn("private fixture", str(raised.exception))
+
+    def test_rejected_app_launch_is_a_device_error_and_is_redacted(self):
+        redactor = Redactor({'ai-model': {'api-key': 'synthetic-secret'}})
+        result = dict(isError=True, content=[dict(text='Launch failed synthetic-secret')])
+        with self.assertRaises(AppLaunchError) as raised:
+            RpcMessages.tool_result(result, 'mobile_launch_app', redactor.text)
+        self.assertIn('Launch failed', str(raised.exception))
+        self.assertNotIn('synthetic-secret', str(raised.exception))
+
+    def test_other_tool_errors_keep_the_shared_infrastructure_policy(self):
+        result = dict(isError=True, content=[dict(text='Connection unavailable')])
+        with self.assertRaises(InfrastructureError) as raised:
+            RpcMessages.tool_result(result, 'mobile_list_elements_on_screen', lambda text: text)
+        self.assertNotIsInstance(raised.exception, AppLaunchError)
+
+    def test_successful_launch_keeps_the_adapter_result(self):
+        result = dict(content=[dict(text='Started')])
+        self.assertIs(RpcMessages.tool_result(result, 'mobile_launch_app', lambda text: text), result)
 
     def test_moving_sensitive_field_stops_capture_before_masking(self):
         import base64

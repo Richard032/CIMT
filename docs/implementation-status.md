@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## App launch isolation and Execution Stopping Policy — 31 October 2026
+
+Fixed the failure propagation that cancelled Android after an iOS relaunch failed. An answered app-launch tool failure now carries a typed AppLaunchError and stops only the affected device, on either platform and for physical or virtual devices. Partial observations and the launch error remain in the combined report; exit 3 still takes precedence. Adapter transport/protocol errors, failed reset verification, required masking/storage errors and shared AI failures retain their whole-run policy. Typed DeviceLocked replaces error-text matching for local readiness stops.
+
+The separate runtime/stopping_policy/ package owns failure scope, the three-matching-crash threshold and final exit precedence. Services enforce these decisions and retain their own operational duties. DR-01 requires every named architectural layer to have its own folder, documented responsibility/dependencies and complete packaging. The source installer now includes both test_planning/ and stopping_policy/. Requirements v0.28, architecture v0.34, product v0.29 and the execution-stopping/development guidance describe the boundaries.
+
+Verification passed: 328 existing-suite Python unit tests, 22 runtime-policy checks and 22 fake-tool public CLI/lifecycle checks (372 offline checks). Installer shell syntax passed. Regression coverage includes iOS failure followed by Android completion and the reverse, redacted launch errors, shared limits and unchanged failure precedence. No live mobile run, paid API request or installation was performed for this correction. Live two-device qualification remains pending.
+
 Updated: 31 October 2026
 
 ## Reviewed increment 1 — adapter evaluation

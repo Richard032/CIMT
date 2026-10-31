@@ -1,7 +1,7 @@
 """Line-based JSON-RPC messages without process or device access."""
 
 import json
-from errors import InfrastructureError
+from errors import AppLaunchError, InfrastructureError
 
 
 class RpcMessages:
@@ -29,3 +29,15 @@ class RpcMessages:
         if "error" in response:
             raise InfrastructureError("Mobile MCP protocol error")
         return True, response["result"]
+
+    @staticmethod
+    def tool_result(value, name, redact):
+        """Distinguish a rejected app launch from a failed MCP connection."""
+        if value.get("isError"):
+            message = redact(" ".join(
+                item.get("text", "") for item in value.get("content", [])
+            ))
+            # Only an answered launch request is local. Transport errors stay global.
+            error_type = AppLaunchError if name == "mobile_launch_app" else InfrastructureError
+            raise error_type(message)
+        return value

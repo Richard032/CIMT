@@ -11,8 +11,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 from check_results import scenario_verdict, validate_checks
 from device_commands import NativeDevice
 from device_scheduler import DeviceScheduler
-from errors import InfrastructureError
+from errors import AppLaunchError, DeviceLocked, InfrastructureError, LimitReached
 from redaction import Redactor
+from stopping_policy.policy import matching_crash_limit_reached, stops_entire_run
 
 
 def check(status="passed", source="instructions"):
@@ -27,6 +28,31 @@ def check(status="passed", source="instructions"):
         "requirementId": "REQ-0001" if source == "requirements" else "",
         "instructionQuote": "",
     }
+
+
+class StoppingPolicyTests(unittest.TestCase):
+    def test_launch_failure_stops_only_the_affected_device(self):
+        self.assertFalse(stops_entire_run(AppLaunchError('Could not launch the app')))
+
+    def test_locked_device_does_not_stop_other_devices(self):
+        self.assertFalse(stops_entire_run(DeviceLocked('Unlock this device')))
+
+    def test_budget_deadline_and_user_interruption_stop_the_whole_run(self):
+        for reason in ['AI budget exhausted', 'Whole-run time limit reached', 'User interrupted']:
+            with self.subTest(reason=reason):
+                self.assertTrue(stops_entire_run(LimitReached(reason)))
+
+    def test_error_text_cannot_change_the_stopping_scope(self):
+        self.assertTrue(stops_entire_run(LimitReached('Shared resource is locked')))
+
+    def test_shared_infrastructure_failure_stops_the_whole_run(self):
+        self.assertTrue(stops_entire_run(InfrastructureError('AI service unavailable')))
+
+    def test_third_matching_crash_stops_the_scenario(self):
+        for attempts in [1, 2]:
+            self.assertFalse(matching_crash_limit_reached(attempts))
+        for attempts in [3, 4]:
+            self.assertTrue(matching_crash_limit_reached(attempts))
 
 
 class CheckResultTests(unittest.TestCase):

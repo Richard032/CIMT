@@ -10,6 +10,10 @@ A class owns one area of work. A method has one purpose. A workflow method may c
 
 Keep methods short enough to read without searching through unrelated work. Long request/schema literals are data; they are not a reason to mix more behavior into a method. Put test setup in named helpers so each test shows its action and expected result clearly. If a unit test needs complicated or advanced code, simplify the tested source first. If it is still complicated, split the behavior into several simple cases. Do not replace methods at runtime to build a test fixture.
 
+## Layer folders
+
+Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
+
 ## Comments
 
 Use short sentences in simple English. Explain what a component owns and why an important rule exists. For example: “The registry and folder must agree before any recursive deletion.” Avoid unexplained abbreviations and comments that only repeat an obvious assignment. Add a summary for public behavior and document important private rules beside the code. Keep comments up to date when behavior changes.

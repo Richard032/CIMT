@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.28
+Version: 0.29
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -298,7 +298,7 @@ The time limit covers the whole run. The AI budget is shared across workers. Bef
 
 CIMT relaunches after a crash. Three consecutive matching crashes cancel only the scenario. Matching uses scenario/action or screen, with a matching crash signature when available; a successful retry resets the counter. AI chooses other reproduction effort within limits.
 
-Device disconnection or a blocking AI/infrastructure failure stops execution and generates a report. Unclear instructions continue with recorded interpretation. No startup devices means stop/report.
+Device disconnection or a blocking AI/infrastructure failure stops execution and generates a report. An adapter-reported failure to launch or relaunch the tested app stops only that device; other active and queued devices continue. This applies to both platforms and physical or virtual devices. The final report keeps the failed device's error and partial observations alongside the other devices' results, and the launch error still contributes exit 3. Adapter connection/protocol/timeouts and failed reset verification keep their blocking behavior. Unclear instructions continue with recorded interpretation. No startup devices means stop/report. See the [Execution Stopping Policy](execution-stopping.md).
 
 Without instruction-specific failure rules: confirmed requirement failures or app crashes mean failed; unfinished/inconclusive testing means incomplete; otherwise passed. Reports separately retain test verdict, completion, and execution errors.
 
