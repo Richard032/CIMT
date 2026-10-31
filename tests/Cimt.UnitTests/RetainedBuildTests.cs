@@ -6,6 +6,17 @@ namespace Cimt.UnitTests;
 public sealed class RetainedBuildTests
 {
     [Fact]
+    public async Task ReplayRejectsAnAppFromAnotherDeviceKind()
+    {
+        using var fixture = new RetainedBuildFixture();
+        await fixture.Prepare();
+        await fixture.ChangeMetadata(value => value["apps"]![0]!["deviceKind"] = "virtual");
+        var replay = fixture.NewState();
+        await Assert.ThrowsAsync<ConfigurationException>(() => fixture.Store.Load(replay));
+        Assert.Empty(replay.Builds);
+    }
+
+    [Fact]
     public async Task ReplayCopiesTheBuiltAppWithoutChangingTheOriginal()
     {
         using var fixture = new RetainedBuildFixture();

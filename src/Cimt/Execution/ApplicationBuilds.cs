@@ -17,6 +17,7 @@ public sealed class BuildJobFactory(RuntimePaths paths)
     public async Task<BuildJob> Create(RunState state, Node target, string platform)
     {
         var settings = target.Get(platform)!;
+        new DeviceSelection(state.Configuration.Root.Get("execution")).ValidateBuild(platform, settings);
         var name = target.Value("name")!;
         var slug = Regex.Replace(name, "[^A-Za-z0-9_.-]", "_") + "-" + platform + "-" + Guid.NewGuid().ToString("N")[..8];
         var folder = Path.Combine(state.Work, slug);

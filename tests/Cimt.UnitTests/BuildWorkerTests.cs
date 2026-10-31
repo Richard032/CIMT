@@ -133,6 +133,34 @@ public sealed class BuildWorkerTests
         Assert.Throws<InvalidOperationException>(() => BuildArtifacts.Resolve(Request("android"), temporary.Path));
     }
 
+    [Fact]
+    public void SimulatorUsesBuildAndKeepsTheExplicitRuntime()
+    {
+        var request = Request("ios") with { Properties = new() { ["RuntimeIdentifier"] = "iossimulator-x64" } };
+        var arguments = BuildCommands.Publish(request, "/output");
+        Assert.Equal("build", arguments[0]);
+        Assert.Contains("-p:RuntimeIdentifier=iossimulator-x64", arguments);
+    }
+
+    [Fact]
+    public void SimulatorBundleIsSavedAsAZipWithItsOwnRoot()
+    {
+        using var temporary = new TestDirectory();
+        var bundle = Path.Combine(temporary.Path, "Example.app");
+        Directory.CreateDirectory(bundle);
+        File.WriteAllText(Path.Combine(bundle, "Info.plist"), "fixture");
+        var request = Request("ios") with { Properties = new() { ["RuntimeIdentifier"] = "iossimulator-x64" } };
+        using var archive = System.IO.Compression.ZipFile.OpenRead(BuildArtifacts.Resolve(request, temporary.Path));
+        Assert.NotNull(archive.GetEntry("Example.app/Info.plist"));
+    }
+
+    [Fact]
+    public void MissingSimulatorBundleIsRejected()
+    {
+        using var temporary = new TestDirectory();
+        Assert.Throws<InvalidOperationException>(() => SimulatorArtifact.Create(temporary.Path));
+    }
+
     private static BuildRequest Request(string platform) => new(platform, "/fixture", "/fixture/result.json", "/fixture/App.csproj",
         "Release", "net10.0-" + platform, [], "", "com.example.fallback");
 }

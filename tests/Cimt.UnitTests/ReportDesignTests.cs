@@ -7,6 +7,38 @@ namespace Cimt.UnitTests;
 public sealed class ReportDesignTests
 {
     [Fact]
+    public async Task InterruptedStepShowsItsStoppingReasonWithoutAnActionError()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"phone","platform":"ios"},"scenarios":[{"target":"fixture","steps":[
+            {"step":0,"action":"tap","stoppingReason":"User interrupted execution; partial observations were retained"}]}]}]}
+            """);
+        var html = new StepHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report))
+            .Render(Assert.Single(ReportScenario.Read(execution)));
+        Assert.Contains("data-status=\"stopped\"", html);
+        Assert.Contains("Stopping reason", html);
+        Assert.Contains("User interrupted execution", html);
+        Assert.DoesNotContain("Action error", html);
+    }
+
+    [Fact]
+    public async Task InterruptedStepKeepsItsEarlierCrashClassification()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"phone","platform":"ios"},"scenarios":[{"target":"fixture","steps":[
+            {"step":0,"action":"tap","crash":"confirmed crash report","stoppingReason":"User interrupted execution"}]}]}]}
+            """);
+        var html = new StepHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report))
+            .Render(Assert.Single(ReportScenario.Read(execution)));
+        Assert.Contains("data-status=\"confirmed crash report\"", html);
+        Assert.Contains("User interrupted execution", html);
+    }
+
+    [Fact]
     public async Task ResultsAppearBeforeTheJournalAndBothPlatformsAreInTheOverview()
     {
         using var fixture = new DiagnosticFixture();

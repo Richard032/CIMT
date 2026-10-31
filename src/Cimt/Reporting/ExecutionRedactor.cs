@@ -16,7 +16,7 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode DeviceResult(JsonElement value) => json.Record(value, ["index"], new()
     {
-        ["device"] = item => json.Record(item, ["id", "platform"]),
+        ["device"] = item => json.Record(item, ["id", "platform", "type"]),
         ["scenarios"] = items => json.Items(items, Scenario)
     });
 

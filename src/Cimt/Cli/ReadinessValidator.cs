@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace Cimt;
 
@@ -17,7 +17,7 @@ public sealed class ReadinessValidator(ICommandRunner processes, ITextInputReade
         CheckScripts(configuration.Root);
         await CheckGit(configuration.Root, messages);
         await CheckTools(messages);
-        await CheckDevices(messages);
+        await CheckDevices(configuration, messages);
     }
 
     private async Task CheckInputs(Node root, List<string> messages)
@@ -81,14 +81,20 @@ public sealed class ReadinessValidator(ICommandRunner processes, ITextInputReade
         }
     }
 
-    private async Task CheckDevices(List<string> messages)
+    private async Task CheckDevices(Configuration configuration, List<string> messages)
     {
-        var android = await processes.Run(new("adb", ["devices"], 15));
-        var apple = await processes.Run(new("xcrun", ["devicectl", "list", "devices", "--timeout", "15"], 20));
-        var androidCount = android.Stdout.Split('\n').Count(line => line.TrimEnd().EndsWith("\tdevice", StringComparison.Ordinal));
-        var appleCount = apple.Stdout.Split('\n').Count(line => Regex.IsMatch(line, @"\sconnected\s"));
-        if (androidCount + appleCount == 0)
-            throw new ConfigurationException("No supported physical devices are available.");
-        messages.Add($"Startup device snapshot: {androidCount} Android and {appleCount} Apple device(s). Device signing/control still requires a real test.");
+        var selection = new DeviceSelection(configuration.Root.Get("execution"));
+        var module = new RuntimePaths(Configuration.InstallationRoot).NativeModule;
+        var snapshot = await processes.Run(new("node", DeviceInventory.Arguments(module, selection), 60));
+        if (snapshot.Exit != 0)
+            throw new ConfigurationException("Device discovery failed: " + configuration.Scrub(snapshot.Stderr.Trim()));
+        using var document = JsonDocument.Parse(snapshot.Stdout);
+        var devices = DeviceInventory.Read(document.RootElement, selection);
+        selection.Verify(devices);
+        foreach (var target in configuration.Root.Get("build")!.Get("targets")!.List!)
+            foreach (var platform in new[] { "android", "ios" })
+                if (target.Get(platform) is { } settings)
+                    selection.ValidateBuild(platform, settings);
+        messages.Add($"Startup {selection.Kind} device snapshot: {devices.Count} selected device(s). App build and control still require a real test.");
     }
 }

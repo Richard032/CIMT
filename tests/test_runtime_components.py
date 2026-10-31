@@ -720,7 +720,9 @@ class ScenarioTests(unittest.TestCase):
             runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
         self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
-        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['actionError'])
+        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['stoppingReason'])
+        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['observedOutcome'])
+        self.assertNotIn('actionError', result['scenarios'][0]['steps'][-1])
         self.assertNotIn('synthetic-user', json.dumps(result))
 
 

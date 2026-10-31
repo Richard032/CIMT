@@ -57,6 +57,8 @@ class MaskRectangle:
 class MaskGeometry:
     """Owns the coordinate transform, clipping, and outward rounding only."""
 
+    SCALE_TOLERANCE = 0.05
+
     def __init__(self, size, image_size):
         self.screen = ScreenSize.read(size)
         self.width, self.height = image_size
@@ -64,9 +66,14 @@ class MaskGeometry:
             raise InfrastructureError("Screenshot dimensions are unavailable")
         self.sx = finite_number(self.width / self.screen.width)
         self.sy = finite_number(self.height / self.screen.height)
-        # Allow at most one pixel of rounding, not an arbitrary percentage of the screen.
-        if abs(self.sx - self.sy) * max(self.screen.width, self.screen.height) > 1 + 1e-9:
-            raise InfrastructureError("Screen/image coordinate mapping is ambiguous")
+        # Compare both axes in image space. The same 5% rule applies to every device.
+        scale_ratio = finite_number(self.sx / self.sy)
+        if abs(scale_ratio - 1) > self.SCALE_TOLERANCE + 1e-9:
+            raise InfrastructureError(f"Screen/image coordinate mapping exceeds the {self.SCALE_TOLERANCE:.0%} tolerance")
+        # Cover the full-screen drift between the two scales, plus the normal border.
+        drift = abs(self.sx - self.sy)
+        self.padding_x = 2 + math.ceil(max(0, finite_number(drift * self.screen.width) - 1e-9))
+        self.padding_y = 2 + math.ceil(max(0, finite_number(drift * self.screen.height) - 1e-9))
 
     def pixels(self, element):
         rect = MaskRectangle.read(element)
@@ -78,15 +85,15 @@ class MaskGeometry:
         ):
             # A valid offscreen field has no visible pixels. Its UI text is still hidden.
             return None
-        # Round away from the text and add two image pixels on every side.
+        # Round away from the text, including the verified mapping uncertainty.
         left, top = max(0, rect.x), max(0, rect.y)
         right = min(self.screen.width, rect.x + rect.width)
         bottom = min(self.screen.height, rect.y + rect.height)
         return (
-            max(0, math.floor(left * self.sx) - 2),
-            max(0, math.floor(top * self.sy) - 2),
-            min(self.width - 1, math.ceil(right * self.sx) + 2),
-            min(self.height - 1, math.ceil(bottom * self.sy) + 2),
+            max(0, math.floor(left * self.sx) - self.padding_x),
+            max(0, math.floor(top * self.sy) - self.padding_y),
+            min(self.width - 1, math.ceil(right * self.sx) + self.padding_x),
+            min(self.height - 1, math.ceil(bottom * self.sy) + self.padding_y),
         )
 
     def touches_mask(self, element, masks):

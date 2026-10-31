@@ -37,18 +37,18 @@ class ScenarioSession:
 
 
 def application_executable(build, platform):
-    """Read the IPA identity without installing or modifying it."""
+    """Read the iOS app identity from its IPA or simulator ZIP."""
     if platform != "ios":
         return build["app-id"]
     with zipfile.ZipFile(build["artifact"]) as archive:
         name = next(
             name
             for name in archive.namelist()
-            if re.match(r"^Payload/[^/]+\.app/Info.plist$", name)
+            if re.match(r"^(?:Payload/)?[^/]+\.app/Info.plist$", name)
         )
         info = plistlib.loads(archive.read(name))
     if info["CFBundleIdentifier"] != build["app-id"]:
-        raise InfrastructureError("IPA identity differs from build metadata")
+        raise InfrastructureError("iOS app identity differs from build metadata")
     return info["CFBundleExecutable"]
 
 
@@ -132,7 +132,10 @@ class ScenarioRunner:
                     cancelled = recovery.after_action(session, entry, action, element, point)
             except Exception as error:
                 # An interruption may arrive after only part of a credential action.
-                entry.setdefault("actionError", self.redactor.text(str(error)))
+                if self.control.interrupted:
+                    entry["stoppingReason"] = "User interrupted execution; partial observations were retained"
+                else:
+                    entry.setdefault("actionError", self.redactor.text(str(error)))
                 raise
             finally:
                 # Keep the performed action even when evidence or recovery fails.
@@ -259,7 +262,8 @@ class ScenarioRunner:
     def _save_action(self, session, entry, action):
         session.result["coverage"] = session.coverage.snapshot()
         session.result["steps"].append(self.redactor.records.step(entry))
-        result = entry.get("crash", entry.get("actionError", entry.get("observedOutcome", "Action result unavailable")))
+        result = entry.get("crash", entry.get("stoppingReason", entry.get("actionError",
+            entry.get("observedOutcome", "Action result unavailable"))))
         session.history.append(self.redactor.records.action(dict(
             action, result=result, controlLabel=entry.get("controlLabel", ""))))
 
