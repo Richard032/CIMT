@@ -17,6 +17,7 @@ from redaction import Redactor
 
 def check(status="passed", source="instructions"):
     return {
+        "taskId": 0,
         "subject": "Save setting",
         "source": source,
         "status": status,

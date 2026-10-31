@@ -60,7 +60,7 @@ class CoverageTracker:
             "observedControls": len(self.observed),
             "attemptedControls": len(self.attempted),
             "outstandingObservedControls": len(outstanding),
-            "outstandingExamples": list(outstanding.values())[:40],
+            "outstandingExamples": list(outstanding.values()),
         }
 
     def _key(self, element):

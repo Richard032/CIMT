@@ -18,6 +18,7 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
         body += Table("Source-linked testing tasks", ["Task", "Source", "Work status", "Test result", "Expected behavior", "Reason"],
             Rows(plan, "tasks").Select(task => new[] { Field(task, "subject"), Source(task), Field(task, "status"),
                 Field(task, "result"), Field(task, "expected"), Field(task, "reason") }));
+        body += Context(scenario, redactor) + Recoveries(scenario, redactor);
         if (!scenario.TryGetProperty("exploration", out var exploration))
             return body;
         exploration = JsonSerializer.SerializeToElement(redactor.Exploration(exploration));
@@ -40,6 +41,31 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
                         Field(edge, "action"), Field(edge, "outcome"), Field(edge, "verified") })));
         }
         return body;
+    }
+
+    private string Context(JsonElement scenario, PlanningRedactor redactor)
+    {
+        if (!scenario.TryGetProperty("contextSelection", out var selection) || selection.ValueKind == JsonValueKind.Null)
+            return "";
+        selection = JsonSerializer.SerializeToElement(redactor.ContextSelection(selection));
+        var all = selection.TryGetProperty("includeAll", out var names)
+            ? string.Join(", ", names.EnumerateArray().Select(name => name.GetString())) : "";
+        return "<h4>AI-selected working context</h4><p>" + Encode(Field(selection, "summary", "No summary supplied"))
+            + "</p><p>Complete collections selected: " + Encode(all.Length > 0 ? all : "None")
+            + ". Individual record selections: " + Rows(selection, "records").Length
+            + ". Omitted records remain available locally. CIMT does not rank or silently trim history.</p>";
+    }
+
+    private string Recoveries(JsonElement scenario, PlanningRedactor redactor)
+    {
+        var rows = Rows(scenario, "recoveries");
+        if (rows.Length == 0)
+            return "";
+        return "<h4>AI-directed recovery</h4>" + Table("Recovery requests and decisions",
+            ["Request", "Trigger", "Reason", "AI decision", "AI explanation", "Status"],
+            rows.Select(row => JsonSerializer.SerializeToElement(redactor.Recovery(row))).Select(row => new[] {
+                Field(row, "id"), Field(row, "kind"), Field(row, "reason"), Field(row, "decision"),
+                Field(row, "explanation"), Field(row, "status") }));
     }
 
     private static string Source(JsonElement task) => Field(task, "source") == "requirements"

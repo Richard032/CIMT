@@ -16,6 +16,7 @@ class TestPlan:
                 instructionQuote='', subject=row.get('text', row['id']), expected=row.get('text', row['id']),
                 status='pending', reason='', targetState='', result='not tested'))
         self.active = 0
+        self.last_check_id = -1
 
     def validate(self, updates, active, states, finishing=False):
         candidate = {row['id']: dict(row) for row in self.tasks}
@@ -67,17 +68,33 @@ class TestPlan:
             self.tasks[active]['status'] = 'active'
 
     def record_checks(self, checks):
-        for task in self.tasks:
-            matching = [check for check in checks if check['source'] == task['source'] and (
-                check['requirementId'] == task['requirementId'] if task['source'] == 'requirements'
-                else check['subject'] == task['subject'])]
-            for check in matching:
-                # A later pass cannot erase a failure. Existing override validation still applies.
-                if task['result'] == 'overridden' or task['result'] == 'failed' and check['status'] != 'overridden':
+        for check in checks:
+            identifier = check.get('id')
+            if identifier is not None:
+                if identifier <= self.last_check_id:
                     continue
-                task['result'] = check['status']
-                task['status'] = 'tested' if check['status'] in ['passed', 'failed', 'overridden'] else 'pending'
+                self.last_check_id = identifier
+            task = next((row for row in self.tasks if row['id'] == check['taskId']), None)
+            if task is None:
+                raise InvalidAgentResponse('Check taskId is not in the testing plan')
+            # Keep failures even when a later check passes. Work status is independent.
+            if task['result'] == 'overridden' or task['result'] == 'failed' and check['status'] != 'overridden':
+                continue
+            task['result'] = check['status']
+            if check['status'] in ['passed', 'failed', 'overridden']:
+                task['status'] = 'tested'
+            elif task['status'] != 'blocked':
+                task['status'] = 'pending'
+            if task['status'] != 'blocked':
                 task['reason'] = check['reason']
+
+    def validate_checks(self, checks, updates):
+        tasks = {row['id']: row for row in self.tasks}
+        tasks.update({row['id']: row for row in updates})
+        for check in checks:
+            task = tasks.get(check['taskId'])
+            if not task or check['source'] != task['source'] or check['requirementId'] != task['requirementId']:
+                raise InvalidAgentResponse('Check taskId must match its plan source and requirement ID')
 
     def remaining(self):
         return [task['subject'] + ': ' + (task['reason'] or task['status'])

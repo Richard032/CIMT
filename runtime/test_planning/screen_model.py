@@ -61,3 +61,16 @@ def progress_identity(elements):
     fields = ['identifier', 'type', 'label', 'text', 'name', 'value', 'checked', 'selected', 'enabled']
     return identity(sorted(json.dumps([item.get(key, '') for key in fields], sort_keys=True)
                            for item in app_elements(elements)))
+
+
+def input_state(elements):
+    """Build a structural key. Full UI text remains in the observation evidence."""
+    rows = []
+    for item in app_elements(elements):
+        if not control_kind(item):
+            continue
+        values = {key: item[key] for key in ['value', 'checked', 'selected', 'enabled'] if key in item}
+        if control_kind(item) == 'text' and 'text' in item:
+            values['text'] = item['text']
+        rows.append([control_identity(item), values])
+    return sorted(rows, key=lambda row: row[0])

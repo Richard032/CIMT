@@ -22,9 +22,9 @@ This provides complete source accounting. Requirement IDs count requirement entr
 
 ## Mapping observations
 
-Each objective gets a fresh result for every catalogue item. All start as not tested, with an explanation that no observation exists yet. The model receives these IDs, source text, and current results together with its masked screen and testing instructions. The original requirements text is not duplicated in that request.
+Each objective gets a fresh result for every catalogue item. All start as not tested, with an explanation that no observation exists yet. Bootstrap provides these IDs, source text and current results; subsequent working requests use AI-selected records with the current masked screen and authoritative testing instructions. The complete catalogue remains locally retrievable. The original requirements text is not duplicated in that request.
 
-Requirement checks must use a known requirementId. Instruction checks use an empty ID. Each decided check includes expected and observed behavior. The host supplies its step number and links the same masked screen used for that decision. CheckRecorder records and publishes the result before image storage, so a storage error cannot erase a known failure. Original check history remains available even when the current requirement status changes.
+Every check names a stable taskId matching its source. Requirement checks also use a known requirementId; instruction checks use an empty requirement ID. Subject text is not identity. Each recorded check gets a host ID and affects planning status once. Each decided check includes expected and observed behavior. The host supplies its step number and links the same masked screen used for that decision. CheckRecorder records and publishes the result before image storage, so a storage error cannot erase a known failure. Original check history remains available even when the current requirement status changes.
 
 Check redaction preserves status, source, and requirement ID while removing secrets from observations and other text. The recorder validates the exact redacted check before it reaches the verdict policy. Final JSON/HTML retains IDs, statuses, hashes, and evidence links without running text replacement over serialized data. See [redaction](redaction.md).
 

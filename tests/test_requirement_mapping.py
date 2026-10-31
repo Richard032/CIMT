@@ -20,6 +20,7 @@ DEFINITION = {"id": "REQ-0001", "text": "Value stays saved.", "startLine": 1, "e
 
 def check(status="passed", requirement_id="REQ-0001", quote=""):
     return {
+        "taskId": 1,
         "subject": "Saved value",
         "source": "requirements",
         "status": status,
@@ -144,7 +145,7 @@ class RequirementResultTests(unittest.TestCase):
 
 
 class MappingPromptTests(unittest.TestCase):
-    def test_recent_history_omits_repeated_checks_and_plans_without_changing_saved_records(self):
+    def test_bootstrap_history_preserves_all_fields_without_host_relevance_filtering(self):
         history = [{"action": "tap", "ref": "@e1", "controlLabel": "Save", "result": "Observed UI changed",
                     "checks": [check("not tested")], "observation": "Long repeated explanation",
                     "remaining": ["Explore"], "repeatReason": ""}]
@@ -154,9 +155,7 @@ class MappingPromptTests(unittest.TestCase):
         item = state["recentActions"][0]
         self.assertEqual(item["controlLabel"], "Save")
         self.assertEqual(item["result"], "Observed UI changed")
-        self.assertNotIn("checks", item)
-        self.assertNotIn("observation", item)
-        self.assertNotIn("remaining", item)
+        self.assertEqual(item, history[0])
         self.assertEqual(json.dumps(history), before)
 
     def test_compact_history_keeps_failures_and_requirement_overrides(self):
@@ -165,17 +164,17 @@ class MappingPromptTests(unittest.TestCase):
         body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked",
             [{"action": "tap", "checks": [failure, override]}], [], {})
         state = json.loads(body["input"][1]["content"][0]["text"])
-        findings = state["recentActions"][0]["findings"]
+        findings = state["recentActions"][0]["checks"]
         self.assertEqual([row["status"] for row in findings], ["failed", "overridden"])
         self.assertEqual(findings[0]["requirementId"], "REQ-0001")
         self.assertEqual(findings[0]["observed"], failure["observed"])
 
-    def test_compact_history_retains_the_most_recent_24_actions(self):
+    def test_bootstrap_history_has_no_fixed_last_24_window(self):
         history = [{"action": "tap", "controlLabel": str(index)} for index in range(30)]
         body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", history, [], {})
         recent = json.loads(body["input"][1]["content"][0]["text"])["recentActions"]
-        self.assertEqual(len(recent), 24)
-        self.assertEqual(recent[0]["controlLabel"], "6")
+        self.assertEqual(len(recent), 30)
+        self.assertEqual(recent[0]["controlLabel"], "0")
         self.assertEqual(recent[-1]["controlLabel"], "29")
 
     def test_compact_history_retains_coordinates_and_credential_aliases(self):

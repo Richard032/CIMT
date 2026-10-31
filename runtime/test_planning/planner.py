@@ -2,6 +2,7 @@
 
 from .test_plan import TestPlan
 from .exploration_memory import ExplorationMemory
+from .context_memory import ContextMemory
 
 
 class TestPlanner:
@@ -11,13 +12,22 @@ class TestPlanner:
         self.instructions = instructions
         self.plan = TestPlan(instructions, requirements)
         self.memory = ExplorationMemory()
+        self.context_memory = ContextMemory()
+        self.available = None
 
-    def validate(self, action, elements):
+    def validate(self, action, elements, recovering=False):
         self.plan.validate(action['planUpdates'], action['planStepId'], self.memory.map.states,
-                           finishing=action['action'] == 'done')
+                           finishing=action['action'] in ['done', 'recall', 'recover'])
         task_ids = {task['id'] for task in self.plan.tasks} | {row['id'] for row in action['planUpdates']}
         self.memory.validate_updates(action, elements, task_ids)
-        self.memory.validate(elements, action, self.instructions)
+        self.plan.validate_checks(action.get('checks', []), action['planUpdates'])
+        available = dict(self.available or self.collections())
+        tasks = {row['id']: row for row in available['tasks']}
+        tasks.update({row['id']: row for row in action['planUpdates']})
+        available['tasks'] = list(tasks.values())
+        self.context_memory.validate(action['context'], available)
+        if not recovering:
+            self.memory.validate(elements, action, self.instructions)
 
     def observe(self, elements):
         self.memory.observe(elements)
@@ -35,17 +45,47 @@ class TestPlanner:
         self.plan.update(action['planUpdates'], action['planStepId'])
         self.memory.update(action, elements)
         self.memory.plan = list(action['remaining'])
+        self.context_memory.accept(action['context'])
 
-    def context(self, elements):
-        task = self.plan.tasks[self.plan.active]
-        context = self.memory.snapshot(elements, task['targetState'])
+    def collections(self, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None):
+        return dict(actions=history or [], decisions=decisions or [], tasks=self.plan.saved()['tasks'], paths=list(self.memory.paths.values()),
+            observations=list(self.memory.map.observations.values()),
+            screenshots=screenshots or [],
+            states=list(self.memory.map.states.values()), transitions=self.memory.map.transitions,
+            requirements=requirements or [], checks=checks or [],
+            configuration=[dict(row, id=row['control'], name=name) for name, row in self.memory.map.configuration.items()],
+            coverage=[coverage] if coverage is not None else [], routes=[])
+
+    def context(self, elements, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None):
+        context = dict(currentScreen=self.memory.map.state_id(elements),
+            currentControls=self.memory.current_controls(elements), knownPaths=len(self.memory.paths))
         plan = self.plan.saved()
-        # Full tasks stay in the report. Keep the active task and pending work in AI input.
-        plan['tasks'] = sorted(plan['tasks'], key=lambda row: (row['id'] != self.plan.active, row['status'] == 'tested'))[:40]
+        self.available = self.collections(history, requirements, checks, decisions, coverage, screenshots)
+        self.available['routes'] = [dict(id=row['id'], destination=row['targetState'],
+            edges=self.memory.map.route(self.memory.map.state_id(elements), row['targetState']))
+            for row in self.plan.tasks if row['targetState']]
+        selected = self.context_memory.project(self.available)
+        plan['tasks'] = selected['tasks']
         plan['taskCount'] = len(self.plan.tasks)
         context['testPlan'] = plan
+        # These are exact AI selections, not a host-ranked frontier or history window.
+        context['paths'] = selected['paths']
+        context['applicationMap'] = dict(states=selected['states'], transitions=selected['transitions'],
+            configuration=selected['configuration'], knownStates=len(self.memory.map.states))
+        context['selectedActions'] = selected['actions']
+        context['selectedRequirements'] = selected['requirements']
+        context['selectedChecks'] = selected['checks']
+        context['selectedDecisions'] = selected['decisions']
+        context['selectedCoverage'] = selected['coverage']
+        context['routes'] = selected['routes']
+        context['selectedObservations'] = selected['observations']
+        context['selectedScreenshots'] = selected['screenshots']
+        context['summary'] = (self.context_memory.selection or {}).get('summary', '')
+        context['selection'] = self.context_memory.saved()
+        context['catalogue'] = {name: len(rows) for name, rows in self.available.items()}
         return context
 
     def saved(self):
         return dict(testPlan=self.plan.saved(), exploration=self.memory.saved(),
-                    planningRemaining=self.plan.remaining() + self.memory.remaining())
+                    planningRemaining=self.plan.remaining() + self.memory.remaining(),
+                    contextSelection=self.context_memory.saved())

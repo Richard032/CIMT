@@ -28,6 +28,7 @@ def redactor(secret):
 
 def check(status="failed", source="instructions", requirement_id=""):
     return dict(
+        taskId=0,
         subject="Save",
         source=source,
         status=status,

@@ -10,13 +10,14 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
-from errors import InfrastructureError, ExplorationStalled
+from errors import InfrastructureError
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from decision_recovery import DecisionRecovery
 from test_planning.planner import TestPlanner
+from test_planning.loop_recovery import LoopRecovery
 
 UNFINISHED_OBJECTIVE = "Testing objective has not finished; coverage is not confirmed"
 
@@ -34,6 +35,7 @@ class ScenarioSession:
     history: list = field(default_factory=list)
     coverage: CoverageTracker = field(default_factory=CoverageTracker)
     planner: TestPlanner = field(default_factory=TestPlanner)
+    recovery: LoopRecovery = field(default_factory=LoopRecovery)
 
 
 def application_executable(build, platform):
@@ -87,10 +89,6 @@ class ScenarioRunner:
         try:
             publish()
             self._run(mobile, build, scenario, agent, publish)
-        except ExplorationStalled as error:
-            scenario["remaining"].append(str(error))
-            if self.activity:
-                self.activity.write("Exploration stopped", "blocked", str(error), mobile.device, build["target"])
         finally:
             # Errors and limits must not hide work that still needs testing.
             if scenario["completion"] != "complete":
@@ -116,9 +114,24 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action = self._choose(mobile, session, agent, evidence, publish)
+            action, repetition = self._choose(mobile, session, agent, evidence, publish)
+            if repetition:
+                self.decisions.request_recovery(mobile, session, 'repetition', repetition, publish, evidence)
+                session.recovery.pending['proposal'] = self.redactor.records.action(action)
+                self._save_plan(session)
+                publish()
+                continue
+            if action['action'] == 'recall':
+                continue
+            if action['action'] == 'recover':
+                self.decisions.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
+                continue
             if action["action"] == "done":
                 self._complete(session, action)
+                if action['completion'] == 'complete' and session.result['remaining']:
+                    self.decisions.request_recovery(mobile, session, 'completion',
+                        'Completion conflicts with recorded unresolved work: ' + '; '.join(session.result['remaining']), publish, evidence)
+                    continue
                 if self.activity:
                     self.activity.write("Objective finished", session.result["completion"],
                         "Verdict: " + session.result["verdict"], mobile.device, build["target"])
@@ -227,11 +240,15 @@ class ScenarioRunner:
         self._save_plan(session)
         publish()
         with self._operation("Request AI action", mobile, session.result["target"]):
-            action = self.decisions.choose(mobile, session, agent, evidence, publish)
+            action, repetition = self.decisions.choose(mobile, session, agent, evidence, publish)
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.result["remaining"] = list(action["remaining"])
         session.planner.accept(action, session.elements)
+        session.recovery.acknowledge(action)
+        decisions = session.result.setdefault('decisions', [])
+        decisions.append(dict(id=len(decisions), step=len(session.result['steps']),
+            response=self.redactor.records.action(action), repetitionSignal=self.redactor.text(repetition or '')))
         self._save_plan(session)
         if action["action"] != "done" and not session.result["remaining"]:
             session.result["remaining"].append(UNFINISHED_OBJECTIVE)
@@ -243,14 +260,16 @@ class ScenarioRunner:
         finally:
             # Checks may be saved even if their image cannot be stored.
             session.planner.record_checks(session.result['checks'])
+            session.result['screenshots'] = list(evidence.images.values())
             self._save_plan(session)
             publish()
         self.control.check()
         publish()
-        return action
+        return action, repetition
 
     def _save_plan(self, session):
         session.result.update(self.redactor.records.planning(session.planner.saved()))
+        session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]
 
     def _action_context(self, session, action):
         element = next(

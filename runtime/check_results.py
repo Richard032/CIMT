@@ -3,6 +3,7 @@
 from errors import InfrastructureError, InvalidAgentResponse
 
 CHECK_FIELDS = [
+    "taskId",
     "subject",
     "source",
     "status",
@@ -16,6 +17,7 @@ CHECK_STATUSES = ["passed", "failed", "not tested", "inconclusive", "overridden"
 CHECK_OBJECT_SCHEMA = {
     "type": "object",
     "properties": {
+        "taskId": {"type": "integer", "minimum": 0},
         "subject": {"type": "string"},
         "source": {"type": "string", "enum": ["instructions", "requirements"]},
         "status": {"type": "string", "enum": CHECK_STATUSES},
@@ -59,7 +61,9 @@ def validate_checks(checks):
 def _validate_check(check):
     if not isinstance(check, dict) or set(check) != set(CHECK_FIELDS):
         raise InvalidAgentResponse("A test check has invalid fields")
-    if any(not isinstance(value, str) for value in check.values()):
+    if type(check['taskId']) is not int or check['taskId'] < 0:
+        raise InvalidAgentResponse('A test check needs a nonnegative taskId')
+    if any(not isinstance(value, str) for key, value in check.items() if key != 'taskId'):
         raise InvalidAgentResponse("Test check values must be text")
     if not check["subject"].strip() or check["source"] not in ["instructions", "requirements"]:
         raise InvalidAgentResponse("A test check needs a subject and a valid source")
@@ -106,7 +110,7 @@ def scenario_verdict(checks, has_crash, complete, requirements=None):
     latest = {
         (
             check["source"],
-            check["requirementId"] if check["source"] == "requirements" else check["subject"],
+            check["requirementId"] if check["source"] == "requirements" else check.get('taskId', check["subject"]),
         ): check
         for check in checks
     }

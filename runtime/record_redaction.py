@@ -10,7 +10,7 @@ class RecordRedactor:
         self.redactor = redactor
 
     def check(self, value):
-        return self._record(value, ["source", "status", "requirementId", "step", "screenshot"])
+        return self._record(value, ["id", "taskId", "source", "status", "requirementId", "step", "screenshot"])
 
     def requirement(self, value):
         return self._record(value, ["id", "status", "startLine", "endLine", "step", "screenshot"])
@@ -21,8 +21,9 @@ class RecordRedactor:
             return value
         return self._record(
             value,
-            ["action", "ref", "direction", "credential", "field", "completion"],
-            {"checks": lambda items: self._items(items, self.check)},
+            ["action", "ref", "direction", "credential", "field", "completion", "planStepId"],
+            {"checks": lambda items: self._items(items, self.check),
+             'context': self.context, 'recovery': self.recovery},
         )
 
     def step(self, value):
@@ -47,6 +48,10 @@ class RecordRedactor:
                 "rejectedResponses": lambda items: self._items(items, self.rejected_response),
                 "testPlan": self.plan,
                 "exploration": self.exploration,
+                'recoveries': lambda items: self._items(items, self.recovery),
+                'contextSelection': self.context,
+                'decisions': lambda rows: self._items(rows, self.decision),
+                'screenshots': lambda rows: self._items(rows, self.screenshot),
             },
         )
 
@@ -60,7 +65,52 @@ class RecordRedactor:
                 ['id', 'source', 'requirementId', 'status', 'result', 'targetState']))})
 
     def planning(self, value):
-        return self._record(value, [], {'testPlan': self.plan, 'exploration': self.exploration})
+        return self._record(value, [], {'testPlan': self.plan, 'exploration': self.exploration,
+                                      'contextSelection': self.context})
+
+    def context(self, value):
+        if value is None:
+            return None
+        return self._record(value, [], {
+            'includeAll': lambda rows: list(rows),
+            'records': lambda rows: self._items(rows, lambda row: self._record(row, ['collection', 'id']))})
+
+    def request_context(self, value):
+        path = lambda row: self._record(row, ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId', 'ref'])
+        return self._record(value, ['currentScreen'], {
+            'testPlan': self.plan,
+            'selection': self.context,
+            'currentControls': lambda rows: self._items(rows, path),
+            'paths': lambda rows: self._items(rows, path),
+            'applicationMap': lambda row: self._record(row, [], {
+                'states': lambda rows: self._items(rows, lambda item: self._record(item, ['id', 'screen'],
+                    {'configuration': self._configuration, 'observations': lambda ids: list(ids)})),
+                'transitions': lambda rows: self._items(rows, lambda item: self._record(item,
+                    ['source', 'destination', 'control', 'action', 'destinationObservation'])),
+                'configuration': lambda rows: self._items(rows, lambda item: self._record(item, ['id', 'control', 'observedAt'])),
+            }),
+            'selectedActions': lambda rows: self._items(rows, self.action),
+            'selectedRequirements': lambda rows: self._items(rows, self.requirement),
+            'selectedChecks': lambda rows: self._items(rows, self.check),
+            'selectedDecisions': lambda rows: self._items(rows, self.decision),
+            'selectedObservations': lambda rows: self._items(rows, self.observation),
+            'selectedScreenshots': lambda rows: self._items(rows, self.screenshot),
+            'routes': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'destination'], {
+                'edges': lambda edges: self._items(edges, lambda edge: self._record(edge, ['source', 'destination', 'control', 'action']))})),
+            'recoveryRequest': self.recovery,
+        })
+
+    def recovery(self, value):
+        return self._record(value, ['id', 'step', 'kind', 'status', 'decision'], {'proposal': self.action})
+
+    def decision(self, value):
+        return self._record(value, ['id', 'step'], {'response': self.action})
+
+    def observation(self, value):
+        return self._record(value, ['id', 'state'], {'elements': lambda rows: self._items(rows, self.element)})
+
+    def screenshot(self, value):
+        return self._record(value, ['id', 'path', 'sha256'])
 
     def exploration(self, value):
         return self._record(value, [], {
@@ -76,10 +126,12 @@ class RecordRedactor:
     def _map(self, value):
         return self._record(value, [], {
             'states': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'screen'],
-                {'configuration': self._configuration})),
+                {'configuration': self._configuration, 'observations': lambda ids: list(ids)})),
             'transitions': lambda rows: self._items(rows, lambda row: self._record(row,
-                ['source', 'destination', 'control', 'action'])),
+                ['source', 'destination', 'control', 'action', 'destinationObservation'])),
             'configuration': self._configuration,
+            'refinements': lambda rows: dict(rows),
+            'observations': lambda rows: self._items(rows, self.observation),
         })
 
     def device(self, value):

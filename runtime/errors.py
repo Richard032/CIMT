@@ -22,9 +22,5 @@ class CaptureChanged(InfrastructureError):
     """The screen changed between the checks around one screenshot."""
 
 
-class NoProgressAction(InvalidAgentResponse):
-    """The proposed action repeats a path with no observed progress."""
-
-
-class ExplorationStalled(Exception):
-    """A scenario cannot choose a useful next action after bounded replanning."""
+class NoProgressAction(Exception):
+    """A repetition signal needs AI assessment before another app action."""

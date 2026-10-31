@@ -115,7 +115,7 @@ The Python unittest suite tests identity/ref changes, long-history retention, pe
 
 ## Compact AI history verification — 30 October 2026
 
-MappingPromptTests in the existing Python unittest suite verifies the public prompt builder's recent-action projection: navigation facts, observed outcomes, aliases/coordinates, critical failures/overrides, the most recent 24 records, and preservation of the caller's full history. Requirement catalogue and exploration-memory coverage remain exercised by their existing tests. The performance comparison reads only saved redacted execution records; it sends no request and changes no report. See performance.md for byte counts and measurement limits.
+MappingPromptTests now verifies that bootstrap records are not host-filtered or cut to the most recent 24. ContextSelectionTests and PlanningRegressionTests in tests/test_context_memory.py cover exact AI selection, retaining an unchanged summary, paging, recoverable observations/screenshots, byte-capacity requests and identity/redaction regressions. ScenarioTests verifies action-free recall, AI-directed recovery beyond three episodes, cancellation and premature-completion reconsideration. Source/ref/schema errors still use the existing bounded correction policy. No new test project or harness is introduced. See performance.md for the historical baseline and the distinction between offline protocol checks and live quality/cost measurements.
 
 ## Configured-model budget checks
 

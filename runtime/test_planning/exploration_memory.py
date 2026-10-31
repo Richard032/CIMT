@@ -17,7 +17,13 @@ class ExplorationMemory:
     def _key(self, elements, element, action):
         control = control_identity(element) if element else identity([
             action['action'], action.get('x'), action.get('y'), action.get('direction', '')])
-        return identity([self.map.state_id(elements), control, action['action'], action.get('direction', '')])
+        state = self.map.state_id(elements)
+        direction = action.get('direction', '')
+        for key, row in self.paths.items():
+            if (self.map.resolve(row['screen']) == state and row['control'] == control
+                    and row['action'] == action['action'] and row.get('direction', '') == direction):
+                return key
+        return identity([state, control, action['action'], direction])
 
     def _path(self, elements, action):
         element = next((item for item in elements if item.get('ref') == action.get('ref')), {})
@@ -83,9 +89,9 @@ class ExplorationMemory:
         quote = action.get('repeatInstruction', '')
         if quote.strip() and quote in instructions and action.get('repeatReason', '').strip():
             return
-        raise NoProgressAction('This path repeated without app progress. Follow another pending plan task, '
-            'take a known return route, or finish blocked with remaining work. '
-            'Repeat only for an explicit repeatInstruction quote and repeatReason.')
+        raise NoProgressAction('Repetition signal: this path repeated without a new discovered path. '
+            'Assess whether it is an unproductive loop or intentional work using fresh evidence. '
+            'Select your own context, retrieve omitted records if needed, and choose a recovery approach.')
 
     def record(self, before, after, action, entry):
         self.observe(before)
@@ -93,6 +99,7 @@ class ExplorationMemory:
         element = next((item for item in before if item.get('ref') == action.get('ref')), {})
         state = self.map.state_id(before)
         row = self.paths.setdefault(key, self._new_path(key, state, element, action['action'], self.kind(element)))
+        row['direction'] = action.get('direction', '')
         destination = self.map.state_id(after)
         if destination not in self.map.states:
             self.progress_version += 1
@@ -117,7 +124,7 @@ class ExplorationMemory:
         return [row['label'] + ': ' + (row['reason'] or row['scope']) for row in self.paths.values()
                 if row['scope'] in ['unclassified', 'blocked'] or row['scope'] == 'in scope' and row['attempts'] == 0]
 
-    def snapshot(self, elements, target=''):
+    def current_controls(self, elements):
         state = self.map.state_id(elements)
         controls = []
         for item in app_elements(elements):
@@ -128,13 +135,17 @@ class ExplorationMemory:
             path = self.paths.get(key, self._new_path(key, state, item, action, self.kind(item)))
             known = sum(row['attempts'] for row in self.paths.values() if row['control'] == control_identity(item))
             controls.append(dict(path, ref=item.get('ref', ''), knownAttempts=known))
-        return dict(currentScreen=state, currentControls=controls[:80], knownPaths=len(self.paths),
+        return controls
+
+    def snapshot(self, elements, target=''):
+        state = self.map.state_id(elements)
+        return dict(currentScreen=state, currentControls=self.current_controls(elements), knownPaths=len(self.paths),
             pendingPlan=self.plan, pendingPaths=[dict(row) for row in self.paths.values()
-                if row['scope'] != 'out of scope' and row['attempts'] == 0][:40],
-            recentTransitions=self.transitions[-12:], stalledPaths=[dict(row) for row in self.paths.values()
-                if row['unchangedAttempts'] >= 3 or row['repeatedWithoutNewPath'] >= 3][:40],
-            applicationMap=dict(states=list(self.map.states.values())[-40:], configuration=self.map.configuration,
-                knownStates=len(self.map.states), route=self.map.route(state, target)[:20]))
+                if row['scope'] != 'out of scope' and row['attempts'] == 0],
+            recentTransitions=self.transitions, stalledPaths=[dict(row) for row in self.paths.values()
+                if row['unchangedAttempts'] >= 3 or row['repeatedWithoutNewPath'] >= 3],
+            applicationMap=dict(states=list(self.map.states.values()), configuration=self.map.configuration,
+                knownStates=len(self.map.states), route=self.map.route(state, target)))
 
     def saved(self):
         return dict(paths=list(self.paths.values()), transitions=self.transitions, pendingPlan=self.plan,

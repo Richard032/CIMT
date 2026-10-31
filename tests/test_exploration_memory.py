@@ -27,7 +27,7 @@ class ExplorationMemoryTests(unittest.TestCase):
         refreshed = [dict(BUTTON, ref='@e99', label='Einstellungen')]
         self.assertEqual(view_identity(self.screen), view_identity(refreshed))
         self.assertEqual(self.memory.snapshot(refreshed)['currentControls'][0]['knownAttempts'], 1)
-        self.assertEqual(self.memory.snapshot(refreshed)['currentControls'][0]['attempts'], 0)
+        self.assertEqual(self.memory.snapshot(refreshed)['currentControls'][0]['attempts'], 1)
         self.assertEqual(self.memory.snapshot(refreshed)['currentControls'][0]['ref'], '@e99')
 
     def test_another_view_keeps_separate_control_memory(self):

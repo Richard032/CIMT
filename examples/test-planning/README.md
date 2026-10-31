@@ -30,3 +30,16 @@ For an offline demonstration of the same policy without a device or paid request
 ```
 
 The separate implementation layer is runtime/test_planning. It receives masked observations, instructions and requirements; it has no device/API/storage access. The current runtime adapter remains Mobile MCP. An Appium implementation can supply the same semantics after separate qualification.
+
+## AI memory and recovery demonstration
+
+With the updated runtime, normal testing decisions also select working context. The AI can retain a summary, recall older masked observations by address/range, and recover from loops without CIMT choosing another button. HTML shows the selected context, recovery explanations and recorded request usage. Instructions and requirements remain authoritative. No additional key or configuration is needed.
+
+The existing offline cases demonstrate these protocols without a mobile test run or paid request:
+
+```sh
+/Users/Shared/CIMT/tools/python/bin/python -m unittest discover -s tests -p test_context_memory.py -v
+/Users/Shared/CIMT/tools/python/bin/python -m unittest discover -s tests -p test_runtime_components.py -v
+```
+
+These examples validate protocol behavior with synthetic data. They do not establish real-app effectiveness or cost savings. See [the contract and sequence diagram](../../docs/ai-context-and-recovery.md).

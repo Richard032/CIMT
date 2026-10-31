@@ -42,6 +42,7 @@ SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
 def check(status="passed"):
     """Use explicit expected and observed behavior in each decided check."""
     return {
+        "taskId": 0,
         "subject": "Testing objective",
         "source": "instructions",
         "status": status,
@@ -71,6 +72,8 @@ def action(kind="done", **values):
         "checks": [check()] if kind == "done" else [],
         "planUpdates": [], "planStepId": 0, "discoveredControls": [],
         "configuration": [], "pathDecisions": [],
+        'context': dict(summary='', includeAll=['actions', 'tasks', 'paths', 'states', 'transitions', 'requirements', 'checks', 'configuration'], records=[]),
+        'recovery': dict(id=-1, decision='none', reason=''),
     }
     result.update(values)
     if kind != 'done' and 'planUpdates' not in values:
@@ -246,7 +249,8 @@ class ConfiguredModelTests(unittest.TestCase):
         agent.choose("Explore", "", "", [], b"masked", [], [], {})
         body = transport.bodies[0]
         self.assertEqual(body["model"], "gpt-5.6-luna")
-        self.assertEqual(body["prompt_cache_options"], {"ttl": "30m"})
+        self.assertEqual(body["prompt_cache_options"], {"ttl": "30m", 'mode': 'explicit'})
+        self.assertEqual(body['input'][0]['content'][0]['prompt_cache_breakpoint'], {'mode': 'explicit'})
         self.assertEqual(body["service_tier"], "default")
         self.assertEqual(body["reasoning"], {"effort": "low"})
         self.assertEqual(body["max_output_tokens"], 2048)
@@ -317,7 +321,7 @@ class ScenarioTests(unittest.TestCase):
     def test_unchecked_catalogue_item_prevents_completion(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
         result, agent = self.run_scenario(
-            FakeMobile(self.root, elements=[]), [action()], self.create_runner(definitions)
+            FakeMobile(self.root, elements=[]), [action(completion='blocked')], self.create_runner(definitions)
         )
         self.assertEqual(result["completion"], "incomplete")
         self.assertEqual(result["requirements"][0]["status"], "not tested")
@@ -333,7 +337,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_mapped_requirement_and_objective_can_complete(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
-        mapped = dict(check(), source="requirements", requirementId="REQ-0001")
+        mapped = dict(check(), taskId=1, source="requirements", requirementId="REQ-0001")
         result, _ = self.run_scenario(
             FakeMobile(self.root, elements=[]),
             [action(checks=[mapped, check()])],
@@ -344,7 +348,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertTrue(result["requirements"][0]["screenshot"])
 
     def test_observed_button_must_be_activated_before_completion(self):
-        result, _ = self.run_scenario(FakeMobile(self.root), [action()])
+        result, _ = self.run_scenario(FakeMobile(self.root), [action(completion='blocked')])
         self.assertEqual(result["completion"], "incomplete")
         self.assertEqual(result["coverage"]["outstandingObservedControls"], 1)
 
@@ -394,7 +398,7 @@ class ScenarioTests(unittest.TestCase):
         task = dict(id=1, source='instructions', requirementId='', instructionQuote='Explore',
             subject='Test selector alternatives', expected='Each requested choice remains usable',
             status='pending', reason='', targetState='')
-        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(planUpdates=[task])])
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(planUpdates=[task], completion='blocked')])
         self.assertEqual(result['completion'], 'incomplete')
         self.assertIn('Test selector alternatives: pending', result['remaining'])
 
@@ -409,7 +413,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_rejected_action_does_not_count_as_button_coverage(self):
         result, _ = self.run_scenario(
-            FakeMobile(self.root), [action("tap", ref="@missing"), action()]
+            FakeMobile(self.root), [action("tap", ref="@missing"), action(completion='blocked')]
         )
         self.assertEqual(result["coverage"]["attemptedControls"], 0)
         self.assertEqual(result["completion"], "incomplete")
@@ -450,7 +454,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertTrue((self.root / result["checks"][0]["screenshot"]).exists())
 
     def test_finishing_without_a_check_cannot_pass(self):
-        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(checks=[])])
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(checks=[], completion='blocked')])
         self.assertEqual(result["verdict"], "inconclusive")
         self.assertEqual(
             result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 2
@@ -594,7 +598,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_invalid_override_quote_is_corrected_before_recording(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
-        mapped = dict(check(), source="requirements", requirementId="REQ-0001")
+        mapped = dict(check(), taskId=1, source="requirements", requirementId="REQ-0001")
         bad = dict(mapped, status="overridden", instructionQuote="invented", reason="Conflict")
         agent, _, _ = api_agent([action(checks=[bad]), action(checks=[mapped, check()])])
         result = {"scenarios": []}
@@ -656,7 +660,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_correction_uses_a_fresh_screen_and_new_element_refs(self):
         bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
-        agent, _, transport = api_agent([bad, action("tap", ref="@e2"), action()])
+        agent, _, transport = api_agent([bad, action("tap", ref="@e2"), action(completion='blocked')])
         mobile = ChangingScreenMobile(self.root)
         self.runner.run(mobile, self.build, {"scenarios": []}, agent, lambda: None)
         state = json.loads(transport.bodies[1]["input"][1]["content"][0]["text"])
@@ -725,25 +729,27 @@ class ScenarioTests(unittest.TestCase):
 
     def test_unchanged_taps_are_replanned_without_executing_a_fourth_tap(self):
         tap = action('tap', ref='@e1')
-        agent, _, _ = api_agent([tap, tap, tap, tap, action()])
+        agent, _, _ = api_agent([tap, tap, tap, tap, action(recovery=dict(id=0, decision='replan', reason='Finish the observed objective'))])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
         taps = [name for name, _ in mobile.calls if name.startswith('mobile_click')]
         self.assertEqual(len(taps), 3)
         scenario = result['scenarios'][0]
-        self.assertEqual(len(scenario['rejectedResponses']), 1)
+        self.assertEqual(scenario['recoveries'][0]['status'], 'continued')
         self.assertEqual(scenario['exploration']['paths'][0]['attempts'], 3)
 
-    def test_failed_replanning_stops_only_the_affected_scenario(self):
+    def test_ai_can_report_recovery_blocked_without_stopping_other_scenarios(self):
         tap = action('tap', ref='@e1')
-        agent, _, _ = api_agent([tap] * 6)
+        agent, _, _ = api_agent([tap] * 4 + [action(completion='blocked',
+            remaining=['No productive path remains'], recovery=dict(id=0, decision='blocked', reason='All alternatives need unavailable equipment'))])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['completion'], 'incomplete')
-        self.assertTrue(any('Exploration blocked' in item for item in scenario['remaining']))
+        self.assertIn('No productive path remains', scenario['remaining'])
+        self.assertEqual(scenario['recoveries'][0]['status'], 'blocked')
         self.assertFalse(self.control.stopped.is_set())
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
 
@@ -754,6 +760,117 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(state['explorationMemory']['currentControls'][0]['attempts'], 1)
         self.assertEqual(state['recentActions'][0]['result'], 'No observed UI change after the action')
         self.assertEqual(state['recentActions'][0]['controlLabel'], 'Open')
+
+    def test_recall_updates_ai_context_without_touching_the_device(self):
+        recall = action('recall', context=dict(summary='Remember the first observation', includeAll=['tasks'], records=[]))
+        result, agent = self.run_scenario(FakeMobile(self.root, elements=[]), [recall, action()])
+        self.assertEqual(len(agent.calls), 2)
+        self.assertEqual(agent.calls[1][-1]['summary'], 'Remember the first observation')
+        self.assertEqual(agent.calls[1][-1]['selectedActions'], [])
+        self.assertEqual(len(result['decisions']), 2)
+        self.assertEqual(len(result['steps']), 2)  # Reset evidence and the final check only.
+
+    def test_premature_completion_returns_unresolved_work_to_ai(self):
+        finish = action(completion='blocked', remaining=['Equipment unavailable'],
+            recovery=dict(id=0, decision='blocked', reason='The remaining control requires equipment'))
+        result, agent = self.run_scenario(FakeMobile(self.root), [action(), finish])
+        self.assertEqual(agent.calls[1][-1]['recoveryRequest']['kind'], 'completion')
+        self.assertEqual(result['completion'], 'incomplete')
+        self.assertEqual(result['recoveries'][0]['status'], 'blocked')
+
+    def test_ai_can_detect_a_loop_before_the_repetition_counter_does(self):
+        request = action('recover', recovery=dict(id=-1, decision='replan', reason='I revisited the same menu'))
+        finish = action(recovery=dict(id=0, decision='replan', reason='Fresh evidence shows the objective is complete'))
+        mobile = FakeMobile(self.root, elements=[])
+        result, agent = self.run_scenario(mobile, [request, finish])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertEqual(agent.calls[1][-1]['recoveryRequest']['kind'], 'AI detected loop')
+        self.assertEqual(result['recoveries'][0]['status'], 'continued')
+
+    def test_every_new_loop_requests_recovery_without_a_three_recovery_stop(self):
+        tap = action('tap', ref='@e1')
+        responses = [tap] * 4
+        for number in range(4):
+            responses.append(action('tap', ref='@e1', recovery=dict(id=number, decision='replan', reason='Try my revised approach')))
+            if number < 3:
+                responses.append(tap)
+        responses.append(action())
+        agent, budget, _ = api_agent(responses)
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(len(scenario['recoveries']), 4)
+        self.assertTrue(all(row['status'] == 'continued' for row in scenario['recoveries']))
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 7)
+        self.assertEqual(scenario['completion'], 'complete')
+        self.assertTrue(any(row['kind'] == 'recovery' for row in budget.usage_records))
+
+    def test_ai_can_retrieve_history_during_recovery_before_selecting_an_action(self):
+        tap = action('tap', ref='@e1')
+        recall = action('recall', context=dict(summary='Inspect earlier outcomes', includeAll=['actions'], records=[]))
+        finish = action(recovery=dict(id=0, decision='replan', reason='The retained evidence covers this objective'))
+        agent, _, transport = api_agent([tap] * 4 + [recall, finish])
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        state = json.loads(transport.bodies[-1]['input'][1]['content'][0]['text'])
+        self.assertEqual(len(state['recentActions']), 3)
+        self.assertEqual(state['explorationMemory']['recoveryRequest']['id'], 0)
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
+
+    def test_cancellation_during_recovery_keeps_partial_evidence_and_prevents_actions(self):
+        tap = action('tap', ref='@e1')
+        scripted = iter([tap] * 4)
+        def choose(*arguments):
+            if 'recoveryRequest' in arguments[-1]:
+                self.control.interrupt()
+                raise LimitReached('User interrupted execution')
+            return next(scripted)
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose), lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['recoveries'][0]['status'], 'waiting')
+        self.assertTrue(scenario['remaining'])
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
+
+    def test_only_ai_selected_historical_screenshots_are_added_to_the_next_request(self):
+        class FramesMobile(FakeMobile):
+            def snapshot(self):
+                tapped = any(name.startswith('mobile_click') for name, _ in self.calls)
+                return self.elements, b'masked second frame' if tapped else b'masked first frame'
+        chosen = dict(summary='Compare the old screen', includeAll=[], records=[dict(collection='screenshots', id='0')])
+        agent, _, transport = api_agent([action('tap', ref='@e1', context=chosen), action()])
+        self.runner.run(FramesMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
+        first = transport.bodies[0]['input'][1]['content']
+        second = transport.bodies[1]['input'][1]['content']
+        self.assertEqual(sum(item['type'] == 'input_image' for item in first), 1)
+        self.assertEqual(sum(item['type'] == 'input_image' for item in second), 2)
+        self.assertTrue(any('Selected historical screenshot 0' in item.get('text', '') for item in second))
+
+    def test_valid_failure_check_survives_a_repetition_signal_before_another_action(self):
+        tap = action('tap', ref='@e1')
+        observed_failure = action('tap', ref='@e1', checks=[check('failed')])
+        blocked = action(completion='blocked', checks=[], remaining=['No further productive path'],
+            recovery=dict(id=0, decision='blocked', reason='The observed failure prevents further progress'))
+        result, _ = self.run_scenario(FakeMobile(self.root), [tap] * 3 + [observed_failure, blocked])
+        self.assertEqual(result['verdict'], 'failed')
+        self.assertEqual(len(result['checks']), 1)
+        self.assertEqual(result['checks'][0]['status'], 'failed')
+        self.assertEqual(result['recoveries'][0]['status'], 'blocked')
+
+    def test_invalid_recovery_acknowledgement_is_not_accepted_as_a_repetition_signal(self):
+        tap = action('tap', ref='@e1')
+        bad = action('tap', ref='@e1', recovery=dict(id=999, decision='replan', reason='Invented request'))
+        agent, _, _ = api_agent([tap] * 3 + [bad] * 3)
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        with self.assertRaisesRegex(InvalidAgentResponse, 'exhausted after 3 attempts'):
+            self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual(result['scenarios'][0]['recoveries'], [])
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
 
     def test_user_stop_prevents_an_action_after_ai_returns(self):
         self.control.interrupt()

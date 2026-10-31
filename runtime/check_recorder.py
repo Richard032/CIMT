@@ -23,7 +23,8 @@ class CheckRecorder:
         # Verify the exact values that the verdict policy will receive.
         validate_checks(safe)
         RequirementResults.validate(safe, rows, instructions)
-        recorded = [dict(check, step=index) for check in safe]
+        first_id = len(session.result['checks'])
+        recorded = [dict(check, step=index, id=first_id + number) for number, check in enumerate(safe)]
         session.result["checks"].extend(recorded)
         RequirementResults.record(rows, recorded)
         step = {

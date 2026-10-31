@@ -20,14 +20,29 @@ public sealed class PlanningRedactor(JsonTextRedactor json)
         ["applicationMap"] = Map
     });
 
+    public JsonNode? ContextSelection(JsonElement value) => value.ValueKind == JsonValueKind.Null ? null
+        : json.Record(value, [], new()
+        {
+            ["includeAll"] = rows => json.Items(rows, JsonTextRedactor.Keep),
+            ["records"] = rows => json.Items(rows, row => json.Record(row, ["collection", "id"]))
+        });
+
+    public JsonNode Recovery(JsonElement value) => json.Record(value, ["id", "step", "kind", "status", "decision"]);
+
     private JsonNode Map(JsonElement value) => json.Record(value, [], new()
     {
         ["states"] = rows => json.Items(rows, row => json.Record(row, ["id", "screen"], new()
         {
-            ["configuration"] = Configuration
+            ["configuration"] = Configuration,
+            ["observations"] = rows => json.Items(rows, JsonTextRedactor.Keep)
         })),
-        ["transitions"] = rows => json.Items(rows, row => json.Record(row, ["source", "destination", "control", "action"])),
-        ["configuration"] = Configuration
+        ["transitions"] = rows => json.Items(rows, row => json.Record(row, ["source", "destination", "control", "action", "destinationObservation"])),
+        ["configuration"] = Configuration,
+        ["refinements"] = JsonTextRedactor.Keep,
+        ["observations"] = rows => json.Items(rows, row => json.Record(row, ["id", "state"], new()
+        {
+            ["elements"] = elements => json.Items(elements, element => json.Record(element, ["ref", "type", "enabled"]))
+        }))
     });
 
     private JsonNode Configuration(JsonElement value)

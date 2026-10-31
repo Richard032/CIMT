@@ -1,6 +1,7 @@
 """The bounded planning fields in each single-action response."""
 
 from errors import InvalidAgentResponse
+from .context_memory import SELECTION_SCHEMA
 
 
 def text(*choices):
@@ -21,11 +22,22 @@ FIELDS = {name: dict(type='array', maxItems=LIMITS[name], items=dict(
     type='object', properties=fields, required=list(fields), additionalProperties=False))
     for name, fields in ROWS.items()}
 FIELDS['planStepId'] = {'type': 'integer'}
+FIELDS['context'] = SELECTION_SCHEMA
+FIELDS['recovery'] = dict(type='object', properties={
+    'id': {'type': 'integer'}, 'decision': text('none', 'replan', 'intentional', 'blocked'),
+    'reason': text()}, required=['id', 'decision', 'reason'], additionalProperties=False)
 
 
 def validate_planning(action):
     if action['planStepId'] < 0:
         raise InvalidAgentResponse('planStepId must be a nonnegative task ID')
+    recovery = action.get('recovery')
+    if not isinstance(recovery, dict) or set(recovery) != {'id', 'decision', 'reason'}:
+        raise InvalidAgentResponse('recovery needs id, decision and reason')
+    if type(recovery['id']) is not int or recovery['decision'] not in ['none', 'replan', 'intentional', 'blocked'] or not isinstance(recovery['reason'], str):
+        raise InvalidAgentResponse('Invalid recovery decision')
+    if recovery['decision'] != 'none' and not recovery['reason'].strip():
+        raise InvalidAgentResponse('A recovery decision needs an explanation')
     for name, fields in ROWS.items():
         if len(action[name]) > LIMITS[name]:
             raise InvalidAgentResponse('Too many ' + name + ' updates in one decision')

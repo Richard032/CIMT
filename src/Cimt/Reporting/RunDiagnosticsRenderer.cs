@@ -71,7 +71,24 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
         return "<dl class=\"facts\">" + Row("Model", Field(budget, "model", configuration.Root.Get("ai-model")?.Value("name") ?? "Not recorded"))
             + Row("AI inference requests", Field(budget, "requests", "Not recorded")) + Row("Accounted upper cost", Money(budget, "accountedUpperCost"))
             + Row("Uncertain upper cost", Money(budget, "uncertainUpperCost")) + Row("Pending reservations", Money(budget, "pendingUpperCost"))
-            + Row("Budget limit", Money(budget, "limit")) + "</dl><p>Conservative cost accounting, not a verified provider invoice. Pending and uncertain costs remain reserved separately.</p>";
+            + Row("Input tokens", Field(budget, "inputTokens", "Not recorded"))
+            + Row("Output tokens", Field(budget, "outputTokens", "Not recorded"))
+            + Row("Recorded cached input tokens", Field(budget, "cachedInputTokens", "Not recorded"))
+            + Row("Requests with cache usage details", Field(budget, "cacheUsageRequests", "Not recorded"))
+            + Row("Budget limit", Money(budget, "limit")) + "</dl><p>Conservative cost accounting, not a verified provider invoice. Pending and uncertain costs remain reserved separately.</p>"
+            + RequestUsage(budget);
+    }
+
+    private static string RequestUsage(JsonElement budget)
+    {
+        var rows = Rows(budget, "requestUsage");
+        if (rows.Length == 0)
+            return "";
+        return Details("AI request token usage", "<table><caption>Completed request usage records</caption><thead><tr>"
+            + "<th scope=\"col\">Purpose</th><th scope=\"col\">Usage status</th><th scope=\"col\">Input tokens</th>"
+            + "<th scope=\"col\">Output tokens</th><th scope=\"col\">Cached input tokens</th></tr></thead><tbody>"
+            + string.Join("", rows.Select(row => "<tr>" + string.Join("", new[] { "kind", "status", "inputTokens", "outputTokens", "cachedInputTokens" }
+                .Select(key => "<td>" + Encode(Field(row, key, "Not recorded")) + "</td>")) + "</tr>")) + "</tbody></table>");
     }
 
     private static string Money(JsonElement budget, string key) => decimal.TryParse(Field(budget, key), NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)

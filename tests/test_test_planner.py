@@ -28,11 +28,13 @@ def task(identifier=1, **updates):
 def decision(**updates):
     initial = task(0, instructionQuote=INSTRUCTIONS, subject='Testing objective', expected='Language settings remain usable')
     return dict(dict(action='tap', ref='@e1', remaining=[], planUpdates=[initial], planStepId=0,
-                     discoveredControls=[], configuration=[], pathDecisions=[]), **updates)
+                     discoveredControls=[], configuration=[], pathDecisions=[],
+                     context=dict(summary='', includeAll=[], records=[]),
+                     recovery=dict(id=-1, decision='none', reason='')), **updates)
 
 
 def check(subject='Language selection', status='passed', **updates):
-    return dict(dict(subject=subject, source='instructions', requirementId='', status=status,
+    return dict(dict(taskId=0 if subject == 'Testing objective' else 2, subject=subject, source='instructions', requirementId='', status=status,
         expected='The selected language is shown', observed='German is selected', reason='', instructionQuote=''), **updates)
 
 
@@ -146,12 +148,13 @@ class TestPlanningTests(unittest.TestCase):
 
     def test_observed_configuration_remains_context_on_the_next_screen(self):
         screen = [dict(BUTTON, value='German')]
-        action = decision(configuration=[dict(ref='@e1', name='Language', value='German')])
+        action = decision(configuration=[dict(ref='@e1', name='Language', value='German')],
+            context=dict(summary='', includeAll=['configuration'], records=[]))
         self.planner.validate(action, screen)
         self.planner.accept(action, screen)
         other = [dict(BUTTON, identifier='home')]
         self.planner.observe(other)
-        context = self.planner.context(other)['applicationMap']['configuration']['Language']
+        context = self.planner.context(other)['applicationMap']['configuration'][0]
         self.assertEqual(context['value'], 'German')
         self.assertTrue(context['observedAt'])
 
@@ -176,12 +179,13 @@ class TestPlanningTests(unittest.TestCase):
         with self.assertRaises(NoProgressAction):
             self.planner.validate(decision(), before)
 
-    def test_ai_task_context_is_bounded_without_losing_saved_tasks(self):
+    def test_ai_can_select_all_tasks_without_a_host_history_window(self):
         for number in range(2, 47):
-            self.planner.accept(decision(planUpdates=[task(number)], planStepId=number), self.screen)
+            self.planner.accept(decision(planUpdates=[task(number)], planStepId=number,
+                context=dict(summary='', includeAll=['tasks'], records=[])), self.screen)
         context = self.planner.context(self.screen)['testPlan']
-        self.assertEqual(len(context['tasks']), 40)
-        self.assertEqual(context['tasks'][0]['id'], 46)
+        self.assertEqual(len(context['tasks']), 47)
+        self.assertEqual(context['activeTaskId'], 46)
         self.assertEqual(len(self.planner.saved()['testPlan']['tasks']), 47)
 
     def test_permission_and_validation_text_remain_meaningful_observations(self):

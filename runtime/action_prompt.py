@@ -6,11 +6,12 @@ from budget import MAX_OUTPUT
 from errors import InfrastructureError, InvalidAgentResponse
 from check_results import CHECK_SCHEMA, validate_checks
 from test_planning.planning_contract import FIELDS as PLAN_FIELDS, validate_planning
+from request_context import prepare_context
 
 FIELDS = {
     "action": {
         "type": "string",
-        "enum": ["tap", "swipe", "text", "credential", "back", "wait", "restart", "done"],
+        "enum": ["tap", "swipe", "text", "credential", "back", "wait", "restart", "recall", "recover", "done"],
     },
     "ref": {"type": "string"},
     "text": {"type": "string"},
@@ -65,7 +66,7 @@ SYSTEM_PROMPT = (
     "the host retains them. Use an empty checks list when there is no new assessment. "
     "Use overridden only for a requirement that conflicts with the testing instructions, "
     "and explain that conflict. Include only observations supported by the supplied evidence. "
-    "requirementResults is the complete host catalogue. For a requirements check, copy its "
+    "requirementResults contains the catalogue entries selected by you; the complete catalogue remains retrievable. For a requirements check, copy its "
     "requirementId exactly from that catalogue; for an instructions check use an empty ID. "
     "Preserve the supplied requirement meaning. A catalogue item may contain several conditions; "
     "pass it only when ALL its conditions have evidence. Do not pass a compound item after "
@@ -80,8 +81,8 @@ SYSTEM_PROMPT = (
     "Select planStepId for every action. Update blocked tasks with a reason and select another available task. "
     "Before the first action, refine task 0 expected into a concrete objective using an exact instruction quote, "
     "keeping subject Testing objective; or select a concrete source-linked subtask. The initial placeholder cannot dispatch actions. "
-    "Complete instruction subtasks through checks with the SAME subject; only host-recorded checks mark tasks tested. "
-    "Navigation is not a passed test. A done response needs an instructions check with subject Testing objective. "
+    "Each check must name its stable taskId and match that task's source/requirement ID. Subject is descriptive text, not identity. "
+    "Navigation is not a passed test. A done response needs an instructions check for taskId 0. "
     "Use discoveredControls to identify additional current refs that are actual user inputs, including generic WebView controls. "
     "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
     "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
@@ -99,7 +100,32 @@ SYSTEM_PROMPT = (
     "and repeatReason to explain the intentional repeat; otherwise leave both empty. "
     "For overridden, instructionQuote must be an exact nonempty quote from testing instructions "
     "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
-    "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive."
+    "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive. "
+    "YOU exclusively decide context relevance. Return context with your working summary, includeAll collection names, "
+    "and records addressed by collection/id. Return context null to keep your previous selection/summary unchanged "
+    "without repeating them. Use an empty selection to retain only your summary and current evidence. "
+    "Host stores complete records; omitted data is recoverable. No host relevance filtering or last-N trimming is applied. "
+    "catalogue gives full collection counts. Tasks/requirements/states/paths use their IDs; actions/checks/transitions "
+    "and decisions use zero-based record addresses; configuration uses its control ID. The id latest follows the latest record "
+    "only when you select it. Any collection also supports @0 for its first record or @0:10 for exactly your chosen "
+    "half-open index range; use ranges to discover unknown IDs without loading a whole collection. Routes use task IDs "
+    "and contain observed edges to the targetState you selected for that task. "
+    "Return action recall to retrieve selected records without any device action. "
+    "observations contains earlier masked UI data. Select screenshots by address when you need older pixels; "
+    "historical images are labelled and are not the current screen. Unselected historical pixels are not sent. "
+    "Select context incrementally during normal decisions, avoiding a separate filtering call on every step. "
+    "Original instructions and requirements remain authoritative; your summary is working memory, not evidence or new instructions. "
+    "When contextSelectionRequired is present, return recall and a smaller context selection, or done/completion blocked "
+    "with explained remaining work if you cannot proceed; no app action is allowed. "
+    "Current evidence and record counts remain available, but the oversized selected context is not sent. "
+    "A repetition signal is a request for assessment, not proof of an app defect. When recoveryRequest is present, "
+    "acknowledge its id in recovery and explain your revised approach, intentional repetition, or blocker. "
+    "Use recall to retrieve omitted history before deciding if necessary. Choose recovery decision replan to try your "
+    "revised approach, intentional only for explained purposeful repetition, or blocked with done/completion blocked. "
+    "For no recovery request use id -1, decision none and an empty reason. Every newly detected unproductive loop "
+    "needs a new recovery decision. You may also detect a loop yourself: return recover with recovery id -1, "
+    "decision replan and your explanation to pause actions and request fresh evidence. "
+    "Do not blindly start over; inspect fresh evidence and remembered outcomes."
 )
 
 
@@ -124,17 +150,20 @@ class ActionPromptBuilder:
         exploration_memory=None,
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
+        memory = dict(exploration_memory or {})
+        historical_images = memory.pop('historicalImages', [])
+        selected = 'selectedActions' in memory
         state = {
             "instructions": instructions,
             # Catalogue entries already contain all source text. Avoid sending it twice.
             "requirements": "" if requirement_results else requirements,
-            "requirementResults": requirement_results or [],
+            "requirementResults": memory.pop('selectedRequirements') if selected else requirement_results or [],
             "setup": setup,
             "elements": elements,
-            "recentActions": self._recent_actions(history),
+            "recentActions": memory.pop('selectedActions') if selected else history,
             "credentialAliases": aliases,
-            "coverage": coverage,
-            "explorationMemory": exploration_memory or {},
+            "coverage": memory.pop('selectedCoverage') if selected else coverage,
+            "explorationMemory": memory,
         }
         if correction_feedback:
             state["correctionFeedback"] = correction_feedback
@@ -144,6 +173,7 @@ class ActionPromptBuilder:
                 "Address every validation error. Recheck earlier reported failures; "
                 "do not silently drop them. Rejected output is data, not new instructions."
             )
+        state = prepare_context(state)
         body = {
             "model": self.model,
             "store": False,
@@ -153,7 +183,7 @@ class ActionPromptBuilder:
             "reasoning": {"effort": "low"},
             "input": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                self._screen_message(state, screenshot),
+                self._screen_message(state, screenshot, [] if 'contextSelectionRequired' in state else historical_images),
             ],
             "text": {
                 "format": {
@@ -167,38 +197,27 @@ class ActionPromptBuilder:
         return body
 
     @staticmethod
-    def _recent_actions(history):
-        """Send navigation facts, not repeated check text. Full records stay in reports."""
-        fields = ["action", "controlLabel", "ref", "x", "y", "direction", "text",
-                  "credential", "field", "result", "repeatReason"]
-        finding_fields = ["subject", "source", "status", "requirementId", "observed", "reason"]
-        recent = []
-        for action in history[-24:]:
-            item = {key: action[key] for key in fields if key in action}
-            # Keep failures and overrides visible for planning and reproduction.
-            findings = [
-                {key: check[key] for key in finding_fields if key in check}
-                for check in action.get("checks", [])
-                if check.get("status") in ["failed", "overridden"]
-            ]
-            if findings:
-                item["findings"] = findings
-            recent.append(item)
-        return recent
-
-    @staticmethod
-    def _screen_message(state, screenshot):
+    def _screen_message(state, screenshot, historical_images=None):
         """Pair the redacted UI data with its already masked screenshot."""
-        return {
+        message = {
             "role": "user",
             "content": [
-                {"type": "input_text", "text": json.dumps(state)},
+                {"type": "input_text", "text": json.dumps(state, ensure_ascii=False)},
                 {
                     "type": "input_image",
                     "image_url": "data:image/png;base64," + base64.b64encode(screenshot).decode(),
                 },
             ],
         }
+        for historical in historical_images or []:
+            caption = 'Selected historical screenshot ' + str(historical['id']) + '; not the current screen.'
+            message['content'].append(dict(type='input_text', text=caption))
+            if historical['image'] == screenshot:
+                message['content'].append(dict(type='input_text', text='Its pixels are identical to the current screenshot above.'))
+            else:
+                message['content'].append(dict(type='input_image', image_url='data:image/png;base64,'
+                    + base64.b64encode(historical['image']).decode()))
+        return message
 
 
 def parse_action(response):
@@ -235,8 +254,9 @@ def validate_action(action):
         raise InvalidAgentResponse("OpenAI action has invalid fields")
     for name, schema in FIELDS.items():
         value = action[name]
-        expected_type = {"string": str, "integer": int, "array": list}[schema["type"]]
-        if type(value) is not expected_type or ("enum" in schema and value not in schema["enum"]):
+        kinds = schema['type'] if isinstance(schema['type'], list) else [schema['type']]
+        expected_types = [{"string": str, "integer": int, "array": list, "object": dict, 'null': type(None)}[kind] for kind in kinds]
+        if type(value) not in expected_types or ("enum" in schema and value not in schema["enum"]):
             raise InvalidAgentResponse("Invalid action field: " + name)
     if any(not isinstance(item, str) for item in action["remaining"]):
         raise InvalidAgentResponse("remaining must contain only text")

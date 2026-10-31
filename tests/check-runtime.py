@@ -251,7 +251,9 @@ class RuntimeChecks(unittest.TestCase):
         }
         action = {k: "" for k in FIELDS}
         action.update(action="done", x=-1, y=-1, remaining=[], completion="blocked", checks=[],
-                      planUpdates=[], planStepId=0, discoveredControls=[], configuration=[], pathDecisions=[])
+                      planUpdates=[], planStepId=0, discoveredControls=[], configuration=[], pathDecisions=[],
+                      context=dict(summary='', includeAll=[], records=[]),
+                      recovery=dict(id=-1, decision='none', reason=''))
         bodies = []
 
         def respond(path, body):

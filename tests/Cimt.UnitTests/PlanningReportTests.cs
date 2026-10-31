@@ -70,6 +70,62 @@ public sealed class PlanningReportTests
         Assert.Contains("&lt;script&gt;", html);
     }
 
+    [Fact]
+    public async Task ReportShowsAiContextAndRecoveryWithoutExposingPrivateText()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var context = Context();
+        context = context with { Result = JsonSerializer.SerializeToElement(new
+        {
+            testPlan = context.Result.GetProperty("testPlan"),
+            exploration = context.Result.GetProperty("exploration"),
+            contextSelection = new { summary = "<script>synthetic-credential</script>", includeAll = new[] { "actions" },
+                records = new[] { new { collection = "tasks", id = "0" } } },
+            recoveries = new[] { new { id = 0, step = 3, kind = "repetition", reason = "Repeated menu navigation",
+                decision = "replan", explanation = "Retrieve earlier outcomes and try another path", status = "continued" } }
+        }) };
+        var html = new PlanningHtmlRenderer(fixture.State.Configuration).Render(context);
+        Assert.Contains("AI-selected working context", html);
+        Assert.Contains("AI-directed recovery", html);
+        Assert.Contains("Retrieve earlier outcomes", html);
+        Assert.Contains("&lt;script&gt;", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+        Assert.DoesNotContain("<script>", html);
+    }
+
+    [Fact]
+    public void ContextRedactionPreservesAddressesAndRemovesSummarySecrets()
+    {
+        var redactor = new PlanningRedactor(new JsonTextRedactor(text => text.Replace("e", "<redacted>")));
+        var value = JsonSerializer.SerializeToElement(redactor.ContextSelection(JsonSerializer.SerializeToElement(new
+        {
+            summary = "Remember the failure", includeAll = new[] { "states" },
+            records = new[] { new { collection = "states", id = "state-e" } }
+        })));
+        Assert.Contains("<redacted>", value.GetProperty("summary").GetString());
+        Assert.Equal("states", value.GetProperty("includeAll")[0].GetString());
+        Assert.Equal("state-e", value.GetProperty("records")[0].GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task BudgetReportShowsCacheDetailsAndRecoveryRequestUsage()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.SerializeToElement(new { budget = new
+        {
+            inputTokens = 100, outputTokens = 20, cachedInputTokens = 80, cacheUsageRequests = 1,
+            requestUsage = new[] { new { kind = "recovery", status = "recorded", inputTokens = 100,
+                outputTokens = 20, cachedInputTokens = 80 } }
+        }});
+        var html = new RunDiagnosticsRenderer(fixture.State.Configuration).Budget(execution);
+        Assert.Contains("Recorded cached input tokens", html);
+        Assert.Contains("AI request token usage", html);
+        Assert.Contains("recovery", html);
+        Assert.Contains("80", html);
+    }
+
     private static ReportScenario Context() => Assert.Single(ReportScenario.Read(JsonSerializer.Deserialize<JsonElement>("""
         {"devices":[{"device":{"id":"phone","platform":"ios"},"scenarios":[{"target":"fixture",
         "testPlan":{"activeTaskId":0,"nextTaskId":1,"tasks":[{"id":0,"source":"requirements","requirementId":"REQ-0001",

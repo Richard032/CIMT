@@ -2,7 +2,7 @@
 
 import json
 from action_prompt import validate_action
-from errors import InvalidAgentResponse, NoProgressAction, ExplorationStalled
+from errors import InvalidAgentResponse, NoProgressAction
 from requirement_results import RequirementResults
 
 MAX_DECISION_ATTEMPTS = 3
@@ -20,44 +20,68 @@ class DecisionRecovery:
 
     def choose(self, mobile, session, agent, evidence, publish):
         feedback = []
-        for attempt in range(1, MAX_DECISION_ATTEMPTS + 1):
+        attempt = 0
+        while True:
             self.control.check()
             action = None
             try:
-                action = self._request(agent, session, feedback, mobile.device)
+                action = self._request(agent, session, feedback, mobile.device, evidence)
                 validate_action(action)
                 RequirementResults.validate(
                     action["checks"], session.result["requirements"], self.inputs["instructions"]
                 )
-                session.planner.validate(action, session.elements)
+                session.recovery.validate(action)
+                session.planner.validate(action, session.elements, recovering=session.recovery.pending is not None)
+            except NoProgressAction as error:
+                # The response is valid. Save its checks before requesting fresh recovery evidence.
+                return action, str(error)
             except InvalidAgentResponse as error:
+                attempt += 1
                 rejected = self._record_rejection(
                     session, action if action is not None else error.response,
                     error, attempt, evidence, publish,
                 )
                 self._event(mobile, session, "rejected", attempt, str(error))
                 if attempt == MAX_DECISION_ATTEMPTS:
-                    if isinstance(error, NoProgressAction):
-                        raise ExplorationStalled("Exploration blocked: repeated actions made no observed progress") from error
                     raise InvalidAgentResponse(
                         "AI response correction exhausted after " + str(MAX_DECISION_ATTEMPTS)
                         + " attempts: " + str(error)
                     ) from error
                 feedback.append({"error": rejected["error"], "response": rejected["response"]})
-                self._refresh(mobile, session, publish)
+                self._refresh(mobile, session, publish, evidence)
                 continue
             if feedback:
-                self._event(mobile, session, "corrected", attempt, "Response accepted; no action repeated")
-            return action
+                self._event(mobile, session, "corrected", attempt + 1, "Response accepted; no action repeated")
+            return action, None
 
-    def _request(self, agent, session, feedback, device):
+    def request_recovery(self, mobile, session, kind, reason, publish, evidence=None):
+        session.recovery.request(kind, reason, len(session.result['steps']))
+        session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]
+        publish()
+        if self.activity:
+            self.activity.write('AI-directed recovery', 'waiting',
+                'Request ' + str(session.recovery.pending['id']) + ' (' + kind
+                + '); fresh evidence and an AI assessment required. Details are in the scenario report.',
+                mobile.device, session.result['target'])
+        self._refresh(mobile, session, publish, evidence)
+
+    def _request(self, agent, session, feedback, device, evidence):
         arguments = [
             self.inputs["instructions"], self.inputs.get("requirements", ""),
             self._scoped_setup(session, device), session.elements, session.image, session.history,
             list(self.config.get("credentials", {})), session.coverage.snapshot(),
             session.result["requirements"],
         ]
-        memory = session.planner.context(session.elements)
+        screenshots = list(evidence.images.values())
+        session.result['screenshots'] = screenshots
+        memory = session.planner.context(session.elements, session.history,
+            session.result['requirements'], session.result.get('checks', []), session.result.get('decisions', []),
+            session.coverage.snapshot(), screenshots)
+        if session.recovery.pending is not None:
+            memory['recoveryRequest'] = self.redactor.records.recovery(session.recovery.pending)
+        memory = self.redactor.records.request_context(memory)
+        # Bootstrap exposes addresses only. Historical pixels require an explicit AI selection.
+        memory['historicalImages'] = evidence.load_images(memory['selectedScreenshots']) if session.planner.context_memory.selection is not None else []
         arguments.extend([feedback, memory])
         return agent.choose(*arguments)
 
@@ -94,13 +118,16 @@ class DecisionRecovery:
         publish()
         return rejected
 
-    def _refresh(self, mobile, session, publish):
+    def _refresh(self, mobile, session, publish, evidence=None):
         self.control.check()
         session.elements, session.image = mobile.snapshot()
         session.planner.observe(session.elements)
         session.result.update(self.redactor.records.planning(session.planner.saved()))
         session.coverage.observe(session.elements)
         session.result["coverage"] = session.coverage.snapshot()
+        if evidence is not None:
+            evidence.save_step('observation-' + str(len(evidence.images)).zfill(4), session.elements, session.image)
+            session.result['screenshots'] = list(evidence.images.values())
         publish()
 
     def _event(self, mobile, session, status, attempt, message):

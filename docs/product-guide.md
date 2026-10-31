@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.27
+Version: 0.28
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -475,3 +475,11 @@ Before an action, the AI must select a concrete goal linked to the instructions 
 The map grows while CIMT navigates. It records states, paths, outcomes and last-observed configuration. For example, English and German values can produce separate observed states and checks can evaluate whether a language remains after restart. A remembered setting is not proof of persistence or correct behavior; checks still need observed evidence against your requirements. For a requested persistence check, the restart action closes and reopens the tested app without resetting its data. Known return routes help the AI continue its plan, while every action still uses current screen evidence.
 
 The HTML Devices section includes Testing plan, Discovered application paths and Observed application map. Work status pending/active/blocked/tested is separate from passed/failed/not-tested results. Visiting a screen or tapping a button is not a passed test. The detailed map includes last-observed configuration provenance. Existing reports remain unchanged. See the [generic planning example](../examples/test-planning/README.md). No new YAML field, key or Appium installation is needed for this increment; live application qualification remains separate.
+
+## AI working memory and loop recovery
+
+The AI decides which history to keep in its working context, summarise, omit or retrieve. CIMT keeps complete records locally and never picks a relevant subset or silently trims old history. Instructions and requirements remain authoritative. The AI can recall omitted records without tapping or restarting the app. An oversized selected record payload requests a smaller AI selection; it does not delete evidence.
+
+Every detected unproductive loop requests AI-directed recovery. Repeated-action facts and fresh masked evidence help the AI reconsider its plan and retrieve earlier discoveries. The AI chooses whether to try a revised approach, explain intentional repetition or finish blocked. It can request recovery itself before the repetition counter signals. CIMT does not select a replacement button or reset the app. Renewed loops request renewed recovery instead of stopping after three recovery episodes. Time, budget, cancellation and independent crash/infrastructure policies still apply.
+
+HTML shows AI-selected working context and AI-directed recovery in the device scenario. Run overview includes token/cache usage and request-purpose details when available. Missing provider details remain unavailable; the accounted cost remains a conservative bound. Filtering, recall and recovery also consume the configured budget. No new command, YAML field, API key or model is needed. These changes require the updated runtime; they have not been qualified in a new live run. See [the detailed flow](ai-context-and-recovery.md).

@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.31
+Version: 0.32
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1088,3 +1088,9 @@ Offline and live acceptance remain separate. The layer can be exercised with tes
 
 
 Verification for this increment passed: 304 xUnit tests, 280 Python tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks (628 offline checks). Host publication and installer syntax checks passed. Installed all 19 matching host/runtime/package files under the run lock and verified every byte. The obsolete top-level memory module was backed up and removed. Installed help and an installed-package import/schema smoke check passed without a device or API call. Original pre-planning backup: /private/tmp/cimt-before-planning-nv4wag87. Final snapshot-retention update backup: /private/tmp/cimt-before-planning-kru9cmu4. Installed host SHA-256: e9afbf3112370c798c99555d93dc3f5a345a00a4bfffc85f6a2fa0cb43c372ef. Existing private inputs, saved reports, build workers/scripts and third-party source were not changed. No live test run or paid inference was started.
+
+## 43. AI-owned context and recovery source increment
+
+The source increment adds test_planning/context_memory.py and test_planning/loop_recovery.py plus request_context.py. The existing installer copies top-level runtime modules and the whole planning package; no new prerequisite, key or configuration field is needed. Install the matching runtime files together: the action/check response contract now includes context, recovery and taskId. The HTML renderer also has matching context/recovery/usage views.
+
+This increment is validated with the existing offline suites. It has not been installed or exercised in a new CIMT mobile run as part of this task. Do not treat the earlier installed planning receipt as proof that this newer source is installed. No private inputs, retained app builds or existing reports are changed. See [AI context and recovery](ai-context-and-recovery.md).
