@@ -18,7 +18,7 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
         body += Table("Source-linked testing tasks", ["Task", "Source", "Work status", "Test result", "Expected behavior", "Reason"],
             Rows(plan, "tasks").Select(task => new[] { Field(task, "subject"), Source(task), Field(task, "status"),
                 Field(task, "result"), Field(task, "expected"), Field(task, "reason") }));
-        body += Context(scenario, redactor) + Recoveries(scenario, redactor);
+        body += Context(scenario, redactor) + Recoveries(scenario, redactor) + Replies(scenario);
         if (!scenario.TryGetProperty("exploration", out var exploration))
             return body;
         exploration = JsonSerializer.SerializeToElement(redactor.Exploration(exploration));
@@ -41,6 +41,20 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
                         Field(edge, "action"), Field(edge, "outcome"), Field(edge, "verified") })));
         }
         return body;
+    }
+
+    private string Replies(JsonElement scenario)
+    {
+        var replies = Rows(scenario, "decisions")
+            .Where(row => row.TryGetProperty("response", out var response)
+                && response.TryGetProperty("modelResponse", out _));
+        return !replies.Any() ? "" : Details("AI replies and resource feedback",
+            Table("AI replies", ["Turn", "Reply", "Resource feedback"], replies.Select(row =>
+            {
+                var response = row.GetProperty("response");
+                return new[] { Field(row, "id"), configuration.Scrub(Field(response, "modelResponse")),
+                    configuration.Scrub(Field(response, "resourceFeedback", "No resource error")) };
+            })));
     }
 
     private string Context(JsonElement scenario, PlanningRedactor redactor)

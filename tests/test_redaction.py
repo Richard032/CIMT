@@ -81,12 +81,11 @@ class TextRedactionTests(unittest.TestCase):
         self.assertEqual(redactor("REQ-0001").records.check(value)["requirementId"], "REQ-0001")
 
     def test_metadata_exemption_cannot_hide_nested_text(self):
-        with self.assertRaises(InfrastructureError):
-            redactor("private").records.check(dict(check(), status={"text": "private"}))
+        result = redactor('private').records.check(dict(check(), status={'text': 'private'}))
+        self.assertEqual(result['status'], {'text': '<redacted>'})
 
-    def test_unknown_status_cannot_produce_a_pass(self):
-        with self.assertRaises(InfrastructureError):
-            scenario_verdict([check("<redacted>"), check("passed")], False, True)
+    def test_unknown_status_is_unresolved_without_response_rejection(self):
+        self.assertEqual(scenario_verdict([check('<redacted>'), check('passed')], False, True), 'inconclusive')
 
 
 class ScreenSecretTests(unittest.TestCase):

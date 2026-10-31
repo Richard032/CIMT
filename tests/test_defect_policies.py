@@ -8,7 +8,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
-from check_results import scenario_verdict, validate_checks
+from check_results import scenario_verdict
 from device_commands import NativeDevice
 from device_scheduler import DeviceScheduler
 from errors import AppLaunchError, DeviceLocked, InfrastructureError, LimitReached
@@ -91,17 +91,14 @@ class CheckResultTests(unittest.TestCase):
         unknown = dict(check("inconclusive"), reason="Value is not visible yet")
         self.assertEqual(scenario_verdict([unknown, check()], False, True), "passed")
 
-    def test_decided_check_needs_observed_evidence(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([dict(check(), observed="")])
+    def test_report_uses_ai_result_without_evaluating_its_evidence_text(self):
+        self.assertEqual(scenario_verdict([dict(check(), observed='')], False, True), 'passed')
 
-    def test_unresolved_check_needs_a_reason(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([check("not tested")])
+    def test_unresolved_result_remains_inconclusive_without_a_format_error(self):
+        self.assertEqual(scenario_verdict([check('not tested')], False, True), 'inconclusive')
 
-    def test_instruction_cannot_be_overridden(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([dict(check("overridden"), reason="Conflicting request")])
+    def test_unfamiliar_result_does_not_invent_a_pass(self):
+        self.assertEqual(scenario_verdict([check('AI assessment')], False, True), 'inconclusive')
 
     def test_requirement_can_be_overridden_with_a_reason(self):
         overridden = dict(
@@ -109,7 +106,6 @@ class CheckResultTests(unittest.TestCase):
             reason="Instructions take priority",
             instructionQuote="Explore only",
         )
-        validate_checks([overridden])
         self.assertEqual(scenario_verdict([check(), overridden], False, True), "passed")
 
 

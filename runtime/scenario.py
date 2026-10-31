@@ -36,6 +36,7 @@ class ScenarioSession:
     coverage: CoverageTracker = field(default_factory=CoverageTracker)
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
+    resource_feedback: str = ''
 
 
 def application_executable(build, platform):
@@ -121,17 +122,13 @@ class ScenarioRunner:
                 self._save_plan(session)
                 publish()
                 continue
-            if action['action'] == 'recall':
+            if action['action'] in ['recall', 'note']:
                 continue
             if action['action'] == 'recover':
                 self.decisions.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
                 continue
             if action["action"] == "done":
                 self._complete(session, action)
-                if action['completion'] == 'complete' and session.result['remaining']:
-                    self.decisions.request_recovery(mobile, session, 'completion',
-                        'Completion conflicts with recorded unresolved work: ' + '; '.join(session.result['remaining']), publish, evidence)
-                    continue
                 if self.activity:
                     self.activity.write("Objective finished", session.result["completion"],
                         "Verdict: " + session.result["verdict"], mobile.device, build["target"])
@@ -243,6 +240,7 @@ class ScenarioRunner:
             action, repetition = self.decisions.choose(mobile, session, agent, evidence, publish)
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
+        session.resource_feedback = action.get('resourceFeedback', '')
         session.result["remaining"] = list(action["remaining"])
         session.planner.accept(action, session.elements)
         session.recovery.acknowledge(action)

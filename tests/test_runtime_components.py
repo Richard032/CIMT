@@ -25,7 +25,7 @@ from budget import Budget
 from coverage_tracker import CoverageTracker
 from device_commands import DeviceReadiness
 from stopping_policy.policy import result_exit_code
-from errors import AppLaunchError, DeviceActionError, InfrastructureError, LimitReached, InvalidAgentResponse
+from errors import AppLaunchError, DeviceActionError, InfrastructureError, LimitReached
 from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
@@ -411,14 +411,14 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result['completion'], 'incomplete')
         self.assertIn('Test selector alternatives: pending', result['remaining'])
 
-    def test_rejected_plan_does_not_dispatch_an_action_or_create_a_task(self):
-        task = dict(id=1, source='instructions', requirementId='', instructionQuote='Invented instruction',
-            subject='Unrelated goal', expected='Unrelated result', status='active', reason='', targetState='')
+    def test_plan_wording_is_ai_owned_and_does_not_gate_a_tap(self):
+        task = dict(id=5, source='instructions', requirementId='', instructionQuote='AI paraphrase',
+            subject='Explore settings', expected='Check the menu', status='active', reason='', targetState='')
         mobile = FakeMobile(self.root, elements=[])
-        result, agent = self.run_scenario(mobile, [action('tap', ref='@e1', planUpdates=[task]), action()])
-        self.assertEqual(len(result['testPlan']['tasks']), 1)
-        self.assertEqual(len(result['rejectedResponses']), 1)
-        self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
+        result, _ = self.run_scenario(mobile, [action('tap', ref='@e1', planUpdates=[task]), action(completion='blocked')])
+        self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
+        self.assertTrue(any(row['id'] == 5 for row in result['testPlan']['tasks']))
+        self.assertNotIn('rejectedResponses', result)
 
     def test_unobserved_ref_is_dispatched_without_claiming_observed_coverage(self):
         mobile = FakeMobile(self.root)
@@ -586,64 +586,51 @@ class ScenarioTests(unittest.TestCase):
         self.assertFalse(any("private-fixture" in snapshot for snapshot in snapshots))
 
 
-    def test_invalid_check_is_corrected_before_a_single_tap(self):
-        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
-        agent, budget, transport = api_agent([bad, action("tap", ref="@e1"), action()])
+    def test_reporting_metadata_does_not_discard_an_ai_selected_tap(self):
+        response = action('tap', ref='@e1', checks=[dict(check(), requirementId='REQ-0001')])
+        agent, _, transport = api_agent([response, action()])
         mobile = FakeMobile(self.root)
-        result = {"scenarios": []}
+        result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
-        taps = [name for name, _ in mobile.calls if name == "mobile_click_on_screen_at_coordinates"]
-        self.assertEqual(len(taps), 1)
-        self.assertEqual(budget.requests, 3)
-        self.assertEqual(result["scenarios"][0]["verdict"], "passed")
-        feedback = json.loads(transport.bodies[1]["input"][1]["content"][0]["text"])
-        self.assertIn("checks[0]", feedback["correctionFeedback"][0]["error"])
-        rejected = result["scenarios"][0]["rejectedResponses"][0]
-        self.assertEqual(rejected["status"], "unaccepted")
-        self.assertTrue((self.root / rejected["screenshot"]).exists())
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 1)
+        self.assertEqual(len(transport.bodies), 2)
+        self.assertNotIn('rejectedResponses', result['scenarios'][0])
 
-    def test_three_invalid_responses_stop_without_a_tap(self):
-        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
-        agent, budget, _ = api_agent([bad, bad, bad])
+    def test_more_than_three_notes_do_not_trigger_a_format_stop(self):
+        agent, budget, _ = api_agent(['AI working note'] * 4 + [action('tap', ref='@e1'), action()])
         mobile = FakeMobile(self.root)
-        result = {"scenarios": []}
-        with self.assertRaisesRegex(InvalidAgentResponse, "exhausted after 3 attempts"):
-            self.runner.run(mobile, self.build, result, agent, lambda: None)
-        self.assertEqual(budget.requests, 3)
-        self.assertFalse(any(name.startswith("mobile_click") for name, _ in mobile.calls))
-        self.assertEqual(len(result["scenarios"][0]["rejectedResponses"]), 3)
-        self.assertTrue(result["scenarios"][0]["remaining"])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual(budget.requests, 6)
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 1)
+        self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], 'AI working note')
 
-    def test_unknown_catalogue_id_is_corrected_before_recording(self):
-        bad = action(checks=[dict(check(), source="requirements", requirementId="UNKNOWN")])
-        agent, _, _ = api_agent([bad, action()])
-        result = {"scenarios": []}
+    def test_unknown_catalogue_reference_remains_an_unbound_ai_check(self):
+        response = action(checks=[dict(check(), source='requirements', requirementId='UNKNOWN')])
+        agent, _, _ = api_agent([response])
+        result = {'scenarios': []}
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        scenario = result["scenarios"][0]
-        self.assertEqual(len(scenario["checks"]), 1)
-        self.assertIn("catalogue", scenario["rejectedResponses"][0]["error"])
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['checks'][0]['requirementId'], 'UNKNOWN')
+        self.assertNotIn('rejectedResponses', scenario)
 
-    def test_invalid_override_quote_is_corrected_before_recording(self):
-        definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
-        mapped = dict(check(), taskId=1, source="requirements", requirementId="REQ-0001")
-        bad = dict(mapped, status="overridden", instructionQuote="invented", reason="Conflict")
-        agent, _, _ = api_agent([action(checks=[bad]), action(checks=[mapped, check()])])
-        result = {"scenarios": []}
-        self.create_runner(definitions).run(FakeMobile(self.root, elements=[]), self.build,
-                                            result, agent, lambda: None)
-        scenario = result["scenarios"][0]
-        self.assertEqual(scenario["requirements"][0]["status"], "passed")
-        self.assertEqual(len(scenario["checks"]), 2)
-        self.assertIn("instructionQuote", scenario["rejectedResponses"][0]["error"])
+    def test_override_interpretation_is_recorded_without_a_quotation_gate(self):
+        definitions = [dict(id='REQ-0001', text='Save works', startLine=1, endLine=1)]
+        declared = dict(check(), taskId=1, source='requirements', requirementId='REQ-0001',
+            status='overridden', instructionQuote='AI interpretation', reason='Conflict described by AI')
+        agent, _, _ = api_agent([action(checks=[declared])])
+        result = {'scenarios': []}
+        self.create_runner(definitions).run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertEqual(result['scenarios'][0]['requirements'][0]['status'], 'overridden')
+        self.assertNotIn('rejectedResponses', result['scenarios'][0])
 
-    def test_rejected_failure_remains_in_diagnostics_after_correction(self):
-        bad = action(checks=[check("failed"), dict(check(), requirementId="REQ-0001")])
-        agent, _, _ = api_agent([bad, action()])
-        result = {"scenarios": []}
+    def test_ai_failure_is_not_discarded_with_other_reporting_metadata(self):
+        response = action(checks=[check('failed'), dict(check(), requirementId='REQ-0001')])
+        agent, _, _ = api_agent([response])
+        result = {'scenarios': []}
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        scenario = result["scenarios"][0]
-        self.assertEqual(scenario["rejectedResponses"][0]["response"]["checks"][0]["status"], "failed")
-        self.assertEqual(len(scenario["checks"]), 1)
+        self.assertEqual(result['scenarios'][0]['verdict'], 'failed')
+        self.assertEqual(len(result['scenarios'][0]['checks']), 2)
 
     def test_rejected_metadata_and_correction_feedback_are_redacted(self):
         self.redactor = Redactor({"credentials": {"test": {"password": "synthetic-secret"}}})
@@ -655,21 +642,24 @@ class ScenarioTests(unittest.TestCase):
         self.assertNotIn("synthetic-secret", json.dumps(result))
         self.assertNotIn("synthetic-secret", json.dumps(transport.bodies))
 
-    def test_malformed_json_can_be_corrected(self):
-        agent, _, _ = api_agent(["{broken", action()])
-        result = {"scenarios": []}
+    def test_unreadable_command_is_retained_as_a_note_for_the_ai(self):
+        agent, _, transport = api_agent(['{broken', action()])
+        result = {'scenarios': []}
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        self.assertEqual(result["scenarios"][0]["rejectedResponses"][0]["response"], "{broken")
+        response = result['scenarios'][0]['decisions'][0]['response']
+        self.assertEqual(response['modelResponse'], '{broken')
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('No single executable command', state['resourceFeedback'])
 
-    def test_budget_limit_stops_correction_before_another_api_request(self):
-        budget = Budget(MODEL, 5, "USD")
+    def test_notes_still_respect_the_shared_request_budget(self):
+        budget = Budget(MODEL, 5, 'USD')
         budget.limit = budget.bound
-        agent, _, transport = api_agent(["{broken", action()], budget)
-        result = {"scenarios": []}
+        agent, _, transport = api_agent(['{broken', action()], budget)
+        result = {'scenarios': []}
         with self.assertRaises(LimitReached):
             self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
         self.assertEqual(len(transport.bodies), 1)
-        self.assertTrue(result["scenarios"][0]["rejectedResponses"])
+        self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], '{broken')
 
     def test_generic_infrastructure_error_is_not_retried(self):
         agent, _, transport = api_agent([InfrastructureError("transport failed"), action()])
@@ -682,28 +672,26 @@ class ScenarioTests(unittest.TestCase):
             {"type": "refusal", "refusal": "fixture"}]}]}
         with self.assertRaises(InfrastructureError) as raised:
             parse_action(response)
-        self.assertNotIsInstance(raised.exception, InvalidAgentResponse)
 
 
-    def test_correction_uses_a_fresh_screen_and_new_element_refs(self):
-        bad = action("tap", ref="@e1", checks=[dict(check(), requirementId="REQ-0001")])
-        agent, _, transport = api_agent([bad, action("tap", ref="@e2"), action(completion='blocked')])
+    def test_each_dispatched_action_returns_fresh_evidence_to_the_ai(self):
+        first = action('tap', ref='@e1', checks=[dict(check(), requirementId='REQ-0001')])
+        agent, _, transport = api_agent([first, action('tap', ref='@e2'), action(completion='blocked')])
         mobile = ChangingScreenMobile(self.root)
-        self.runner.run(mobile, self.build, {"scenarios": []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]["input"][1]["content"][0]["text"])
-        self.assertEqual(state["elements"][0]["ref"], "@e2")
-        taps = [arguments for name, arguments in mobile.calls if name.startswith("mobile_click")]
-        self.assertEqual(taps, [{"ref": "@e2"}])
+        self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['elements'][0]['ref'], '@e2')
+        self.assertEqual([args['ref'] for name, args in mobile.calls if name.startswith('mobile_click')], ['@e1', '@e2'])
 
-    def test_expired_deadline_prevents_a_correction_request(self):
-        transport = DeadlineTransport(["{broken", action()], self.control)
-        agent = Agent({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
-                      Budget(MODEL, 5, "USD"), time.time() + 30, transport=transport)
-        result = {"scenarios": []}
-        with self.assertRaisesRegex(LimitReached, "Whole-run time limit"):
+    def test_expired_deadline_prevents_another_turn_after_a_note(self):
+        transport = DeadlineTransport(['{broken', action()], self.control)
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic'}},
+            Budget(MODEL, 5, 'USD'), time.time() + 30, transport=transport)
+        result = {'scenarios': []}
+        with self.assertRaisesRegex(LimitReached, 'Whole-run time limit'):
             self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
         self.assertEqual(len(transport.bodies), 1)
-        self.assertEqual(len(result["scenarios"][0]["rejectedResponses"]), 1)
+        self.assertNotIn('rejectedResponses', result['scenarios'][0])
 
     def test_accepted_failure_survives_later_response_corrections(self):
         bad = action(checks=[dict(check(), requirementId="REQ-0001")])
@@ -712,46 +700,38 @@ class ScenarioTests(unittest.TestCase):
         self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
         self.assertEqual(result["scenarios"][0]["verdict"], "failed")
 
-    def test_correction_capture_error_is_not_retried(self):
-        transport = ScriptedTransport(["{broken", action()])
-        agent = Agent({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
-                      Budget(MODEL, 5, "USD"), time.time() + 30, transport=transport)
-        with self.assertRaisesRegex(InfrastructureError, "mask unavailable"):
-            self.runner.run(FailingRefreshMobile(self.root, transport), self.build, {"scenarios": []}, agent, lambda: None)
-        self.assertEqual(len(transport.bodies), 1)
+    def test_a_note_does_not_require_an_extra_format_correction_capture(self):
+        transport = ScriptedTransport(['{broken', action()])
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic'}},
+            Budget(MODEL, 5, 'USD'), time.time() + 30, transport=transport)
+        self.runner.run(FailingRefreshMobile(self.root, transport), self.build, {'scenarios': []}, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 2)
 
 
-    def test_activity_records_rejection_and_recovery_with_device_target(self):
+    def test_activity_has_no_response_format_rejection_phase(self):
         output = io.StringIO()
         activity = ActivityLog(self.root, self.redactor, output=output)
-        agent, _, _ = api_agent(["{broken", action()])
+        agent, _, _ = api_agent(['{broken', action()])
         self.create_runner(activity=activity).run(FakeMobile(self.root, elements=[]), self.build,
-                                                {"scenarios": []}, agent, lambda: None)
+            {'scenarios': []}, agent, lambda: None)
         rows = [json.loads(line) for line in activity.path.read_text().splitlines()]
-        attempts = [row for row in rows if row["operation"] == "AI response correction"]
-        self.assertEqual([row["status"] for row in attempts], ["rejected", "corrected"])
-        self.assertTrue(all(row["target"] == "Release" and row["device"] == "fixture" for row in attempts))
-        self.assertNotIn("{broken", output.getvalue())
+        self.assertFalse(any(row['operation'] == 'AI response correction' for row in rows))
+        self.assertNotIn('{broken', output.getvalue())
 
-    def test_rejected_diagnostic_survives_storage_failure_without_retry(self):
-        session = ScenarioSession({"target": "Release", "steps": [], "requirements": []},
-                                  "com.example.app", "com.example.app", [], b"masked")
-        recovery = DecisionRecovery({"instructions": "Explore"}, {}, self.redactor, self.control)
-        agent, _, transport = api_agent(["{broken", action()])
-        # An existing file cannot also be the evidence folder.
-        blocked_folder = self.root / "not-a-folder"
-        blocked_folder.write_text("fixture")
-        evidence = ScenarioEvidence(blocked_folder, self.root)
-        with self.assertRaises(OSError):
-            recovery.choose(FakeMobile(self.root), session, agent, evidence, lambda: None)
+    def test_note_does_not_create_a_rejected_response_screenshot(self):
+        session = ScenarioSession({'target': 'Release', 'steps': [], 'requirements': []},
+            'com.example.app', 'fixture', [BUTTON], b'masked')
+        recovery = DecisionRecovery(dict(instructions='Explore'), {}, self.redactor, self.control)
+        agent, _, transport = api_agent(['{broken'])
+        evidence = ScenarioEvidence(self.root / 'unused-evidence', self.root)
+        response, _ = recovery.choose(FakeMobile(self.root), session, agent, evidence, lambda: None)
+        self.assertEqual(response['action'], 'note')
+        self.assertNotIn('rejectedResponses', session.result)
         self.assertEqual(len(transport.bodies), 1)
-        self.assertEqual(session.result["rejectedResponses"][0]["response"], "{broken")
-        self.assertIn("evidenceError", session.result["rejectedResponses"][0])
 
     def test_incomplete_provider_response_is_not_a_correction_error(self):
         with self.assertRaises(InfrastructureError) as raised:
             parse_action({"status": "incomplete", "output": []})
-        self.assertNotIsInstance(raised.exception, InvalidAgentResponse)
 
 
     def test_unchanged_taps_are_replanned_without_executing_a_fourth_tap(self):
@@ -797,13 +777,12 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(len(result['decisions']), 2)
         self.assertEqual(len(result['steps']), 2)  # Reset evidence and the final check only.
 
-    def test_premature_completion_returns_unresolved_work_to_ai(self):
-        finish = action(completion='blocked', remaining=['Equipment unavailable'],
-            recovery=dict(id=0, decision='blocked', reason='The remaining control requires equipment'))
-        result, agent = self.run_scenario(FakeMobile(self.root), [action(), finish])
-        self.assertEqual(agent.calls[1][-1]['recoveryRequest']['kind'], 'completion')
+    def test_ai_finish_is_not_rejected_by_a_host_plan_evaluation(self):
+        result, agent = self.run_scenario(FakeMobile(self.root), [action()])
+        self.assertEqual(len(agent.calls), 1)
         self.assertEqual(result['completion'], 'incomplete')
-        self.assertEqual(result['recoveries'][0]['status'], 'blocked')
+        self.assertTrue(result['remaining'])
+        self.assertEqual(result['recoveries'], [])
 
     def test_ai_can_detect_a_loop_before_the_repetition_counter_does(self):
         request = action('recover', recovery=dict(id=-1, decision='replan', reason='I revisited the same menu'))
@@ -888,15 +867,14 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result['checks'][0]['status'], 'failed')
         self.assertEqual(result['recoveries'][0]['status'], 'blocked')
 
-    def test_invalid_recovery_acknowledgement_is_not_accepted_as_a_repetition_signal(self):
+    def test_recovery_metadata_does_not_trigger_format_exhaustion(self):
         tap = action('tap', ref='@e1')
-        bad = action('tap', ref='@e1', recovery=dict(id=999, decision='replan', reason='Invented request'))
-        agent, _, _ = api_agent([tap] * 3 + [bad] * 3)
+        response = action('tap', ref='@e1', recovery=dict(id=999, decision='replan', reason='AI note'))
+        agent, _, _ = api_agent([tap] * 3 + [response, action(completion='blocked')])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        with self.assertRaisesRegex(InvalidAgentResponse, 'exhausted after 3 attempts'):
-            self.runner.run(mobile, self.build, result, agent, lambda: None)
-        self.assertEqual(result['scenarios'][0]['recoveries'], [])
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertNotIn('rejectedResponses', result['scenarios'][0])
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
 
     def test_user_stop_prevents_an_action_after_ai_returns(self):

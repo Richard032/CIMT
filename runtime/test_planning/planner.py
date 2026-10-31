@@ -15,19 +15,6 @@ class TestPlanner:
         self.context_memory = ContextMemory()
         self.available = None
 
-    def validate(self, action, elements, recovering=False):
-        self.plan.validate(action['planUpdates'], action['planStepId'], self.memory.map.states,
-                           finishing=action['action'] in ['done', 'recall', 'recover'])
-        task_ids = {task['id'] for task in self.plan.tasks} | {row['id'] for row in action['planUpdates']}
-        self.memory.validate_updates(action, elements, task_ids)
-        self.plan.validate_checks(action.get('checks', []), action['planUpdates'])
-        available = dict(self.available or self.collections())
-        tasks = {row['id']: row for row in available['tasks']}
-        tasks.update({row['id']: row for row in action['planUpdates']})
-        available['tasks'] = list(tasks.values())
-        self.context_memory.validate(action['context'], available)
-        if not recovering:
-            self.memory.validate(elements, action, self.instructions)
 
     def observe(self, elements):
         self.memory.observe(elements)
@@ -41,7 +28,7 @@ class TestPlanner:
         self.plan.record_checks(checks)
 
     def accept(self, action, elements):
-        # Validation happens before any candidate is allowed to change the plan or map.
+        # These are AI-owned records. Their content does not approve device commands.
         self.plan.update(action['planUpdates'], action['planStepId'])
         self.memory.update(action, elements)
         self.memory.plan = list(action['remaining'])
@@ -83,6 +70,7 @@ class TestPlanner:
         context['summary'] = (self.context_memory.selection or {}).get('summary', '')
         context['selection'] = self.context_memory.saved()
         context['catalogue'] = {name: len(rows) for name, rows in self.available.items()}
+        context['resourceFeedback'] = list(self.context_memory.unavailable)
         return context
 
     def saved(self):

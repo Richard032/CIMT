@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
-from check_results import scenario_verdict, validate_checks
+from check_results import scenario_verdict
 from action_prompt import ActionPromptBuilder
 from check_recorder import CheckRecorder
 from errors import InfrastructureError
@@ -33,9 +33,6 @@ def check(status="passed", requirement_id="REQ-0001", quote=""):
     }
 
 
-def validate(value):
-    # The recorder adds the step; it is not a field supplied by the model.
-    validate_checks([{key: item for key, item in value.items() if key != "step"}])
 
 
 class RequirementResultTests(unittest.TestCase):
@@ -48,15 +45,13 @@ class RequirementResultTests(unittest.TestCase):
         self.assertEqual(self.rows[0]["text"], DEFINITION["text"])
 
     def test_known_id_updates_the_matching_item(self):
-        RequirementResults.validate([check()], self.rows, "")
         RequirementResults.record(self.rows, [check()])
         self.assertEqual(self.rows[0]["status"], "passed")
         self.assertEqual(self.rows[0]["step"], 2)
 
-    def test_unknown_id_is_rejected_before_recording(self):
-        with self.assertRaises(InfrastructureError):
-            RequirementResults.validate([check(requirement_id="UNKNOWN")], self.rows, "")
-        self.assertEqual(self.rows[0]["status"], "not tested")
+    def test_unknown_id_does_not_update_a_different_catalogue_item(self):
+        RequirementResults.record(self.rows, [check(requirement_id='UNKNOWN')])
+        self.assertEqual(self.rows[0]['status'], 'not tested')
 
     def test_failed_result_cannot_be_erased_by_a_retry(self):
         RequirementResults.record(self.rows, [check("failed")])
@@ -68,7 +63,6 @@ class RequirementResultTests(unittest.TestCase):
         failed = check("failed")
         override = check("overridden", quote="Explore only")
         objective = {"source": "instructions", "subject": "Objective", "status": "passed"}
-        RequirementResults.validate([override], self.rows, "Explore only")
         RequirementResults.record(self.rows, [failed, override])
         self.assertEqual(self.rows[0]["status"], "overridden")
         self.assertEqual(
@@ -90,27 +84,23 @@ class RequirementResultTests(unittest.TestCase):
         RequirementResults.record(self.rows, [check()])
         self.assertEqual(RequirementResults.unresolved(self.rows), 0)
 
-    def test_override_needs_an_exact_quote_from_instructions(self):
-        with self.assertRaises(InfrastructureError):
-            RequirementResults.validate(
-                [check("overridden", quote="invented")], self.rows, "Explore only"
-            )
+    def test_override_interpretation_is_ai_owned(self):
+        RequirementResults.record(self.rows, [check('overridden', quote='AI interpretation')])
+        self.assertEqual(self.rows[0]['instructionQuote'], 'AI interpretation')
 
     def test_valid_override_retains_reason_and_instruction(self):
         value = check("overridden", quote="Explore only")
-        validate(value)
-        RequirementResults.validate([value], self.rows, "Explore only")
         RequirementResults.record(self.rows, [value])
         self.assertEqual(self.rows[0]["instructionQuote"], "Explore only")
         self.assertEqual(self.rows[0]["status"], "overridden")
 
-    def test_override_without_quote_is_rejected(self):
-        with self.assertRaises(InfrastructureError):
-            validate(check("overridden"))
+    def test_sparse_override_is_stored_without_response_evaluation(self):
+        RequirementResults.record(self.rows, [check('overridden')])
+        self.assertEqual(self.rows[0]['status'], 'overridden')
 
-    def test_a_requirement_check_cannot_omit_its_id(self):
-        with self.assertRaises(InfrastructureError):
-            validate(check(requirement_id=""))
+    def test_missing_requirement_id_leaves_the_catalogue_unresolved(self):
+        RequirementResults.record(self.rows, [check(requirement_id='')])
+        self.assertEqual(self.rows[0]['status'], 'not tested')
 
     def test_subject_changes_do_not_change_requirement_identity(self):
         RequirementResults.record(self.rows, [check("failed")])
@@ -215,21 +205,13 @@ class MappingPromptTests(unittest.TestCase):
         RequirementResults.record(rows, [check()])
         self.assertEqual(RequirementResults.unresolved(rows), 0)
 
-    def test_model_receives_ids_source_text_and_current_statuses(self):
+    def test_model_receives_sources_and_resources_without_a_response_schema_gate(self):
         rows = RequirementResults.initial([DEFINITION])
-        body = ActionPromptBuilder("fixture").build(
-            "Explore", "Value stays saved.", "", [], b"masked", [], [], {}, rows
-        )
-        state = json.loads(body["input"][1]["content"][0]["text"])
-        self.assertEqual(state["requirementResults"], rows)
-        variants = body["text"]["format"]["schema"]["properties"]["checks"]["items"]["anyOf"]
-        for variant in variants:
-            self.assertIn("requirementId", variant["required"])
-            self.assertIn("instructionQuote", variant["required"])
-        self.assertEqual(variants[0]["properties"]["source"]["enum"], ["instructions"])
-        self.assertEqual(variants[0]["properties"]["requirementId"]["enum"], [""])
-        self.assertEqual(variants[1]["properties"]["source"]["enum"], ["requirements"])
-        self.assertEqual(variants[1]["properties"]["requirementId"]["pattern"], r"\S")
+        body = ActionPromptBuilder('fixture').build('Explore', 'Value stays saved.', '', [], b'masked', [], [], {}, rows)
+        state = json.loads(body['input'][1]['content'][0]['text'])
+        self.assertEqual(state['requirementResults'], rows)
+        self.assertIn('tap', state['commandResources']['actions'])
+        self.assertNotIn('text', body)
 
 
 class MemoryEvidence:
@@ -281,10 +263,10 @@ class CheckRecorderTests(unittest.TestCase):
         self.assertIn("storage failed", row["evidenceError"])
         self.assertEqual(self.published[0], "failed")
 
-    def test_invalid_mapping_cannot_partially_update_the_ledger(self):
-        with self.assertRaises(InfrastructureError):
-            self.record(check(requirement_id="UNKNOWN"))
-        self.assertEqual(self.session.result["checks"], [])
+    def test_unknown_reference_is_kept_without_updating_a_different_requirement(self):
+        self.record(check(requirement_id='UNKNOWN'))
+        self.assertEqual(self.session.result['checks'][0]['requirementId'], 'UNKNOWN')
+        self.assertEqual(self.session.result['requirements'][0]['status'], 'not tested')
 
 
 if __name__ == "__main__":

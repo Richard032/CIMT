@@ -1,5 +1,9 @@
 # Complete requirement mapping
 
+## AI replies and resource exchange
+
+FR-96 / AC-66 supersede the earlier FR-65/AC-39 response-correction contract. runtime/ai_exchange/replies.py binds explicit commands and preserves full original text. DecisionRecovery supplies resources without response evaluation. CheckRecorder and TestPlanner store optional AI records; unknown joins remain unbound. ScenarioRunner keeps notes/feedback and honors AI finish while reporting unresolved work. PlanningHtmlRenderer displays redacted/escaped full replies. Existing suites cover minimal commands, more than three notes, optional metadata, unavailable addresses, shared limits and privacy. See [AI Resource Exchange](ai-resource-exchange.md).
+
 ## Stopping scope and layer folders
 
 FR-95 / AC-65 map to ActionExecutor's ref forwarding, typed DeviceActionError parsing, ScenarioRunner's action feedback and separate requested-target identities in exploration/crash records. Existing tests exercise absent/disabled targets, AI-selected follow-up after an adapter rejection, unchanged credential protections and distinct unknown refs. These checks do not claim that a stale ref can be resolved by the native adapter.
@@ -32,17 +36,17 @@ Each objective gets a fresh result for every catalogue item. All start as not te
 
 Every check names a stable taskId matching its source. Requirement checks also use a known requirementId; instruction checks use an empty requirement ID. Subject text is not identity. Each recorded check gets a host ID and affects planning status once. Each decided check includes expected and observed behavior. The host supplies its step number and links the same masked screen used for that decision. CheckRecorder records and publishes the result before image storage, so a storage error cannot erase a known failure. Original check history remains available even when the current requirement status changes.
 
-Check redaction preserves status, source, and requirement ID while removing secrets from observations and other text. The recorder validates the exact redacted check before it reaches the verdict policy. Final JSON/HTML retains IDs, statuses, hashes, and evidence links without running text replacement over serialized data. See [redaction](redaction.md).
+Check redaction preserves known status/source words and canonical requirement IDs while removing secrets from other supplied text. The recorder stores AI findings without a response-format or semantic gate. Final JSON/HTML retains IDs, statuses, hashes, and evidence links without running text replacement over serialized data. See [redaction](redaction.md).
 
 | Status | Required information and behavior |
 | --- | --- |
 | passed | Expected and observed behavior support the complete catalogue item. |
-| failed | Expected and observed behavior contradict it. A later successful retry cannot erase the finding. A validated instruction override changes the applicable expectation, while retaining the original observation in history. |
+| failed | Expected and observed behavior contradict it. A later successful retry cannot erase the finding. An AI-declared instruction override changes the applicable expectation, while retaining the original observation in history. |
 | not tested | Explain why no evaluation was performed. |
 | inconclusive | Explain why available observations cannot establish a decision. Later evidence may resolve it. |
-| overridden | Explain the instruction/requirement conflict and supply an exact, nonempty instructionQuote from the testing instructions. Judge against that instruction; later checks do not cancel a valid override. App crashes and instruction failures still fail. |
+| overridden | Explain the instruction/requirement conflict and supply an exact, nonempty instructionQuote from the testing instructions. Judge against that instruction; later checks retain the recorded override. App crashes and instruction failures still fail. |
 
-Unknown IDs and invalid override references stop as an infrastructure/response error. No runtime question is asked, and missing evidence never becomes an invented pass. Checking that a quote exists establishes its source; the meaning of the conflict is still the model's interpretation and is visible for review.
+FR-96 removes host evaluation of source links and quotations. Unknown IDs remain unbound and do not update unrelated catalogue entries or block an action. Original replies remain inspectable. The AI interprets conflicts, reports evidence and owns the assessment; CIMT retains unresolved coverage and known failures without inventing a pass.
 
 ## Coverage matrix and outcomes
 

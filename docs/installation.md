@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.32
+Version: 0.33
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1102,3 +1102,16 @@ After the source increment, the product owner requested the latest main merged i
 Verified the local tracked source against that branch revision, published the matching host and installed it with the complete Python runtime and planning package under the machine run lock. The update changed 23 files and verified all 49 installation files byte-for-byte. The existing build worker already matched. Installed CLI help, worker imports and the context/recovery response-schema check passed without a device operation or API request. The source increment's earlier 669 offline checks remain its unit and fixture evidence; they were not rerun during installation.
 
 Backup: `/private/tmp/cimt-before-ai-context-gn6y7ons`. Installation receipt with file hashes: `/private/tmp/cimt-ai-context-install/receipt.json`. Private configuration, retained app builds, historical reports and third-party tools were preserved. No mobile test or replay was started by this installation. Live exploration quality and recovery acceptance remain to be verified separately.
+
+## 44. Execution Stopping Policy installation — 31 October 2026
+
+Installed PR #6 revision `4125658daa7cbfac2cbab1f3f2bd278bb20495be` after verifying all 240 tracked local source files against its public Git tree. The host publication succeeded. Under the machine run lock, backed up the affected installation files and replaced nine runtime files, including the complete new stopping_policy/ package. All 51 host/runtime/license installation files matched their prepared source bytes. Existing private inputs, retained app builds, reports, build workers and third-party tools were preserved.
+
+Installed public CLI help, worker imports, the context/recovery schema and the local app-launch/global infrastructure stopping decisions passed offline checks. The local installation receipt retains backup location and file hashes. No mobile test, replay, device action or OpenAI request was started by this installation. The earlier 372 offline regression checks remain source-validation evidence; live two-device acceptance is still pending.
+
+
+## 45. AI Resource Exchange source update
+
+Install the matching published host, top-level runtime modules and complete ai_exchange/, test_planning/ and stopping_policy/ packages together. scripts/install-cimt-runtime.sh includes these packages. No new dependency, credential, YAML field or service is needed. The matching HTML renderer shows full redacted replies and resource feedback; a runtime-only replacement would omit that view.
+
+This update removes response-format/semantic evaluation and the three-response correction stop. Existing source/offline tests use no real devices or paid inference. The update is not installed by this source task. Revision 4125658 remains the last recorded installed revision; the later action-ownership and resource-exchange changes require a separate requested installation. Existing private inputs, retained apps and reports remain untouched. See [AI Resource Exchange](ai-resource-exchange.md).

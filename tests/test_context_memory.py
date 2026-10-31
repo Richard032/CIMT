@@ -13,7 +13,7 @@ from test_planning.planner import TestPlanner
 from test_planning.test_plan import TestPlan
 from request_context import prepare_context
 from redaction import Redactor
-from errors import InvalidAgentResponse, NoProgressAction
+from errors import NoProgressAction
 from budget import Budget
 from test_runtime_components import action, api_agent
 from evidence import ScenarioEvidence
@@ -37,7 +37,6 @@ class ContextSelectionTests(unittest.TestCase):
 
     def test_ai_can_keep_an_old_action_and_omit_everything_else(self):
         chosen = selection('Keep the first failure', records=[dict(collection='actions', id='0')])
-        self.memory.validate(chosen, self.records)
         self.memory.accept(chosen)
         projected = self.memory.project(self.records)
         self.assertEqual(projected['actions'], [self.records['actions'][0]])
@@ -54,13 +53,15 @@ class ContextSelectionTests(unittest.TestCase):
         self.memory.accept(selection(include_all=['actions']))
         self.assertEqual(len(self.memory.project(self.records)['actions']), 60)
 
-    def test_unknown_addresses_are_rejected_instead_of_silently_omitted(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'Unknown context record'):
-            self.memory.validate(selection(records=[dict(collection='actions', id='999')]), self.records)
+    def test_unknown_address_returns_resource_feedback(self):
+        self.memory.accept(selection(records=[dict(collection='actions', id='999')]))
+        self.assertEqual(self.memory.project(self.records)['actions'], [])
+        self.assertIn('actions/999', self.memory.unavailable[0])
 
-    def test_bad_collection_shape_is_a_correctable_response_error(self):
-        with self.assertRaises(InvalidAgentResponse):
-            self.memory.validate(selection(records=[dict(collection='unknown', id='0')]), self.records)
+    def test_unknown_collection_returns_resource_feedback(self):
+        self.memory.accept(selection(records=[dict(collection='unknown', id='0')]))
+        self.memory.project(self.records)
+        self.assertEqual(self.memory.unavailable, ['Collection not available: unknown'])
 
     def test_ai_selection_does_not_keep_shared_mutable_records(self):
         chosen = selection('A useful summary', include_all=['actions'])
@@ -70,18 +71,17 @@ class ContextSelectionTests(unittest.TestCase):
 
     def test_ai_can_request_an_exact_range_to_discover_older_record_ids(self):
         chosen = selection(records=[dict(collection='actions', id='@3:7')])
-        self.memory.validate(chosen, self.records)
         self.memory.accept(chosen)
         self.assertEqual(self.memory.project(self.records)['actions'], self.records['actions'][3:7])
 
-    def test_out_of_range_requests_are_rejected_instead_of_truncated(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'outside its collection'):
-            self.memory.validate(selection(records=[dict(collection='actions', id='@55:70')]), self.records)
+    def test_out_of_range_request_is_reported_without_partial_selection(self):
+        self.memory.accept(selection(records=[dict(collection='actions', id='@55:70')]))
+        self.assertEqual(self.memory.project(self.records)['actions'], [])
+        self.assertTrue(self.memory.unavailable)
 
     def test_ai_can_retain_its_selection_without_repeating_the_summary(self):
         chosen = selection('Remember the failed save', records=[dict(collection='actions', id='0')])
         self.memory.accept(chosen)
-        self.memory.validate(None, self.records)
         self.memory.accept(None)
         self.assertEqual(self.memory.saved(), chosen)
 
@@ -107,11 +107,11 @@ class ContextCapacityTests(unittest.TestCase):
         state = self.state()
         self.assertEqual(prepare_context(state, allowance=10000), state)
 
-    def test_oversized_context_cannot_dispatch_a_model_action(self):
+    def test_missing_context_resources_do_not_veto_the_ai_command(self):
         agent, _, _ = api_agent([action('tap', ref='@e1')])
-        history = [dict(action='tap', observation='x' * 70000)]
-        with self.assertRaisesRegex(InvalidAgentResponse, 'Context reduction is pending'):
-            agent.choose('Explore', '', '', [BUTTON], b'masked', history, [], {})
+        result = agent.choose('Explore', '', '', [BUTTON], b'masked',
+            [dict(action='tap', observation='x' * 70000)], [], {})
+        self.assertEqual(result['action'], 'tap')
 
     def test_ai_can_explain_a_blocker_instead_of_spending_on_more_reduction_requests(self):
         finish = action(completion='blocked', checks=[], remaining=['Cannot select enough source context'])
@@ -189,10 +189,15 @@ class PlanningRegressionTests(unittest.TestCase):
         self.assertEqual(plan.tasks[0]['status'], 'blocked')
         self.assertEqual(plan.tasks[0]['reason'], 'Equipment unavailable')
 
-    def test_check_must_match_its_task_source(self):
+    def test_unbound_check_does_not_update_a_different_task(self):
         planner = TestPlanner(INSTRUCTIONS)
-        with self.assertRaisesRegex(InvalidAgentResponse, 'taskId'):
-            planner.validate(decision(checks=[check(taskId=99)]), [BUTTON])
+        planner.record_checks([check(taskId=99)])
+        self.assertEqual(planner.plan.tasks[0]['result'], 'not tested')
+
+    def test_mismatched_source_link_does_not_update_an_unrelated_task(self):
+        planner = TestPlanner(INSTRUCTIONS)
+        planner.record_checks([check(taskId=0, source='requirements', requirementId='REQ-0001')])
+        self.assertEqual(planner.plan.tasks[0]['result'], 'not tested')
 
     def test_changing_passive_text_does_not_create_duplicate_button_paths(self):
         planner = TestPlanner(INSTRUCTIONS)
@@ -209,7 +214,7 @@ class PlanningRegressionTests(unittest.TestCase):
             after = [BUTTON, dict(type='Text', identifier='status', text=str(number + 1))]
             planner.record(before, after, decision(), {})
         with self.assertRaises(NoProgressAction):
-            planner.validate(decision(), after)
+            planner.memory.check_repetition(after, decision())
 
     def test_configuration_learning_preserves_the_observed_navigation_route(self):
         mapping = ApplicationMap()

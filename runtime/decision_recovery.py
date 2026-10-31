@@ -1,15 +1,11 @@
-"""Correct invalid AI decisions before recording checks or executing actions."""
+"""Provide resources and loop feedback without evaluating AI response format."""
 
 import json
-from action_prompt import validate_action
-from errors import InvalidAgentResponse, NoProgressAction
-from requirement_results import RequirementResults
-
-MAX_DECISION_ATTEMPTS = 3
+from errors import NoProgressAction
 
 
 class DecisionRecovery:
-    """Owns bounded response correction. It never executes a device action."""
+    """Supplies evidence and recovery information. It never approves a plan."""
 
     def __init__(self, inputs, config, redactor, control, activity=None):
         self.inputs = inputs
@@ -19,40 +15,15 @@ class DecisionRecovery:
         self.activity = activity
 
     def choose(self, mobile, session, agent, evidence, publish):
-        feedback = []
-        attempt = 0
-        while True:
-            self.control.check()
-            action = None
+        self.control.check()
+        feedback = session.resource_feedback
+        action = self._request(agent, session, feedback, mobile.device, evidence)
+        if session.recovery.pending is None:
             try:
-                action = self._request(agent, session, feedback, mobile.device, evidence)
-                validate_action(action)
-                RequirementResults.validate(
-                    action["checks"], session.result["requirements"], self.inputs["instructions"]
-                )
-                session.recovery.validate(action)
-                session.planner.validate(action, session.elements, recovering=session.recovery.pending is not None)
+                session.planner.memory.check_repetition(session.elements, action)
             except NoProgressAction as error:
-                # The response is valid. Save its checks before requesting fresh recovery evidence.
                 return action, str(error)
-            except InvalidAgentResponse as error:
-                attempt += 1
-                rejected = self._record_rejection(
-                    session, action if action is not None else error.response,
-                    error, attempt, evidence, publish,
-                )
-                self._event(mobile, session, "rejected", attempt, str(error))
-                if attempt == MAX_DECISION_ATTEMPTS:
-                    raise InvalidAgentResponse(
-                        "AI response correction exhausted after " + str(MAX_DECISION_ATTEMPTS)
-                        + " attempts: " + str(error)
-                    ) from error
-                feedback.append({"error": rejected["error"], "response": rejected["response"]})
-                self._refresh(mobile, session, publish, evidence)
-                continue
-            if feedback:
-                self._event(mobile, session, "corrected", attempt + 1, "Response accepted; no action repeated")
-            return action, None
+        return action, None
 
     def request_recovery(self, mobile, session, kind, reason, publish, evidence=None):
         session.recovery.request(kind, reason, len(session.result['steps']))
@@ -95,28 +66,6 @@ class DecisionRecovery:
             "are scheduled independently; do not claim they were or were not tested."
         )
 
-    def _record_rejection(self, session, response, error, attempt, evidence, publish):
-        rejected = {
-            "attempt": attempt,
-            "step": len(session.result["steps"]),
-            "status": "unaccepted",
-            "error": self.redactor.text(str(error)),
-            # Invalid metadata is untrusted text too; do not use the typed action redactor.
-            "response": self.redactor.object(response),
-        }
-        records = session.result.setdefault("rejectedResponses", [])
-        records.append(rejected)
-        publish()
-        try:
-            rejected["screenshot"] = evidence.save_image(
-                "rejected-" + str(len(records)).zfill(4) + ".png", session.image
-            )
-        except Exception as error:
-            rejected["evidenceError"] = self.redactor.text(str(error))
-            publish()
-            raise
-        publish()
-        return rejected
 
     def _refresh(self, mobile, session, publish, evidence=None):
         self.control.check()
@@ -129,11 +78,3 @@ class DecisionRecovery:
             evidence.save_step('observation-' + str(len(evidence.images)).zfill(4), session.elements, session.image)
             session.result['screenshots'] = list(evidence.images.values())
         publish()
-
-    def _event(self, mobile, session, status, attempt, message):
-        if self.activity:
-            self.activity.write(
-                "AI response correction", status,
-                "Attempt " + str(attempt) + "/" + str(MAX_DECISION_ATTEMPTS) + ": " + message,
-                mobile.device, session.result["target"],
-            )

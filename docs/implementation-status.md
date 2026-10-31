@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## AI Resource Exchange, no response evaluation — 31 October 2026
+
+Implemented FR-96 / AC-66 and revised FR-65/FR-83 and related acceptance criteria. The separate runtime/ai_exchange/ package reads one command mechanically and retains complete AI reply text. Removed the strict provider schema, whole-response semantic/format evaluators and three-attempt exhaustion. Optional checks, plans, paraphrased quotations, context and unknown IDs do not approve commands. Unbound records do not update unrelated catalogue items. Prose/multiple objects become notes with resource feedback, without a guessed device action. Notes leave recovery pending and do not enter device action history. AI finish is honored; unresolved work remains incomplete in the report rather than forcing another host-selected decision.
+
+Instructions, requirements, current masked evidence, AI-selected history, command descriptions and actual resource outcomes remain available. Mechanical execution, privacy, shared limits and real provider/transport failures remain. Full redacted replies and feedback are visible in HTML. No function-calling migration, new model/service/dependency, configuration change, installation or mobile run is included. Earlier response-correction entries below are historical and superseded by this contract. See [AI Resource Exchange](ai-resource-exchange.md).
+
+Verification: 343 Python unit tests, 308 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks passed (695 checks). Four build-contract and four example-build checks passed. The separate output-layout fixture is blocked by its missing fake Mobile MCP module; it is not counted as passing. The matching host publication and installer shell syntax passed. Requirements v0.30, architecture v0.36, product v0.31 and installation v0.33 describe the change. The latest source is not installed; live exploration quality, model compliance and cost remain separate qualification work.
+
 ## AI-selected actions and mechanical execution — 31 October 2026
 
 Implemented FR-95 / AC-65 and revised FR-84. Ordinary taps no longer require a ref present or enabled in the latest UI snapshot. AI may use current evidence, earlier observations, its plan or expected application behavior. CIMT forwards the selected ref or valid coordinates without choosing a substitute target. The native adapter still determines whether a supplied ref resolves; CIMT cannot make an expired adapter ref valid.

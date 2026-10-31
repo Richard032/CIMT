@@ -3,7 +3,6 @@
 from collections import deque
 from copy import deepcopy
 from .screen_model import app_elements, control_identity, identity, input_state, progress_identity, screen_label, view_identity
-from errors import InvalidAgentResponse
 
 
 class ApplicationMap:
@@ -37,21 +36,6 @@ class ApplicationMap:
             self.states[state]['observations'].append(observation)
         return state
 
-    def validate_configuration(self, updates, elements):
-        current = {item.get('ref'): item for item in app_elements(elements)}
-        if len({row['name'] for row in updates}) != len(updates) or len({row['ref'] for row in updates}) != len(updates):
-            raise InvalidAgentResponse('Configuration observations must use unique names and refs')
-        for row in updates:
-            element = current.get(row['ref'])
-            if not element or not row['name'].strip() or not row['value'].strip():
-                raise InvalidAgentResponse('Configuration observations need a current ref, name and visible value')
-            values = [str(element.get(key, '')) for key in ['text', 'label', 'value']]
-            values += [str(element[key]).lower() for key in ['checked', 'selected'] if key in element]
-            if row['value'] not in values or '<masked>' in row['value'] or '<redacted>' in row['value']:
-                raise InvalidAgentResponse('Configuration value must match the referenced current element')
-            control = control_identity(element)
-            if any(name != row['name'] and old['control'] == control for name, old in self.configuration.items()):
-                raise InvalidAgentResponse('Use the existing configuration name for this observed control')
 
     def configure(self, updates, elements):
         source = self.observe(elements)
@@ -59,6 +43,8 @@ class ApplicationMap:
             and self.configuration[row['name']]['value'] != row['value'] for row in updates)
         current = {item.get('ref'): item for item in elements}
         for row in updates:
+            if row['ref'] not in current:
+                continue
             self.configuration[row['name']] = dict(value=row['value'],
                 control=control_identity(current[row['ref']]), observedAt=source)
         destination = self.observe(elements)

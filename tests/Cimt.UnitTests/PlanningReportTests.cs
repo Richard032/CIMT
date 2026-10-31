@@ -6,6 +6,30 @@ namespace Cimt.UnitTests;
 public sealed class PlanningReportTests
 {
     [Fact]
+    public async Task AiRepliesAreVisibleEscapedAndRedactedWithoutFormatJudgments()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var context = Context();
+        context = context with { Result = JsonSerializer.SerializeToElement(new
+        {
+            testPlan = context.Result.GetProperty("testPlan"),
+            decisions = new[] { new { id = 0, response = new
+            {
+                action = "note", modelResponse = "<script>synthetic-credential</script>",
+                resourceFeedback = "No device command dispatched"
+            } } }
+        }) };
+        var html = new PlanningHtmlRenderer(fixture.State.Configuration).Render(context);
+        Assert.Contains("AI replies and resource feedback", html);
+        Assert.Contains("No device command dispatched", html);
+        Assert.Contains("&lt;script&gt;", html);
+        Assert.DoesNotContain("<script>", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+        Assert.DoesNotContain("rejected", html);
+    }
+
+    [Fact]
     public async Task ReportSeparatesTestResultsFromVisitedPaths()
     {
         using var fixture = new DiagnosticFixture();

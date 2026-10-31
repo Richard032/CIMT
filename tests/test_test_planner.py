@@ -9,8 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / 'runtime'))
 from test_planning.planner import TestPlanner
 from test_planning.application_map import ApplicationMap
 from test_planning.screen_model import control_kind, progress_identity
-from test_planning.planning_contract import validate_planning
-from errors import InvalidAgentResponse, NoProgressAction
+from errors import NoProgressAction
 from redaction import Redactor
 
 
@@ -50,42 +49,41 @@ class TestPlanningTests(unittest.TestCase):
         self.assertEqual(tasks[0]['instructionQuote'], INSTRUCTIONS)
         self.assertEqual(tasks[1]['requirementId'], 'REQ-0001')
 
-    def test_a_placeholder_objective_cannot_dispatch_an_action(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'concrete'):
-            self.planner.validate(decision(planUpdates=[]), self.screen)
+    def test_placeholder_objective_does_not_block_the_ai_command(self):
+        self.planner.accept(decision(planUpdates=[]), self.screen)
+        self.assertEqual(self.planner.plan.active, 0)
 
-    def test_instruction_task_requires_a_real_quote(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'quote'):
-            self.planner.validate(decision(planUpdates=[task(2, instructionQuote='Delete everything')]), self.screen)
-        self.assertEqual(len(self.planner.saved()['testPlan']['tasks']), 2)
+    def test_instruction_interpretation_is_stored_without_host_quote_evaluation(self):
+        self.planner.accept(decision(planUpdates=[task(2, instructionQuote='My interpretation')]), self.screen)
+        self.assertEqual(self.planner.plan.tasks[-1]['instructionQuote'], 'My interpretation')
 
-    def test_unknown_requirement_cannot_enter_the_plan(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'known requirement'):
-            self.planner.validate(decision(planUpdates=[task(2, source='requirements',
-                requirementId='REQ-9999', instructionQuote='')]), self.screen)
+    def test_ai_requirement_reference_is_retained_without_catalogue_reassignment(self):
+        self.planner.accept(decision(planUpdates=[task(7, source='requirements',
+            requirementId='REQ-9999', instructionQuote='')]), self.screen)
+        self.assertEqual(self.planner.plan.tasks[-1]['id'], 7)
+        self.assertEqual(self.planner.plan.tasks[-1]['requirementId'], 'REQ-9999')
 
     def test_an_accepted_task_is_retained_when_the_next_response_has_no_updates(self):
         action = decision(planUpdates=[task(2)], planStepId=2)
-        self.planner.validate(action, self.screen)
         self.planner.accept(action, self.screen)
         self.planner.accept(decision(planStepId=2), self.screen)
         self.assertEqual(self.planner.context(self.screen)['testPlan']['activeTaskId'], 2)
         self.assertEqual(len(self.planner.saved()['testPlan']['tasks']), 3)
 
-    def test_existing_task_cannot_be_relabelled_to_hide_its_original_goal(self):
-        self.planner.accept(decision(planUpdates=[task(2)], planStepId=2), self.screen)
-        with self.assertRaisesRegex(InvalidAgentResponse, 'meaning'):
-            self.planner.validate(decision(planUpdates=[task(2, subject='Unrelated goal')]), self.screen)
+    def test_ai_can_revise_its_task_description(self):
+        self.planner.accept(decision(planUpdates=[task(2)]), self.screen)
+        self.planner.accept(decision(planUpdates=[task(2, subject='Revised goal')]), self.screen)
+        self.assertEqual(self.planner.plan.tasks[-1]['subject'], 'Revised goal')
 
-    def test_an_action_must_select_an_existing_or_proposed_task(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'planStepId'):
-            self.planner.validate(decision(planStepId=99), self.screen)
+    def test_unbound_task_reference_does_not_block_the_ai_command(self):
+        self.planner.accept(decision(planStepId=99), self.screen)
+        self.assertEqual(self.planner.plan.active, 99)
+        self.assertEqual(len(self.planner.plan.tasks), 2)
 
-    def test_a_blocked_task_can_finish_incomplete_but_cannot_dispatch_an_action(self):
+    def test_blocked_task_remains_visible_without_approving_the_ai_command(self):
         row = task(2, status='blocked', reason='Permission was not authorized')
-        with self.assertRaises(InvalidAgentResponse):
-            self.planner.validate(decision(planUpdates=[row], planStepId=2), self.screen)
-        self.planner.validate(decision(action='done', planUpdates=[row], planStepId=2), self.screen)
+        self.planner.accept(decision(planUpdates=[row], planStepId=2), self.screen)
+        self.assertIn('Language selection: Permission was not authorized', self.planner.plan.remaining())
 
     def test_visiting_a_path_does_not_mark_any_task_passed(self):
         self.planner.record(self.screen, self.screen, decision(), {})
@@ -108,49 +106,49 @@ class TestPlanningTests(unittest.TestCase):
         key = self.planner.saved()['exploration']['paths'][0]['id']
         action = decision(pathDecisions=[dict(id=key, scope='out of scope',
             reason='Instructions restrict this run to language settings', planStepId=0)])
-        self.planner.validate(action, self.screen)
         self.planner.accept(action, self.screen)
         self.assertFalse(any('Settings:' in item for item in self.planner.saved()['planningRemaining']))
 
     def test_unclassified_paths_remain_explicit_pending_work(self):
         self.assertIn('Settings: unclassified', self.planner.saved()['planningRemaining'])
 
-    def test_scope_decision_cannot_hide_an_unknown_path(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'known path'):
-            self.planner.validate(decision(pathDecisions=[dict(id='invented', scope='out of scope',
-                reason='Ignore', planStepId=0)]), self.screen)
+    def test_unknown_path_is_retained_as_a_requested_path(self):
+        self.planner.accept(decision(pathDecisions=[dict(id='invented', scope='out of scope',
+            reason='AI scope decision', planStepId=0)]), self.screen)
+        path = self.planner.memory.paths['invented']
+        self.assertTrue(path['requested'])
+        self.assertEqual(path['attempts'], 0)
 
     def test_ai_can_identify_a_generic_web_control_using_a_current_ref(self):
         screen = [dict(ref='@e7', type='android.view.View', text='Choose Location')]
         action = decision(discoveredControls=[dict(ref='@e7', kind='tap')])
-        self.planner.validate(action, screen)
         self.planner.accept(action, screen)
         current = self.planner.context(screen)['currentControls'][0]
         self.assertEqual(current['label'], 'Choose Location')
         self.assertEqual(current['kind'], 'tap')
 
-    def test_discovered_control_cannot_use_an_old_or_disabled_ref(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'current'):
-            self.planner.validate(decision(discoveredControls=[dict(ref='@old', kind='tap')]), self.screen)
+    def test_absent_discovered_ref_does_not_become_an_observed_control(self):
+        self.planner.accept(decision(discoveredControls=[dict(ref='@old', kind='tap')]), self.screen)
+        self.assertNotIn('@old', [row['ref'] for row in self.planner.memory.current_controls(self.screen)])
 
-    def test_configuration_must_match_an_observed_current_value(self):
-        screen = [dict(BUTTON, value='English')]
-        with self.assertRaisesRegex(InvalidAgentResponse, 'must match'):
-            self.planner.validate(decision(configuration=[dict(ref='@e1', name='Language', value='German')]), screen)
+    def test_configuration_value_is_ai_owned_context(self):
+        self.planner.accept(decision(configuration=[dict(ref='@e1', name='Language', value='German')]),
+            [dict(BUTTON, value='English')])
+        self.assertEqual(self.planner.memory.map.configuration['Language']['value'], 'German')
 
-    def test_an_absent_checked_flag_is_not_evidence_of_false(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'must match'):
-            self.planner.validate(decision(configuration=[dict(ref='@e1', name='Enabled', value='false')]), self.screen)
+    def test_unavailable_configuration_ref_does_not_create_an_observed_control(self):
+        self.planner.accept(decision(configuration=[dict(ref='@missing', name='Enabled', value='false')]), self.screen)
+        self.assertEqual(self.planner.memory.map.configuration, {})
 
     def test_current_boolean_configuration_is_supported(self):
         screen = [dict(BUTTON, checked=False)]
-        self.planner.validate(decision(configuration=[dict(ref='@e1', name='Enabled', value='false')]), screen)
+        self.planner.accept(decision(configuration=[dict(ref='@e1', name='Enabled', value='false')]), screen)
+        self.assertEqual(self.planner.memory.map.configuration['Enabled']['value'], 'false')
 
     def test_observed_configuration_remains_context_on_the_next_screen(self):
         screen = [dict(BUTTON, value='German')]
         action = decision(configuration=[dict(ref='@e1', name='Language', value='German')],
             context=dict(summary='', includeAll=['configuration'], records=[]))
-        self.planner.validate(action, screen)
         self.planner.accept(action, screen)
         other = [dict(BUTTON, identifier='home')]
         self.planner.observe(other)
@@ -158,11 +156,11 @@ class TestPlanningTests(unittest.TestCase):
         self.assertEqual(context['value'], 'German')
         self.assertTrue(context['observedAt'])
 
-    def test_configuration_cannot_rename_the_same_control_to_fake_new_progress(self):
+    def test_configuration_names_remain_ai_owned(self):
         screen = [dict(BUTTON, value='English')]
         self.planner.accept(decision(configuration=[dict(ref='@e1', name='Language', value='English')]), screen)
-        with self.assertRaisesRegex(InvalidAgentResponse, 'existing configuration name'):
-            self.planner.validate(decision(configuration=[dict(ref='@e1', name='Other language', value='English')]), screen)
+        self.planner.accept(decision(configuration=[dict(ref='@e1', name='Other language', value='English')]), screen)
+        self.assertIn('Other language', self.planner.memory.map.configuration)
 
     def test_changed_configuration_value_creates_an_additional_state(self):
         first = [dict(BUTTON, value='English')]
@@ -177,7 +175,7 @@ class TestPlanningTests(unittest.TestCase):
             self.planner.record(before, after, decision(), {})
             before = after
         with self.assertRaises(NoProgressAction):
-            self.planner.validate(decision(), before)
+            self.planner.memory.check_repetition(before, decision())
 
     def test_ai_can_select_all_tasks_without_a_host_history_window(self):
         for number in range(2, 47):
@@ -219,13 +217,15 @@ class MapAndContractTests(unittest.TestCase):
         self.assertEqual(control_kind(dict(type='android.widget.TextView')), '')
         self.assertEqual(control_kind(dict(type='android.widget.EditText')), 'text')
 
-    def test_plan_contract_rejects_a_boolean_task_id(self):
-        with self.assertRaises(InvalidAgentResponse):
-            validate_planning(decision(planUpdates=[task(True)]))
+    def test_missing_task_ids_receive_distinct_local_record_ids(self):
+        planner = TestPlanner(INSTRUCTIONS)
+        planner.accept(decision(planUpdates=[task(-1), task(-1)]), [BUTTON])
+        self.assertEqual([row['id'] for row in planner.plan.tasks], [0, 1, 2])
 
-    def test_plan_contract_limits_one_response_to_six_task_updates(self):
-        with self.assertRaisesRegex(InvalidAgentResponse, 'Too many'):
-            validate_planning(decision(planUpdates=[task(number) for number in range(7)]))
+    def test_seven_ai_task_updates_are_stored_without_a_format_limit(self):
+        planner = TestPlanner(INSTRUCTIONS)
+        planner.accept(decision(planUpdates=[task(number) for number in range(1, 8)]), [BUTTON])
+        self.assertEqual(len(planner.plan.tasks), 8)
 
     def test_planning_layer_has_no_device_api_or_storage_dependencies(self):
         forbidden = {'mobile', 'agent', 'openai_transport', 'evidence', 'scenario', 'os', 'subprocess', 'pathlib'}

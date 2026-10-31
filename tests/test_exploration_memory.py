@@ -56,26 +56,25 @@ class ExplorationMemoryTests(unittest.TestCase):
         self.memory.record(self.screen, [dict(BUTTON, identifier='Save')], TAP, entry)
         self.assertEqual(entry['observedOutcome'], 'Observed UI changed')
 
-    def test_three_unchanged_attempts_reject_another_tap(self):
+    def test_three_unchanged_attempts_supply_repetition_facts(self):
         self.record(3)
         with self.assertRaises(NoProgressAction):
-            self.memory.validate(self.screen, TAP, '')
+            self.memory.check_repetition(self.screen, TAP)
 
     def test_explicit_repeat_instruction_and_reason_allow_repeat(self):
         self.record(3)
-        self.memory.validate(self.screen, dict(TAP, repeatInstruction='Tap Settings five times',
-            repeatReason='Fourth tap of the requested five'), 'Tap Settings five times')
+        self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='Tap Settings five times',
+            repeatReason='Fourth tap of the requested five'))
 
-    def test_invented_repeat_quote_cannot_disable_guard(self):
+    def test_ai_repeat_explanation_is_not_subject_to_host_quote_evaluation(self):
         self.record(3)
-        with self.assertRaises(NoProgressAction):
-            self.memory.validate(self.screen, dict(TAP, repeatInstruction='Tap five times',
-                repeatReason='Reproduce'), 'Explore buttons')
+        self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='My interpretation',
+            repeatReason='Reproduce the requested behavior'))
 
     def test_quote_without_reason_cannot_disable_guard(self):
         self.record(3)
         with self.assertRaises(NoProgressAction):
-            self.memory.validate(self.screen, dict(TAP, repeatInstruction='Repeat', repeatReason=''), 'Repeat')
+            self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='Repeat', repeatReason=''))
 
     def test_more_than_24_other_paths_do_not_erase_first_control(self):
         self.record()
@@ -91,7 +90,7 @@ class ExplorationMemoryTests(unittest.TestCase):
             self.memory.record(self.screen, other, TAP, {})
             self.memory.record(other, self.screen, TAP, {})
         with self.assertRaises(NoProgressAction):
-            self.memory.validate(self.screen, TAP, '')
+            self.memory.check_repetition(self.screen, TAP)
 
     def test_crash_retry_does_not_count_as_unchanged_ui(self):
         self.memory.record(self.screen, self.screen, TAP, {'crash': 'suspected crash'})
@@ -133,7 +132,7 @@ class ExplorationMemoryTests(unittest.TestCase):
             self.memory.record(self.screen, other, TAP, {})
             self.memory.record(other, self.screen, TAP, {})
         self.memory.observe([dict(BUTTON, identifier='New route')])
-        self.memory.validate(self.screen, TAP, '')
+        self.memory.check_repetition(self.screen, TAP)
 
 
 if __name__ == '__main__':

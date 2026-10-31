@@ -3,7 +3,6 @@
 import json
 from action_prompt import ActionPromptBuilder, parse_action
 from openai_transport import OpenAiTransport
-from errors import InvalidAgentResponse
 
 
 class Agent:
@@ -30,7 +29,7 @@ class Agent:
         aliases,
         coverage,
         requirement_results=None,
-        correction_feedback=None,
+        resource_feedback=None,
         exploration_memory=None,
     ):
         """Request one action after the shared budget has reserved its maximum cost."""
@@ -44,15 +43,10 @@ class Agent:
             aliases,
             coverage,
             requirement_results,
-            correction_feedback,
+            resource_feedback,
             exploration_memory,
         )
-        action = parse_action(self._request_action(body))
-        state = json.loads(body['input'][1]['content'][0]['text'])
-        can_stop = action['action'] == 'done' and action['completion'] == 'blocked' and action['remaining']
-        if 'contextSelectionRequired' in state and action['action'] != 'recall' and not can_stop:
-            raise InvalidAgentResponse('Context reduction is pending; return recall or explain blocked remaining work', action)
-        return action
+        return parse_action(self._request_action(body))
 
     def _request_action(self, body):
         state = json.loads(body['input'][1]['content'][0]['text'])

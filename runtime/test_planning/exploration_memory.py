@@ -2,7 +2,7 @@
 
 from .application_map import ApplicationMap
 from .screen_model import app_elements, control_identity, control_kind, identity, label, progress_identity, view_identity
-from errors import InvalidAgentResponse, NoProgressAction
+from errors import NoProgressAction
 
 
 class ExplorationMemory:
@@ -63,29 +63,21 @@ class ExplorationMemory:
             action=action, kind=kind, attempts=0, unchangedAttempts=0, repeatedWithoutNewPath=0,
             scope='unclassified', reason='', planStepId=0)
 
-    def validate_updates(self, action, elements, task_ids):
-        current = {item.get('ref'): item for item in app_elements(elements)}
-        if len({row['id'] for row in action['pathDecisions']}) != len(action['pathDecisions']):
-            raise InvalidAgentResponse('Path scope updates contain duplicate IDs')
-        for row in action['discoveredControls']:
-            item = current.get(row['ref'])
-            if not item or item.get('enabled') is False or item.get('visible') is False:
-                raise InvalidAgentResponse('A discovered input needs a currently visible enabled ref')
-        self.map.validate_configuration(action['configuration'], elements)
-        for row in action['pathDecisions']:
-            if row['id'] not in self.paths or row['planStepId'] not in task_ids or not row['reason'].strip():
-                raise InvalidAgentResponse('Path decisions need a known path/task ID and a scope explanation')
 
     def update(self, action, elements):
         current = {item.get('ref'): item for item in elements}
         for row in action['discoveredControls']:
-            self.identified[control_identity(current[row['ref']])] = row['kind']
+            if row['ref'] in current:
+                self.identified[control_identity(current[row['ref']])] = row['kind']
         for row in action['pathDecisions']:
-            self.paths[row['id']].update(scope=row['scope'], reason=row['reason'], planStepId=row['planStepId'])
+            path = self.paths.setdefault(row['id'], dict(
+                id=row['id'], label=row['id'], screen='', control='', action='', kind='',
+                attempts=0, unchangedAttempts=0, repeatedWithoutNewPath=0, requested=True))
+            path.update(scope=row['scope'], reason=row['reason'], planStepId=row['planStepId'])
         self.map.configure(action['configuration'], elements)
         self.observe(elements)
 
-    def validate(self, elements, action, instructions):
+    def check_repetition(self, elements, action):
         if action['action'] not in ['tap', 'swipe', 'back', 'text', 'credential', 'restart']:
             return
         path = self.paths.get(self._path(elements, action), {})
@@ -93,8 +85,8 @@ class ExplorationMemory:
                           and path.get('progressVersion') == self.progress_version)
         if path.get('unchangedAttempts', 0) < 3 and not repeated_cycle:
             return
-        quote = action.get('repeatInstruction', '')
-        if quote.strip() and quote in instructions and action.get('repeatReason', '').strip():
+        # Intentional repetition is an AI decision, not an exact-quotation test.
+        if action.get('repeatReason', '').strip():
             return
         raise NoProgressAction('Repetition signal: this path repeated without a new discovered path. '
             'Assess whether it is an unproductive loop or intentional work using fresh evidence. '

@@ -1,6 +1,7 @@
 """Redact record text while keeping its control fields unchanged."""
 
 from errors import InfrastructureError
+import re
 
 
 class RecordRedactor:
@@ -10,7 +11,14 @@ class RecordRedactor:
         self.redactor = redactor
 
     def check(self, value):
-        return self._record(value, ["id", "taskId", "source", "status", "requirementId", "step", "screenshot"])
+        keep = ["id", "taskId", "step", "screenshot"]
+        if value.get('source') in ['instructions', 'requirements']:
+            keep.append('source')
+        if value.get('status') in ['passed', 'failed', 'not tested', 'inconclusive', 'overridden']:
+            keep.append('status')
+        if re.fullmatch(r'REQ-\d+', value.get('requirementId', '')) or not value.get('requirementId'):
+            keep.append('requirementId')
+        return self._record(value, keep)
 
     def requirement(self, value):
         return self._record(value, ["id", "status", "startLine", "endLine", "step", "screenshot"])
@@ -61,8 +69,19 @@ class RecordRedactor:
 
     def plan(self, value):
         return self._record(value, ['activeTaskId', 'nextTaskId'], {
-            'tasks': lambda rows: self._items(rows, lambda row: self._record(row,
-                ['id', 'source', 'requirementId', 'status', 'result', 'targetState']))})
+            'tasks': lambda rows: self._items(rows, self.task)})
+
+    def task(self, value):
+        keep = ['id', 'targetState']
+        if value.get('source') in ['instructions', 'requirements']:
+            keep.append('source')
+        if re.fullmatch(r'REQ-\d+', value.get('requirementId', '')) or not value.get('requirementId'):
+            keep.append('requirementId')
+        for name in ['status', 'result']:
+            if value.get(name) in ['pending', 'active', 'blocked', 'tested', 'passed', 'failed',
+                                   'not tested', 'inconclusive', 'overridden']:
+                keep.append(name)
+        return self._record(value, keep)
 
     def planning(self, value):
         return self._record(value, [], {'testPlan': self.plan, 'exploration': self.exploration,

@@ -12,7 +12,7 @@ Keep methods short enough to read without searching through unrelated work. Long
 
 ## Layer folders
 
-Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
+Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Resource Exchange lives in runtime/ai_exchange/. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
 
 ## Comments
 
@@ -109,9 +109,9 @@ NativeHomeLink separates the short socket address from its actual run-owned stor
 
 The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/build/example checks. No live API or phone was used. The user's next actual test run remains separate acceptance evidence.
 
-## Response correction tests — 30 October 2026
+## AI resource exchange tests — 31 October 2026
 
-Use the existing Python unittest suite and xUnit project. ScriptedTransport returns queued synthetic provider responses through Agent's normal constructor; fake phones expose changed screens or capture failures. Cases cover correction before one tap, bounded exhaustion, unknown IDs/override quotations, malformed JSON, redaction of invalid metadata and feedback, fresh refs, preserved accepted/rejected failures, budget/deadline stops, and no retries for unrelated errors. The HTML case verifies mandatory visibility, redaction, escaping, and screenshot links. No live OpenAI or device access is required.
+Use the existing Python unittest suite and xUnit project. ScriptedTransport supplies synthetic replies through Agent's normal constructor. Cases cover minimal commands, optional records, unknown IDs, more than three notes before a command, resource feedback, AI-owned quotations and plans, privacy and shared limits. HTML tests verify escaped/redacted full replies. Legacy rejection rendering stays for historical reports. No new test project, live OpenAI request or device access is needed.
 
 ## Exploration and interruption verification — 30 October 2026
 
@@ -119,7 +119,7 @@ The Python unittest suite tests identity/ref changes, long-history retention, pe
 
 ## Compact AI history verification — 30 October 2026
 
-MappingPromptTests now verifies that bootstrap records are not host-filtered or cut to the most recent 24. ContextSelectionTests and PlanningRegressionTests in tests/test_context_memory.py cover exact AI selection, retaining an unchanged summary, paging, recoverable observations/screenshots, byte-capacity requests and identity/redaction regressions. ScenarioTests verifies action-free recall, AI-directed recovery beyond three episodes, cancellation and premature-completion reconsideration. Source/ref/schema errors still use the existing bounded correction policy. No new test project or harness is introduced. See performance.md for the historical baseline and the distinction between offline protocol checks and live quality/cost measurements.
+MappingPromptTests now verifies that bootstrap records are not host-filtered or cut to the most recent 24. ContextSelectionTests and PlanningRegressionTests in tests/test_context_memory.py cover exact AI selection, retaining an unchanged summary, paging, recoverable observations/screenshots, byte-capacity requests and identity/redaction regressions. ScenarioTests verifies action-free recall, AI-directed recovery beyond three episodes, cancellation and incomplete reporting after AI finish. FR-96 removes the response-format and semantic approval gate. Optional metadata must not block a decoded command; return resource outcomes and retain full redacted replies. See ai-resource-exchange.md. No new test project or harness is introduced. See performance.md for the historical baseline and the distinction between offline protocol checks and live quality/cost measurements.
 
 ## Configured-model budget checks
 

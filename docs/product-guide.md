@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.30
+Version: 0.31
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -400,17 +400,15 @@ Accepted screenshots appear with recorded steps. If no screenshot passed verific
 
 Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
 
-## AI response correction
+## AI replies and resource feedback
 
-CIMT checks an AI decision before recording its observations or executing its action. If the answer has inconsistent reporting fields, an unknown requirement ID, an invalid instruction override quotation, or malformed action JSON, CIMT requests a corrected answer. It allows at most two corrections after the initial answer. Each correction uses a fresh masked screen and counts toward the same AI spending and whole-run time limits. No extra configuration is needed.
-
-The HTML report shows Unaccepted AI responses with the validation reason, candidate response, and available masked decision screenshot. These observations are unverified and do not determine the test verdict; accepted findings remain. The chronological activity shows rejection and recovery, and AI accounting includes correction requests. If all three answers are invalid, execution stops with an infrastructure error and incomplete work. Time/budget exhaustion keeps its normal outcome. This policy does not retry refusals, incomplete provider output, transport errors, device errors, or failed masking/storage.
+CIMT no longer evaluates response format or stops after three response-correction attempts. The AI receives instructions, requirements, masked evidence, its selected context and available commands. Plan IDs, quotes and reporting fields do not approve device actions. A reply without one readable command is kept as a note and returned with resource feedback; CIMT does not guess a command. HTML shows full redacted replies and resource feedback. Older Unaccepted AI responses sections describe historical runs. Time, spending, cancellation, privacy and real provider/resource failures retain their normal policies. See [AI Resource Exchange](ai-resource-exchange.md).
 
 ## Exploration progress and stopping a run
 
 CIMT remembers explored controls, outcomes, untried paths, and the pending plan for each device/target scenario. Each AI request receives a relevant memory summary with current control references. Reports show observed outcomes and the saved exploration memory. An unchanged screen is recorded as such; a successful tap alone does not verify the requested behavior.
 
-After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Replanning is bounded. If it cannot find a useful next action, only that scenario stops incomplete and other work continues. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
+After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Every renewed signal asks the AI for recovery. There is no fixed recovery-episode or response-format attempt limit; the shared time and spending limits still apply. AI can finish blocked with remaining work. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
 
 Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal. Interrupted host stages, device operations and action records show stopped with the user-interruption reason. If observation was interrupted, its outcome states that interruption instead of claiming the screen changed or stayed unchanged. Successful cleanup still shows completed. A connection/pipe failure without a known user stop remains a real failure. Partial observations survive a connection-close error, and earlier failures keep their original outcome. This applies to new execution reports; saved historical reports are unchanged.
 
