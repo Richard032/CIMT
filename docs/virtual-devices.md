@@ -24,12 +24,11 @@ Use the same build target, instructions, requirements, credentials, model and bu
 RuntimeIdentifier: iossimulator-x64
 BuildIpa: false
 ArchiveOnBuild: false
-EnableCodeSigning: false
 # Add under the existing target's android.properties:
 RuntimeIdentifier: android-x64
 ```
 
-These are explicit example settings, not hidden CIMT defaults. Android projects can omit the RID if their existing APK already supports the emulator ABI. Native libraries must include compatible simulator/emulator binaries. An iPhone IPA cannot be reused on iOS Simulator. CIMT does not edit the tested repository or replace its MSBuild targets.
+Keep the project/SDK signing policy. Simulator apps still need a signature accepted by the selected runtime; do not generically disable code signing. These are explicit example settings, not hidden CIMT defaults. Android projects can omit the RID if their existing APK already supports the emulator ABI. Native libraries must include compatible simulator/emulator binaries. An iPhone IPA cannot be reused on iOS Simulator. CIMT does not edit the tested repository or replace its MSBuild targets.
 
 ## Architecture
 
@@ -80,3 +79,15 @@ The first run built both configured apps successfully (Android about 6 minutes 2
 The approved generic tolerance correction accepts a horizontal/vertical scale ratio of 0.95–1.05 and expands secret masks for accepted mapping uncertainty; see [screenshot masking](screenshot-masking.md). Replay uses these retained virtual apps without Git or compilation. Its outcome must be recorded separately from this failed initial run.
 
 On this 16 GB Intel Mac, stopping only the dedicated CIMT virtual devices during compilation reduced memory/swap pressure; they were restarted and verified ready before continuing the AI-testing checkpoint. Existing unrelated simulators were left running. This was an operator preparation step, not automatic CIMT device lifecycle behavior.
+
+### Signing limitation found during replay
+
+The retained test profile used `EnableCodeSigning: false`. After the tolerance correction, iOS screenshots passed, but the app was terminated at startup three times. Read-only host crash metadata reported `SIGKILL (Code Signature Invalid)`, namespace `CODESIGNING`, indicator `Invalid Page`. The built bundle failed `codesign --verify --deep --strict` with “code object is not signed at all”; the executable in its retained ZIP matched the original build byte-for-byte. The generic example above therefore no longer recommends disabling signing. The local retained test configuration/artifacts were left unchanged for this requested replay. Repairing that build requires a separate signing-policy correction and a new build, not silent modification of a retained replay artifact.
+
+### Replay completion and reporting limits
+
+The product owner cancelled replay `2026-10-31_06-48-22-356` with one Ctrl+C. CIMT finalized HTML/JSON with exit 1, verdict failed, completion incomplete: earlier iOS startup failures retained precedence while Android recorded user interruption. Both device summaries and 48 PNG files were present; static inspection found no duplicate HTML IDs or missing/escaping local evidence links. No browser accessibility conformance is claimed.
+
+Android retained 44 records (30 taps, one swipe, one text action plus preparation/check records), with no recorded Android crash. Its ledger recorded 33 AI requests and USD 0.09831945 accounted upper cost against USD 2.00. iOS retained four screenshot records and three suspected startup terminations; read-only host diagnostics identified the separate signing rejection described above.
+
+The action history also exposed remaining CIMT issues: OS status-bar clock/signal changes were counted as app UI changes; generic WebView views were missing from normal control classification; repeated actions were therefore not stopped promptly. Whole-screen state keys inflated outstanding control/state entries and repeated labels. Cancellation closed the adapter pipe while a capture was active, producing failed activity rows before the final user-interruption classification. These findings are not fixes included in the tolerance correction. Android screenshot validation averaged about 15.1 seconds and AI action requests about 3.85 seconds, so device-side evidence work dominated much of the delay.
