@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.22
+Version: 0.23
 Date: 31 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -332,3 +332,7 @@ On 30 October 2026, the product owner approved the [report design proposal](revi
 ## Virtual-device approval — version 0.22
 
 On 31 October 2026, the product owner requested a copy of the last test using emulators on both platforms and authorized an abstraction to use real or virtual devices through the same workflow. FR-77–FR-81 and AC-51 extend the earlier physical-only scope. Mixing both environments in one run and automatic virtual-device provisioning are outside this increment. Explicit simulator/ABI build properties are necessary differences from the physical-device example. See [virtual-device design and installation](virtual-devices.md).
+
+## Generic screenshot tolerance — version 0.23
+
+On 31 October 2026, the product owner requested a generic **±5%** screenshot-mapping tolerance, followed by push, installation and replay of the last test. Under FR-36/FR-80, the ratio between horizontal and vertical image-to-screen scales shall be within 0.95–1.05, inclusive, on all platforms and device kinds. Larger discrepancies, invalid/non-finite geometry and incompatible orientation shall stop capture. Accepted scale differences shall expand each mask by the rounded-up full-screen drift between those scales, in addition to its existing two-pixel border. Screen and sensitive-region stability checks, PNG-only capture, redaction, storage and AI-release rules remain. No platform-specific pixel-scale metadata is required. See [the correction and regression evidence](screenshot-masking.md#generic-mapping-tolerance-correction--31-october-2026).

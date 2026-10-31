@@ -72,6 +72,21 @@ class CaptureRaceTests(unittest.TestCase):
         with Image.open(io.BytesIO(encoded)) as image:
             self.assertEqual(image.getpixel((15, 15)), (0, 0, 0))
 
+    def test_generic_tolerance_keeps_secret_pixels_masked(self):
+        fixture = CaptureFixture([SECRET_FIELD], [SECRET_FIELD])
+        output = io.BytesIO()
+        Image.new("RGB", (1178, 2556), "white").save(output, format="PNG")
+        fixture.image = output.getvalue()
+        fixture.screen.native = lambda _: {"data": {"device": {
+            "screenSize": {"width": 393, "height": 852}
+        }}}
+        elements, encoded = fixture.screen.snapshot()
+        self.assertEqual(elements[0]["value"], "<masked>")
+        with Image.open(io.BytesIO(encoded)) as image:
+            self.assertEqual(image.getpixel((30, 30)), (0, 0, 0))
+            self.assertEqual(image.getpixel((89, 89)), (0, 0, 0))
+            self.assertEqual(image.getpixel((100, 100)), (255, 255, 255))
+
     def test_size_change_stops_before_pixels_are_released(self):
         fixture = CaptureFixture([], [])
         sizes = iter([100, 200] * ScreenCapture.MAX_ATTEMPTS)

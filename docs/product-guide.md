@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.23
+Version: 0.24
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -460,3 +460,7 @@ CIMT does not create a shared latest HTML file at reports/index.html. An already
 ## Virtual-device execution
 
 The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
+
+### Screenshot mapping tolerance
+
+CIMT accepts a ±5% difference in the ratio between horizontal and vertical image scaling on every supported device. It expands secret masks to cover accepted mapping uncertainty. Larger mismatches still stop testing with an evidence error. Reports distinguish these CIMT evidence failures from verified application failures.

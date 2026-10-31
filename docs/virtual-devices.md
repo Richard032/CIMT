@@ -72,3 +72,11 @@ The local example is `Testing/TestRun_ios_android_Emulator`, copied from `TestRu
 Offline checks cover default physical selection, virtual filtering, missing devices, descriptor types, simulator build/ZIP output, replay environment rejection, ADB name resolution, simulator readiness and exact process matching. Real build and UI test results are recorded separately in the run report and installation findings.
 
 References: [mobile-mcp](https://github.com/mobile-next/mobile-mcp), [MAUI iOS command-line build](https://learn.microsoft.com/en-us/dotnet/maui/ios/cli), [runtime identifiers](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog).
+
+## Real-run qualification findings — 31 October 2026
+
+The first run built both configured apps successfully (Android about 6 minutes 23 seconds, iOS about 1 minute 42 seconds), retained a native x86_64 APK and an executable x86_64 iPhoneSimulator app ZIP, then installed both and issued launch commands. iOS capture failed before AI inference: helper PNG width 1178 versus the 1179 pixels implied by 393 points at scale 3; height 2556 matched. Android's first masked capture passed, then the existing whole-run blocking policy stopped it. The result was incomplete/inconclusive, exit 3, with zero AI inference requests. This did not establish an app crash.
+
+The approved generic tolerance correction accepts a horizontal/vertical scale ratio of 0.95–1.05 and expands secret masks for accepted mapping uncertainty; see [screenshot masking](screenshot-masking.md). Replay uses these retained virtual apps without Git or compilation. Its outcome must be recorded separately from this failed initial run.
+
+On this 16 GB Intel Mac, stopping only the dedicated CIMT virtual devices during compilation reduced memory/swap pressure; they were restarted and verified ready before continuing the AI-testing checkpoint. Existing unrelated simulators were left running. This was an operator preparation step, not automatic CIMT device lifecycle behavior.

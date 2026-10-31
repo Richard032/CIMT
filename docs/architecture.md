@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.28
+Version: 0.29
 Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -405,3 +405,7 @@ The briefly installed shared-latest page was removed after the product owner rea
 ## 30. Virtual-device execution
 
 The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
+
+### Generic image-to-screen tolerance
+
+MaskGeometry compares the horizontal and vertical image-to-screen scale ratio against 0.95–1.05, inclusive. The same policy applies to both platforms and physical/virtual devices, without a native-density special case. It expands masks on each axis by the rounded-up full-screen scale drift plus the existing two-pixel border, then clips to image bounds. CaptureGuard retains screen-size and sensitive-region stability checks. This corrects the simulator rounding failure while protecting secret edges at the wider accepted tolerance. See [screenshot masking](screenshot-masking.md).

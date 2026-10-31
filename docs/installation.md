@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.27
+Version: 0.28
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1046,5 +1046,9 @@ The product owner approved Android Emulator and iOS Simulator execution on 31 Oc
 - Verified Android boot completion and unlocked state, iOS Simulator UDID/readiness and live launchctl process format. Installed the standard DeviceKit helper, version 0.0.35, on the dedicated iPhone Simulator. No third-party tool source changes were made.
 - Installed CIMT's host, build worker and five affected runtime modules, preserving a backup at `/private/tmp/cimt-virtual-backup`. Verified installed file bytes. Host SHA256: `b56b0ee062c42a15d94245efba8a97e08a0077f35d9ef2f29faf777e89328f84`.
 - Offline validation passed: 295 .NET unit tests, 226 Python unit tests, 22 runtime-policy checks and 22 public CLI checks. The copied private YAML, input texts and build wrappers are byte-identical to the previous run. Real application build and exploration are separate qualification steps.
-- The first real run command was rejected before process startup by automatic approval review, which requested explicit approval to send masked private-app screenshots and UI text to OpenAI. That approval is pending. No app testing or paid inference was performed by that rejected command.
+- The first real run command was rejected before process startup by automatic approval review, which requested explicit approval to send masked private-app screenshots and UI text to OpenAI. The product owner subsequently requested running again. The rejected command itself performed no app testing or paid inference.
 - A separate configuration-validation attempt in the restricted shell could not acquire installation-state access and returned `UnauthorizedAccessException`; its report is not evidence of an emulator or application defect. Normal CIMT execution requires access to its installed state directory.
+
+### Simulator capture tolerance correction
+
+The subsequent approved run built and installed both apps, but stopped before AI inference on an iOS one-pixel capture mismatch. The product owner requested a tolerance correction, push, installation and replay. See [real-run qualification](virtual-devices.md#real-run-qualification-findings--31-october-2026) and [the capture correction](screenshot-masking.md#generic-mapping-tolerance-correction--31-october-2026). The final generic ±5% correction changes one Python runtime module; the host and build worker do not require rebuilding. Unit verification passed: 234 Python tests plus 22 runtime-policy checks. Keep the existing private configuration, model, budget, virtual-device IDs and retained artifacts for replay. Installation and replay results are recorded after execution.
