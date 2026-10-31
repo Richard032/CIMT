@@ -357,3 +357,10 @@ FR-68/AC-42 now cover stopped activity/step reporting throughout nested interrup
 Verified: 297 xUnit tests, 241 Python tests, 22 runtime-policy checks and 22 public CLI checks passed. The host published successfully. Installed the six host files and four changed runtime modules under the run lock, with backup and byte verification; see installation section 41. No new live app test or API request was made.
 
 The product owner cancelled the additional startup-diagnostics fix; its edits were fully removed before publication/installation. Coverage counting is unchanged. Repeated-action and capture-speed corrections remain reviewed proposals, not implemented behavior; see the [focused review](reviews/2026-10-31-cancelled-replay-follow-up.md). Requirements v0.24, architecture v0.30, product v0.25 and installation v0.29 describe this scope.
+
+
+### Host cancellation reporting follow-up
+
+The host activity boundary now receives the run token so a pipe exception after user cancellation is logged as stopped before RunCoordinator handles it. Cleanup stays uncancelled, preserving genuine finalization failures. ExplorationMemory uses the saved interruption reason rather than claiming an observed unchanged/changed UI when observation did not finish. Earlier failure outcomes remain visible. General no-progress signatures, coverage counting and capture-speed behavior are unchanged.
+
+Verification passed: 299 xUnit, 243 Python, 22 runtime-policy and 22 public CLI checks (586 offline checks). Host publication and installation of the six host files plus exploration_memory.py passed with lock, backup, byte verification and installed help. Requirements v0.25, architecture v0.31, product v0.26 and installation v0.30 describe the correction. No live test or API call was started; no prior report was rewritten.

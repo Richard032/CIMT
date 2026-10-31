@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.25
+Version: 0.26
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -410,7 +410,7 @@ CIMT remembers explored controls, outcomes, untried paths, and the pending plan 
 
 After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Replanning is bounded. If it cannot find a useful next action, only that scenario stops incomplete and other work continues. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
 
-Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal. Interrupted operations and action records show stopped with the user-interruption reason. Successful cleanup still shows completed. A connection/pipe failure without a known user stop remains a real failure. Partial observations survive a connection-close error, and earlier failures keep their original outcome. This applies to new execution reports; saved historical reports are unchanged.
+Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal. Interrupted host stages, device operations and action records show stopped with the user-interruption reason. If observation was interrupted, its outcome states that interruption instead of claiming the screen changed or stayed unchanged. Successful cleanup still shows completed. A connection/pipe failure without a known user stop remains a real failure. Partial observations survive a connection-close error, and earlier failures keep their original outcome. This applies to new execution reports; saved historical reports are unchanged.
 
 You can open index.html while testing is running. CIMT saves a clearly labelled partial report at stage boundaries and updates it about every two seconds during device testing; reload the page to see newer saved observations. The latest AI count comes from the saved budget ledger. If the process is force-killed, the last saved page remains available and explicitly partial. A final report removes that marker. This feature starts with new runs/replays after installation; it does not rewrite the previous interrupted run.
 

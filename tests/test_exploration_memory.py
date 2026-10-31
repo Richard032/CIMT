@@ -92,6 +92,18 @@ class ExplorationMemoryTests(unittest.TestCase):
         self.assertEqual(entry['observedOutcome'], 'Mask unavailable')
         self.assertEqual(self.memory.snapshot(self.screen)['currentControls'][0]['unchangedAttempts'], 0)
 
+    def test_interrupted_observation_reports_the_stop_instead_of_unchanged_ui(self):
+        entry = {'stoppingReason': 'User interrupted execution; partial observations were retained'}
+        self.memory.record(self.screen, self.screen, TAP, entry)
+        self.assertEqual(entry['observedOutcome'], entry['stoppingReason'])
+        self.assertEqual(self.memory.saved()['transitions'][-1]['outcome'], entry['stoppingReason'])
+        self.assertEqual(self.memory.snapshot(self.screen)['currentControls'][0]['unchangedAttempts'], 0)
+
+    def test_interruption_does_not_replace_a_recorded_crash_outcome(self):
+        entry = {'crash': 'confirmed crash report', 'stoppingReason': 'User interrupted execution'}
+        self.memory.record(self.screen, self.screen, TAP, entry)
+        self.assertEqual(entry['observedOutcome'], 'confirmed crash report')
+
 
     def test_untried_path_is_retained_after_leaving_its_view(self):
         self.memory.observe(self.screen + [dict(BUTTON, identifier='Other', ref='@e2')])

@@ -145,6 +145,8 @@ public sealed class ExecutionTests : IDisposable
         Assert.Equal(["cleanup", "report"], calls);
         Assert.Contains(state.StopReasons, reason => reason.Category == "User interruption");
         Assert.True(File.Exists(Path.Combine(report.Path, "stop-requested")));
+        Assert.Contains(RunActivityLog.Read(state.Report, state.Configuration.Scrub),
+            row => row.Operation == "Finalize owned helper and logs" && row.Status == "completed");
     }
 
     [Fact]
@@ -200,6 +202,38 @@ public sealed class ExecutionTests : IDisposable
         Assert.Equal(2, await new RunCoordinator([step], new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
         Assert.Contains(state.StopReasons, reason => reason.Category == "User interruption");
         Assert.Empty(state.Errors);
+        var operation = Assert.Single(RunActivityLog.Read(state.Report, state.Configuration.Scrub),
+            row => row.Operation == nameof(FakeStep) && row.Status != "started");
+        Assert.Equal("stopped", operation.Status);
+        Assert.StartsWith("User interrupted", operation.Message);
+        Assert.DoesNotContain("pipe closed", operation.Message);
+    }
+
+    [Fact]
+    public async Task PipeFailureWithoutInterruptionRemainsAFailedActivity()
+    {
+        var state = State();
+        var calls = new List<string>();
+        var step = new FakeStep(_ => throw new IOException("pipe closed"));
+        Assert.Equal(3, await new RunCoordinator([step], new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
+        var operation = Assert.Single(RunActivityLog.Read(state.Report, state.Configuration.Scrub),
+            row => row.Operation == nameof(FakeStep) && row.Status != "started");
+        Assert.Equal("failed", operation.Status);
+        Assert.Equal("pipe closed", operation.Message);
+    }
+
+    [Fact]
+    public async Task LaterInterruptionDoesNotRewriteAnEarlierFailedActivity()
+    {
+        using var interruption = new RunInterruption(report.Path);
+        var state = State(cancellation: interruption.Token);
+        var calls = new List<string>();
+        state.Activity.Record("Build application", "failed", "Original build failure");
+        state.Exit = 3;
+        var step = new FakeStep(_ => { interruption.Request(); throw new IOException("pipe closed"); });
+        Assert.Equal(3, await new RunCoordinator([step], new FakeCleanup(calls), new FakeReport(calls)).Execute(state));
+        Assert.Contains(RunActivityLog.Read(state.Report, state.Configuration.Scrub),
+            row => row.Operation == "Build application" && row.Status == "failed" && row.Message == "Original build failure");
     }
 
     private RunState State(RunDeadline? deadline = null, CancellationToken cancellation = default)

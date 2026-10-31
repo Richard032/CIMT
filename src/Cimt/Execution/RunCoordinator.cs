@@ -59,7 +59,7 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         foreach (var step in steps)
         {
             state.Cancellation.ThrowIfCancellationRequested();
-            await state.Activity.Run(StepName(step), () => step.Execute(state));
+            await state.Activity.Run(StepName(step), () => step.Execute(state), state.Cancellation);
             reports.Snapshot(state);
         }
     }

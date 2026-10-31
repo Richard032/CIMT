@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.29
+Version: 0.30
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1067,3 +1067,10 @@ Publish the host using section 15 and install the matching activity.py, device_r
 Offline validation passed: 297 xUnit tests, 241 Python unit tests, 22 runtime-policy checks and 22 public CLI/lifecycle checks (582 checks). The host published successfully. Tests cover nested interrupted pipe errors, successful cleanup, genuine non-interrupted failures, failed close publication, prior failure precedence and stopped-step HTML. CLI tests use fake dependencies, including a one-SIGINT stop; this is not new live-device qualification.
 
 Installed under the run lock and verified all ten files byte-for-byte against the tested publication/source. Backup: /private/tmp/cimt-before-cancellation-_wl60j7o. Installed host SHA-256: 8283c329b7eb852e03eb13db80d8694378e736324677a857e55d72f669c240b2. No mobile run/replay, paid API request or device action was started for this correction.
+
+
+### Host-stage and observation cancellation follow-up
+
+The host also needs the run cancellation token at its activity boundary. RunCoordinator now supplies it to RunActivityLog for execution stages. A pipe/process exception after a known user stop is recorded as stopped with User interrupted execution before reaching the coordinator. Cleanup deliberately uses its normal uncancelled path so real finalization errors remain visible. The matching exploration_memory.py uses the interrupted step reason instead of claiming a UI change/no change from incomplete observation. Normal progress signatures, coverage counting, ref selection and capture checks are unchanged.
+
+Publish the host and replace exploration_memory.py with the matching source module under the same installation lock/backup procedure. Verification passed: 299 xUnit tests, 243 Python tests, 22 runtime-policy checks and 22 public CLI checks (586 offline checks). The host publication succeeded. Installed six host files and that module, verifying every byte; installed help passed. Backup: /private/tmp/cimt-before-host-cancellation-6dd2tmgb. Host SHA-256: f23bbd83582ffe52f54389e2a8f393bc46c2bb9fcd3e641ebf7847187c055113. New reports use the correction; historical reports remain intact. No mobile run, paid API request or device action was started.

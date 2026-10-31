@@ -63,3 +63,8 @@ Recommended next investigation, without changing execution policy:
 4. Retain both sensitive-region checks, dimension/orientation checks, readiness checks, PNG masking and current action/crash evidence. An atomic UI/image backend could reduce reads only after equivalent guarantees are demonstrated. No such capability is established in this review.
 
 First recommendation: measure the native boundary before selecting a transport rewrite. Keep the configured model and current evidence policy. Do not promise a speed-up percentage from these component timings.
+
+
+### Cancellation follow-up: host stages and observation wording
+
+A second review found the Python worker classification was fixed, but host RunActivityLog.Run still logged an IOException as failed before RunCoordinator recognized user interruption. Host stages now receive the cancellation token and log stopped with the known interruption reason first. Cleanup remains uncancelled so actual finalization failures are preserved. ExplorationMemory also retains the interrupted step reason instead of generating an observed-unchanged result from a stale screen. Recorded crash/action failures retain priority. The broader repeated-action and speed proposals above remain unimplemented, and no additional startup diagnostic collector was added.
