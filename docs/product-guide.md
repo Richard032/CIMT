@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.26
+Version: 0.27
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -464,3 +464,14 @@ The product owner approved Android Emulator and iOS Simulator execution on 31 Oc
 ### Screenshot mapping tolerance
 
 CIMT accepts a ±5% difference in the ratio between horizontal and vertical image scaling on every supported device. It expands secret masks to cover accepted mapping uncertainty. Larger mismatches still stop testing with an evidence error. Reports distinguish these CIMT evidence failures from verified application failures.
+
+
+## Instruction-driven plans and application maps
+
+CIMT now uses a separate Test Planning and Exploration layer. Keep using the same terminal/Jenkins commands and input text files. Instructions define the task and permitted exploration; requirements define expected behavior. A focused request such as test language settings must not expand silently to all app features. A broad request can explore discovered reachable paths within the configured limits.
+
+Before an action, the AI must select a concrete goal linked to the instructions or a requirement. The plan and unfinished tasks persist through the scenario. Available input controls and AI-identified visible controls become map candidates. The AI explains whether a discovered path is relevant, blocked or outside scope. Unclassified paths and unfinished relevant work keep the run incomplete; unrelated excluded controls do not force unwanted actions. The original control/state counters are still shown as raw observations, not a completeness percentage.
+
+The map grows while CIMT navigates. It records states, paths, outcomes and last-observed configuration. For example, English and German values can produce separate observed states and checks can evaluate whether a language remains after restart. A remembered setting is not proof of persistence or correct behavior; checks still need observed evidence against your requirements. For a requested persistence check, the restart action closes and reopens the tested app without resetting its data. Known return routes help the AI continue its plan, while every action still uses current screen evidence.
+
+The HTML Devices section includes Testing plan, Discovered application paths and Observed application map. Work status pending/active/blocked/tested is separate from passed/failed/not-tested results. Visiting a screen or tapping a button is not a passed test. The detailed map includes last-observed configuration provenance. Existing reports remain unchanged. See the [generic planning example](../examples/test-planning/README.md). No new YAML field, key or Appium installation is needed for this increment; live application qualification remains separate.

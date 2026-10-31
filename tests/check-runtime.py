@@ -250,7 +250,8 @@ class RuntimeChecks(unittest.TestCase):
             },
         }
         action = {k: "" for k in FIELDS}
-        action.update(action="done", x=-1, y=-1, remaining=[], completion="blocked", checks=[])
+        action.update(action="done", x=-1, y=-1, remaining=[], completion="blocked", checks=[],
+                      planUpdates=[], planStepId=0, discoveredControls=[], configuration=[], pathDecisions=[])
         bodies = []
 
         def respond(path, body):

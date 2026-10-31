@@ -26,7 +26,7 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui"], {"action": self.action})
+        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState"], {"action": self.action})
 
     def crash(self, value):
         return self._record(
@@ -45,12 +45,42 @@ class RecordRedactor:
                 "requirements": lambda items: self._items(items, self.requirement),
                 "crashes": lambda items: self._items(items, self.crash),
                 "rejectedResponses": lambda items: self._items(items, self.rejected_response),
+                "testPlan": self.plan,
+                "exploration": self.exploration,
             },
         )
 
     def rejected_response(self, value):
         # The candidate response is untrusted data, including its source and ID fields.
         return self._record(value, ["attempt", "step", "status", "screenshot"])
+
+    def plan(self, value):
+        return self._record(value, ['activeTaskId', 'nextTaskId'], {
+            'tasks': lambda rows: self._items(rows, lambda row: self._record(row,
+                ['id', 'source', 'requirementId', 'status', 'result', 'targetState']))})
+
+    def planning(self, value):
+        return self._record(value, [], {'testPlan': self.plan, 'exploration': self.exploration})
+
+    def exploration(self, value):
+        return self._record(value, [], {
+            'paths': lambda rows: self._items(rows, lambda row: self._record(row,
+                ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId'])),
+            'transitions': lambda rows: self._items(rows, lambda row: self._record(row, ['source', 'destination'])),
+            'applicationMap': self._map,
+        })
+
+    def _configuration(self, value):
+        return {self.redactor.text(name): self._record(row, ['control', 'observedAt']) for name, row in value.items()}
+
+    def _map(self, value):
+        return self._record(value, [], {
+            'states': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'screen'],
+                {'configuration': self._configuration})),
+            'transitions': lambda rows: self._items(rows, lambda row: self._record(row,
+                ['source', 'destination', 'control', 'action'])),
+            'configuration': self._configuration,
+        })
 
     def device(self, value):
         return self._record(value, ["id", "platform", "type"])

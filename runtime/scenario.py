@@ -11,12 +11,12 @@ from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
 from errors import InfrastructureError, ExplorationStalled
-from exploration_memory import ExplorationMemory
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from decision_recovery import DecisionRecovery
+from test_planning.planner import TestPlanner
 
 UNFINISHED_OBJECTIVE = "Testing objective has not finished; coverage is not confirmed"
 
@@ -33,7 +33,7 @@ class ScenarioSession:
     active: str = ""
     history: list = field(default_factory=list)
     coverage: CoverageTracker = field(default_factory=CoverageTracker)
-    exploration: ExplorationMemory = field(default_factory=ExplorationMemory)
+    planner: TestPlanner = field(default_factory=TestPlanner)
 
 
 def application_executable(build, platform):
@@ -139,8 +139,8 @@ class ScenarioRunner:
                 raise
             finally:
                 # Keep the performed action even when evidence or recovery fails.
-                session.exploration.record(before, session.elements, action, entry)
-                session.result["exploration"] = self.redactor.object(session.exploration.saved())
+                session.planner.record(before, session.elements, action, entry)
+                self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
             if cancelled:
@@ -173,7 +173,12 @@ class ScenarioRunner:
                 "screenshot": screenshot,
             }
         )
-        return ScenarioSession(result, build["app-id"], executable, elements, image), monitor
+        session = ScenarioSession(result, build["app-id"], executable, elements, image,
+            planner=TestPlanner(self.inputs['instructions'], result['requirements']))
+        session.planner.observe(elements)
+        self._save_plan(session)
+        publish()
+        return session, monitor
 
     def _new_result(self, build):
         return {
@@ -215,27 +220,37 @@ class ScenarioRunner:
         return False
 
     def _choose(self, mobile, session, agent, evidence, publish):
-        session.exploration.observe(session.elements)
+        session.planner.observe(session.elements)
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
         session.result["coverage"] = coverage
+        self._save_plan(session)
         publish()
         with self._operation("Request AI action", mobile, session.result["target"]):
             action = self.decisions.choose(mobile, session, agent, evidence, publish)
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.result["remaining"] = list(action["remaining"])
-        session.exploration.plan = list(action["remaining"])
-        session.result["exploration"] = self.redactor.object(session.exploration.saved())
+        session.planner.accept(action, session.elements)
+        self._save_plan(session)
         if action["action"] != "done" and not session.result["remaining"]:
             session.result["remaining"].append(UNFINISHED_OBJECTIVE)
         # Keep a returned finding even if the run limit expired during the request.
-        CheckRecorder(self.redactor, evidence, publish).record(
-            session, action.get("checks", []), self.inputs["instructions"]
-        )
+        try:
+            CheckRecorder(self.redactor, evidence, publish).record(
+                session, action.get("checks", []), self.inputs["instructions"]
+            )
+        finally:
+            # Checks may be saved even if their image cannot be stored.
+            session.planner.record_checks(session.result['checks'])
+            self._save_plan(session)
+            publish()
         self.control.check()
         publish()
         return action
+
+    def _save_plan(self, session):
+        session.result.update(self.redactor.records.planning(session.planner.saved()))
 
     def _action_context(self, session, action):
         element = next(
@@ -286,7 +301,9 @@ class ScenarioRunner:
         """Include known coverage gaps even when no final AI response was returned."""
         outstanding = result.get("coverage", {}).get("outstandingObservedControls", 0)
         messages = []
-        if outstanding:
+        if 'planningRemaining' in result:
+            messages.extend(result['planningRemaining'])
+        elif outstanding:
             messages.append(
                 str(outstanding) + " observed control/state combinations were not activated"
             )

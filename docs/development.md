@@ -126,3 +126,8 @@ The existing RuntimeChecks cover Mini reservation/accounting and Luna cache-writ
 RunFolderAllocator selects one folder pair and invocation identity for each run/replay. RunReportWriter updates only that execution's index.html/result.json. Replay build reuse does not imply report reuse. Keep report paths and relative evidence inside the allocated folder; do not introduce a shared latest page or redirect evidence into another execution.
 
 ReplayReportTests in the existing xUnit project verify a new replay folder, immutable earlier HTML, partial/final updates in the same folder, early run/replay errors, and both platforms' relative screenshot references. The existing public replay fixture checks its own command/identity and absence of a shared report or HTML base. These checks use temporary folders or simulated dependencies without provider or device access.
+
+
+## Test Planning and Exploration boundary
+
+runtime/test_planning is a separate policy layer. TestPlanner is the execution-facing entry point. The package owns source-linked plans, observed application states, input candidates, path scope and no-progress rules; it must not import device clients, API clients, process/file services or report renderers. Execution supplies masked observations and recorded checks, and executes one accepted action. Report rendering/redaction remains in its existing boundary. Use the existing Python unittest suite, including test_test_planner.py; its dependency-boundary test guards this separation. Packaging must include the package directory and __init__.py, not only top-level modules.

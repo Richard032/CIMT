@@ -1,0 +1,4 @@
+The language selector shows which language is selected.
+Changing the language keeps the application usable without a crash.
+Returning from the main screen to settings retains the selected language.
+Restarting the application retains the last selected language.

@@ -21,6 +21,7 @@ class Mobile:
         self.redactor = redactor
         self.activity = activity
         self.target = ""
+        self.app_id = ""
         self.commands = commands or NativeDevice(binary, device, context, redactor)
         self.guard = DeviceReadiness(self.commands, folder)
         self.status = DeviceStatus(self.commands, folder)
@@ -57,6 +58,7 @@ class Mobile:
         self.target = target
         with self._operation("Reset, install, and request app launch"):
             self.lifecycle.reset(artifact, app_id, target)
+            self.app_id = app_id
 
     def snapshot(self):
         with self._operation("Capture and validate masked screenshot"):

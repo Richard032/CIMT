@@ -28,7 +28,9 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["steps"] = items => json.Items(items, Step),
             ["crashes"] = items => json.Items(items, Crash),
             ["rejectedResponses"] = items => json.Items(items, item =>
-                json.Record(item, ["attempt", "step", "status", "screenshot"]))
+                json.Record(item, ["attempt", "step", "status", "screenshot"])),
+            ["testPlan"] = item => new PlanningRedactor(json).Plan(item),
+            ["exploration"] = item => new PlanningRedactor(json).Exploration(item)
         });
 
     private JsonNode Check(JsonElement value) => json.Record(value,
@@ -37,7 +39,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
     private JsonNode Requirement(JsonElement value) => json.Record(value,
         ["id", "status", "startLine", "endLine", "step", "screenshot"]);
 
-    private JsonNode Step(JsonElement value) => json.Record(value, ["step", "screenshot", "ui"], new()
+    private JsonNode Step(JsonElement value) => json.Record(value,
+        ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState"], new()
     {
         ["action"] = Action,
         ["crash"] = CrashKind

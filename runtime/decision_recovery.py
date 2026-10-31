@@ -29,7 +29,7 @@ class DecisionRecovery:
                 RequirementResults.validate(
                     action["checks"], session.result["requirements"], self.inputs["instructions"]
                 )
-                session.exploration.validate(session.elements, action, self.inputs["instructions"])
+                session.planner.validate(action, session.elements)
             except InvalidAgentResponse as error:
                 rejected = self._record_rejection(
                     session, action if action is not None else error.response,
@@ -57,7 +57,8 @@ class DecisionRecovery:
             list(self.config.get("credentials", {})), session.coverage.snapshot(),
             session.result["requirements"],
         ]
-        arguments.extend([feedback, session.exploration.snapshot(session.elements)])
+        memory = session.planner.context(session.elements)
+        arguments.extend([feedback, memory])
         return agent.choose(*arguments)
 
     def _scoped_setup(self, session, device):
@@ -96,7 +97,8 @@ class DecisionRecovery:
     def _refresh(self, mobile, session, publish):
         self.control.check()
         session.elements, session.image = mobile.snapshot()
-        session.exploration.observe(session.elements)
+        session.planner.observe(session.elements)
+        session.result.update(self.redactor.records.planning(session.planner.saved()))
         session.coverage.observe(session.elements)
         session.result["coverage"] = session.coverage.snapshot()
         publish()

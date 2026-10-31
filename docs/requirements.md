@@ -1,6 +1,6 @@
 # CIMT requirements
 
-Version: 0.25
+Version: 0.26
 Date: 31 October 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -153,6 +153,14 @@ Two-branch before/after comparison is a later requirement. Apple Silicon hosts, 
 | FR-81 | Replay shall reject retained apps from another physical/virtual environment. Reports shall record the selected environment and native device types. Prerequisite installation and real-run validation findings shall be documented. |
 
 
+| FR-82 | CIMT shall implement a separate Test Planning and Exploration layer. It shall own instruction-driven tasks, observed application states/transitions, relevant path scope, configuration context and no-progress policy without device, AI-provider, storage or HTML dependencies. The execution layer shall supply observations and execute accepted actions. |
+| FR-83 | Each scenario shall retain a plan rooted in the supplied testing instructions and every catalogue requirement. Before dispatching an action, the AI shall select a concrete source-linked goal. Instruction tasks shall quote the input exactly; requirement tasks shall use known IDs. Plan updates shall not silently replace an existing goal/source. Instructions retain higher priority; conflicts continue through validated requirement overrides. |
+| FR-84 | CIMT shall discover candidate user inputs from available adapter semantics and allow the AI to identify additional currently visible enabled refs. It shall not assume every generic view is actionable. It shall map observed screens, distinct UI/configuration states and transitions incrementally, retaining attempts and outcomes independently of recent action history. Known routes shall use verified direct transitions and shall remain guidance: every executed action still uses fresh observed refs/evidence. |
+| FR-85 | The plan shall distinguish relevant, out-of-scope, blocked and unclassified discovered paths. Exclusion/blocking shall retain a source-linked task and explanation. Unfinished plan tasks, relevant unvisited paths, blocked paths and unclassified paths shall keep completion incomplete. Legacy observed-control counts remain informational for planned runs and shall not force interaction with an explicitly excluded path. Visiting a path shall not pass a requirement or test goal; only recorded checks shall determine test results. |
+| FR-86 | Configuration context shall contain last-observed values supported by current screen refs and exact visible value/text/label or explicit checked/selected flags. It shall not record predicted settings, masked values or assumed persistence. Configuration variants shall distinguish states; learned behavior shall not become the correctness oracle. A requested restart action shall terminate/relaunch only the verified tested app, preserve data and honor cancellation between calls. No-progress detection shall ignore known OS clock/signal indicator updates while retaining app validation and OS permission changes. |
+| FR-87 | HTML/JSON shall retain the source-linked plan, work status separately from test result, path scope/reasons, observed state/transition map and last-observed configuration provenance. Incomplete work shall remain visible after errors/limits/cancellation. Reports shall describe discovered reachable coverage within time/budget limits, not claim all possible paths or configuration combinations. Existing privacy, masking, permission authorization, crash recovery and exit precedence remain authoritative. |
+
+
 ## 5. Outcomes and exceptional conditions
 
 These rules distinguish a test finding from an inability to execute. Instructions may customize test failure criteria, but cannot turn unexecuted work into a verified pass.
@@ -247,6 +255,11 @@ Exit-code precedence is **3 → 1 → 2 → 0**. All findings and completion det
 | AC-49 | Preserve every activity record in timestamp order, including malformed-line warnings and unmatched starts. Verify compact status groups do not imply pairing. Verify readable UTC/duration, missing values, cost categories and raw journal/result/ledger access. |
 | AC-50 | Check five-section navigation, semantics, labels and escaping in automated checks; manually check narrow windows, 200% text enlargement, contrast, keyboard focus and screen-reader behavior. With the reviewed two-device report, target ten seconds to identify the failed device and no more than two navigation actions to reach a triggering step and screenshot. Record measured results and limits; do not claim conformance from markup checks alone. |
 | AC-51 | Verify physical defaults, virtual selection on both platforms, missing-ID rejection, explicit simulator build properties, simulator ZIP identity, replay environment rejection and platform readiness/process queries in existing unit suites. Copy the previous test inputs, change execution environment and necessary build architecture settings, run on both virtual platforms and report build/control limitations separately from application findings. |
+| AC-52 | In existing unit suites, verify layer independence from device/API/storage, concrete-goal selection, valid instruction quotes/requirement IDs, immutable task provenance, persistent updates, rejected candidates without mutation/actions, and instruction/requirement check separation. |
+| AC-53 | Verify input classification on both platform types, AI-identified generic refs, stale/disabled ref rejection, state/configuration distinctions, source-supported settings, known return routes, unsuccessful/interrupted route exclusion, and clock/signal-only no-progress detection without hiding permission/validation changes. |
+| AC-54 | Verify planned completion with explicitly excluded unrelated controls, incomplete unclassified/blocked/pending work, missing goal checks, requirement override/failure precedence, bounded planner input and separate scenario/device state. HTML shall show readable plan/map/scope data, redact/escape text and preserve generated identity links. Older reports shall not receive invented maps. |
+| AC-55 | Exercise the installed planning package through existing offline fixtures first, then qualify useful exploration and configuration behavior on representative real apps. Document offline versus live acceptance separately. |
+
 
 
 ## 8. Later release: branch comparison
@@ -336,3 +349,8 @@ On 31 October 2026, the product owner requested a copy of the last test using em
 ## Generic screenshot tolerance — version 0.23
 
 On 31 October 2026, the product owner requested a generic **±5%** screenshot-mapping tolerance, followed by push, installation and replay of the last test. Under FR-36/FR-80, the ratio between horizontal and vertical image-to-screen scales shall be within 0.95–1.05, inclusive, on all platforms and device kinds. Larger discrepancies, invalid/non-finite geometry and incompatible orientation shall stop capture. Accepted scale differences shall expand each mask by the rounded-up full-screen drift between those scales, in addition to its existing two-pixel border. Screen and sensitive-region stability checks, PNG-only capture, redaction, storage and AI-release rules remain. No platform-specific pixel-scale metadata is required. See [the correction and regression evidence](screenshot-masking.md#generic-mapping-tolerance-correction--31-october-2026).
+
+
+## Instruction-driven planning approval — version 0.26
+
+The product owner approved a persistent AI plan, incremental application mapping and configuration-sensitive exploration, explicitly retaining input instructions/requirements as authority. The implementation must be a separate, appropriately named layer. FR-82–FR-87 and AC-52–AC-55 define this increment. All-possible-path coverage is bounded by reachability, input/configuration combinations and existing limits. The current Mobile MCP adapter remains in use; adding or switching to Appium requires separate qualification. This increment adds no multi-action blind execution, automatic permission consent, cross-run map reuse or extra startup diagnostic collection.

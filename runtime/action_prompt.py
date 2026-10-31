@@ -5,11 +5,12 @@ import json
 from budget import MAX_OUTPUT
 from errors import InfrastructureError, InvalidAgentResponse
 from check_results import CHECK_SCHEMA, validate_checks
+from test_planning.planning_contract import FIELDS as PLAN_FIELDS, validate_planning
 
 FIELDS = {
     "action": {
         "type": "string",
-        "enum": ["tap", "swipe", "text", "credential", "back", "wait", "done"],
+        "enum": ["tap", "swipe", "text", "credential", "back", "wait", "restart", "done"],
     },
     "ref": {"type": "string"},
     "text": {"type": "string"},
@@ -25,6 +26,7 @@ FIELDS = {
     "completion": {"type": "string", "enum": ["continue", "complete", "blocked"]},
     "checks": {"type": "array", "items": CHECK_SCHEMA},
 }
+FIELDS.update(PLAN_FIELDS)
 SCHEMA = {
     "type": "object",
     "properties": FIELDS,
@@ -72,6 +74,24 @@ SYSTEM_PROMPT = (
     "not extra requirements; never create checks or missing-work entries for headings. "
     "Other unclear catalogue items need an explanation; never invent a pass. "
     "Work through all applicable catalogue items. "
+    "The persistent testPlan is driven by instructions first and requirementResults second. "
+    "Use planUpdates to add focused instruction tasks with an exact instructionQuote, subject and expected behavior; "
+    "use nextTaskId in sequence. Requirement tasks already exist; use their IDs. Keep existing task meaning fixed. "
+    "Select planStepId for every action. Update blocked tasks with a reason and select another available task. "
+    "Before the first action, refine task 0 expected into a concrete objective using an exact instruction quote, "
+    "keeping subject Testing objective; or select a concrete source-linked subtask. The initial placeholder cannot dispatch actions. "
+    "Complete instruction subtasks through checks with the SAME subject; only host-recorded checks mark tasks tested. "
+    "Navigation is not a passed test. A done response needs an instructions check with subject Testing objective. "
+    "Use discoveredControls to identify additional current refs that are actual user inputs, including generic WebView controls. "
+    "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
+    "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
+    "Last-observed configuration is context, not proof it still applies or persists after restart. "
+    "Use restart to terminate and relaunch ONLY the tested app without clearing data when the testing task needs it. "
+    "Use pathDecisions to classify known paths as in scope, out of scope, or blocked, with task ID and explanation "
+    "based on instructions/requirements. Use the bounded map and return routes to inspect pending paths; "
+    "a route is guidance only, recheck current refs and outcomes at every action. "
+    "Prefer untried relevant paths and requested configuration alternatives; do not enumerate unlimited input values. "
+    "Finish incomplete with blocked/pending work if limits prevent systematic coverage. "
     "Use explorationMemory to continue the existing plan. Prior refs are not current control identities. "
     "Assess the observed outcome of the PREVIOUS action, not the result of the action you are proposing. "
     "Do not repeatedly tap an unchanged control. Try an untested path, return, or describe a blocked path. "
@@ -221,3 +241,4 @@ def validate_action(action):
     if any(not isinstance(item, str) for item in action["remaining"]):
         raise InvalidAgentResponse("remaining must contain only text")
     validate_checks(action["checks"])
+    validate_planning(action)

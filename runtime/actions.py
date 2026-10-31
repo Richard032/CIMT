@@ -27,6 +27,7 @@ class ActionExecutor:
             "swipe": self._swipe,
             "back": self._back,
             "wait": self._wait,
+            "restart": self._restart,
         }
         handler = handlers.get(action["action"])
         if handler is None:
@@ -96,3 +97,12 @@ class ActionExecutor:
 
     def _wait(self, mobile, action, elements):
         self.sleep(min(2, max(0, self.deadline - self.clock())))
+
+    def _restart(self, mobile, action, elements):
+        app_id = getattr(mobile, 'app_id', '')
+        if not app_id:
+            raise InfrastructureError('Restart requires the verified application identity')
+        # Use the installed target, never an app ID supplied by the model. Keep app data.
+        mobile.call('mobile_terminate_app', packageName=app_id)
+        self.check()
+        mobile.call('mobile_launch_app', packageName=app_id)

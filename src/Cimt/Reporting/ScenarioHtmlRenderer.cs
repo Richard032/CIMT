@@ -23,7 +23,8 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
             + " " + Badge(Field(scenario, "completion", "incomplete")) + "</p>";
         body += "<p>Device actions: " + context.ActionCount + "; recorded steps: " + context.Steps.Length
             + "; confirmed crashes: " + context.ConfirmedCrashes + "; suspected terminations: " + context.SuspectedTerminations + ".</p>";
-        body += Remaining(scenario) + Coverage(scenario) + Checks(context) + Exploration(scenario);
+        body += Remaining(scenario) + new PlanningHtmlRenderer(configuration).Render(context)
+            + Coverage(scenario) + Checks(context) + Exploration(scenario);
         if (Detail("interpretations") && Field(scenario, "interpretation").Length > 0)
             body += "<p>Interpretation: " + Safe(Field(scenario, "interpretation")) + "</p>";
         if (!context.Steps.Any(step => Field(step, "screenshot").Length > 0)

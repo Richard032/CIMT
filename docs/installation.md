@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.30
+Version: 0.31
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1074,3 +1074,17 @@ Installed under the run lock and verified all ten files byte-for-byte against th
 The host also needs the run cancellation token at its activity boundary. RunCoordinator now supplies it to RunActivityLog for execution stages. A pipe/process exception after a known user stop is recorded as stopped with User interrupted execution before reaching the coordinator. Cleanup deliberately uses its normal uncancelled path so real finalization errors remain visible. The matching exploration_memory.py uses the interrupted step reason instead of claiming a UI change/no change from incomplete observation. Normal progress signatures, coverage counting, ref selection and capture checks are unchanged.
 
 Publish the host and replace exploration_memory.py with the matching source module under the same installation lock/backup procedure. Verification passed: 299 xUnit tests, 243 Python tests, 22 runtime-policy checks and 22 public CLI checks (586 offline checks). The host publication succeeded. Installed six host files and that module, verifying every byte; installed help passed. Backup: /private/tmp/cimt-before-host-cancellation-6dd2tmgb. Host SHA-256: f23bbd83582ffe52f54389e2a8f393bc46c2bb9fcd3e641ebf7847187c055113. New reports use the correction; historical reports remain intact. No mobile run, paid API request or device action was started.
+
+
+## 42. Separate Test Planning and Exploration layer — 31 October 2026
+
+The new runtime/test_planning package contains the planning policy, task model, application map, input interpretation and progress rules. Install its Python files as a package, including __init__.py, under lib/cimt-runtime/test_planning. Copying only runtime/*.py is no longer sufficient. The updated scripts/install-cimt-runtime.sh copies both levels and removes the obsolete top-level exploration_memory.py after copying the replacement package. This source installer retains its existing dependency setup; no new Python dependency was added.
+
+For an incremental update, publish the host using section 15 and back up the six host files plus matching runtime action_prompt.py, actions.py, mobile.py, scenario.py, decision_recovery.py, record_redaction.py and the old exploration_memory.py. Hold the installation run lock, install the new package and those six top-level modules, remove the backed-up obsolete top-level module, and verify file bytes. Preserve configuration, build workers/scripts, third-party tools and existing reports. The host embeds the readable plan/map renderer and typed redaction boundary. The runtime now requires the matching planning response schema, so install host/runtime changes together.
+
+No new YAML field, API key, service or Appium installation is needed. Existing run/replay commands receive the plan through their normal instructions/requirements files. See [the planning example](../examples/test-planning/README.md). The new restart action terminates/relaunches only the verified tested app and preserves app data. It does not reset or reinstall the application.
+
+Offline and live acceptance remain separate. The layer can be exercised with tests/test_test_planner.py and the existing test suites without a phone or API request. Device-specific input accessibility, useful exploration, configuration persistence and report layout on real runs remain live qualification work. No new live run is implied by installation.
+
+
+Verification for this increment passed: 304 xUnit tests, 280 Python tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks (628 offline checks). Host publication and installer syntax checks passed. Installed all 19 matching host/runtime/package files under the run lock and verified every byte. The obsolete top-level memory module was backed up and removed. Installed help and an installed-package import/schema smoke check passed without a device or API call. Original pre-planning backup: /private/tmp/cimt-before-planning-nv4wag87. Final snapshot-retention update backup: /private/tmp/cimt-before-planning-kru9cmu4. Installed host SHA-256: e9afbf3112370c798c99555d93dc3f5a345a00a4bfffc85f6a2fa0cb43c372ef. Existing private inputs, saved reports, build workers/scripts and third-party source were not changed. No live test run or paid inference was started.

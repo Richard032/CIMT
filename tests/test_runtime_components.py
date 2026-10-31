@@ -42,7 +42,7 @@ SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
 def check(status="passed"):
     """Use explicit expected and observed behavior in each decided check."""
     return {
-        "subject": "Button exploration",
+        "subject": "Testing objective",
         "source": "instructions",
         "status": status,
         "expected": "Buttons keep the app usable",
@@ -69,8 +69,13 @@ def action(kind="done", **values):
         "remaining": [],
         "completion": "complete",
         "checks": [check()] if kind == "done" else [],
+        "planUpdates": [], "planStepId": 0, "discoveredControls": [],
+        "configuration": [], "pathDecisions": [],
     }
     result.update(values)
+    if kind != 'done' and 'planUpdates' not in values:
+        result['planUpdates'] = [dict(id=0, source='instructions', requirementId='', instructionQuote='Explore',
+            subject='Testing objective', expected='Buttons keep the app usable', status='active', reason='', targetState='')]
     return result
 
 
@@ -137,6 +142,7 @@ class FakeMobile:
         self.calls.append(("reset", {"app": app_id, "target": target}))
         if self.reset_error:
             raise self.reset_error
+        self.app_id = app_id
 
     def snapshot(self):
         return self.elements, b"masked image fixture"
@@ -350,6 +356,57 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result["coverage"]["attemptedControls"], 1)
         self.assertEqual(mobile.calls[1][0], "mobile_click_on_screen_at_coordinates")
 
+    def test_restart_preserves_data_and_uses_only_the_tested_app_identity(self):
+        mobile = FakeMobile(self.root, elements=[])
+        result, _ = self.run_scenario(mobile, [action('restart'), action()])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset', 'mobile_terminate_app', 'mobile_launch_app'])
+        self.assertEqual(mobile.calls[1][1]['packageName'], self.build['app-id'])
+        self.assertEqual(mobile.calls[2][1]['packageName'], self.build['app-id'])
+        self.assertEqual(result['verdict'], 'passed')
+
+    def test_cancellation_between_restart_calls_prevents_relaunch(self):
+        mobile = FakeMobile(self.root)
+        mobile.app_id = self.build['app-id']
+        def stop_after_termination(name, **arguments):
+            mobile.calls.append((name, arguments))
+            self.control.interrupt()
+        mobile.call = stop_after_termination
+        executor = ActionExecutor({}, self.redactor, self.control.deadline, check=self.control.check)
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            executor.execute(mobile, action('restart'), mobile.elements)
+        self.assertEqual([name for name, _ in mobile.calls], ['mobile_terminate_app'])
+
+    def test_scoped_completion_does_not_require_unrelated_observed_controls(self):
+        def choose(*arguments):
+            path = arguments[-1]['currentControls'][0]['id']
+            return action(pathDecisions=[dict(id=path, scope='out of scope',
+                reason='This control is unrelated to the configured testing objective', planStepId=0)])
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose), lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['completion'], 'complete')
+        self.assertEqual(scenario['coverage']['outstandingObservedControls'], 1)
+        self.assertEqual(scenario['exploration']['paths'][0]['scope'], 'out of scope')
+        self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
+
+    def test_instruction_subtask_keeps_completion_incomplete_until_it_has_a_check(self):
+        task = dict(id=1, source='instructions', requirementId='', instructionQuote='Explore',
+            subject='Test selector alternatives', expected='Each requested choice remains usable',
+            status='pending', reason='', targetState='')
+        result, _ = self.run_scenario(FakeMobile(self.root, elements=[]), [action(planUpdates=[task])])
+        self.assertEqual(result['completion'], 'incomplete')
+        self.assertIn('Test selector alternatives: pending', result['remaining'])
+
+    def test_rejected_plan_does_not_dispatch_an_action_or_create_a_task(self):
+        task = dict(id=1, source='instructions', requirementId='', instructionQuote='Invented instruction',
+            subject='Unrelated goal', expected='Unrelated result', status='active', reason='', targetState='')
+        mobile = FakeMobile(self.root, elements=[])
+        result, agent = self.run_scenario(mobile, [action('tap', ref='@e1', planUpdates=[task]), action()])
+        self.assertEqual(len(result['testPlan']['tasks']), 1)
+        self.assertEqual(len(result['rejectedResponses']), 1)
+        self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
+
     def test_rejected_action_does_not_count_as_button_coverage(self):
         result, _ = self.run_scenario(
             FakeMobile(self.root), [action("tap", ref="@missing"), action()]
@@ -463,7 +520,7 @@ class ScenarioTests(unittest.TestCase):
                 result, FakeAgent([action("tap", ref="@missing")]), lambda: None)
         remaining = result["scenarios"][0]["remaining"]
         self.assertIn("1 requirements have no decided result", remaining)
-        self.assertIn("1 observed control/state combinations were not activated", remaining)
+        self.assertIn("Open: unclassified", remaining)
 
     def test_accepted_action_is_not_reported_as_unactivated_after_capture_failure(self):
         result = {"scenarios": []}
