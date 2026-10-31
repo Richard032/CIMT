@@ -12,6 +12,7 @@ This layer does not filter AI context, select an exploration path or decide whet
 
 | Condition | Scope | Result |
 | --- | --- | --- |
+| Adapter answers an ordinary tap/type/swipe/button request with an interaction rejection | AI decision feedback | Record the failed attempt, gather normal post-action evidence and let the AI choose the next action. No automatic replacement or app-crash classification. |
 | Adapter answers a launch or relaunch request with an app launch failure | Affected device | Save the launch error and partial observations, close that device connection and continue the other active or queued devices. |
 | Device is locked | Affected device | Save the readiness limit and continue other devices. |
 | Three matching crashes at the same point | Affected scenario | Save the failed/incomplete scenario and continue the remaining scenarios. |

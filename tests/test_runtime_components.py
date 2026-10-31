@@ -25,7 +25,7 @@ from budget import Budget
 from coverage_tracker import CoverageTracker
 from device_commands import DeviceReadiness
 from stopping_policy.policy import result_exit_code
-from errors import AppLaunchError, InfrastructureError, LimitReached, InvalidAgentResponse
+from errors import AppLaunchError, DeviceActionError, InfrastructureError, LimitReached, InvalidAgentResponse
 from openai_transport import OpenAiTransport
 from redaction import Redactor
 from run_control import RunControl
@@ -161,6 +161,15 @@ class FakeMobile:
 
     def call(self, name, **arguments):
         self.calls.append((name, arguments))
+
+
+class RejectedTargetMobile(FakeMobile):
+    """A missing adapter target is an interaction result, not a lost connection."""
+
+    def call(self, name, **arguments):
+        super().call(name, **arguments)
+        if name == 'mobile_click_on_screen_at_coordinates' and arguments.get('ref') == '@earlier':
+            raise DeviceActionError('Adapter could not resolve the requested target')
 
 
 class ChangingScreenMobile(FakeMobile):
@@ -411,13 +420,31 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(len(result['rejectedResponses']), 1)
         self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
 
-    def test_rejected_action_does_not_count_as_button_coverage(self):
+    def test_unobserved_ref_is_dispatched_without_claiming_observed_coverage(self):
+        mobile = FakeMobile(self.root)
         result, _ = self.run_scenario(
-            FakeMobile(self.root), [action("tap", ref="@missing"), action(completion='blocked')]
+            mobile, [action("tap", ref="@missing"), action(completion='blocked')]
         )
         self.assertEqual(result["coverage"]["attemptedControls"], 0)
         self.assertEqual(result["completion"], "incomplete")
-        self.assertIn("actionError", result["steps"][1])
+        self.assertNotIn("actionError", result["steps"][1])
+        self.assertIn(('mobile_click_on_screen_at_coordinates', {'ref': '@missing'}), mobile.calls)
+
+    def test_disabled_observation_does_not_override_the_ai_selected_tap(self):
+        mobile = FakeMobile(self.root, elements=[dict(BUTTON, enabled=False), SIZE])
+        self.run_scenario(mobile, [action('tap', ref='@e1'), action(completion='blocked')])
+        self.assertIn(('mobile_click_on_screen_at_coordinates', {'ref': '@e1'}), mobile.calls)
+
+    def test_adapter_target_failure_returns_to_ai_without_a_host_selected_action(self):
+        mobile = RejectedTargetMobile(self.root)
+        result, agent = self.run_scenario(mobile,
+            [action('tap', ref='@earlier'), action('tap', ref='@e1'), action()])
+        self.assertEqual(len(agent.calls), 3)
+        self.assertIn('Adapter could not resolve', result['steps'][1]['actionError'])
+        self.assertEqual([args['ref'] for name, args in mobile.calls
+            if name == 'mobile_click_on_screen_at_coordinates'], ['@earlier', '@e1'])
+        self.assertNotIn('rejectedResponses', result)
+        self.assertFalse(self.control.stopped.is_set())
 
     def test_three_matching_crashes_cancel_only_this_objective(self):
         sequence = ["com.example.app", "home"] * 3
@@ -955,6 +982,22 @@ class BoundaryTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError) as raised:
             RpcMessages.tool_result(result, 'mobile_list_elements_on_screen', lambda text: text)
         self.assertNotIsInstance(raised.exception, AppLaunchError)
+
+    def test_answered_interaction_error_is_returned_as_device_action_feedback(self):
+        for name in ['mobile_click_on_screen_at_coordinates', 'mobile_type_keys',
+                     'mobile_swipe_on_screen', 'mobile_press_button']:
+            with self.subTest(tool=name):
+                with self.assertRaises(DeviceActionError):
+                    RpcMessages.tool_result(dict(isError=True, content=[dict(text='Target unavailable')]),
+                        name, lambda text: text)
+
+    def test_unobserved_credential_target_never_receives_secret_text(self):
+        mobile = FakeMobile(pathlib.Path('/unused'), elements=[SIZE])
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        executor = ActionExecutor(config, Redactor(config), time.time() + 30)
+        with self.assertRaises(ValueError):
+            executor.execute(mobile, action('credential', ref='@earlier', credential='test', field='password'), [SIZE])
+        self.assertFalse(mobile.calls)
 
     def test_successful_launch_keeps_the_adapter_result(self):
         result = dict(content=[dict(text='Started')])

@@ -17,6 +17,10 @@ class AppLaunchError(InfrastructureError):
     """The adapter answered, but could not launch this device's tested app."""
 
 
+class DeviceActionError(InfrastructureError):
+    """The adapter rejected an interaction; the AI decides what to try next."""
+
+
 class InvalidAgentResponse(InfrastructureError):
     """An AI response can be corrected before any device action is accepted."""
 

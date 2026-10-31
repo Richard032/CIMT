@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.34
+Version: 0.35
 Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -89,6 +89,14 @@ MCP connection/protocol/timeouts, failed reset verification, masking/storage fai
 Every explicitly defined architectural layer has its own clearly named folder. The current dedicated policy layers are Test Planning and Exploration in `runtime/test_planning/` and Execution Stopping Policy in `runtime/stopping_policy/`. The planning layer consumes supplied observations and AI decisions. The stopping layer depends only on typed runtime errors and supplied counts/results. Neither layer calls devices, storage or providers. Execution components call these layers; the layers do not import execution components or each other.
 
 Configuration, orchestration, device adapters, evidence and reporting in the component table remain components with their existing source boundaries; that table does not define each component as an additional architectural layer. Any new layer must document its responsibility and dependencies and receive its own source folder. Packaging must include each full layer folder, including its package entry point. Tests remain in the existing test suites.
+
+### AI action ownership and mechanical resources — FR-95
+
+The AI selects ordinary actions and targets from current evidence, prior observations, its plan or expected application behavior. ActionExecutor forwards selected refs to the adapter even when absent or marked disabled in the latest UI tree. Coordinate taps need valid device coordinates, not a matched observed control. Current observations and known routes are resources for the AI rather than an action whitelist. CIMT does not select replacement targets.
+
+The RPC result boundary distinguishes an answered interaction rejection as DeviceActionError. ScenarioRunner records that feedback, gathers normal post-action evidence and lets the next AI decision choose how to proceed. It does not retry or substitute an action itself. MCP connection/protocol/timeouts and masking/storage failures retain their existing infrastructure behavior. Failed requests do not become verified routes or observed-control coverage. Requested refs lacking current observations have separate path/crash identities and are labelled as requests.
+
+Credential entry retains current field/ID verification because masking must be registered before secret text is typed. Supported action shape, platform capabilities, coordinate bounds, shared limits, tested-app identity and permission authorization remain mechanical constraints. Structured plan/check/source validation remains separate from target selection. See [AI context and recovery](ai-context-and-recovery.md).
 
 ## 4. Configuration and filesystem proposal
 

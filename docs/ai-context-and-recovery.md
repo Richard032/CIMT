@@ -10,6 +10,8 @@ The existing Test Planning and Exploration layer owns this policy. ContextMemory
 
 ## Context contract
 
+FR-95 extends the AI-ownership boundary to ordinary action selection. The AI may select a ref or coordinate from current evidence, earlier observations or its expectations. The latest accessibility tree is evidence, not an action whitelist. CIMT forwards supported requests and records adapter-reported interaction rejections for the next AI decision, without choosing another action. It still enforces technical execution and privacy constraints. An earlier ref may be stale; its requested identity and returned outcome are retained without claiming it was an observed control or a completed action. Credential entry requires a verified maskable field before typing any secret.
+
 Each response includes context. Returning null explicitly retains the previous AI summary/selection without regenerating it. To change it, return:
 
 ```json

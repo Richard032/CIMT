@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.29
+Version: 0.30
 Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -293,6 +293,8 @@ This is an input example, not a bundled demo app or mandatory text grammar. AI m
 Instructions override conflicting requirements. Mark affected requirements overridden and explain the conflict. Default failure criteria apply when the instructions do not supply them.
 
 ## 11. Limits, crashes, and outcomes
+
+The AI chooses ordinary interactions using the latest screen, earlier observations, its plan or expected app behavior. A tap is not restricted to a control listed or enabled in the latest UI tree. CIMT passes the chosen ref or valid coordinates to the adapter; refs can expire or fail to resolve. An answered interaction failure is recorded and returned with the next evidence so the AI can decide what to do next. CIMT does not choose a replacement button. It distinguishes requested targets from observed controls and does not count unmatched requests as observed coverage. Secret credential entry still needs a verifiable maskable field, and supported commands, coordinate bounds, budgets, masking and authorized permissions still apply.
 
 The time limit covers the whole run. The AI budget is shared across workers. Before each request, reserve the maximum possible charge; if insufficient budget remains, stop incomplete, potentially below the cap. Reporting is local and requires no final AI call.
 

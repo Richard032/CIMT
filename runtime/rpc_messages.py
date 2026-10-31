@@ -1,7 +1,12 @@
 """Line-based JSON-RPC messages without process or device access."""
 
 import json
-from errors import AppLaunchError, InfrastructureError
+from errors import AppLaunchError, DeviceActionError, InfrastructureError
+
+INTERACTION_TOOLS = {
+    'mobile_click_on_screen_at_coordinates', 'mobile_type_keys',
+    'mobile_swipe_on_screen', 'mobile_press_button',
+}
 
 
 class RpcMessages:
@@ -32,12 +37,15 @@ class RpcMessages:
 
     @staticmethod
     def tool_result(value, name, redact):
-        """Distinguish a rejected app launch from a failed MCP connection."""
-        if value.get("isError"):
-            message = redact(" ".join(
-                item.get("text", "") for item in value.get("content", [])
-            ))
-            # Only an answered launch request is local. Transport errors stay global.
-            error_type = AppLaunchError if name == "mobile_launch_app" else InfrastructureError
-            raise error_type(message)
-        return value
+        """Translate an answered tool result without hiding connection failures."""
+        if not value.get("isError"):
+            return value
+        message = redact(" ".join(
+            item.get("text", "") for item in value.get("content", [])
+        ))
+        # Connection errors are raised before this boundary. Interactions return feedback.
+        if name == 'mobile_launch_app':
+            raise AppLaunchError(message)
+        if name in INTERACTION_TOOLS:
+            raise DeviceActionError(message)
+        raise InfrastructureError(message)

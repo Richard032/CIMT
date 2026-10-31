@@ -14,6 +14,16 @@ TAP = {'action': 'tap', 'ref': '@e1'}
 
 
 class ExplorationMemoryTests(unittest.TestCase):
+    def test_unobserved_refs_are_recorded_as_distinct_requested_targets(self):
+        memory = ExplorationMemory()
+        for ref in ['@earlier-a', '@earlier-b']:
+            memory.record([], [], dict(action='tap', ref=ref, x=-1, y=-1), {})
+        paths = memory.saved()['paths']
+        self.assertEqual(len(paths), 2)
+        self.assertNotEqual(paths[0]['control'], paths[1]['control'])
+        self.assertEqual([path['label'] for path in paths],
+            ['Requested ref @earlier-a', 'Requested ref @earlier-b'])
+
     def setUp(self):
         self.memory = ExplorationMemory()
         self.screen = [BUTTON]

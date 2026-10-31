@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## AI-selected actions and mechanical execution — 31 October 2026
+
+Implemented FR-95 / AC-65 and revised FR-84. Ordinary taps no longer require a ref present or enabled in the latest UI snapshot. AI may use current evidence, earlier observations, its plan or expected application behavior. CIMT forwards the selected ref or valid coordinates without choosing a substitute target. The native adapter still determines whether a supplied ref resolves; CIMT cannot make an expired adapter ref valid.
+
+An answered tap/type/swipe/button rejection becomes DeviceActionError, is recorded as action feedback and is supplied with subsequent evidence for the AI's next decision. No host-selected retry or replacement action is inserted. Unknown requested refs have distinct exploration/crash identities and request labels, without increasing observed-control coverage. Credential field/ID verification and masking, coordinate bounds, supported platform capabilities, shared limits and MCP infrastructure handling remain. Planning/source/check contract validation is unchanged; this increment does not resolve the separate quotation, invented path-ID or multiple-response issues found in the earlier replay.
+
+Verification passed: 333 existing-suite Python unit tests, 22 runtime-policy checks and 22 fake-tool public CLI/lifecycle checks (377 offline checks). Tests cover absent/disabled refs, AI-selected follow-up after an interaction rejection, unchanged secret-entry protection and distinct requested-target records. Requirements v0.29, architecture v0.35, product v0.30 and the AI-context/development/mapping guidance describe the ownership boundary. This correction has not been installed or exercised in a live mobile replay. No paid API request or device action was started.
+
 ## App launch isolation and Execution Stopping Policy — 31 October 2026
 
 Fixed the failure propagation that cancelled Android after an iOS relaunch failed. An answered app-launch tool failure now carries a typed AppLaunchError and stops only the affected device, on either platform and for physical or virtual devices. Partial observations and the launch error remain in the combined report; exit 3 still takes precedence. Adapter transport/protocol errors, failed reset verification, required masking/storage errors and shared AI failures retain their whole-run policy. Typed DeviceLocked replaces error-text matching for local readiness stops.

@@ -45,7 +45,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
 | decision_recovery.py | Correct invalid decisions before check recording/actions; retain redacted rejected candidates. |
-| actions.py | Validate and execute allowed actions; enter credentials locally. |
+| actions.py | Apply mechanical execution constraints and dispatch AI-selected targets; enter credentials locally with verified masking. |
 | coverage_tracker.py | Track observed and activated controls. |
 | exploration_memory.py | Retain scenario paths/outcomes and reject no-progress repetitions. |
 | run_signals.py | Convert terminal signals into worker stop flags. |

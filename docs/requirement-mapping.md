@@ -2,6 +2,8 @@
 
 ## Stopping scope and layer folders
 
+FR-95 / AC-65 map to ActionExecutor's ref forwarding, typed DeviceActionError parsing, ScenarioRunner's action feedback and separate requested-target identities in exploration/crash records. Existing tests exercise absent/disabled targets, AI-selected follow-up after an adapter rejection, unchanged credential protections and distinct unknown refs. These checks do not claim that a stale ref can be resolved by the native adapter.
+
 FR-32 / AC-63 map to the typed app-launch result in RpcMessages, the Execution Stopping Policy under runtime/stopping_policy/ and DeviceRunner's error recording. Existing unit tests verify both platform directions, preserved launch errors, continuing work without cancellation, global handling of other infrastructure failures and final exit precedence. DR-01 / AC-64 map to the named layer folders in the architecture and complete-package copying in scripts/install-cimt-runtime.sh. See [execution stopping](execution-stopping.md). Live dual-device qualification remains separate.
 
 Implemented increment: 28 October 2026. Covers the catalogue, mapped observations, all five statuses, and target/device coverage required by FR-19 and FR-27. Real application acceptance remains separate.

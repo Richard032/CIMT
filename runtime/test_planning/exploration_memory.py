@@ -15,8 +15,7 @@ class ExplorationMemory:
         self.progress_version = 0
 
     def _key(self, elements, element, action):
-        control = control_identity(element) if element else identity([
-            action['action'], action.get('x'), action.get('y'), action.get('direction', '')])
+        control = self._control(element, action)
         state = self.map.state_id(elements)
         direction = action.get('direction', '')
         for key, row in self.paths.items():
@@ -24,6 +23,14 @@ class ExplorationMemory:
                     and row['action'] == action['action'] and row.get('direction', '') == direction):
                 return key
         return identity([state, control, action['action'], direction])
+
+    @staticmethod
+    def _control(element, action):
+        if element:
+            return control_identity(element)
+        # An unobserved target is a request, not a newly observed UI control.
+        return identity([action['action'], action.get('ref', ''), action.get('x'),
+                         action.get('y'), action.get('direction', '')])
 
     def _path(self, elements, action):
         element = next((item for item in elements if item.get('ref') == action.get('ref')), {})
@@ -99,6 +106,10 @@ class ExplorationMemory:
         element = next((item for item in before if item.get('ref') == action.get('ref')), {})
         state = self.map.state_id(before)
         row = self.paths.setdefault(key, self._new_path(key, state, element, action['action'], self.kind(element)))
+        if not element:
+            row['control'] = self._control(element, action)
+            row['label'] = ('Requested ref ' + action['ref'] if action.get('ref') else
+                            'Requested ' + action['action'] + ' at ' + str((action.get('x'), action.get('y'))))
         row['direction'] = action.get('direction', '')
         destination = self.map.state_id(after)
         if destination not in self.map.states:

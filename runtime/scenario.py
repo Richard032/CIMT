@@ -10,7 +10,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
-from errors import InfrastructureError
+from errors import DeviceActionError, InfrastructureError
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
@@ -289,8 +289,9 @@ class ScenarioRunner:
                 self.actions.execute(mobile, action, session.elements)
             if action["action"] in ["tap", "credential"]:
                 session.coverage.activated(element)
-        except ValueError as error:
-            entry["actionError"] = str(error)
+        except (ValueError, DeviceActionError) as error:
+            # A rejected interaction goes back to the AI, without a host-selected substitute.
+            entry["actionError"] = self.redactor.text(str(error))
         self.sleep(min(0.4, max(0, self.control.deadline - self.clock())))
 
     def _save_action(self, session, entry, action):
