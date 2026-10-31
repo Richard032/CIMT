@@ -4,7 +4,10 @@ using System.Text.RegularExpressions;
 namespace Cimt.Build;
 
 public sealed record BuildRequest(string Platform, string Repository, string ResultFile, string Project,
-    string Configuration, string Framework, Dictionary<string, string> Properties, string ArtifactFallback, string AppIdFallback);
+    string Configuration, string Framework, Dictionary<string, string> Properties, string ArtifactFallback, string AppIdFallback)
+{
+    public bool IsIosSimulator => Platform == "ios" && Properties.GetValueOrDefault("RuntimeIdentifier", "").StartsWith("iossimulator-", StringComparison.Ordinal);
+}
 
 /// <summary>Reads and validates one build request from the caller's environment.</summary>
 public sealed class BuildRequestLoader(Func<string, string?> environment)

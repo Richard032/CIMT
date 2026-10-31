@@ -103,9 +103,11 @@ class ExplorationMemory:
         )
         row["progressVersion"] = self.progress_version
         row["unchangedAttempts"] = (
-            row["unchangedAttempts"] + 1 if not changed and not entry.get("crash") and not entry.get("evidenceError") else 0
+            row["unchangedAttempts"] + 1 if not changed and not entry.get("crash")
+            and not entry.get("evidenceError") and not entry.get("stoppingReason") else 0
         )
-        outcome = entry.get("crash") or entry.get("actionError") or entry.get("evidenceError") or (
+        # An interrupted observation cannot establish whether the app changed.
+        outcome = entry.get("crash") or entry.get("actionError") or entry.get("stoppingReason") or entry.get("evidenceError") or (
             "Observed UI changed" if changed else "No observed UI change after the action"
         )
         row["lastOutcome"] = outcome

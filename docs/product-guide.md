@@ -1,7 +1,7 @@
 # CIMT product documentation
 
-Version: 0.20  
-Date: 30 October 2026  
+Version: 0.26
+Date: 31 October 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -11,7 +11,7 @@ Product: CIMT — Curtis Intelligent Mobile Test
 
 CIMT supports everyday testing of any configured .NET MAUI application. Developers invoke a terminal command; Jenkins pipelines invoke the same command on their Intel Mac execution node.
 
-Give CIMT a Git repository/branch, configurable build targets, plain-text testing instructions, and optional requirements/setup inputs. CIMT builds the app, operates physical devices, and generates local HTML observations with evidence. It complements the existing validation system; AI exploration does not guarantee complete bug discovery.
+Give CIMT a Git repository/branch, configurable build targets, plain-text testing instructions, and optional requirements/setup inputs. CIMT builds the app, operates selected physical or virtual devices, and generates local HTML observations with evidence. It complements the existing validation system; AI exploration does not guarantee complete bug discovery.
 
 One installation serves multiple repositories, with only one active run per Mac. All supported devices connected at startup participate, at most two simultaneously. New connections are excluded. Both platforms need not be present.
 
@@ -410,7 +410,7 @@ CIMT remembers explored controls, outcomes, untried paths, and the pending plan 
 
 After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Replanning is bounded. If it cannot find a useful next action, only that scenario stops incomplete and other work continues. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
 
-Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal.
+Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal. Interrupted host stages, device operations and action records show stopped with the user-interruption reason. If observation was interrupted, its outcome states that interruption instead of claiming the screen changed or stayed unchanged. Successful cleanup still shows completed. A connection/pipe failure without a known user stop remains a real failure. Partial observations survive a connection-close error, and earlier failures keep their original outcome. This applies to new execution reports; saved historical reports are unchanged.
 
 You can open index.html while testing is running. CIMT saves a clearly labelled partial report at stage boundaries and updates it about every two seconds during device testing; reload the page to see newer saved observations. The latest AI count comes from the saved budget ledger. If the process is force-killed, the last saved page remains available and explicitly partial. A final report removes that marker. This feature starts with new runs/replays after installation; it does not rewrite the previous interrupted run.
 
@@ -432,3 +432,35 @@ ai-model:
 This fragment merges with your existing settings; it is not a complete standalone configuration. The supported profiles are gpt-5.4-mini-2026-03-17 and gpt-5.6-luna, both in USD. CIMT does not switch models automatically. The validate command remains a readiness check without provider calls; run/replay check actual access to the configured model without inference before building/testing. Access checks cannot establish every inference capability or account limit.
 
 Strict spending limits remain mandatory. Mini reserves USD 0.309216 and Luna reserves USD 0.5286864 before each inference request. Luna reserves its full context at higher long-context rates, including default cache-write charges. This deliberately large reservation can stop a run early even though a typical request costs much less. Recorded usage settles at conservative rates and ignores cache-read savings; the report is not an exact invoice. No private file or selected model is changed by installing this update. Model quality and real execution speed still need a user-started comparison; multi-step plans and automatic price retrieval are not included.
+
+## Open a run or replay report
+
+New reports use five sections: **Overview**, **Findings**, **Devices**, **Requirements** and **Activity**. Start with the whole-run device/target table. It includes blocked and unstarted combinations, separates actions from recorded steps, and separates confirmed crashes from suspected terminations. No recorded crash is not proof that an application passed.
+
+Follow a failure's recorded-step link to its exact device/scenario record. Step 0 stays step 0. Open a screenshot to use the local viewer, previous/next within the same scenario/evidence type, zoom and Escape/close. Ordinary image links remain available. Missing or unsafe files have explicit explanations. A screenshot is not labelled as an action result unless its record establishes that relationship.
+
+Use the section's device/target/status filters or text search; visible counts and selected scope describe what is shown. Clear filters restores all records. Overview totals always describe the whole run. A direct step link reveals the destination even if an earlier filter hid it. Without JavaScript, all report content and ordinary links remain available; only enhancements are omitted.
+
+Activity holds compact operation/status groups, the complete ordered journal, build provenance, redacted input details and technical downloads. Grouping does not imply that repeated operations were paired or completed. UTC time and durations are readable, with exact timestamps in details. Budget fields distinguish accounted, uncertain and pending conservative costs; they are not a verified provider invoice.
+
+The report opens directly from disk and works offline after its whole folder is moved. No browser service, new YAML field or new key is needed. Existing reports retain their previous layout; a later user-started run/replay creates a new report with this design. No real test is started by opening a report.
+
+Each invocation has its own report:
+
+```text
+<input-folder>/CIMT output/reports/report_<date-time>/index.html
+```
+
+Use the exact Report path printed when cimt run or cimt replay finishes. A replay creates a new timestamped report folder even though it reuses application builds from an earlier execution. Its own index.html contains all recorded device results and relative screenshot/log links for that replay. Earlier report folders remain unchanged.
+
+Partial snapshots and final output update the index.html inside the same allocated folder. A partial page is labelled until finalization, including after cancellation. Reload that execution's page for newer saved observations. Headers and browser titles identify run versus replay and the execution identity. Early execution errors keep their own command and identity too.
+
+CIMT does not create a shared latest HTML file at reports/index.html. An already open report remains that execution's report; it does not become a later replay. For the reviewed dual-platform replay, open report_2026-10-30_16-43-21-093/index.html inside TestRun_ios_android_SingleTarget/CIMT output/reports.
+
+## Virtual-device execution
+
+The product owner approved Android Emulator and iOS Simulator execution on 31 October 2026. See [the configuration, device abstraction, build differences and Mac preparation](virtual-devices.md). Physical devices remain the default. Use explicit compatible build properties; do not change tested application source. Offline validation and real-run qualification are separate.
+
+### Screenshot mapping tolerance
+
+CIMT accepts a ±5% difference in the ratio between horizontal and vertical image scaling on every supported device. It expands secret masks to cover accepted mapping uncertainty. Larger mismatches still stop testing with an evidence error. Reports distinguish these CIMT evidence failures from verified application failures.

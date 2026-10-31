@@ -14,9 +14,9 @@ ScreenMasker returns UI data and image bytes only after all required geometry an
 
 ## Mask geometry and UI text
 
-MaskGeometry validates finite, positive screen dimensions and finite rectangle coordinates with positive width/height. It also rejects overflowed rectangle edges and non-finite scale factors. Screen and image scale may differ by at most one image pixel of rounding; rotation or a larger aspect mismatch stops capture.
+MaskGeometry validates finite, positive screen dimensions and finite rectangle coordinates with positive width/height. It also rejects overflowed rectangle edges and non-finite scale factors. The horizontal and vertical image scales are `sx = imageWidth / screenWidth` and `sy = imageHeight / screenHeight`. Their ratio `sx / sy` must be within **0.95 through 1.05**, inclusive (±5%, with a small floating-point epsilon at the boundary). This is a relative check shared by physical and virtual devices on both platforms. It is independent of native pixel-density metadata and supports uniform resizing. A rotated frame or a mismatch outside the permitted ratio stops capture.
 
-Partly visible rectangles are clipped before scaling. A sensitive field with valid bounds completely outside the screen has no pixels to paint, but its UI text stays hidden. Missing or invalid required bounds stop capture. Pixel edges round outward, with a two-image-pixel border on every side. This covers fractional coordinates and smaller screenshots without relying on drawing-library truncation.
+Partly visible rectangles are clipped before scaling. A sensitive field with valid bounds completely outside the screen has no pixels to paint, but its UI text stays hidden. Missing or invalid required bounds stop capture. Pixel edges round outward. Each axis retains a two-image-pixel border and adds the rounded-up full-screen drift between the two accepted scales: `ceil(abs(sx - sy) * screenAxisSize)`. The extra border covers mapping uncertainty instead of exposing secret edges when tolerance is used. With identical scales, the border stays two pixels.
 
 Configured element IDs, secure-field type/identifier hints, and configured secrets in original nested UI strings identify required masks. Sensitive text values are hidden in both the image and the returned UI data. A container mask also hides text in overlapping child records. When masks exist and another UI text record has no reliable bounds, its text is hidden conservatively. That record does not expand the pixel mask. References and control types remain usable for navigation.
 
@@ -59,3 +59,9 @@ The observed run report_2026-10-30_12-36-25-944 changed from login/password cont
 The non-atomic capture limitations above still apply. Retries do not prove that the screen never changed between observations. They use the same validated observations and masking boundary as the original capture path.
 
 Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+
+## Generic mapping tolerance correction — 31 October 2026
+
+The first virtual-device run built and installed both apps, but stopped before AI inference because the helper returned one pixel less width than the simulator's reported screen size implied. The product owner requested a generic ±5% correction. CIMT applies the same relative scale-ratio rule to every device and expands masks for accepted scale differences. Native PNG capture through binary stdout, image/region validation and fail-closed behavior remain. No third-party tool source changes or raw-file capture fallback were added.
+
+The existing Python suite passes 234 unit tests, including both 5% boundaries, just-outside rejection, the real simulator dimensions without platform metadata, uniform downscaling, large mismatch rejection, expanded mask bounds and synthetic secret-pixel masking. The 22 runtime-policy checks also pass. Real replay qualification is recorded separately.

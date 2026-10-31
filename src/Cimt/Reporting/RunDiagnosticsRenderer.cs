@@ -1,92 +1,123 @@
 using System.Globalization;
-using System.Net;
 using System.Text.Json;
+using static Cimt.ReportHtml;
 
 namespace Cimt;
 
-/// <summary>Renders the overview, stopping reasons, and ordered activity in plain language.</summary>
+/// <summary>Renders saved outcome summaries, stopping reasons and activity.</summary>
 public sealed class RunDiagnosticsRenderer(Configuration configuration)
 {
-    public string Render(RunState state, RunOutcome outcome, JsonElement? execution, IReadOnlyList<RunActivityEntry> activity)
+    public string Render(RunState state, RunOutcome outcome, JsonElement? execution, IReadOnlyList<RunActivityEntry> activity) =>
+        Overview(state, outcome, execution, ReportScenario.Read(execution)) + Reasons(state, outcome, execution) + Timeline(state.Report, activity);
+
+    public string Overview(RunState state, RunOutcome outcome, JsonElement? execution, IReadOnlyList<ReportScenario> scenarios) =>
+        "<section id=\"overview\" aria-labelledby=\"overview-title\"><h2 id=\"overview-title\">Run overview</h2>"
+        + "<p class=\"outcome\">" + Badge(outcome.Verdict) + " " + Badge(outcome.Completion) + "</p>"
+        + "<p class=\"outcome-explanation\">" + Encode(Explanation(state, outcome, execution, scenarios)) + "</p>"
+        + "<h3>Devices and targets</h3>" + DeviceTable(ReportDeviceSummary.Create(state, scenarios, execution)) + Facts(state, execution)
+        + "<p>Only recorded target/device/control paths were exercised. This report does not prove coverage of every possible application state.</p></section>";
+
+    private static string Explanation(RunState state, RunOutcome outcome, JsonElement? execution, IReadOnlyList<ReportScenario> scenarios)
     {
-        return Overview(state, execution) + Reasons(state, outcome, execution) + Timeline(state.Report, activity);
+        var confirmed = scenarios.Sum(row => row.ConfirmedCrashes);
+        var suspected = scenarios.Sum(row => row.SuspectedTerminations);
+        var failures = scenarios.Sum(row => Rows(row.Result, "checks").Count(check => ReportChecks.Failed(row.Result, check)));
+        var observations = $"Recorded {confirmed} confirmed crash occurrences, {suspected} suspected terminations and {failures} effective failed checks. ";
+        var interrupted = RunDiagnostics.StopReasons(state, execution, outcome).Any(reason => reason.Category == "User interruption"
+            || reason.Message.StartsWith("User interrupted", StringComparison.Ordinal));
+        return observations + (interrupted ? "Testing remained incomplete because the user stopped execution."
+            : outcome.Completion == "complete" ? "Recorded testing completed; review the verdict and scoped requirement results."
+            : "Testing is incomplete. Review failures, stopping reasons and remaining work.");
     }
 
-    private string Overview(RunState state, JsonElement? execution)
+    private string DeviceTable(IReadOnlyList<ReportDeviceResult> rows) => rows.Count == 0
+        ? "<p>No compatible device/target combination was recorded. Review discovery and configuration errors.</p>"
+        : "<table class=\"device-overview\"><caption>Whole-run outcomes — all recorded and expected device/target combinations</caption>"
+            + "<thead><tr>" + string.Join("", new[] { "Device / target", "Verdict / completion", "Actions / records", "Crash evidence", "Stop reason / investigate" }
+                .Select(label => "<th scope=\"col\">" + label + "</th>")) + "</tr></thead><tbody>" + string.Join("", rows.Select(DeviceRow))
+            + "</tbody></table><p>Counts describe saved records. No recorded crash is not proof of a crash-free application.</p>";
+
+    private string DeviceRow(ReportDeviceResult row) => "<tr>"
+        + Cell("Device / target", Encode(row.Platform) + " / " + Safe(row.Name) + "<br><small>" + Encode(row.DeviceId) + " / " + Encode(row.Target) + "</small>")
+        + Cell("Verdict / completion", Badge(row.Verdict) + " " + Badge(row.Completion))
+        + Cell("Actions / records", row.Actions + " actions / " + row.Steps + " records")
+        + Cell("Crash evidence", row.Confirmed + " confirmed / " + row.Suspected + " suspected")
+        + Cell("Stop reason / investigate", Safe(row.Stop) + (row.Anchor is null ? "" : "<br><a href=\"#" + row.Anchor + "\">View device steps</a>")) + "</tr>";
+
+    private static string Cell(string label, string html) => "<td data-label=\"" + Encode(label) + "\">" + html + "</td>";
+
+    private string Facts(RunState state, JsonElement? execution)
     {
         var finished = state.Finished ?? DateTimeOffset.UtcNow;
         var targets = configuration.Root.Get("build")?.Get("targets")?.List ?? [];
-        var rows = targets.Select(target => "<li>" + Encoded(target.Value("name") ?? "")
-            + " — configuration: " + Encoded(target.Value("configuration") ?? "") + "</li>");
-        var devices = state.Devices.Select(device => "<li>" + Encoded(device.GetValueOrDefault("platform", ""))
-            + " / " + Safe(device.GetValueOrDefault("name", device.GetValueOrDefault("id", ""))) + "</li>");
-        var requests = execution is { } value && value.TryGetProperty("budget", out var budget)
-            && budget.TryGetProperty("requests", out var count) ? count.ToString() : "Unavailable; no recorded AI request count";
-        return "<h2>Run overview</h2><dl>"
-            + Row("Command", state.Command) + Row("Started (UTC)", state.Started.ToUniversalTime().ToString("O"))
-            + Row(state.Finished is null ? "Snapshot updated (UTC)" : "Finished (UTC)", finished.ToUniversalTime().ToString("O"))
-            + Row("Elapsed seconds", Math.Max(0, (finished - state.Started).TotalSeconds).ToString("0.000", CultureInfo.InvariantCulture))
-            + Row("Successful app builds available", state.Builds.Count.ToString(CultureInfo.InvariantCulture))
-            + Row("AI inference requests", requests) + "</dl>"
-            + "<h3>Requested targets and actual build configurations</h3><ul>" + string.Join("", rows) + "</ul>"
-            + "<h3>Startup devices</h3><ul>" + string.Join("", devices) + "</ul>"
+        var provenance = state.Stages.Select(stage => JsonSerializer.SerializeToElement(stage)).Where(stage => Field(stage, "sourceRunId").Length > 0);
+        return "<h3>Run facts</h3><dl class=\"facts\">" + Row("Command", state.Command)
+            + Row("Device environment", new DeviceSelection(configuration.Root.Get("execution")).Kind)
+            + Row("Started (UTC)", Time(state.Started)) + Row(state.Finished is null ? "Snapshot updated (UTC)" : "Finished (UTC)", Time(finished))
+            + Row("Elapsed", Duration((finished - state.Started).TotalSeconds)) + Row("Successful app builds available", state.Builds.Count.ToString(CultureInfo.InvariantCulture)) + "</dl>"
+            + Budget(execution) + string.Join("", provenance.Select(stage => "<dl>" + Row("Source build run", Field(stage, "sourceRunId")) + Row("Source build commit", Field(stage, "sourceCommit")) + "</dl>"))
+            + Details("Exact timestamps and build configurations", "<dl>" + Row("Started (UTC)", state.Started.ToUniversalTime().ToString("O"))
+                + Row("Snapshot / finish (UTC)", finished.ToUniversalTime().ToString("O"))
+                + Row("Elapsed seconds", Math.Max(0, (finished - state.Started).TotalSeconds).ToString("0.000", CultureInfo.InvariantCulture)) + "</dl><h4>Requested targets and actual build configurations</h4><ul>"
+                + string.Join("", targets.Select(target => "<li>" + Encode(target.Value("name")) + " — configuration: " + Encode(target.Value("configuration")) + "</li>"))
+                + "</ul><h4>Startup devices</h4><ul>" + string.Join("", state.Devices.Select(device => "<li>" + Encode(device.GetValueOrDefault("platform")) + " / " + Encode(device.GetValueOrDefault("type", "real")) + " / " + Safe(device.GetValueOrDefault("name", "")) + "</li>")) + "</ul>")
             + "<p>Install/reset/launch commands and screenshot checks are preparation. They do not establish a passed application test.</p>";
     }
 
-    private string Reasons(RunState state, RunOutcome outcome, JsonElement? execution)
+    public string Budget(JsonElement? execution)
     {
-        var reasons = RunDiagnostics.StopReasons(state, execution, outcome);
-        return "<h2>Failures and stopping reasons</h2><ul>" + string.Join("", reasons.Select(reason =>
-            "<li><strong>" + Encoded(reason.Category) + "</strong> — " + Safe(reason.Scope)
-            + ": " + Safe(reason.Message) + "</li>"))
-            + "</ul><p>An infrastructure or masking failure is not evidence of an application crash. See recorded findings for crash/termination evidence.</p>";
+        if (execution is not { } value || !value.TryGetProperty("budget", out var budget))
+            return "<p>AI inference requests: Unavailable; no recorded AI request count or cost ledger.</p>";
+        return "<dl class=\"facts\">" + Row("Model", Field(budget, "model", configuration.Root.Get("ai-model")?.Value("name") ?? "Not recorded"))
+            + Row("AI inference requests", Field(budget, "requests", "Not recorded")) + Row("Accounted upper cost", Money(budget, "accountedUpperCost"))
+            + Row("Uncertain upper cost", Money(budget, "uncertainUpperCost")) + Row("Pending reservations", Money(budget, "pendingUpperCost"))
+            + Row("Budget limit", Money(budget, "limit")) + "</dl><p>Conservative cost accounting, not a verified provider invoice. Pending and uncertain costs remain reserved separately.</p>";
     }
 
-    private string Timeline(string report, IReadOnlyList<RunActivityEntry> activity)
+    private static string Money(JsonElement budget, string key) => decimal.TryParse(Field(budget, key), NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)
+        ? amount.ToString("0.########", CultureInfo.InvariantCulture) + " " + Field(budget, "currency", "currency not recorded") : "Not recorded";
+
+    public string Reasons(RunState state, RunOutcome outcome, JsonElement? execution)
     {
-        var body = "<h2>Chronological activity</h2>";
-        if (activity.Count == 0)
-            return body + "<p>No timestamped activity was recorded. A detailed timeline cannot be reconstructed from this result.</p>";
-        return body + "<p>Times are UTC. Device operations may overlap. Started operations without an outcome were interrupted or have no recorded result.</p><ol>"
-            + string.Join("", activity.Select(entry => Entry(report, entry))) + "</ol>"
-            + Link(report, "activity.jsonl", "Download the timestamped activity journal");
+        var reasons = RunDiagnostics.StopReasons(state, execution, outcome);
+        return "<h3>Failures and stopping reasons</h3><ul>" + string.Join("", reasons.Where(reason => reason.Category != "Remaining or blocked work").Select(Reason)) + "</ul>"
+            + (reasons.Any(reason => reason.Category == "Remaining or blocked work") ? Details("Remaining or blocked work by device/scenario", "<ul>"
+                + string.Join("", reasons.Where(reason => reason.Category == "Remaining or blocked work").Select(Reason)) + "</ul>") : "")
+            + "<p>An infrastructure or masking failure is not evidence of an application crash.</p>";
     }
+
+    private string Reason(RunStopReason reason) => "<li><strong>" + Encode(reason.Category) + "</strong> — " + Safe(reason.Scope) + ": " + Safe(reason.Message) + "</li>";
+
+    public string Timeline(string report, IReadOnlyList<RunActivityEntry> activity)
+    {
+        if (activity.Count == 0)
+            return "<h3>Chronological activity</h3><p>No timestamped activity was recorded. A detailed timeline cannot be reconstructed from this result.</p>";
+        return "<h3>Chronological activity</h3><p>" + activity.Count + " records. Times are UTC. Device operations may overlap. Started operations without an outcome were interrupted or have no recorded result.</p>"
+            + "<p>Compact rows group recorded statuses; repeated operations are not assumed to be paired.</p>" + Compact(activity)
+            + Details("Full chronological journal (" + activity.Count + " records)", "<div data-filter-area>" + Filters("activity") + "<ol>"
+                + string.Join("", activity.OrderBy(entry => entry.Timestamp).Select(entry => Entry(report, entry))) + "</ol></div>")
+            + "<p>" + new ReportEvidence(report).Link("activity.jsonl", "Download the timestamped activity journal") + "</p>";
+    }
+
+    private string Compact(IReadOnlyList<RunActivityEntry> activity) => Details("Compact operation summary", "<ul>"
+        + string.Join("", activity.GroupBy(entry => (entry.Operation, entry.Platform, entry.Device, entry.Target)).Select(group => "<li><strong>" + Encode(group.Key.Operation)
+            + "</strong> — " + Encode(string.Join(" / ", new[] { group.Key.Platform, group.Key.Device, group.Key.Target }.Where(value => value.Length > 0)))
+            + ": " + Encode(string.Join("; ", group.GroupBy(entry => entry.Status).Select(status => status.Key + ": " + status.Count()))) + "</li>")) + "</ul>");
 
     private string Entry(string report, RunActivityEntry entry)
     {
         var context = string.Join(" / ", new[] { entry.Platform, entry.Device, entry.Target }.Where(value => !string.IsNullOrEmpty(value)));
-        var body = "<li><time>" + Encoded(entry.Timestamp.ToUniversalTime().ToString("O")) + "</time> "
-            + "<strong>" + Encoded(entry.Status) + " — " + Encoded(entry.Operation) + "</strong>"
-            + (context.Length == 0 ? "" : "<p>" + Encoded(context) + "</p>")
-            + (entry.DurationSeconds is { } seconds ? "<p>Duration: " + seconds.ToString("0.000", CultureInfo.InvariantCulture) + " seconds</p>" : "")
+        var body = "<li" + Attributes(entry.Platform + " / " + entry.Device, entry.Target, entry.Status) + "><time datetime=\"" + Encode(entry.Timestamp.ToUniversalTime().ToString("O"))
+            + "\">" + Encode(Time(entry.Timestamp)) + "</time> <strong>" + Encode(entry.Status) + " — " + Encode(entry.Operation) + "</strong><p>" + Encode(context) + "</p>"
+            + (entry.DurationSeconds is { } seconds ? "<p>Duration: " + Encode(Duration(seconds)) + " (" + seconds.ToString("0.000", CultureInfo.InvariantCulture) + " seconds)</p>" : "")
             + (string.IsNullOrEmpty(entry.Message) ? "" : "<p>" + Safe(entry.Message) + "</p>");
         if (!string.IsNullOrEmpty(entry.ExceptionType) || !string.IsNullOrEmpty(entry.Details))
-            body += "<details><summary>Exception details: " + Encoded(entry.ExceptionType ?? "") + "</summary><pre>"
-                + Safe(entry.Details ?? "") + "</pre></details>";
+            body += Details("Exception details: " + entry.ExceptionType, "<pre>" + Safe(entry.Details) + "</pre>");
         if (!string.IsNullOrEmpty(entry.Log))
-            body += Link(report, entry.Log, "Related diagnostic log");
+            body += "<p>" + (new ReportEvidence(report).RelativePath(entry.Log) is null ? "Diagnostic link rejected: unavailable, outside this report or invalid."
+                : new ReportEvidence(report).Link(entry.Log, "Related diagnostic log")) + "</p>";
         return body + "</li>";
     }
 
-    private static string Link(string report, string relative, string label)
-    {
-        try
-        {
-            var full = Path.GetFullPath(relative, report);
-            RunFolderSafety.Inside(report, full);
-            if (!File.Exists(full))
-                return "<p>" + Encoded(label) + ": unavailable</p>";
-            var href = string.Join("/", Path.GetRelativePath(report, full).Split(Path.DirectorySeparatorChar).Select(Uri.EscapeDataString));
-            return "<p><a href=\"" + Encoded(href) + "\">" + Encoded(label) + "</a></p>";
-        }
-        catch (Exception error) when (error is ConfigurationException or ArgumentException or IOException)
-        {
-            return "<p>Diagnostic link rejected: it is outside this report or invalid.</p>";
-        }
-    }
-
-    // Metadata is escaped, while free text is redacted before HTML encoding.
-    private static string Row(string label, string value) => "<dt>" + Encoded(label) + "</dt><dd>" + Encoded(value) + "</dd>";
-    private string Safe(string value) => Encoded(configuration.Scrub(value));
-    private static string Encoded(string value) => WebUtility.HtmlEncode(value);
+    private string Safe(string value) => Encode(configuration.Scrub(value));
 }

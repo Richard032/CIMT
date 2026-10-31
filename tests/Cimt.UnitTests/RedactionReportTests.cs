@@ -69,6 +69,9 @@ public sealed class RedactionReportTests
 
         public int Write()
         {
+            Directory.CreateDirectory(Path.Combine(folder.Path, "devices/1"));
+            File.WriteAllBytes(Path.Combine(folder.Path, "devices/1/check-0001.png"), [137, 80, 78, 71]);
+            File.WriteAllBytes(Path.Combine(folder.Path, "devices/1/step-0001.png"), [137, 80, 78, 71]);
             // Worker-shaped data contains a real failure and invented secret observations.
             var execution = new { devices = new[] { new {
                 device = new { id = "1", platform = "android", name = "Phone" }, diagnostics = secret,

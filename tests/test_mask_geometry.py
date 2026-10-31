@@ -87,12 +87,38 @@ class MaskGeometryTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError):
             MaskGeometry(dict(width=100, height=200), (200, 100))
 
-    def test_distortion_over_one_pixel_stops(self):
+    def test_distortion_over_five_percent_stops(self):
         with self.assertRaises(InfrastructureError):
-            MaskGeometry(dict(width=100, height=100), (100, 102))
+            MaskGeometry(dict(width=100, height=100), (100, 106))
 
-    def test_one_pixel_rounding_difference_is_accepted(self):
-        MaskGeometry(dict(width=100, height=100), (100, 101))
+    def test_observed_simulator_rounding_is_accepted_without_platform_metadata(self):
+        geometry = MaskGeometry(dict(width=393, height=852), (1178, 2556))
+        self.assertEqual((0, 0, 1177, 2555), geometry.pixels(element(x=0, y=0, width=393, height=852)))
+
+    def test_positive_five_percent_boundary_is_accepted(self):
+        MaskGeometry(dict(width=100, height=100), (105, 100))
+
+    def test_negative_five_percent_boundary_is_accepted(self):
+        MaskGeometry(dict(width=100, height=100), (95, 100))
+
+    def test_above_positive_five_percent_boundary_is_rejected(self):
+        with self.assertRaises(InfrastructureError):
+            MaskGeometry(dict(width=100, height=100), (106, 100))
+
+    def test_below_negative_five_percent_boundary_is_rejected(self):
+        with self.assertRaises(InfrastructureError):
+            MaskGeometry(dict(width=100, height=100), (94, 100))
+
+    def test_uniform_downscale_uses_the_same_relative_tolerance(self):
+        MaskGeometry(dict(width=1000, height=1000), (105, 100))
+
+    def test_accepted_distortion_expands_the_mask_for_both_scales(self):
+        geometry = MaskGeometry(dict(width=100, height=100), (105, 100))
+        self.assertEqual((3, 3, 28, 27), geometry.pixels(element()))
+
+    def test_large_aspect_mismatch_is_not_hidden_by_small_point_dimensions(self):
+        with self.assertRaises(InfrastructureError):
+            MaskGeometry(dict(width=1, height=1), (100, 150))
 
     def test_non_finite_scale_stops(self):
         with self.assertRaises(InfrastructureError):

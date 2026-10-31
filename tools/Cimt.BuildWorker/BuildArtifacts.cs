@@ -8,6 +8,8 @@ public static class BuildArtifacts
 {
     public static string Resolve(BuildRequest request, string output)
     {
+        if (request.IsIosSimulator)
+            return SimulatorArtifact.Create(output);
         var pattern = request.Platform == "android" ? "*.apk" : "*.ipa";
         var candidates = Directory.GetFiles(output, pattern, SearchOption.AllDirectories);
         if (request.Platform == "android")

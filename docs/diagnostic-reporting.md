@@ -4,6 +4,18 @@ Updated: 30 October 2026. Scope: FR-61–FR-69 and AC-35–AC-43 for run/replay 
 
 ## Reading the report
 
+### Approved usability design
+
+The report now uses Overview, Findings, Devices, Requirements and Activity, in that order, with wide-screen sidebar navigation and wrapping navigation on narrow screens. Overview shows every known expected/observed device-target outcome before logs. Confirmed crash occurrences and suspected terminations remain separate; fixed host crash-kind values are treated as typed classifications during redaction. Mandatory failure cards include available expectations, observations and evidence links even when optional details are disabled. Failed requirement assessments without duplicate check records are also readable.
+
+Device/scenario/record anchors are distinct. Visible step IDs are copied from saved data, including zero; an ambiguous duplicate cannot silently resolve to a different record. Findings and requirement results link unique steps. Steps label decision observations, actual outcomes, errors and recovery separately. Remaining plans retain their worker scope; future requests identify the current platform/device/target. Historical contradictory plans are not hidden or rewritten.
+
+Each applicable section has local filters/search, selected-scope and shown/total text, clearing and empty-state behavior. A deep link opens ancestor disclosures and clears conflicting filters. Overview totals remain whole-run values. Contained PNG links open an optional native-dialog viewer with scenario/type grouping, saved-step image order, zoom, keyboard/Escape and focus return. Ordinary relative links and all main content remain available without JavaScript. Missing files and escaping paths/symlinks are explained.
+
+Compact activity groups operation/context/status counts without assuming event pairings; the full ordered journal remains available. Time/duration and budget fields are readable, with exact records/downloads retained. The renderer embeds its fixed stylesheet/script in each report; no server, network dependency or changed output-folder contract is introduced. Early command/readiness/error reports use the same presentation shell and explicitly state that no app testing occurred. Historical reports are not regenerated.
+
+See the approved [design proposal](reviews/2026-10-30-html-report-design-proposal.md), FR-70–FR-76 and AC-46–AC-50. Static/unit verification does not establish browser layout, keyboard/screen-reader conformance or the proposed ten-second/two-action usability targets. Those manual acceptance checks remain to be performed on representative reports.
+
 The run header identifies command outcome, run, branch, and source commit. The mandatory Run overview shows UTC start/finish and elapsed seconds, target labels and actual build configurations, startup devices, app builds available, and the recorded AI inference count. An unavailable count is stated explicitly. Replayed artifacts retain their original source identity and build provenance.
 
 Failures and stopping reasons show the actual saved device error, cancellation of another worker, limits/device stops, functional failures, and unresolved work. An infrastructure or masking failure does not prove an application crash. Install/reset/launch commands are preparation, not passed application tests. The existing verdict, completion, exit precedence, and requirement coverage still determine the outcome.
@@ -28,7 +40,9 @@ The existing .NET unit-test project exercises overview metadata, failure/cancell
 
 Checks use synthetic inputs, fake services, and local files. They do not establish real device/app acceptance. Existing report folders and private YAML are not rewritten; richer reporting starts with new runs/replays after installation.
 
-Final verification: 442 checks passed in the existing offline suites. The tested host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+Earlier diagnostic increment: 442 checks passed in the existing offline suites. That host and all 29 runtime modules were installed and byte-verified. The synthetic demo passed structure/content checks; visual inspection was blocked by the browser local-file URL policy. No real app or device test was started.
+
+Approved usability increment: 548 relevant offline checks passed (286 xUnit, 218 Python unit, 22 runtime-policy and 22 public CLI/lifecycle). Script syntax, report anchor/link integrity after relocation, four synthetic PNGs and fourteen static text/background color pairs were checked. The final host and scoped worker module were installed and byte-verified; public help passed. Browser layout, keyboard/screen-reader qualification, text-enlargement behavior and user-timing measurements remain open. The runnable two-platform example is [requirement mapping](../examples/requirement-mapping/README.md); its expected exit 1 describes synthetic failures, not a real app test.
 
 ## Screenshot transition retries
 
@@ -45,3 +59,8 @@ The mandatory HTML section exposes these candidates even with optional details d
 Step details show the selected control and the observed UI outcome after execution, including rejected coordinates or unavailable evidence. Saved exploration memory includes all known control paths, attempts, transitions, and the accepted pending plan. It does not claim every observed change is a functional pass. Current-control, pending-path, and stalled-path summaries help the next AI decision continue the scenario. No-progress proposals are retained as unaccepted diagnostics; exhausted no-progress replanning leaves the scenario incomplete without cancelling unrelated work.
 
 The host catches Ctrl+C/SIGTERM and records User interruption separately from infrastructure failure. It keeps earlier findings and applies normal exit precedence. Interim index.html and result.json are written through the same production rendering/redaction pipeline at stage boundaries and about every two seconds during UI execution. The JSON inProgress/updated fields and HTML partial marker identify snapshots; finished remains null until finalization. Latest budget data is read from ai-budget.json, including pending reservations when an API request has not settled. Each file is replaced atomically. A force-killed process leaves the preceding complete snapshot, which is explicitly not a confirmed final result. Existing reports are not retroactively regenerated.
+
+
+## Cancellation messages — 31 October 2026
+
+Host stages and nested device operations use the known user-stop state before logging an exception. An adapter/process pipe closing during cancellation is reported as stopped with User interrupted execution, instead of a new failed operation. An interrupted action/observation retains that stopping reason and cannot claim observed UI change or no change without a completed observation. Previously recorded crash/action failures retain their priority. Successful cleanup still completes; a genuine cleanup failure or a pipe failure without user cancellation remains an error. This uses existing cancellation state and saved observations, without additional diagnostic collection or evaluation. Existing reports are preserved.

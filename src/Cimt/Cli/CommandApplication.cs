@@ -6,6 +6,7 @@ public delegate Task<int> RunApplication(Configuration configuration, RunFolders
 /// <summary>Holds command data while errors may still need a report.</summary>
 public sealed class CommandSession(DateTimeOffset started)
 {
+    public string? Command { get; set; }
     public DateTimeOffset Started { get; } = started;
     public Configuration? Configuration
     {
@@ -33,6 +34,7 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
         try
         {
             var options = CommandLine.Parse(arguments);
+            session.Command = options.Command;
             if (options.IsHelp)
                 return ShowHelp();
             session.Outputs = OutputLayout.ForCommand(options);

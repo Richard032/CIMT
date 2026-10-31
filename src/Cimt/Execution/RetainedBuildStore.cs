@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Cimt;
 
 public sealed record RetainedApp(string Target, string Platform, string Project, string Configuration,
-    string Framework, string Artifact, string AppId, string Sha256);
+    string Framework, string Artifact, string AppId, string Sha256, string DeviceKind = "physical");
 
 public sealed record RetainedBuildSet(int Version, string SourceRunId, string Repository,
     string Branch, string Commit, List<RetainedApp> Apps);
@@ -66,7 +66,7 @@ public sealed class RetainedBuildStore
         RunFolderSafety.Inside(state.Report, build["artifact"]);
         return new(build["target"], build["platform"], target.Value("project")!, target.Value("configuration")!,
             settings.Value("framework")!, Path.GetRelativePath(state.Configuration.Outputs.Root, build["artifact"]),
-            build["app-id"], await Digest(build["artifact"], state.Deadline));
+            build["app-id"], await Digest(build["artifact"], state.Deadline), new DeviceSelection(state.Configuration.Root.Get("execution")).Kind);
     }
 
     private static async Task<RetainedBuildSet> Read(Configuration configuration)
@@ -94,6 +94,8 @@ public sealed class RetainedBuildStore
         var target = FindTarget(state.Configuration, app.Target);
         if (target?.Get(app.Platform) is not { } settings)
             return;
+        if (app.DeviceKind != new DeviceSelection(state.Configuration.Root.Get("execution")).Kind)
+            throw new ConfigurationException("The retained app belongs to another device kind. Run CIMT normally before replay.");
         if (target.Value("project") != app.Project || target.Value("configuration") != app.Configuration
             || settings.Value("framework") != app.Framework)
             throw new ConfigurationException("A configured target differs from its retained build. Run CIMT normally to build the new configuration.");

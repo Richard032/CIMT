@@ -32,7 +32,7 @@ public sealed class RunActivityLog(string report, Func<string, string> scrub)
             + (entry.Message.Length == 0 ? "" : ": " + entry.Message));
     }
 
-    public async Task Run(string operation, Func<Task> execute)
+    public async Task Run(string operation, Func<Task> execute, CancellationToken cancellation = default)
     {
         Record(operation, "started");
         var started = Stopwatch.GetTimestamp();
@@ -40,6 +40,13 @@ public sealed class RunActivityLog(string report, Func<string, string> scrub)
         {
             await execute();
             Record(operation, "completed", seconds: Stopwatch.GetElapsedTime(started).TotalSeconds);
+        }
+        catch (Exception) when (cancellation.IsCancellationRequested)
+        {
+            // A stopped process can close its pipe before it reports cancellation.
+            const string message = "User interrupted execution; partial observations were retained.";
+            Record(operation, "stopped", message, seconds: Stopwatch.GetElapsedTime(started).TotalSeconds);
+            throw new OperationCanceledException(message, cancellation);
         }
         catch (Exception error)
         {

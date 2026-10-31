@@ -1,6 +1,6 @@
 # CIMT implementation status
 
-Updated: 30 October 2026
+Updated: 31 October 2026
 
 ## Reviewed increment 1 — adapter evaluation
 
@@ -338,3 +338,29 @@ FR-23/FR-24 and AC-44 now cover selecting gpt-5.6-luna through the existing ai-m
 Requirements v0.19, architecture v0.25, product v0.20, installation v0.24, run-engine guidance and performance guidance are aligned. Automatic online pricing, ten-step cost queries, generic user-defined rates and multi-step plans remain deferred. No private YAML, historical report, application source or physical device is changed. Live Luna model access, quality and speed acceptance require a user-started run.
 
 Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/CIMT/state/run.lock for active holders. Backup: /private/tmp/cimt-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.
+
+## Per-execution replay report correction — 30 October 2026
+
+FR-30/AC-45 reaffirm one timestamped report folder for each run and replay. Removed the shared-latest publisher, base redirection, root HTML output and cross-run latest link. RunEngine and RunReportWriter retain their original per-invocation reporting path. Replay build reuse still creates its own report, including both device results and relative evidence, without modifying earlier reports.
+
+Kept clearer run/replay command and identity labels in HTML titles/headers. CommandSession also retains the parsed command for early error HTML/JSON. Updated the existing public replay fixture and replaced latest-page tests with focused per-execution report cases. Requirements v0.20, architecture v0.26, product v0.21 and installation v0.25 now describe the corrected contract. No private configuration or historical report is changed.
+
+Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/cimt-per-run-install.UbVTdZ/previous-host.
+
+Removed only the three shared reports/index.html files introduced by the previous update, from FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget. Verified timestamped report HTML hashes were unchanged. Python runtime, build worker/scripts, private settings, application source, and saved results remain unchanged. No real run/replay, model request or device action was started.
+
+
+## Cancellation classification correction — 31 October 2026
+
+FR-68/AC-42 now cover stopped activity/step reporting throughout nested interrupted operations. ActivityLog receives the shared user-stop state. ScenarioRunner retains a stoppingReason, and StepHtmlRenderer displays it without creating an action error. DeviceRunner saves the final observations even when closing the connection fails. Successful cleanup remains completed; non-interrupted adapter errors remain failures; earlier application/infrastructure outcomes keep their precedence. No historical report was rewritten.
+
+Verified: 297 xUnit tests, 241 Python tests, 22 runtime-policy checks and 22 public CLI checks passed. The host published successfully. Installed the six host files and four changed runtime modules under the run lock, with backup and byte verification; see installation section 41. No new live app test or API request was made.
+
+The product owner cancelled the additional startup-diagnostics fix; its edits were fully removed before publication/installation. Coverage counting is unchanged. Repeated-action and capture-speed corrections remain reviewed proposals, not implemented behavior; see the [focused review](reviews/2026-10-31-cancelled-replay-follow-up.md). Requirements v0.24, architecture v0.30, product v0.25 and installation v0.29 describe this scope.
+
+
+### Host cancellation reporting follow-up
+
+The host activity boundary now receives the run token so a pipe exception after user cancellation is logged as stopped before RunCoordinator handles it. Cleanup stays uncancelled, preserving genuine finalization failures. ExplorationMemory uses the saved interruption reason rather than claiming an observed unchanged/changed UI when observation did not finish. Earlier failure outcomes remain visible. General no-progress signatures, coverage counting and capture-speed behavior are unchanged.
+
+Verification passed: 299 xUnit, 243 Python, 22 runtime-policy and 22 public CLI checks (586 offline checks). Host publication and installation of the six host files plus exploration_memory.py passed with lock, backup, byte verification and installed help. Requirements v0.25, architecture v0.31, product v0.26 and installation v0.30 describe the correction. No live test or API call was started; no prior report was rewritten.

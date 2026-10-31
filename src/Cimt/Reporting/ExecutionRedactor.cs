@@ -16,7 +16,7 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode DeviceResult(JsonElement value) => json.Record(value, ["index"], new()
     {
-        ["device"] = item => json.Record(item, ["id", "platform"]),
+        ["device"] = item => json.Record(item, ["id", "platform", "type"]),
         ["scenarios"] = items => json.Items(items, Scenario)
     });
 
@@ -39,7 +39,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode Step(JsonElement value) => json.Record(value, ["step", "screenshot", "ui"], new()
     {
-        ["action"] = Action
+        ["action"] = Action,
+        ["crash"] = CrashKind
     });
 
     private JsonNode? Action(JsonElement value) => value.ValueKind == JsonValueKind.String
@@ -51,6 +52,15 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode Crash(JsonElement value) => json.Record(value, ["step", "matchingAttempt"], new()
     {
+        ["kind"] = CrashKind,
         ["reproductionSteps"] = items => json.Items(items, Action)
     });
+
+    private JsonNode? CrashKind(JsonElement value)
+    {
+        // These fixed host classifications must not become a different evidence category.
+        return value.ValueKind == JsonValueKind.String && value.GetString() is "confirmed crash report"
+            or "unexpected termination / suspected crash" or "unexpected startup termination / suspected crash"
+            ? JsonTextRedactor.Keep(value) : json.Text(value);
+    }
 }

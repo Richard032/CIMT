@@ -18,6 +18,8 @@ Use normal formatting: one statement per line, four spaces for indentation, and 
 
 ## Host code
 
+Report presentation is split by responsibility: RunHtmlRenderer composes sections; RunDiagnosticsRenderer explains run/device outcomes and activity; ScenarioHtmlRenderer and StepHtmlRenderer show scoped work and exact records; FindingHtmlRenderer owns mandatory readable failures; RequirementHtmlRenderer owns mapping; ReportEvidence validates local evidence paths. ReportPage embeds fixed offline CSS/JavaScript. ReportScenario and ReportDeviceSummary provide testable identity/summary rules without file or device operations. No reporting framework or extra unit-test project is used.
+
 | Location | Responsibility | How to test it |
 | --- | --- | --- |
 | src/Cimt/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
@@ -118,3 +120,9 @@ MappingPromptTests in the existing Python unittest suite verifies the public pro
 ## Configured-model budget checks
 
 The existing RuntimeChecks cover Mini reservation/accounting and Luna cache-write charges, the exact 272,000-token boundary, whole-request long-context rates, maximum/invalid/uncertain usage, an unfunded request, and model metadata in the ledger. ConfiguredModelTests in the existing runtime component suite verify both access-check names, no fallback on access failure, Luna inference/cache lifetime, unchanged Mini request settings, and preflight model reporting without paid calls. Use the existing development checks; no additional test infrastructure or API key is needed.
+
+## Isolated replay reports
+
+RunFolderAllocator selects one folder pair and invocation identity for each run/replay. RunReportWriter updates only that execution's index.html/result.json. Replay build reuse does not imply report reuse. Keep report paths and relative evidence inside the allocated folder; do not introduce a shared latest page or redirect evidence into another execution.
+
+ReplayReportTests in the existing xUnit project verify a new replay folder, immutable earlier HTML, partial/final updates in the same folder, early run/replay errors, and both platforms' relative screenshot references. The existing public replay fixture checks its own command/identity and absence of a shared report or HTML base. These checks use temporary folders or simulated dependencies without provider or device access.

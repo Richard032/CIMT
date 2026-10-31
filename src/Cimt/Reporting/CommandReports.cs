@@ -36,6 +36,7 @@ public sealed class CommandReports : ICommandReports
         var messages = session.Messages.Select(message => session.Configuration?.Scrub(message) ?? message).ToArray();
         var value = new
         {
+            command = session.Command,
             runIdentity = session.Folders!.Identity,
             commandResult = verdict,
             completion,
@@ -43,17 +44,23 @@ public sealed class CommandReports : ICommandReports
             messages
         };
         await File.WriteAllTextAsync(Path.Combine(session.Report!, "result.json"), JsonSerializer.Serialize(value, JsonOptions));
-        await File.WriteAllTextAsync(Path.Combine(session.Report!, "index.html"), Render(session.Folders!.Identity, verdict, completion, exit, messages));
+        var html = Render(session.Folders!.Identity, verdict, completion, exit, messages, session.Command);
+        await File.WriteAllTextAsync(Path.Combine(session.Report!, "index.html"), html);
     }
 
-    private static string Render(RunIdentity identity, string verdict, string completion, int exit, IEnumerable<string> messages)
+    private static string Render(RunIdentity identity, string verdict, string completion, int exit, IEnumerable<string> messages, string? command)
     {
         var items = string.Join("", messages.Select(message => "<li>" + WebUtility.HtmlEncode(message) + "</li>"));
-        return "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><title>CIMT report</title>"
-            + "<style>body{font:16px system-ui;max-width:1000px;margin:3rem auto;padding:0 1rem;color:#172333}li{margin:.8rem 0}</style>"
-            + "<h1>CIMT report</h1><p>Run: " + WebUtility.HtmlEncode(identity.Id) + " (UTC)</p><p>Verdict: <strong>" + WebUtility.HtmlEncode(verdict) + "</strong> · Completion: "
-            + WebUtility.HtmlEncode(completion) + " · Exit code: " + exit + "</p><h2>Checks and observations</h2><ul>"
-            + items + "</ul><p>This is a configuration/readiness report. It contains no application test results.</p></html>";
+        return ReportPage.Start(command ?? "unknown", identity.Id)
+            + "<header class=\"report-header\"><h1>CIMT command report</h1><p>Run: " + WebUtility.HtmlEncode(identity.Id)
+            + " (UTC)</p><p>Command: " + WebUtility.HtmlEncode(command ?? "unknown") + "</p></header>" + ReportPage.Navigation
+            + "<main id=\"report-content\"><section id=\"overview\"><h2>Command overview</h2><p>Verdict: " + ReportHtml.Badge(verdict)
+            + " · Completion: " + ReportHtml.Badge(completion) + " · Exit code: " + exit + "</p>"
+            + "<p>This is a configuration/readiness report. It contains no application test results.</p></section>"
+            + "<section id=\"findings\"><h2>Checks and observations</h2><ul>" + items + "</ul></section>"
+            + "<section id=\"devices\"><h2>Devices</h2><p>No application interactions were executed by this command.</p></section>"
+            + "<section id=\"requirements\"><h2>Requirements</h2><p>Application requirements were not evaluated by this command.</p></section>"
+            + "<section id=\"activity\"><h2>Activity</h2><p><a href=\"result.json\">Machine-readable command result</a></p></section></main>" + ReportPage.End;
     }
 
 }

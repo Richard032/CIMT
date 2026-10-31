@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runtime"))
 from activity import ActivityLog
-from device_runner import DeviceRunner
+from device_runner import DeviceRunner, result_exit_code
 from errors import InfrastructureError, LimitReached
 from evidence import RunJournal
 from redaction import Redactor
@@ -50,6 +50,7 @@ class ActivityTests(unittest.TestCase):
 
     def test_interrupted_adapter_error_is_saved_as_user_stop(self):
         control = RunControl(100, clock=lambda: 0)
+        self.activity.interrupted = lambda: control.interrupted
         journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
         def interrupted_connect():
             control.interrupt()
@@ -61,6 +62,102 @@ class ActivityTests(unittest.TestCase):
         result = journal.results[0]
         self.assertIsNone(result['error'])
         self.assertIn('User interrupted', result['stoppingReason'])
+        self.assertNotIn('failed', [row['status'] for row in self.records()])
+        self.assertNotIn('helper stopped', self.output.getvalue())
+
+    def test_interrupted_nested_operations_report_a_stop_instead_of_pipe_failures(self):
+        self.activity.interrupted = lambda: True
+        with self.assertRaisesRegex(LimitReached, 'User interrupted'):
+            with self.activity.operation('Capture screenshot'):
+                with self.activity.operation('Read UI'):
+                    raise BrokenPipeError('Broken pipe')
+        stopped = [row for row in self.records() if row['status'] != 'started']
+        self.assertEqual([row['status'] for row in stopped], ['stopped', 'stopped'])
+        self.assertNotIn('Broken pipe', self.output.getvalue())
+
+    def test_pipe_failure_without_interruption_remains_a_failure(self):
+        with self.assertRaises(BrokenPipeError):
+            with self.activity.operation('Read UI'):
+                raise BrokenPipeError('Broken pipe')
+        self.assertEqual(self.records()[-1]['status'], 'failed')
+        self.assertEqual(self.records()[-1]['exceptionType'], 'BrokenPipeError')
+
+    def test_successful_cleanup_is_still_completed_after_interruption(self):
+        self.activity.interrupted = lambda: True
+        with self.activity.operation('Close device connection'):
+            pass
+        self.assertEqual(self.records()[-1]['status'], 'completed')
+
+    def test_a_saved_failure_is_not_reclassified_after_interruption(self):
+        with self.assertRaises(InfrastructureError):
+            with self.activity.operation('Install application'):
+                raise InfrastructureError('Install failed')
+        self.activity.interrupted = lambda: True
+        with self.assertRaises(LimitReached):
+            with self.activity.operation('Close device connection'):
+                raise BrokenPipeError('Broken pipe')
+        finished = [row for row in self.records() if row['status'] != 'started']
+        self.assertEqual([row['status'] for row in finished], ['failed', 'stopped'])
+        self.assertEqual(finished[0]['message'], 'Install failed')
+
+    def test_interrupted_close_failure_publishes_partial_observations_and_original_verdict(self):
+        control = RunControl(100, clock=lambda: 0)
+        self.activity.interrupted = lambda: control.interrupted
+        journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+
+        def observe_failure(mobile, build, result, agent, publish):
+            result['scenarios'].append({'target': 'fixture', 'crashes': [],
+                'verdict': 'failed', 'completion': 'incomplete', 'steps': [{'step': 0}]})
+            control.interrupt()
+            control.check()
+
+        def close():
+            raise BrokenPipeError('Broken pipe')
+
+        mobile = SimpleNamespace(connect=lambda: None, close=close, device=self.device)
+        runner = DeviceRunner({'report': str(self.root), 'builds': [{'platform': 'android', 'target': 'fixture'}]},
+            self.redactor, control, journal, SimpleNamespace(run=observe_failure), lambda *args: mobile,
+            lambda: None, activity=self.activity)
+        runner.run(self.device, 1)
+        saved = json.loads((self.root / 'ui-results.json').read_text())['devices'][0]
+        self.assertEqual(saved['scenarios'][0]['steps'], [{'step': 0}])
+        self.assertIsNone(saved['error'])
+        self.assertIn('User interrupted', saved['stoppingReason'])
+        self.assertEqual(result_exit_code([saved]), 1)
+        self.assertNotIn('failed', [row['status'] for row in self.records()])
+
+    def test_close_failure_without_interruption_is_saved_as_infrastructure_error(self):
+        journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+
+        def close():
+            raise BrokenPipeError('Broken pipe')
+
+        mobile = SimpleNamespace(connect=lambda: None, close=close, device=self.device)
+        runner = DeviceRunner({'report': str(self.root), 'builds': []}, self.redactor,
+            RunControl(100, clock=lambda: 0), journal, None, lambda *args: mobile,
+            lambda: None, activity=self.activity)
+        runner.run(self.device, 1)
+        saved = json.loads((self.root / 'ui-results.json').read_text())['devices'][0]
+        self.assertIn('BrokenPipeError', saved['error'])
+        self.assertEqual(result_exit_code([saved]), 3)
+
+    def test_cleanup_failure_does_not_replace_the_original_device_error(self):
+        journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+
+        def connect():
+            raise InfrastructureError('Original connection failure')
+
+        def close():
+            raise BrokenPipeError('Cleanup pipe failure')
+
+        mobile = SimpleNamespace(connect=connect, close=close, device=self.device)
+        runner = DeviceRunner({'report': str(self.root), 'builds': []}, self.redactor,
+            RunControl(100, clock=lambda: 0), journal, None, lambda *args: mobile,
+            lambda: None, activity=self.activity)
+        runner.run(self.device, 1)
+        saved = json.loads((self.root / 'ui-results.json').read_text())['devices'][0]
+        self.assertEqual(saved['error'], 'Original connection failure')
+        self.assertIn('Cleanup pipe failure', self.output.getvalue())
 
     def test_completed_operation_records_duration_and_context(self):
         ticks = iter([10, 12.25])

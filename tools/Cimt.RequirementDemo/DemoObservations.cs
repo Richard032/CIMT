@@ -5,13 +5,16 @@ public static class DemoObservations
 {
     public static object Execution(IReadOnlyList<RequirementDefinition> requirements) => new
     {
-        devices = new[] { new {
-            device = new { id = "synthetic-device", platform = "android", name = "Simulated phone" },
+        devices = new[] { "android", "ios" }.Select(platform => new {
+            device = new { id = "synthetic-" + platform, platform, name = "Simulated " + platform + " phone" },
             scenarios = new[] { new {
                 target = "Demo", verdict = "failed", completion = "incomplete", crashes = Array.Empty<object>(),
-                steps = Array.Empty<object>(), requirements = Results(requirements)
+                steps = new[] {
+                    new { step = 0, action = "synthetic preparation", observation = "Synthetic checkerboard fixture; no device capture.", screenshot = "devices/" + platform + "/step-0.png" },
+                    new { step = 1, action = "synthetic observation", observation = "Second synthetic evidence record; no application action.", screenshot = "devices/" + platform + "/step-1.png" }
+                }, requirements = Results(requirements)
             } }
-        } }
+        }).ToArray()
     };
 
     private static object[] Results(IReadOnlyList<RequirementDefinition> definitions)

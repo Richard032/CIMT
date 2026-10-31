@@ -5,6 +5,9 @@ reports:
   root: ./reports
   sections: [requirements, scenarios, findings, interpretations, diagnostics]
 execution:
+  # Use virtual for booted Android emulators and iOS simulators.
+  device-kind: physical
+  # Optional device-ids list restricts the startup snapshot.
   time-limit-minutes: 60
   interactive-pauses: false
 ai-model:

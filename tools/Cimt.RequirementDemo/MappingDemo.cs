@@ -8,7 +8,8 @@ public static class MappingDemo
     public static async Task<int> Run(string example)
     {
         var configuration = Configuration(example);
-        var folders = new RunFolderAllocator().Create(Path.Combine(example, "work"), Path.Combine(example, "reports"), DateTimeOffset.UtcNow);
+        var folders = new RunFolderAllocator().Create(Path.Combine(example, "CIMT output", "work"),
+            Path.Combine(example, "CIMT output", "reports"), DateTimeOffset.UtcNow);
         var report = folders.Report;
         var state = new RunState(configuration, folders,
             new RunDeadline(folders.Identity.Started.AddMinutes(1)));
@@ -18,15 +19,15 @@ public static class MappingDemo
         await new TextInputLoader(new TextInputReader(http)).Execute(state);
         if (state.Requirements.Count != 5)
             throw new InvalidOperationException("The demo needs its five example requirements.");
-        state.Devices.Add(new()
+        foreach (var platform in new[] { "android", "ios" })
         {
-            ["id"] = "synthetic-device",
-            ["platform"] = "android",
-            ["name"] = "Simulated phone"
-        });
+            state.Devices.Add(new() { ["id"] = "synthetic-" + platform, ["platform"] = platform, ["name"] = "Simulated " + platform + " phone" });
+            WriteEvidence(report, platform);
+        }
         var execution = DemoObservations.Execution(state.Requirements);
-        state.Activity.Record("Record synthetic requirement observations", "completed",
-            "Five example requirements include an expected failure and unresolved work.", "Demo", "android", "synthetic-device");
+        foreach (var platform in new[] { "android", "ios" })
+            state.Activity.Record("Record synthetic requirement observations", "completed",
+                "Five example requirements include an expected failure and unresolved work.", "Demo", platform, "synthetic-" + platform);
         await File.WriteAllTextAsync(Path.Combine(report, "ui-results.json"), JsonSerializer.Serialize(execution));
         Console.WriteLine("Synthetic requirement-mapping demo. No app, device, or API was used.");
         return new RunReportWriter().Write(state);
@@ -38,7 +39,8 @@ public static class MappingDemo
         var target = Mapping(origin, new()
         {
             ["name"] = Text("Demo", origin),
-            ["android"] = Mapping(origin, [])
+            ["android"] = Mapping(origin, []),
+            ["ios"] = Mapping(origin, [])
         });
         return new(Mapping(origin, new()
         {
@@ -60,4 +62,14 @@ public static class MappingDemo
 
     private static Node Mapping(string origin, Dictionary<string, Node> values) => new(null, values, null, origin);
     private static Node Text(string value, string origin) => new(value, null, null, origin);
+
+    private static void WriteEvidence(string report, string platform)
+    {
+        // An opaque checkerboard exercises image links without pretending to capture an app.
+        const string png = "iVBORw0KGgoAAAANSUhEUgAAAKAAAADwCAIAAAAII/iNAAAC60lEQVR4nO3asQ2AMBAEQddJTBEUS0RIFbSAHCCxHunzsbXpjfO6p2/bj+njfuOO1T68mitw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO6OPz6a+/4EjrsCx12B467AcVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOu0V3cFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47gocdwWOu0Z3cVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO4a3cVdgeOuwHFX4LgrcNwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4a3QXdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO4KHHcFjrsCx12B467RXdwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67RndxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47hrdxV2B467AcVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LhrdBd3BY67AsddgeOuwHFX4LgrcNwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47gocdwWOuwLHXYHjrtFd3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuChx3BY67AsddgeOuwHFX4LgrcNwVOO4KHHcFjrtGd3FX4LgrcNwVOO4KHHcFjrsCx12B467AcVfguCtw3BU47gocdwWOuwLHXYHjrsBxV+C4K3DcFTjuPigEGv+HFp/iAAAAAElFTkSuQmCC";
+        var folder = Path.Combine(report, "devices", platform);
+        Directory.CreateDirectory(folder);
+        File.WriteAllBytes(Path.Combine(folder, "step-0.png"), Convert.FromBase64String(png));
+        File.WriteAllBytes(Path.Combine(folder, "step-1.png"), Convert.FromBase64String(png));
+    }
 }

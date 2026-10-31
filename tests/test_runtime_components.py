@@ -317,6 +317,14 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result["requirements"][0]["status"], "not tested")
         self.assertEqual(agent.calls[0][8][0]["id"], "REQ-0001")
 
+    def test_each_worker_receives_only_its_own_execution_scope(self):
+        _, agent = self.run_scenario(FakeMobile(self.root, elements=[]), [action()])
+        setup = agent.calls[0][2]
+        self.assertIn('"platform": "android"', setup)
+        self.assertIn('"deviceId": "fixture"', setup)
+        self.assertIn('"target": "Release"', setup)
+        self.assertIn("Other devices and targets are scheduled independently", setup)
+
     def test_mapped_requirement_and_objective_can_complete(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
         mapped = dict(check(), source="requirements", requirementId="REQ-0001")
@@ -712,7 +720,9 @@ class ScenarioTests(unittest.TestCase):
             runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
         self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
-        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['actionError'])
+        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['stoppingReason'])
+        self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['observedOutcome'])
+        self.assertNotIn('actionError', result['scenarios'][0]['steps'][-1])
         self.assertNotIn('synthetic-user', json.dumps(result))
 
 
