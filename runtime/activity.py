@@ -14,11 +14,12 @@ from errors import LimitReached
 class ActivityLog:
     """Append complete records under one lock shared by the device workers."""
 
-    def __init__(self, report, redactor, output=None, clock=time.monotonic):
+    def __init__(self, report, redactor, output=None, clock=time.monotonic, interrupted=lambda: False):
         self.path = Path(report) / "activity.jsonl"
         self.redactor = redactor
         self.output = output if output is not None else sys.stderr
         self.clock = clock
+        self.interrupted = interrupted
         self.lock = threading.Lock()
 
     def write(self, operation, status, message="", device=None, target="", seconds=None, error=None, log=""):
@@ -52,9 +53,14 @@ class ActivityLog:
         try:
             yield
         except Exception as error:
-            self.write(name, self.stop_status(error), str(error), device, target,
-                       max(0, self.clock() - started), error=error)
-            raise
+            # Closing an interrupted adapter can raise a pipe error. Report the known stop.
+            reported = (LimitReached("User interrupted execution; partial observations were retained")
+                        if self.interrupted() else error)
+            self.write(name, self.stop_status(reported), str(reported), device, target,
+                       max(0, self.clock() - started), error=reported)
+            if reported is error:
+                raise
+            raise reported from None
         else:
             self.write(name, "completed", device=device, target=target,
                        seconds=max(0, self.clock() - started))

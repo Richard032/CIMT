@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.29
+Version: 0.30
 Date: 31 October 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -365,6 +365,8 @@ ExplorationMemory validates a candidate against three unchanged attempts or thre
 RunInterruption owns terminal/SIGTERM registration, a cancellation token, and the per-report stop-requested marker. RunEngine scopes its lifetime to run/replay. RunCoordinator checks cancellation before stages, catches user cancellation separately, finalizes helpers with uncancelled cleanup, then writes a final incomplete report. ProcessCommand carries cancellation and an optional stop grace. CommandRunner links cancellation with its existing timeout; the UI worker gets five seconds to exit before its process tree is terminated. Other operations stop without that grace. Pending checkpoint reads and text-input reads use the same token. Existing failure precedence remains authoritative.
 
 RunSignals translates SIGINT/SIGTERM into a worker flag, and RunControl checks that flag or the host marker at normal operation boundaries. ActionExecutor checks before dispatch and after readiness, and between credential focus and typing. DeviceRunner classifies adapter errors during interruption as user stops. An already in-flight device/API operation cannot be undone; a killed worker may leave a cost reservation unresolved, which stays visible in the latest saved budget. No new operation is intentionally dispatched after a cancellation boundary reports the stop.
+
+ActivityLog reads the shared user-interruption flag/marker when an operation raises. During a known user stop it records and propagates the existing LimitReached interruption reason, so nested operations do not introduce failed/Broken pipe rows. It does not block cleanup entry or change already saved failures; successful cleanup remains completed. ScenarioRunner retains a stoppingReason on interrupted action records, and StepHtmlRenderer displays stopped with that reason while preserving an earlier crash classification. DeviceRunner handles close errors under the same stop/error policy and publishes its final state in a finally block. A genuine close failure without interruption remains an infrastructure failure; a later cleanup error does not replace the original device error.
 
 IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, and HTML pipeline. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
 

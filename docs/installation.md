@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.28
+Version: 0.29
 Last updated: 30 October 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1056,3 +1056,14 @@ The subsequent approved run built and installed both apps, but stopped before AI
 The generic tolerance module was pushed in commit `23bef7c331ff112508803eddb5fc17861142a656`, installed under the machine lock and verified byte-for-byte. Installed module SHA256: `bac94c809f322795e11ee6ec8f4959f20bc40b634e459c6a7e38bbc5ffd6258a`. Original module backup: `/private/tmp/cimt-tolerance-install-backup/mask_geometry.py`. Host/build assemblies were unchanged by this Python-only correction. Both virtual devices were ready before the requested public-command replay, which reused the retained builds and skipped Git/build. Screenshot validation passed on both platforms. See the [separate simulator signing limitation](virtual-devices.md#signing-limitation-found-during-replay); a successful capture does not establish a successful app startup or completed test.
 
 The requested replay was subsequently cancelled by the product owner and finalized correctly with HTML, JSON, both device summaries and 48 PNGs. Screenshot tolerance passed on both platforms. The retained unsigned iOS app was rejected at startup; Android continued until cancellation without a recorded crash. The report preserves incomplete coverage and existing failure precedence. See [the replay outcome and remaining reporting/exploration limits](virtual-devices.md#replay-completion-and-reporting-limits). No signing repair, new build or further replay was performed as part of this cancelled run.
+
+
+## 41. Cancellation reporting correction — 31 October 2026
+
+This update applies the existing FR-68/AC-42 user-stop policy to nested activity and individual action records. It adds no startup diagnostic collector: the product owner cancelled that separate item. Repeated-action and capture-speed changes remain proposals in the [follow-up review](reviews/2026-10-31-cancelled-replay-follow-up.md); coverage counting is unchanged.
+
+Publish the host using section 15 and install the matching activity.py, device_runner.py, run_ui.py and scenario.py from runtime alongside it. Hold the installation run lock and back up the six host publication files and four runtime modules before replacement. The host update displays an interrupted step as stopped with its reason. The runtime normalizes interrupted activity, preserves earlier failures and publishes observations even after a close error. No YAML, key, application source, build-worker, device-helper or third-party source change is required. Existing reports remain unchanged.
+
+Offline validation passed: 297 xUnit tests, 241 Python unit tests, 22 runtime-policy checks and 22 public CLI/lifecycle checks (582 checks). The host published successfully. Tests cover nested interrupted pipe errors, successful cleanup, genuine non-interrupted failures, failed close publication, prior failure precedence and stopped-step HTML. CLI tests use fake dependencies, including a one-SIGINT stop; this is not new live-device qualification.
+
+Installed under the run lock and verified all ten files byte-for-byte against the tested publication/source. Backup: /private/tmp/cimt-before-cancellation-_wl60j7o. Installed host SHA-256: 8283c329b7eb852e03eb13db80d8694378e736324677a857e55d72f669c240b2. No mobile run/replay, paid API request or device action was started for this correction.

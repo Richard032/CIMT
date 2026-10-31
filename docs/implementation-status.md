@@ -1,6 +1,6 @@
 # CIMT implementation status
 
-Updated: 30 October 2026
+Updated: 31 October 2026
 
 ## Reviewed increment 1 — adapter evaluation
 
@@ -348,3 +348,12 @@ Kept clearer run/replay command and identity labels in HTML titles/headers. Comm
 Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/cimt-per-run-install.UbVTdZ/previous-host.
 
 Removed only the three shared reports/index.html files introduced by the previous update, from FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget. Verified timestamped report HTML hashes were unchanged. Python runtime, build worker/scripts, private settings, application source, and saved results remain unchanged. No real run/replay, model request or device action was started.
+
+
+## Cancellation classification correction — 31 October 2026
+
+FR-68/AC-42 now cover stopped activity/step reporting throughout nested interrupted operations. ActivityLog receives the shared user-stop state. ScenarioRunner retains a stoppingReason, and StepHtmlRenderer displays it without creating an action error. DeviceRunner saves the final observations even when closing the connection fails. Successful cleanup remains completed; non-interrupted adapter errors remain failures; earlier application/infrastructure outcomes keep their precedence. No historical report was rewritten.
+
+Verified: 297 xUnit tests, 241 Python tests, 22 runtime-policy checks and 22 public CLI checks passed. The host published successfully. Installed the six host files and four changed runtime modules under the run lock, with backup and byte verification; see installation section 41. No new live app test or API request was made.
+
+The product owner cancelled the additional startup-diagnostics fix; its edits were fully removed before publication/installation. Coverage counting is unchanged. Repeated-action and capture-speed corrections remain reviewed proposals, not implemented behavior; see the [focused review](reviews/2026-10-31-cancelled-replay-follow-up.md). Requirements v0.24, architecture v0.30, product v0.25 and installation v0.29 describe this scope.

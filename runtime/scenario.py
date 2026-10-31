@@ -132,7 +132,10 @@ class ScenarioRunner:
                     cancelled = recovery.after_action(session, entry, action, element, point)
             except Exception as error:
                 # An interruption may arrive after only part of a credential action.
-                entry.setdefault("actionError", self.redactor.text(str(error)))
+                if self.control.interrupted:
+                    entry["stoppingReason"] = "User interrupted execution; partial observations were retained"
+                else:
+                    entry.setdefault("actionError", self.redactor.text(str(error)))
                 raise
             finally:
                 # Keep the performed action even when evidence or recovery fails.
@@ -259,7 +262,8 @@ class ScenarioRunner:
     def _save_action(self, session, entry, action):
         session.result["coverage"] = session.coverage.snapshot()
         session.result["steps"].append(self.redactor.records.step(entry))
-        result = entry.get("crash", entry.get("actionError", entry.get("observedOutcome", "Action result unavailable")))
+        result = entry.get("crash", entry.get("stoppingReason", entry.get("actionError",
+            entry.get("observedOutcome", "Action result unavailable"))))
         session.history.append(self.redactor.records.action(dict(
             action, result=result, controlLabel=entry.get("controlLabel", ""))))
 
