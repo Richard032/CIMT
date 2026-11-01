@@ -85,6 +85,12 @@ class ContextSelectionTests(unittest.TestCase):
         self.assertEqual(self.memory.project(self.records)['actions'], [])
         self.assertTrue(self.memory.unavailable)
 
+    def test_ai_can_retrieve_the_complete_historical_batch_by_identity(self):
+        batch = dict(id=2, initialObservation='A', path=[dict(action='tap', observation='B'), dict(action='back', observation='A')])
+        self.records['batches'] = [batch]
+        self.memory.accept(selection(records=[dict(collection='batches', id='2')]))
+        self.assertEqual(self.memory.project(self.records)['batches'], [batch])
+
     def test_ai_can_retain_its_selection_without_repeating_the_summary(self):
         chosen = selection('Remember the failed save', records=[dict(collection='actions', id='0')])
         self.memory.accept(chosen)
@@ -108,6 +114,12 @@ class ContextCapacityTests(unittest.TestCase):
         self.assertEqual(reduced['explorationMemory']['selection'], state['explorationMemory']['selection'])
         self.assertEqual(len(state['recentActions']), 1)
         self.assertEqual(reduced['elements'], state['elements'])
+
+    def test_mandatory_batch_path_survives_history_capacity_deferral(self):
+        state = self.state()
+        state['batchFeedback'] = [dict(id=0, path=[dict(action='tap', uiChange='no observed change')])]
+        reduced = prepare_context(state, allowance=1000)
+        self.assertEqual(reduced['batchFeedback'], state['batchFeedback'])
 
     def test_fitting_selection_reaches_the_model_unchanged(self):
         state = self.state()

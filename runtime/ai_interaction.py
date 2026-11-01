@@ -17,7 +17,9 @@ class AiInteraction:
         self.instructions.observe(mobile, session, evidence)
         publish()
         arguments = self.instructions.prepare(session, mobile.device, evidence)
-        return agent.choose(*arguments)
+        reply = agent.choose(*arguments)
+        session.feedback.delivered()
+        return reply
 
     def request_recovery(self, mobile, session, kind, reason, publish, evidence=None, refresh=True):
         session.recovery.request(kind, reason, len(session.result['steps']))

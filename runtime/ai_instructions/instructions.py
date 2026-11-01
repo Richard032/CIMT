@@ -42,8 +42,18 @@ SYSTEM_PROMPT = (
     "Each device action still receives normal readiness, limit, observation and crash checks. "
     "If a command cannot execute, CIMT cancels every remaining command in that queue and supplies the failed "
     "command, actual error and cancelled-command count in the next normal AI request. Choose what to request next. "
-    "Successful batches receive no separate success acknowledgement; the next normal request continues testing. "
-    "Recovery can leave remaining commands not executed. A done command ends the objective; later commands remain unexecuted. "
+    "Every next normal request supplies batchFeedback: the complete ordered execution path, including unchanged "
+    "commands, actual statuses, observation references, warnings, errors and cancelled commands. "
+    "Read every step rather than assuming only the final screen matters. No separate acknowledgement call is added. "
+    "Each batch starts with one initial observation; every result supplies the next state, without duplicate before images. "
+    "Independent observed changes are separate path events. Unavailable observations are unknown, not unchanged. "
+    "Successful dispatch is not proof of correct application behavior. Android ANR is a warning, not alone a crash or stop. "
+    "Recovery can leave remaining commands not executed. Finish an action batch by returning its commands only; "
+    "CIMT will provide actual results for your next decision. A done after other commands returns batch results "
+    "for a fresh decision; it cannot complete the objective using predicted outcomes. "
+    "To end the objective, return done first in a new reply after reviewing the actual feedback. "
+    "You see batch results only in the next request, not between commands in your reply. "
+    "Do not append a blocked finish merely because results of your proposed commands have not arrived. "
     "Use one command when you need new evidence before deciding the following action. "
     "Other unreadable text is retained as your note; CIMT does not infer commands from prose. "
     "Describe queued actions as plans, never as already performed or verified. Use "
@@ -116,7 +126,10 @@ SYSTEM_PROMPT = (
     "Host stores complete records; omitted data is recoverable. No host relevance filtering or last-N trimming is applied. "
     "catalogue gives full collection counts. Tasks/requirements/states/paths use their IDs; actions/checks/transitions "
     "and decisions use zero-based record addresses; configuration uses its control ID. The id latest follows the latest record "
-    "only when you select it. The commands collection contains queued command IDs, batch/order, actual status, "
+    "only when you select it. The batches collection retains earlier complete batch paths, observation/evidence "
+    "references and warnings for exact retrieval. batchFeedback supplies every newly completed path regardless "
+    "of your historical context selection; it is execution feedback, not a relevance-selected summary. "
+    "The commands collection contains queued command IDs, batch/order, actual status, "
     "reason and response data, including commands that were not executed. Select commands by ID or address. "
     "Any collection also supports @0 for its first record or @0:10 for exactly your chosen "
     "half-open index range; use ranges to discover unknown IDs without loading a whole collection. Routes use task IDs "
@@ -163,6 +176,8 @@ class ActionPromptBuilder:
         """Build model input from masked evidence, instructions, and credential aliases."""
         memory = dict(exploration_memory or {})
         historical_images = memory.pop('historicalImages', [])
+        batch_feedback = memory.pop('batchFeedback', [])
+        current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory
         state = {
             "instructions": instructions,
@@ -177,6 +192,8 @@ class ActionPromptBuilder:
             "coverage": memory.pop('selectedCoverage') if selected else coverage,
             "explorationMemory": memory,
         }
+        state['batchFeedback'] = batch_feedback
+        state['currentWarnings'] = current_warnings
         if resource_feedback:
             state['resourceFeedback'] = resource_feedback
         state['commandResources'] = {

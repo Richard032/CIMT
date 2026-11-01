@@ -31,10 +31,12 @@ class CommandQueue:
 
     def finish(self, status, reason='', step=None):
         if self.current is not None:
+            row = self.current
             self.current.update(status=status, reason=reason)
             if step is not None:
                 self.current['step'] = step
             self.current = None
+            return row
 
     def cancel_pending(self, reason):
         """Cancel the whole pending batch after a command cannot run."""

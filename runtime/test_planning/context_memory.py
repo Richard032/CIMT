@@ -3,7 +3,7 @@
 from copy import deepcopy
 import re
 
-COLLECTIONS = ['commands', 'actions', 'decisions', 'observations', 'screenshots', 'tasks', 'paths', 'states', 'transitions', 'requirements', 'checks', 'configuration', 'coverage', 'routes']
+COLLECTIONS = ['batches', 'commands', 'actions', 'decisions', 'observations', 'screenshots', 'tasks', 'paths', 'states', 'transitions', 'requirements', 'checks', 'configuration', 'coverage', 'routes']
 SELECTION_SCHEMA = {
     'type': ['object', 'null'],
     'properties': {

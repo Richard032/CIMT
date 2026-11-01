@@ -54,11 +54,18 @@ class ScenarioEvidence:
         self.folder = pathlib.Path(folder)
         self.report = pathlib.Path(report)
         self.images = {}
+        self.ui_files = {}
 
     def save_image(self, name, image):
         path = self.folder / name
         relative = str(path.relative_to(self.report))
         digest = hashlib.sha256(image).hexdigest()
+        for row in self.images.values():
+            if row['sha256'] == digest:
+                previous = self.report / row['path']
+                if not previous.is_file() or hashlib.sha256(previous.read_bytes()).hexdigest() != digest:
+                    raise InfrastructureError('Registered masked screenshot changed or is unavailable')
+                return row['path']
         if relative in self.images and self.images[relative]['sha256'] != digest:
             # A repeated evidence name must not replace an earlier observed image.
             path = path.with_name(path.stem + '-capture-' + str(len(self.images)) + path.suffix)
@@ -88,6 +95,15 @@ class ScenarioEvidence:
     def save_step(self, index, elements, image):
         name = "step-" + str(index).zfill(4)
         screenshot = self.save_image(name + ".png", image)
-        ui = self.folder / (name + "-ui.json")
-        atomic(ui, elements)
+        digest = hashlib.sha256(json.dumps(elements, sort_keys=True).encode()).hexdigest()
+        if digest in self.ui_files:
+            ui = self.ui_files[digest]
+            if not ui.is_file() or hashlib.sha256(json.dumps(json.loads(ui.read_text()), sort_keys=True).encode()).hexdigest() != digest:
+                raise InfrastructureError('Registered masked UI changed or is unavailable')
+        else:
+            ui = self.folder / (name + "-ui.json")
+            if ui.exists():
+                ui = ui.with_name(ui.stem + '-capture-' + str(len(self.ui_files)) + ui.suffix)
+            atomic(ui, elements)
+            self.ui_files[digest] = ui
         return {"screenshot": screenshot, "ui": str(ui.relative_to(self.report))}

@@ -329,15 +329,91 @@ class ScenarioTests(unittest.TestCase):
 
     def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
         batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])
-        agent, _, transport = api_agent([batch])
+        agent, _, transport = api_agent([batch, action()])
         mobile = FakeMobile(self.root, elements=[])
         result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertEqual([name for name, _ in mobile.calls],
             ['reset', 'mobile_click_on_screen_at_coordinates', 'mobile_press_button'])
-        self.assertEqual(len(transport.bodies), 1)
+        self.assertEqual(len(transport.bodies), 2)
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
-            ['executed', 'executed', 'handled'])
+            ['executed', 'executed', 'deferred', 'handled'])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual([row['action'] for row in state['batchFeedback'][0]['path']], ['tap', 'back', 'done'])
+
+    def test_excluding_all_history_does_not_remove_actual_batch_results(self):
+        selection = dict(summary='', includeAll=[], records=[])
+        batch = json.dumps([action('tap', ref='@one', context=selection), action('back', context=selection)])
+        agent, _, transport = api_agent([batch, action()])
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['recentActions'], [])
+        self.assertEqual([row['action'] for row in state['batchFeedback'][0]['path']], ['tap', 'back'])
+        self.assertEqual(state['batchFeedback'][0]['path'][0]['uiChange'], 'no observed change')
+
+    def test_batch_feedback_keeps_a_complete_cycle_instead_of_only_the_final_screen(self):
+        class CycleMobile(FakeMobile):
+            def call(self, name, **arguments):
+                super().call(name, **arguments)
+                if name == 'mobile_click_on_screen_at_coordinates':
+                    self.elements = [dict(type='Button', identifier=arguments['ref'])]
+        batch = json.dumps([action('tap', ref=ref) for ref in ('B', 'C', 'A')])
+        agent, _, transport = api_agent([batch, action()])
+        self.runner.run(CycleMobile(self.root, elements=[dict(type='Button', identifier='A')]),
+            self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        feedback = state['batchFeedback'][0]
+        self.assertEqual(len(feedback['path']), 3)
+        self.assertEqual(feedback['path'][-1]['observation'], feedback['initialObservation'])
+        self.assertEqual([row['uiChange'] for row in feedback['path']], ['changed'] * 3)
+
+    def test_independent_change_before_the_next_decision_is_a_separate_path_event(self):
+        agent, _, transport = api_agent([action('note'), action()])
+        class AsyncMobile(FakeMobile):
+            def snapshot(self):
+                return [dict(type='Button', identifier='B' if transport.bodies else 'A')], b'masked'
+        self.runner.run(AsyncMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual([row['kind'] for row in state['batchFeedback'][0]['path']], ['command', 'observation'])
+
+    def test_queued_finish_cannot_apply_predictions_before_results_are_delivered(self):
+        prediction = action(checks=[check('failed')], observation='Evidence unavailable before queued actions')
+        agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), prediction]), action()])
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        checks = result['scenarios'][0]['checks']
+        self.assertEqual([row['status'] for row in checks], ['passed'])
+        self.assertEqual(len(transport.bodies), 2)
+
+    def test_system_anr_is_logged_and_supplied_to_ai_without_automatic_failure(self):
+        agent, _, transport = api_agent([action(completion='blocked', checks=[])])
+        mobile = FakeMobile(self.root, elements=[dict(identifier='android:id/aerr_wait', type='android.widget.Button')])
+        output = io.StringIO()
+        runner = self.create_runner(activity=ActivityLog(self.root, self.redactor, output=output))
+        result = {'scenarios': []}
+        runner.run(mobile, self.build, result, agent, lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['crashes'], [])
+        self.assertEqual(scenario['verdict'], 'inconclusive')
+        self.assertIn('Android ANR', output.getvalue())
+        state = json.loads(transport.bodies[0]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['currentWarnings'][0]['code'], 'android-anr')
+
+    def test_system_anr_foreground_does_not_trigger_an_automatic_relaunch(self):
+        class AnrMobile(FakeMobile):
+            def running(self, app_id, executable):
+                return True
+
+        mobile = AnrMobile(self.root, elements=[dict(identifier='android:id/aerr_wait')],
+            foreground=['com.example.app', 'android', 'android'])
+        agent, _, transport = api_agent([action('tap', ref='@wait'), action()])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertNotIn('mobile_launch_app', [name for name, _ in mobile.calls])
+        self.assertEqual(scenario['crashes'], [])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['batchFeedback'][0]['path'][0]['warnings'], [0])
 
     def test_done_keeps_later_commands_visible_without_executing_them(self):
         agent, _, transport = api_agent([json.dumps([action(), action('tap', ref='@later')])])
@@ -428,6 +504,9 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(taps, ['@one'])
         self.assertEqual(result['scenarios'][0]['commandQueue']['commands'][1]['status'], 'not executed')
         self.assertEqual(len(transport.bodies), 1)
+        feedback = result['scenarios'][0]['batchFeedback']['batches'][0]
+        self.assertEqual([row['status'] for row in feedback['path']], ['executed', 'not executed'])
+        self.assertEqual(feedback['delivery'], 'not supplied; scenario ended')
 
     def test_deadline_after_first_command_prevents_the_next_queued_action(self):
         control = self.control
@@ -459,6 +538,10 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
             ['failed', 'cancelled'])
         self.assertEqual(len(transport.bodies), 1)
+        feedback = result['scenarios'][0]['batchFeedback']['batches'][0]
+        self.assertEqual([row['status'] for row in feedback['path']], ['failed', 'cancelled'])
+        self.assertEqual(feedback['path'][0]['uiChange'], 'observation unavailable')
+        self.assertIsNone(feedback['path'][0]['observation'])
 
     def test_repetition_recovery_defers_a_batch_tail_without_a_fixed_action_stop(self):
         batch = json.dumps([action('tap', ref='@one') for _ in range(5)])
@@ -599,6 +682,8 @@ class ScenarioTests(unittest.TestCase):
         )
         self.assertEqual(len(agent.calls), 3)
         self.assertEqual([row["matchingAttempt"] for row in result["crashes"]], [1, 2, 3])
+        for batch in result['batchFeedback']['batches']:
+            self.assertEqual(batch['path'][0]['error'], 'unexpected termination / suspected crash')
         self.assertEqual(result["verdict"], "failed")
         self.assertEqual(result["completion"], "incomplete")
 

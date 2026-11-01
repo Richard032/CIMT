@@ -34,6 +34,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["contextSelection"] = item => new PlanningRedactor(json).ContextSelection(item),
             ["recoveries"] = items => json.Items(items, item => new PlanningRedactor(json).Recovery(item)),
             ["commandQueue"] = CommandQueue,
+            ["batchFeedback"] = item => json.Record(item, [], new() { ["batches"] = rows => json.Items(rows, Batch) }),
+            ["warnings"] = rows => json.Items(rows, Warning),
             ["decisions"] = rows => json.Items(rows, row => json.Record(row, ["id", "step"], new() { ["response"] = Action })),
             ["screenshots"] = rows => json.Items(rows, row => json.Record(row, ["id", "path", "sha256"]))
         });
@@ -44,6 +46,24 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["id", "batchId", "position", "status", "step"], new() { ["response"] = Action }))
     });
 
+    private JsonNode Batch(JsonElement value) => json.Record(value,
+        ["id", "initialObservation", "delivery"], new()
+        {
+            ["initialWarnings"] = JsonTextRedactor.Keep,
+            ["path"] = rows => json.Items(rows, row => json.Record(row,
+                ["kind", "commandId", "action", "status", "step", "observation", "uiChange", "timestamp"], new()
+                {
+                    ["warnings"] = JsonTextRedactor.Keep,
+                    ["target"] = target => json.Record(target, ["ref", "x", "y", "direction", "credential", "field"])
+                })),
+            ["observations"] = rows => json.Items(rows, row => json.Record(row,
+                ["id", "screen", "uiObservation", "timestamp", "screenshot", "ui"])),
+            ["warnings"] = rows => json.Items(rows, Warning)
+        });
+
+    private JsonNode Warning(JsonElement value) => json.Record(value,
+        ["id", "code", "level", "timestamp", "step", "device", "platform", "target"]);
+
     private JsonNode Check(JsonElement value) => json.Record(value,
         ["id", "taskId", "source", "status", "requirementId", "step", "screenshot"]);
 
@@ -51,7 +71,7 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
         ["id", "status", "startLine", "endLine", "step", "screenshot"]);
 
     private JsonNode Step(JsonElement value) => json.Record(value,
-        ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState"], new()
+        ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], new()
     {
         ["action"] = Action,
         ["crash"] = CrashKind

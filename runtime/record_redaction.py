@@ -35,7 +35,7 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState"], {"action": self.action})
+        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], {"action": self.action})
 
     def crash(self, value):
         return self._record(
@@ -59,6 +59,8 @@ class RecordRedactor:
                 'recoveries': lambda items: self._items(items, self.recovery),
                 'contextSelection': self.context,
                 'commandQueue': self.command_queue,
+                'batchFeedback': self.batch_feedback,
+                'warnings': lambda rows: self._items(rows, self.warning),
                 'decisions': lambda rows: self._items(rows, self.decision),
                 'screenshots': lambda rows: self._items(rows, self.screenshot),
             },
@@ -69,6 +71,25 @@ class RecordRedactor:
 
     def queued_command(self, value):
         return self._record(value, ['id', 'batchId', 'position', 'status', 'step'], {'response': self.action})
+
+    def batch_feedback(self, value):
+        return self._record(value, [], {'batches': lambda rows: self._items(rows, self.batch)})
+
+    def batch(self, value):
+        return self._record(value, ['id', 'initialObservation', 'delivery'], {
+            'initialWarnings': lambda rows: list(rows),
+            'path': lambda rows: self._items(rows, self.batch_event),
+            'observations': lambda rows: self._items(rows, lambda row: self._record(row,
+                ['id', 'screen', 'uiObservation', 'timestamp', 'screenshot', 'ui'])),
+            'warnings': lambda rows: self._items(rows, self.warning)})
+
+    def batch_event(self, value):
+        return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp'], {
+            'warnings': lambda rows: list(rows),
+            'target': lambda row: self._record(row, ['ref', 'x', 'y', 'direction', 'credential', 'field'])})
+
+    def warning(self, value):
+        return self._record(value, ['id', 'code', 'level', 'timestamp', 'step', 'device', 'platform', 'target'])
 
     def rejected_response(self, value):
         # The candidate response is untrusted data, including its source and ID fields.
@@ -115,6 +136,9 @@ class RecordRedactor:
                     ['source', 'destination', 'control', 'action', 'destinationObservation'])),
                 'configuration': lambda rows: self._items(rows, lambda item: self._record(item, ['id', 'control', 'observedAt'])),
             }),
+            'batchFeedback': lambda rows: self._items(rows, self.batch),
+            'currentWarnings': lambda rows: self._items(rows, self.warning),
+            'selectedBatches': lambda rows: self._items(rows, self.batch),
             'selectedCommands': lambda rows: self._items(rows, self.queued_command),
             'selectedActions': lambda rows: self._items(rows, self.action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),

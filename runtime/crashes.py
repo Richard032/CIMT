@@ -108,6 +108,9 @@ class StartupGuard:
             return "stop"
         self.mobile.call("mobile_launch_app", packageName=session.app_id)
         session.elements, session.image = self.mobile.snapshot()
+        if session.observer:
+            references = self.evidence.save_step('startup-retry-' + str(self.failures), session.elements, session.image)
+            session.observer.record(session, references, len(session.result['steps']) - 1)
         return "retry"
 
     def _record(self, session):
@@ -159,7 +162,10 @@ class CrashRecovery:
         if crashed:
             self._relaunch(session)
             entry["recovery"] = "relaunch succeeded"
-        elif observation.foreground != session.app_id:
+        # A system ANR dialog stays open for the AI to handle.
+        elif observation.foreground != session.app_id and not (
+            session.observer and session.observer.active_anr
+        ):
             entry["navigation"] = (
                 "Explicit exit or background/external navigation; no matching crash diagnostic"
             )
@@ -169,7 +175,10 @@ class CrashRecovery:
     def _capture(self, session, entry):
         try:
             session.elements, session.image = self.mobile.snapshot()
-            entry.update(self.evidence.save_step(entry["step"], session.elements, session.image))
+            references = self.evidence.save_step(entry["step"], session.elements, session.image)
+            entry.update(references)
+            if session.observer:
+                entry['resultObservation'] = session.observer.record(session, references, entry['step'], action_result=True)
         except Exception as error:
             entry["evidenceError"] = self.redactor.text(str(error))
             raise
@@ -227,3 +236,6 @@ class CrashRecovery:
     def _relaunch(self, session):
         self.mobile.call("mobile_launch_app", packageName=session.app_id)
         session.elements, session.image = self.mobile.snapshot()
+        if session.observer:
+            references = self.evidence.save_step('recovery-' + str(len(session.result['steps'])), session.elements, session.image)
+            session.observer.record(session, references, len(session.result['steps']) - 1)

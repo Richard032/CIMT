@@ -17,6 +17,8 @@ from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from ai_interaction import AiInteraction
 from command_queue import CommandQueue
+from batch_feedback import BatchFeedback
+from observation_recorder import ObservationRecorder
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -39,6 +41,8 @@ class ScenarioSession:
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
     commands: CommandQueue = field(default_factory=CommandQueue)
+    feedback: BatchFeedback = field(default_factory=BatchFeedback)
+    observer: ObservationRecorder | None = None
 
 
 def application_executable(build, platform):
@@ -108,6 +112,7 @@ class ScenarioRunner:
             self._execute(mobile, build, session, monitor, agent, evidence, publish)
         finally:
             session.commands.stop('Scenario ended before these commands were performed')
+            session.feedback.close()
             self._save_plan(session)
             publish()
 
@@ -127,17 +132,23 @@ class ScenarioRunner:
                 return
             action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
-                session.commands.finish('handled', 'Context/note command; no device action')
+                self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
                 publish()
                 continue
             if action['action'] == 'recover':
-                session.commands.finish('handled', 'AI requested recovery')
+                self._finish_command(session, 'handled', 'AI requested recovery')
                 session.commands.stop('AI requested fresh evidence and a recovery decision')
                 self.ai_interaction.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
                 continue
             if action["action"] == "done":
-                session.commands.finish('handled', 'AI finished this objective')
+                if action['batchPosition'] > 0:
+                    self._finish_command(session, 'deferred', 'Return batch results before deciding objective completion')
+                    session.commands.stop('Batch ended; a fresh AI decision must use its actual results')
+                    self._save_plan(session)
+                    publish()
+                    continue
+                self._finish_command(session, 'handled', 'AI finished this objective')
                 session.commands.stop('AI done command ended this objective')
                 self._complete(session, action)
                 if self.activity:
@@ -167,7 +178,9 @@ class ScenarioRunner:
                 status = 'executed' if entry.get('actionDispatched') else (
                     'interrupted' if self.control.interrupted else 'failed')
                 reason = entry.get('actionError', entry.get('stoppingReason', entry.get('observedOutcome', '')))
-                session.commands.finish(status, reason, entry['step'])
+                error = entry.get('actionError') or entry.get('evidenceError') or entry.get('crash', '')
+                self._finish_command(session, status, reason, entry['step'],
+                    error=error, target_label=entry.get('controlLabel', ''))
                 self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
@@ -222,18 +235,20 @@ class ScenarioRunner:
         monitor = CrashMonitor(mobile, build["app-id"], executable)
         monitor.start(result)
         elements, image = mobile.snapshot()
-        screenshot = evidence.save_image("step-0000.png", image)
+        references = evidence.save_step(0, elements, image)
         result["steps"].append(
             {
                 "step": 0,
                 "action": "reset/install/launch",
                 "observation": result["reset"],
-                "screenshot": screenshot,
+                **references,
             }
         )
         session = ScenarioSession(result, build["app-id"], executable, elements, image,
             planner=TestPlanner(self.inputs['instructions'], result['requirements']))
         session.planner.observe(elements)
+        session.observer = ObservationRecorder(mobile.device, build['target'], self.activity)
+        session.observer.record(session, references, 0)
         self._save_plan(session)
         publish()
         return session, monitor
@@ -272,6 +287,8 @@ class ScenarioRunner:
         ]
         if session.active in allowed:
             return True
+        if session.active in ('android', 'com.android.systemui') and session.observer and session.observer.active_anr:
+            return True
         session.result["remaining"].append(
             "Application opened another app; that external workflow was not explored"
         )
@@ -288,9 +305,14 @@ class ScenarioRunner:
             with self._operation("Request AI action", mobile, session.result["target"]):
                 reply = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
             session.commands.add(reply)
+            session.feedback.start(session.commands.next_batch - 1)
             self._save_plan(session)
             publish()
         action = session.commands.take()
+        session.feedback.take(session.commands.current)
+        # A finish behind commands predates their results. Do not apply its predicted checks.
+        if action['action'] == 'done' and action['batchPosition'] > 0:
+            return action
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
@@ -318,7 +340,15 @@ class ScenarioRunner:
         publish()
         return action
 
+    @staticmethod
+    def _finish_command(session, status, reason='', step=None, error='', target_label=''):
+        row = session.commands.finish(status, reason, step)
+        if row is not None:
+            session.feedback.finish(row, error, target_label)
+
     def _save_plan(self, session):
+        session.feedback.sync(session.commands.records)
+        session.result['batchFeedback'] = self.redactor.records.batch_feedback(session.feedback.saved())
         session.result['commandQueue'] = self.redactor.records.command_queue(session.commands.saved())
         session.result.update(self.redactor.records.planning(session.planner.saved()))
         session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]

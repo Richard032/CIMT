@@ -34,8 +34,8 @@ class TestPlanner:
         self.memory.plan = list(action['remaining'])
         self.context_memory.accept(action['context'])
 
-    def collections(self, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None, commands=None):
-        return dict(commands=commands or [], actions=history or [], decisions=decisions or [], tasks=self.plan.saved()['tasks'], paths=list(self.memory.paths.values()),
+    def collections(self, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None, commands=None, batches=None):
+        return dict(batches=batches or [], commands=commands or [], actions=history or [], decisions=decisions or [], tasks=self.plan.saved()['tasks'], paths=list(self.memory.paths.values()),
             observations=list(self.memory.map.observations.values()),
             screenshots=screenshots or [],
             states=list(self.memory.map.states.values()), transitions=self.memory.map.transitions,
@@ -43,11 +43,11 @@ class TestPlanner:
             configuration=[dict(row, id=row['control'], name=name) for name, row in self.memory.map.configuration.items()],
             coverage=[coverage] if coverage is not None else [], routes=[])
 
-    def context(self, elements, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None, commands=None):
+    def context(self, elements, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None, commands=None, batches=None):
         context = dict(currentScreen=self.memory.map.state_id(elements),
             currentControls=self.memory.current_controls(elements), knownPaths=len(self.memory.paths))
         plan = self.plan.saved()
-        self.available = self.collections(history, requirements, checks, decisions, coverage, screenshots, commands)
+        self.available = self.collections(history, requirements, checks, decisions, coverage, screenshots, commands, batches)
         self.available['routes'] = [dict(id=row['id'], destination=row['targetState'],
             edges=self.memory.map.route(self.memory.map.state_id(elements), row['targetState']))
             for row in self.plan.tasks if row['targetState']]
@@ -59,6 +59,7 @@ class TestPlanner:
         context['paths'] = selected['paths']
         context['applicationMap'] = dict(states=selected['states'], transitions=selected['transitions'],
             configuration=selected['configuration'], knownStates=len(self.memory.map.states))
+        context['selectedBatches'] = selected['batches']
         context['selectedCommands'] = selected['commands']
         context['selectedActions'] = selected['actions']
         context['selectedRequirements'] = selected['requirements']
