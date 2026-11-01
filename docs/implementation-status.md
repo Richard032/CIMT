@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## Device Adapter layer and bounded startup recovery — 1 November 2026
+
+Implemented FR-98 / AC-68 under DR-01. Device communication, identity/readiness, app lifecycle, MCP/RPC and masked observations now live in runtime/device_adapter/. Split native commands, lock checks and status into focused modules. Execution supplies shared cancellation/deadline checks. The adapter imports shared privacy/errors, not AI, scenario/planning or stopping-policy implementations. AI Instruction and Context remains input-only; Execution Stopping Policy keeps final failure scope.
+
+DeviceStartup runs the fixed read-only apps list probe before app setup. Only the native helper's known device-server startup failure retries, within a cumulative 90-second window capped by the run deadline, with one-second delays and cancellation checks during waits. Invalid inventories, generic timeouts, locks and other failures do not retry. No app action, installation/reset, credential entry or provider call enters this recovery. Terminal/HTML activity retains redacted attempts and final diagnostics. Each native attempt keeps its existing five-second startup limit; third-party source is unchanged.
+
+Verification passed: 368 Python unit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks (412 offline checks), plus installer shell syntax. No xUnit host source changed; that suite was not rerun for this increment. Updated requirements v0.32, architecture v0.38, product v0.33, installation v0.35 and mapping/development guidance, with a boundary/sequence document. The installer includes the complete new package and removes obsolete flat modules. This source increment has not been installed or replayed, and no new mobile action or paid API request was made. Last installed source remains c1a34ea; live recovery success is pending.
+
 ## Input-only AI Instruction and Context layer — 1 November 2026
 
 Implemented FR-97 / AC-67 with Mobile MCP retained as confirmed by the product owner. runtime/ai_instructions/ now owns instructions, setup/scope, source requirements, credential aliases, fresh masked screen observations, human-interface metadata and AI-selected retained context. It contains no reply decoder, response evaluator, provider transport or action dispatcher. command_reply.py and AiInteraction remain execution components. The existing text-command transport is unchanged; concatenated/prose replies still produce resource feedback rather than guessed actions. This increment does not claim to solve that separate transport limitation.

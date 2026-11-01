@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.32
+Version: 0.33
 Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -489,3 +489,10 @@ HTML shows AI-selected working context and AI-directed recovery in the device sc
 CIMT keeps Mobile MCP for device control. Before each AI instruction request, the AI Instruction and Context layer refreshes masked UI information and supplies the current human-interface controls, testing instructions, requirements, setup and AI-selected history. Availability flags describe controls; they do not approve the AI's target. Full masked UI evidence remains available alongside the control catalogue.
 
 The layer does not examine AI replies or choose actions. Execution reads and performs the supported command and records its actual outcome. Repetition facts inform the next instruction after an action; they do not block a chosen command. The existing text-command transport remains, including note feedback when no single command can be decoded. This change does not migrate to Appium or function calling. See [AI Instruction and Context](ai-instruction-context.md).
+
+
+## Device readiness before testing
+
+CIMT now has a separate Device Adapter layer. Before app setup, it can retry the native helper's known device-server startup failure for a cumulative 90 seconds, capped by the run deadline. It repeats only a read-only readiness probe, with one-second waits. Cancellation remains active. The terminal and HTML activity show retries and any final failure. No extra command or YAML setting is needed.
+
+The helper's internal five-second startup limit remains unchanged. Multiple attempts can recover from a temporary problem; this does not let a single attempt run for 90 seconds. Other device failures are not retried automatically. Install/reset, taps, typing, credentials and AI requests are outside startup recovery. After exhaustion, the existing infrastructure stopping policy applies. See [Device Adapter](device-adapter.md).

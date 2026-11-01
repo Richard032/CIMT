@@ -12,7 +12,7 @@ Keep methods short enough to read without searching through unrelated work. Long
 
 ## Layer folders
 
-Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Instruction and Context lives in runtime/ai_instructions/. It supplies inputs and retained knowledge; reply decoding is runtime/command_reply.py and dispatch stays in execution. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
+Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Instruction and Context lives in runtime/ai_instructions/; Device Adapter lives in runtime/device_adapter/. AI Instruction and Context supplies inputs and retained knowledge; reply decoding is runtime/command_reply.py and dispatch stays in execution. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
 
 ## Comments
 
@@ -44,22 +44,23 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | check_results.py | Validate explicit observations and calculate the scenario verdict. |
 | check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
-| decision_recovery.py | Correct invalid decisions before check recording/actions; retain redacted rejected candidates. |
+| ai_instructions/, ai_interaction.py, command_reply.py | Prepare inputs, coordinate requests and mechanically decode commands in separate responsibilities. |
 | actions.py | Apply mechanical execution constraints and dispatch AI-selected targets; enter credentials locally with verified masking. |
 | coverage_tracker.py | Track observed and activated controls. |
-| exploration_memory.py | Retain scenario paths/outcomes and reject no-progress repetitions. |
+| test_planning/ | Retain AI-owned plans, selections, paths/outcomes and repetition facts. |
 | run_signals.py | Convert terminal signals into worker stop flags. |
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
 | action_prompt.py, agent.py, openai_transport.py | Build model input, reserve cost, parse actions, and send HTTPS requests. |
-| mobile.py | Connect the device services used by a scenario. |
-| app_lifecycle.py, device_commands.py | Install/reset the tested app and query readiness/status. |
-| redaction.py, screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
+| device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
+| device_adapter/app_lifecycle.py, native.py, readiness.py, status.py, target.py | Keep app lifecycle, read-only native calls, readiness, status and platform identity separate. |
+| device_adapter/startup.py | Retry only the fixed read-only readiness probe before app setup; never select stopping scope. |
+| redaction.py, device_adapter/screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
 | screenshot_image.py | Verify lossless image input and create a clean opaque image without source metadata. |
 | mask_geometry.py, capture_guard.py | Validate coordinate conversion and compare required regions/screen size around capture. |
 | record_redaction.py | Redact text according to each result record type while preserving its control metadata. |
-| mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
+| device_adapter/mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
 
@@ -139,3 +140,5 @@ runtime/test_planning is a separate policy layer. TestPlanner is the execution-f
 ## Instruction-layer boundary — 1 November 2026
 
 Keep ai_instructions/ input-only: sources, fresh masked adapter observations, human-interface metadata and retained AI-selected context. Do not import Agent, provider transport, reply decoding or action dispatch into that folder. CommandReply and AiInteraction are execution components; no approval call into the input layer may precede dispatch. Share repetition facts after actual execution instead of inspecting the proposed response to veto it. Existing tests/test_ai_instructions.py and ScenarioTests cover this boundary. The full Python and existing fake-tool CLI suites remain offline.
+
+Device Adapter may import shared errors/privacy services, but not AI, scenario/planning or stopping-policy implementations. Pass the shared run-stop check into Mobile. DeviceStartup must keep its probe fixed to apps list, with no arbitrary action callback. Tests in test_device_startup.py use fake commands/clocks; native error classification is tested in test_defect_policies.py. Do not retry generic failures or wrap lifecycle/AI commands in startup recovery. Install the entire package and remove obsolete flat modules together. See [the boundary contract](device-adapter.md).

@@ -2,7 +2,7 @@
 
 import subprocess
 from errors import InfrastructureError
-from device_target import DeviceTarget
+from .target import DeviceTarget
 
 
 class AppLifecycle:

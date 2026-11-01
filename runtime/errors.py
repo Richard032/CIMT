@@ -13,6 +13,14 @@ class InfrastructureError(Exception):
     """A required tool, response, or safety check did not work."""
 
 
+class DeviceServerStartupError(InfrastructureError):
+    """The native helper answered that its device server did not start."""
+
+
+class DeviceCommandTimeout(InfrastructureError):
+    """A native command reached its enclosing process timeout."""
+
+
 class AppLaunchError(InfrastructureError):
     """The adapter answered, but could not launch this device's tested app."""
 

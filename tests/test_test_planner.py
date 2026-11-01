@@ -228,7 +228,7 @@ class MapAndContractTests(unittest.TestCase):
         self.assertEqual(len(planner.plan.tasks), 8)
 
     def test_planning_layer_has_no_device_api_or_storage_dependencies(self):
-        forbidden = {'mobile', 'agent', 'openai_transport', 'evidence', 'scenario', 'os', 'subprocess', 'pathlib'}
+        forbidden = {'device_adapter', 'mobile', 'agent', 'openai_transport', 'evidence', 'scenario', 'os', 'subprocess', 'pathlib'}
         package = pathlib.Path(__file__).resolve().parents[1] / 'runtime/test_planning'
         for path in package.glob('*.py'):
             for node in ast.walk(ast.parse(path.read_text())):

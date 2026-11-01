@@ -41,7 +41,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(inputs['credentialAliases'], ['test-account'])
 
     def test_instruction_layer_does_not_import_reply_or_execution_services(self):
-        forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client'}
+        forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client', 'device_adapter'}
         package = Path(__file__).resolve().parents[1] / 'runtime/ai_instructions'
         for path in package.glob('*.py'):
             for node in ast.walk(ast.parse(path.read_text())):

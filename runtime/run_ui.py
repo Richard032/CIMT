@@ -10,7 +10,7 @@ from device_runner import DeviceRunner
 from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError, LimitReached
 from evidence import RunJournal
-from mobile import Mobile
+from device_adapter.mobile import Mobile
 from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
@@ -86,7 +86,7 @@ class Execution:
 
     def _mobile(self, device, folder):
         return Mobile(self.context["nativeBinary"], device, folder, self.context, self.redactor,
-                      activity=self.activity)
+                      activity=self.activity, check=self.control.check)
 
     def _agent(self):
         return Agent(self.config, self.budget, self.context["deadline"])

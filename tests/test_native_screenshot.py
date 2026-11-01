@@ -7,7 +7,7 @@ import time
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
-from device_commands import NativeDevice
+from device_adapter.native import NativeDevice
 from errors import InfrastructureError
 from redaction import Redactor
 

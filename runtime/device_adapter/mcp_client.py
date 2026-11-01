@@ -7,7 +7,7 @@ import subprocess
 import threading
 import time
 from errors import InfrastructureError, LimitReached
-from rpc_messages import RpcMessages
+from .rpc_messages import RpcMessages
 
 
 class Mcp:

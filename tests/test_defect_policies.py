@@ -9,9 +9,9 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
 from check_results import scenario_verdict
-from device_commands import NativeDevice
+from device_adapter.native import NativeDevice
 from device_scheduler import DeviceScheduler
-from errors import AppLaunchError, DeviceLocked, InfrastructureError, LimitReached
+from errors import AppLaunchError, DeviceLocked, DeviceServerStartupError, InfrastructureError, LimitReached
 from redaction import Redactor
 from stopping_policy.policy import matching_crash_limit_reached, stops_entire_run
 
@@ -47,6 +47,9 @@ class StoppingPolicyTests(unittest.TestCase):
 
     def test_shared_infrastructure_failure_stops_the_whole_run(self):
         self.assertTrue(stops_entire_run(InfrastructureError('AI service unavailable')))
+
+    def test_exhausted_adapter_startup_keeps_infrastructure_stopping_scope(self):
+        self.assertTrue(stops_entire_run(DeviceServerStartupError('startup recovery exhausted')))
 
     def test_third_matching_crash_stops_the_scenario(self):
         for attempts in [1, 2]:
@@ -191,6 +194,20 @@ class NativeCommandTests(unittest.TestCase):
             self.native(result).native([])
         self.assertNotIn("synthetic-secret", str(raised.exception))
         self.assertIn("failed", str(raised.exception))
+
+    def test_known_device_server_failure_has_a_redacted_startup_type(self):
+        result = subprocess.CompletedProcess([], 1, "",
+            "failed synthetic-secret: device server did not start within 5s on port 1234")
+        with self.assertRaises(DeviceServerStartupError) as raised:
+            self.native(result).native(["apps", "list"])
+        self.assertNotIn("synthetic-secret", str(raised.exception))
+        self.assertIn("device server did not start", str(raised.exception))
+
+    def test_unrelated_native_failure_is_not_a_retryable_startup_error(self):
+        result = subprocess.CompletedProcess([], 1, "", "device connection failed")
+        with self.assertRaises(InfrastructureError) as raised:
+            self.native(result).native(["apps", "list"])
+        self.assertNotIsInstance(raised.exception, DeviceServerStartupError)
 
     def test_invalid_json_is_an_infrastructure_error(self):
         with self.assertRaisesRegex(InfrastructureError, "invalid JSON"):

@@ -1,5 +1,9 @@
 # Complete requirement mapping
 
+## Device Adapter boundary and startup recovery
+
+FR-98 / AC-68 map to runtime/device_adapter/. DeviceStartup owns the fixed apps list probe and 90-second cumulative window; NativeDevice classifies/redacts the known native startup failure. Mobile.connect orders lock checks, startup readiness and client connection before app setup. Execution supplies cancellation; stopping_policy/ retains exhausted-error scope. test_device_startup.py covers bounds, failures, cancellation, connection ordering and import boundaries; test_defect_policies.py covers redacted error types and unchanged scope. Existing capture/lifecycle/platform suites use the new package. scripts/install-cimt-runtime.sh packages all modules and removes obsolete flat files. See [Device Adapter](device-adapter.md).
+
 ## Input-only layer and human-interface information
 
 FR-97 / AC-67 map to runtime/ai_instructions/: InstructionContext, ActionPromptBuilder and human_interface. They provide sources, credential aliases, fresh masked adapter observations and exact AI-selected context. Reply decoding is a separate execution component. ScenarioRunner supplies repetition notices after execution instead of vetoing the proposed command. tests/test_ai_instructions.py verifies control/source information and import boundaries; ScenarioTests verifies refresh after a note, fourth-tap execution, recovery information and shared limits. Mobile MCP remains the confirmed adapter. See [AI Instruction and Context](ai-instruction-context.md).

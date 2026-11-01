@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.34
+Version: 0.35
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1128,3 +1128,21 @@ Installed CLI help, worker imports, minimal command decoding, note handling, abs
 The source installer now includes the full ai_instructions/, test_planning/ and stopping_policy/ packages and matching top-level runtime modules. It removes obsolete ai_exchange/replies.py, ai_exchange/__init__.py and decision_recovery.py; command_reply.py and ai_interaction.py replace those execution responsibilities. action_prompt.py preserves existing imports. No new library, key, YAML setting or Appium service is required. Mobile MCP and its native tools remain unchanged.
 
 The instruction layer refreshes verified masked UI information before each AI request and supplies human-interface metadata alongside sources and retained AI-selected context. This is a source update with offline tests. It has not been installed or run against a mobile app as part of this task. The last recorded installed source revision remains 7c784fc. Use the existing installation backup, machine lock and byte-verification procedure before a separately requested update. Retained app artifacts, private inputs and historical reports are not modified by this source increment. See [AI Instruction and Context](ai-instruction-context.md).
+
+
+### Installation verification — 1 November 2026
+
+The product owner requested installation and replay. Verified all 249 tracked source files against PR #6 revision c1a34ea0d1d6376c5fecd24ff5bb579b86a18c06 and published the matching host. Under the machine run lock, backed up and replaced ten files, removed the obsolete exchange/recovery source modules, and verified all 56 host/runtime/license files against the prepared bytes. Installed CLI help, worker imports, input-layer imports, unavailable-control metadata, command decoding and stopping-policy smoke checks passed. The local receipt retains the backup location and file hashes.
+
+No dependency, key, configuration or third-party tool change was required. Retained app builds and historical reports were preserved. Replay is a separate execution with its own dated report and the existing interactive checkpoints. These installation checks do not establish live application-test success.
+
+The requested replay completed with exit 3 and generated its own dated HTML/JSON report. During Android setup, the adapter could not list packages because its device server did not start within five seconds. The existing stopping policy treated that infrastructure error as whole-run scope and stopped the iOS worker after its first masked capture. No inference request or app-control test was executed; the usage ledger recorded zero accounted cost. This outcome does not validate the new instruction flow against a running application. No app build, private configuration edit or automatic retry was performed.
+
+
+## 47. Device Adapter layer and startup-recovery source update
+
+The source installer now copies the complete runtime/device_adapter/ package alongside test_planning/, stopping_policy/ and ai_instructions/. It removes the obsolete flat mobile.py, app_lifecycle.py, device_commands.py, device_target.py, mcp_client.py, rpc_messages.py and screen_capture.py modules. Update the full matching runtime under the run lock, preserve a backup and verify file bytes before using it. The installed command host and build worker do not require source changes for this Python-only increment.
+
+No Go compiler, Android NDK, new Python dependency, third-party patch, API key change or YAML field is required. DeviceStartup retries only the native helper's known startup failure from the read-only readiness probe, before application setup. It does not modify the helper's five-second attempt limit. Terminal/HTML activity records recovery attempts; normal execution stopping rules apply after exhaustion. See [Device Adapter](device-adapter.md).
+
+This source increment has not been installed or replayed. The last completed installation is c1a34ea. Its replay stopped on the Android helper startup failure before inference; it is evidence motivating recovery, not acceptance of this newer implementation. The discarded native-helper rebuild was not installed, and no third-party source was modified. Live recovery success remains unqualified.

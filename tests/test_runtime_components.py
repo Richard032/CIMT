@@ -20,10 +20,10 @@ from scenario import ScenarioSession
 from evidence import ScenarioEvidence
 from actions import ActionExecutor
 from agent import Agent
-from app_lifecycle import AppLifecycle
+from device_adapter.app_lifecycle import AppLifecycle
 from budget import Budget
 from coverage_tracker import CoverageTracker
-from device_commands import DeviceReadiness
+from device_adapter.readiness import DeviceReadiness
 from stopping_policy.policy import result_exit_code
 from errors import AppLaunchError, DeviceActionError, InfrastructureError, LimitReached
 from openai_transport import OpenAiTransport
@@ -31,8 +31,8 @@ from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
 from run_ui import Execution
-from rpc_messages import RpcMessages
-from screen_capture import ScreenCapture
+from device_adapter.rpc_messages import RpcMessages
+from device_adapter.screen_capture import ScreenCapture
 
 MODEL = "gpt-5.4-mini-2026-03-17"
 BUTTON = {"ref": "@e1", "identifier": "ButtonA", "type": "Button", "label": "Open"}
