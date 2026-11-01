@@ -2,7 +2,7 @@
 
 ## Ordered command objects
 
-FR-99 / AC-69 map to command_reply.py (explicit JSON object/array/stream decoding), command_queue.py (FIFO data/state), ScenarioRunner (per-command dispatch/checks and tail retention), commands in ContextMemory/TestPlanner (exact AI selection), RecordRedactor/ExecutionRedactor (privacy) and PlanningHtmlRenderer (queue status versus actual steps, full reply once per batch). Existing test_command_reply.py, test_command_queue.py, test_runtime_components.py, test_context_memory.py and PlanningReportTests cover order, one-request batches, interruption/limits, failure/recovery, done, retrieval and escaped/redacted HTML. No third-party code changes or live acceptance claim. See [command queue](command-queue.md).
+FR-99 / AC-69 map to command_reply.py (explicit JSON object/array/stream decoding), command_queue.py (FIFO data/state), ScenarioRunner (per-command dispatch/checks, immediate pending cancellation and actual-issue feedback on the next normal request), commands in ContextMemory/TestPlanner (exact AI selection), RecordRedactor/ExecutionRedactor (privacy) and PlanningHtmlRenderer (queue status versus actual steps, full reply once per batch). Existing test_command_reply.py, test_command_queue.py, test_runtime_components.py, test_context_memory.py and PlanningReportTests cover order, one-request batches, immediate cancellation after command failure, last-command issue feedback, no separate success acknowledgement, interruption/limits, recovery, done, retrieval and escaped/redacted HTML. No third-party code changes or live acceptance claim. See [command queue](command-queue.md).
 
 ## Device Adapter boundary and startup recovery
 

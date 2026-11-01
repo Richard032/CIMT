@@ -47,7 +47,7 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
     {
         if (!scenario.TryGetProperty("commandQueue", out var queue))
             return "";
-        return "<h4>AI command queue</h4><p>Commands run in received order. Queued or not-executed commands "
+        return "<h4>AI command queue</h4><p>Commands run in received order. Queued, cancelled or not-executed commands "
             + "are plans, not performed actions or verified outcomes.</p>"
             + Table("Queued commands and actual execution", ["Command", "Batch", "Order", "Action", "Execution state", "Step", "Outcome or reason"],
                 Rows(queue, "commands").Select(row => new[] { Field(row, "id"), Field(row, "batchId"),

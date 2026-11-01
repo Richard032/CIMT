@@ -357,7 +357,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(state['explorationMemory']['summary'], 'Keep the actual outcome')
         self.assertNotIn('contextSelectionRequired', state)
 
-    def test_failed_command_defers_the_tail_for_a_fresh_ai_decision(self):
+    def test_failed_command_cancels_the_tail_and_reports_the_actual_issue_once(self):
         batch = json.dumps([action('tap', ref='@earlier'), action('tap', ref='@later')])
         agent, _, transport = api_agent([batch, action()])
         mobile = RejectedTargetMobile(self.root, elements=[])
@@ -366,10 +366,51 @@ class ScenarioTests(unittest.TestCase):
         taps = [args['ref'] for name, args in mobile.calls if name == 'mobile_click_on_screen_at_coordinates']
         self.assertEqual(taps, ['@earlier'])
         rows = result['scenarios'][0]['commandQueue']['commands']
-        self.assertEqual([row['status'] for row in rows], ['failed', 'not executed', 'handled'])
+        self.assertEqual([row['status'] for row in rows], ['failed', 'cancelled', 'handled'])
+        self.assertEqual(len(transport.bodies), 2)
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
-        self.assertIn('unexecuted commands', state['resourceFeedback'])
+        self.assertIn('Batch 0, command 0 (tap, position 0)', state['resourceFeedback'])
+        self.assertIn('Adapter could not resolve the requested target', state['resourceFeedback'])
+        self.assertIn('Cancelled 1 remaining command(s)', state['resourceFeedback'])
         self.assertEqual(state['explorationMemory']['catalogue']['commands'], 2)
+
+    def test_failure_on_the_last_command_still_returns_issue_feedback(self):
+        agent, _, transport = api_agent([action('swipe', direction='invalid'), action()])
+        mobile = FakeMobile(self.root, elements=[])
+        self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 2)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Invalid swipe direction', state['resourceFeedback'])
+        self.assertIn('Cancelled 0 remaining command(s)', state['resourceFeedback'])
+
+    def test_successful_batch_uses_only_the_next_normal_decision_request(self):
+        batch = json.dumps([action('tap', ref='@one'), action('back')])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FakeMobile(self.root, elements=[])
+        self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
+        self.assertEqual(len(transport.bodies), 2)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertFalse(state.get('resourceFeedback'))
+        self.assertEqual(len(state['recentActions']), 2)
+
+    def test_mechanical_command_failure_cancels_every_later_command(self):
+        batch = json.dumps([action('swipe', direction='invalid'),
+            action('tap', ref='@later'), action()])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        published_states = []
+        def publish():
+            rows = result['scenarios'][0].get('commandQueue', {}).get('commands', [])
+            published_states.append([row['status'] for row in rows])
+        self.runner.run(mobile, self.build, result, agent, publish)
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertIn(['started', 'cancelled', 'cancelled'], published_states)
+        self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
+            ['failed', 'cancelled', 'cancelled', 'handled'])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Invalid swipe direction', state['resourceFeedback'])
+        self.assertIn('Cancelled 2 remaining command(s)', state['resourceFeedback'])
 
     def test_cancellation_after_first_command_preserves_the_unperformed_tail(self):
         control = self.control
@@ -416,7 +457,7 @@ class ScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(InfrastructureError, 'Connection lost'):
             self.runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
-            ['failed', 'not executed'])
+            ['failed', 'cancelled'])
         self.assertEqual(len(transport.bodies), 1)
 
     def test_repetition_recovery_defers_a_batch_tail_without_a_fixed_action_stop(self):

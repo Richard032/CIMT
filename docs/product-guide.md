@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.34
+Version: 0.35
 Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -499,8 +499,8 @@ The helper's internal five-second startup limit remains unchanged. Multiple atte
 
 ## Ordered AI commands
 
-The AI can return several commands in one reply. CIMT saves them in a FIFO queue and executes them in the same order, with the normal checks and observations after each device action. It asks AI again when the queue is empty, or when a failure/recovery needs a fresh decision. The AI can still return one command when it needs to see the next screen before choosing another.
+The AI can return several commands in one reply. CIMT saves them in a FIFO queue and executes them in the same order, with the normal checks and observations after each device action. If a command cannot execute, CIMT cancels every remaining command and gives AI the failed command, error and cancelled-command count in the next normal decision request. A successful batch continues testing through the normal next-decision request, without an extra success acknowledgement. Recovery can also require a fresh decision. Run-stop/privacy failures can prevent another AI request; their diagnostics remain in the report. The AI can still return one command when it needs to see the next screen before choosing another.
 
-The HTML device scenario shows an AI command queue with batch, order, state, actual step and reason. Queued or not-executed commands are plans; they do not prove that a button was tapped or a requirement passed. Cancellation and limits preserve unperformed work. A done command ends the objective, including any commands following it. The complete redacted reply remains available once per batch.
+The HTML device scenario shows an AI command queue with batch, order, state, actual step and reason. Queued, cancelled or not-executed commands are plans; they do not prove that a button was tapped or a requirement passed. Cancellation and limits preserve unperformed work. A done command ends the objective, including any commands following it. The complete redacted reply remains available once per batch.
 
 No new user command, YAML field, model or key is required. Install the matching report host and runtime together. Existing reports are unchanged. Offline verification has passed; this increment has not yet been installed or qualified through a live replay. See [command queue](command-queue.md).

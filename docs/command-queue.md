@@ -33,7 +33,9 @@ While commands remain queued, CIMT takes the next command without a new inferenc
 
 A note or recall command is handled without a device action. recall changes the AI's selected context; if another command follows in the same batch, it runs before a new provider request. A done command ends the objective and leaves any later commands not executed. A recover command requests fresh evidence and an AI recovery decision; the rest of that batch is not executed.
 
-An answered interaction failure, observed crash or repetition recovery also leaves the pending tail not executed and returns to AI with resource feedback. The AI can retrieve those records and decide which commands to issue next. Fatal infrastructure errors retain their existing scope. Cancellation, shared limits, leaving the permitted app workflow or ending a scenario preserve the remaining commands. No deferred command resumes automatically in another batch or replay.
+If a command cannot execute, CIMT immediately cancels every pending command before post-action observation. This includes adapter interaction rejections and mechanical capability/argument failures. The failed command keeps its actual outcome; all pending commands become cancelled with the original redacted error. After the last attempted command, the next normal AI request includes the command/batch/order, actual error and cancelled-command count. A failure on the last queued command still provides feedback, with a zero count. There is no automatic retry or continuation of cancelled commands. AI may retrieve their records and issue new commands.
+
+Successful batches have no separate success acknowledgement or feedback-only request. CIMT continues autonomous testing through the normal next-decision request with current evidence and the AI-selected context. An observed crash or repetition recovery can still leave the pending tail not executed and return recovery information to AI. Fatal infrastructure errors retain their existing scope. Run-stop, budget, time, unavailable transport or privacy failures can prevent another AI request; cancel/retain the pending queue and keep diagnostics in the report instead of bypassing those rules. Cancellation, shared limits, leaving the permitted app workflow or ending a scenario preserve the remaining commands. No deferred command resumes automatically in another batch or replay.
 
 ## Records and privacy
 
@@ -45,6 +47,7 @@ An answered interaction failure, observed crash or repetition recovery also leav
 | handled | A note, recall, recover or done command was handled without a device action. |
 | failed | The command did not return successfully; reason/step retain the available diagnostic. Partial effects are possible. |
 | interrupted | Execution stopped while this command was active; completion is not confirmed. |
+| cancelled | Pending command removed after another command could not complete; it will not run automatically. |
 | not executed | Still pending when execution deferred or ended; reason explains why. |
 
 An executed command is not a passed requirement or proof of a correct application response. The actual step, observation, checks and crash records carry that evidence. A failed/interrupted credential operation can have partial effects; the status does not claim rollback.
@@ -55,7 +58,7 @@ The commands context collection exposes the stored rows using existing AI-owned 
 
 ## Cost, packaging and verification
 
-A provider reply containing several commands incurs one inference request. Taking another queued command makes no new provider call. Device observation work, shared accounting, time and cancellation checks remain. A fresh request after failure/recovery uses the configured model and normal budget reservation. Offline checks do not establish measured savings or live exploration quality.
+A provider reply containing several commands incurs one inference request. Taking another queued command makes no new provider call. Success adds no acknowledgement call; issue feedback is part of the next normal decision request, not an additional request. Device observation work, shared accounting, time and cancellation checks remain. A fresh request after failure/recovery uses the configured model and normal budget reservation. Offline checks do not establish measured savings or live exploration quality.
 
 Install the matching .NET report host and Python runtime together. The existing installer includes command_queue.py with the top-level runtime modules. No third-party source change, package dependency, public CLI command, YAML field, model or key is added.
 
@@ -90,13 +93,13 @@ sequenceDiagram
             Run->>Store: Record handling without a device action
         end
         opt Failure, recovery, done or execution stop
-            Run->>Queue: Retain pending tail as not executed, with reason
+            Run->>Queue: Cancel pending commands on execution failure; otherwise retain unexecuted tail
             Queue->>Store: Publish queue state
         end
     end
     opt Scenario continues and another AI decision is needed
         Run->>Inputs: Prepare fresh evidence and exact selected records, including commands
-        Inputs-->>Run: Sources, context and resource/recovery feedback
+        Inputs-->>Run: Sources/context; issue feedback only when present, no success acknowledgement
         Run->>AI: AI decides the next commands and context selection
     end
 ```

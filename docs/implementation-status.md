@@ -1,5 +1,12 @@
 # CIMT implementation status
 
+## 1 November 2026 — cancel pending commands and return actual issues
+
+Refined FR-99 / AC-69 as requested. If a command cannot execute, CommandQueue cancels every pending command before post-action observation. ScenarioRunner retains the failed command identity, actual redacted error and cancelled count for the next normal AI decision request, including failure on the last command. Successful batches continue autonomous testing without a separate acknowledgement or feedback-only request. Fatal run-stop/privacy rules still prevent further inference when required; issues and cancelled commands remain in local records.
+
+Cancelled is distinct from executed, handled and recovery/limit-related unexecuted work in HTML/JSON. The queue stays an execution component; AI Instruction and Context remains input-only. No semantic response evaluation, replacement action, automatic retry or third-party patch is added.
+
+Verification passed: 392 Python unit tests, 311 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 747 offline checks total. Installer shell syntax passed. Requirements v0.34, architecture v0.40, product v0.35 and installation v0.37 describe the refinement. No installation, app build, live replay or paid API call was performed; last installed source remains ada8c00.
 
 ## 1 November 2026 — ordered command queue
 

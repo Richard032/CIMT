@@ -56,6 +56,28 @@ public sealed class PlanningReportTests
     }
 
     [Fact]
+    public async Task CancelledCommandsShowTheirFailureReasonWithoutBecomingPerformedActions()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var context = Context();
+        context = context with { Result = JsonSerializer.SerializeToElement(new
+        {
+            testPlan = context.Result.GetProperty("testPlan"),
+            commandQueue = new { commands = new[] {
+                new { id = 1, batchId = 0, position = 1, status = "cancelled",
+                    reason = "Adapter target unavailable: <synthetic-credential>", response = new { action = "tap" } }
+            } }
+        }) };
+        var html = new PlanningHtmlRenderer(fixture.State.Configuration).Render(context);
+        Assert.Contains("cancelled", html);
+        Assert.Contains("Adapter target unavailable", html);
+        Assert.Contains("not performed actions", html);
+        Assert.Contains("Not recorded", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+    }
+
+    [Fact]
     public void QueueRedactionPreservesExecutionIdentityAndScrubsAiText()
     {
         var input = JsonSerializer.SerializeToElement(new { devices = new[] { new {

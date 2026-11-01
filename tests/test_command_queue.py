@@ -34,6 +34,17 @@ class CommandQueueTests(unittest.TestCase):
         self.assertEqual([row['status'] for row in queue.records], ['executed', 'not executed', 'not executed'])
         self.assertFalse(queue.pending)
 
+    def test_failed_command_cancels_all_pending_commands_without_changing_earlier_outcomes(self):
+        queue = CommandQueue()
+        queue.add(dict(action='tap', queuedCommands=[dict(action='back'), dict(action='wait')]))
+        queue.take()
+        queue.finish('failed', 'Target unavailable', step=1)
+        cancelled = queue.cancel_pending('Target unavailable')
+        self.assertEqual(cancelled, 2)
+        self.assertEqual([row['status'] for row in queue.records], ['failed', 'cancelled', 'cancelled'])
+        self.assertFalse(queue.pending)
+        self.assertEqual(queue.records[1]['reason'], 'Target unavailable')
+
     def test_an_in_flight_command_is_interrupted_when_scenario_stops(self):
         queue = CommandQueue()
         queue.add(dict(action='tap'))

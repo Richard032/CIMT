@@ -36,6 +36,13 @@ class CommandQueue:
                 self.current['step'] = step
             self.current = None
 
+    def cancel_pending(self, reason):
+        """Cancel the whole pending batch after a command cannot run."""
+        count = len(self.pending)
+        while self.pending:
+            self.pending.popleft().update(status='cancelled', reason=reason)
+        return count
+
     def stop(self, reason):
         """Keep unperformed commands visible; do not silently execute them later."""
         self.finish('interrupted', reason)

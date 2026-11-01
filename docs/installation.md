@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.36
+Version: 0.37
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1163,3 +1163,9 @@ FR-99 adds runtime/command_queue.py and updates command decoding, scenario execu
 The source verification passed 388 Python unit tests, 310 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 742 offline checks in total. This queue increment is not installed or replayed. The last completed installation remains ada8c00. The later user-cancelled replay on that installation generated its own final report: most AI replies contained several consecutive JSON command objects, which the old single-object decoder retained as notes. That is evidence motivating the queue correction, not a live acceptance result for the new queue. Existing retained apps and historical reports are unchanged.
 
 After installation, a separately authorized replay should qualify consecutive commands, cancellation and report states on running applications. Do not execute commands from old report text as part of installation. See [command queue](command-queue.md).
+
+## 49. Cancel queued commands on execution failure
+
+The FR-99 refinement updates CommandQueue, ScenarioRunner, AI command instructions and the report explanation. Install matching runtime and command-host files under the existing run lock, with backup and byte verification. No new dependency, setting, key or third-party tool change is needed. Unexecutable commands cancel the pending queue; actual issues go into the next normal AI decision request. Successful batches add no acknowledgement call and autonomous testing continues.
+
+Verification passed 392 Python unit tests, 311 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks (747 offline checks), plus installer shell syntax. This source refinement has not been installed or replayed. Last installed revision remains ada8c00. Offline verification and source publication do not establish live behavior. Existing reports and retained apps are preserved.

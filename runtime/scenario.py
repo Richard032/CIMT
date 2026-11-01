@@ -149,14 +149,17 @@ class ScenarioRunner:
             entry, element, point = self._action_context(session, action)
             try:
                 self._perform(mobile, session, action, entry, element)
+                if entry.get('actionError'):
+                    self._cancel_failed_batch(session, action, entry['actionError'], publish)
                 with self._operation("Observe action result and check crash recovery", mobile, build["target"]):
                     cancelled = recovery.after_action(session, entry, action, element, point)
             except Exception as error:
                 # An interruption may arrive after only part of a credential action.
                 if self.control.interrupted:
                     entry["stoppingReason"] = "User interrupted execution; partial observations were retained"
-                else:
-                    entry.setdefault("actionError", self.redactor.text(str(error)))
+                elif not entry.get('actionError'):
+                    entry['actionError'] = self.redactor.text(str(error))
+                    self._cancel_failed_batch(session, action, entry['actionError'], publish)
                 raise
             finally:
                 # Keep the performed action even when evidence or recovery fails.
@@ -171,12 +174,26 @@ class ScenarioRunner:
             if cancelled:
                 return
             self._share_repetition(mobile, session, before, action, evidence, publish)
-            if entry.get('actionError') or entry.get('crash') or session.recovery.pending:
-                reason = 'A command failed or recovery needs a fresh AI decision'
+            if entry.get('actionError'):
+                # The detailed failure feedback is sent with the next normal AI request.
+                continue
+            if entry.get('crash') or session.recovery.pending:
+                reason = 'Recovery needs a fresh AI decision'
                 session.commands.stop(reason)
                 session.resource_feedback = reason + '; unexecuted commands remain in the commands collection.'
                 self._save_plan(session)
                 publish()
+
+    def _cancel_failed_batch(self, session, action, reason, publish):
+        """Stop pending commands and retain one issue message for the next AI turn."""
+        cancelled = session.commands.cancel_pending(reason)
+        session.resource_feedback = self.redactor.text(
+            f"Batch {action['batchId']}, command {action['commandId']} "
+            f"({action['action']}, position {action['batchPosition']}) could not be completed: {reason}. "
+            f"Cancelled {cancelled} remaining command(s). Cancelled commands will not run automatically; "
+            "their records remain in the commands collection.")
+        self._save_plan(session)
+        publish()
 
     def _share_repetition(self, mobile, session, before, action, evidence, publish):
         """Share facts after execution. Never use them to veto an AI command."""
