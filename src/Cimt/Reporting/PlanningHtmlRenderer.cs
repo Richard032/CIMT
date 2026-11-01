@@ -18,7 +18,7 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
         body += Table("Source-linked testing tasks", ["Task", "Source", "Work status", "Test result", "Expected behavior", "Reason"],
             Rows(plan, "tasks").Select(task => new[] { Field(task, "subject"), Source(task), Field(task, "status"),
                 Field(task, "result"), Field(task, "expected"), Field(task, "reason") }));
-        body += Context(scenario, redactor) + Recoveries(scenario, redactor) + Replies(scenario);
+        body += Context(scenario, redactor) + Recoveries(scenario, redactor) + Commands(scenario) + Replies(scenario);
         if (!scenario.TryGetProperty("exploration", out var exploration))
             return body;
         exploration = JsonSerializer.SerializeToElement(redactor.Exploration(exploration));
@@ -43,16 +43,31 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
         return body;
     }
 
+    private string Commands(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("commandQueue", out var queue))
+            return "";
+        return "<h4>AI command queue</h4><p>Commands run in received order. Queued or not-executed commands "
+            + "are plans, not performed actions or verified outcomes.</p>"
+            + Table("Queued commands and actual execution", ["Command", "Batch", "Order", "Action", "Execution state", "Step", "Outcome or reason"],
+                Rows(queue, "commands").Select(row => new[] { Field(row, "id"), Field(row, "batchId"),
+                    Field(row, "position"), configuration.Scrub(row.TryGetProperty("response", out var response)
+                        ? Field(response, "action") : ""), Field(row, "status"), Field(row, "step", "Not recorded"),
+                    configuration.Scrub(Field(row, "reason")) }));
+    }
+
     private string Replies(JsonElement scenario)
     {
-        var replies = Rows(scenario, "decisions")
+        var sources = scenario.TryGetProperty("commandQueue", out var queue)
+            ? Rows(queue, "commands") : Rows(scenario, "decisions");
+        var replies = sources
             .Where(row => row.TryGetProperty("response", out var response)
                 && response.TryGetProperty("modelResponse", out _));
         return !replies.Any() ? "" : Details("AI replies and resource feedback",
             Table("AI replies", ["Turn", "Reply", "Resource feedback"], replies.Select(row =>
             {
                 var response = row.GetProperty("response");
-                return new[] { Field(row, "id"), configuration.Scrub(Field(response, "modelResponse")),
+                return new[] { Field(row, "batchId", Field(row, "id")), configuration.Scrub(Field(response, "modelResponse")),
                     configuration.Scrub(Field(response, "resourceFeedback", "No resource error")) };
             })));
     }

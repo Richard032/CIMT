@@ -16,6 +16,7 @@ from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from ai_interaction import AiInteraction
+from command_queue import CommandQueue
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -37,6 +38,7 @@ class ScenarioSession:
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
+    commands: CommandQueue = field(default_factory=CommandQueue)
 
 
 def application_executable(build, platform):
@@ -102,6 +104,14 @@ class ScenarioRunner:
         """Order device and AI operations for the current objective."""
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
+        try:
+            self._execute(mobile, build, session, monitor, agent, evidence, publish)
+        finally:
+            session.commands.stop('Scenario ended before these commands were performed')
+            self._save_plan(session)
+            publish()
+
+    def _execute(self, mobile, build, session, monitor, agent, evidence, publish):
         startup = StartupGuard(mobile, evidence, publish)
         recovery = CrashRecovery(mobile, monitor, evidence, self.redactor, publish)
         while True:
@@ -117,11 +127,18 @@ class ScenarioRunner:
                 return
             action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
+                session.commands.finish('handled', 'Context/note command; no device action')
+                self._save_plan(session)
+                publish()
                 continue
             if action['action'] == 'recover':
+                session.commands.finish('handled', 'AI requested recovery')
+                session.commands.stop('AI requested fresh evidence and a recovery decision')
                 self.ai_interaction.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
                 continue
             if action["action"] == "done":
+                session.commands.finish('handled', 'AI finished this objective')
+                session.commands.stop('AI done command ended this objective')
                 self._complete(session, action)
                 if self.activity:
                     self.activity.write("Objective finished", session.result["completion"],
@@ -144,12 +161,22 @@ class ScenarioRunner:
             finally:
                 # Keep the performed action even when evidence or recovery fails.
                 session.planner.record(before, session.elements, action, entry)
+                status = 'executed' if entry.get('actionDispatched') else (
+                    'interrupted' if self.control.interrupted else 'failed')
+                reason = entry.get('actionError', entry.get('stoppingReason', entry.get('observedOutcome', '')))
+                session.commands.finish(status, reason, entry['step'])
                 self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
             if cancelled:
                 return
             self._share_repetition(mobile, session, before, action, evidence, publish)
+            if entry.get('actionError') or entry.get('crash') or session.recovery.pending:
+                reason = 'A command failed or recovery needs a fresh AI decision'
+                session.commands.stop(reason)
+                session.resource_feedback = reason + '; unexecuted commands remain in the commands collection.'
+                self._save_plan(session)
+                publish()
 
     def _share_repetition(self, mobile, session, before, action, evidence, publish):
         """Share facts after execution. Never use them to veto an AI command."""
@@ -240,8 +267,13 @@ class ScenarioRunner:
         session.result["coverage"] = coverage
         self._save_plan(session)
         publish()
-        with self._operation("Request AI action", mobile, session.result["target"]):
-            action = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
+        if not session.commands.pending:
+            with self._operation("Request AI action", mobile, session.result["target"]):
+                reply = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
+            session.commands.add(reply)
+            self._save_plan(session)
+            publish()
+        action = session.commands.take()
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
@@ -270,6 +302,7 @@ class ScenarioRunner:
         return action
 
     def _save_plan(self, session):
+        session.result['commandQueue'] = self.redactor.records.command_queue(session.commands.saved())
         session.result.update(self.redactor.records.planning(session.planner.saved()))
         session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]
 
@@ -289,6 +322,7 @@ class ScenarioRunner:
         try:
             with self._operation("Execute device action: " + action["action"], mobile, session.result["target"]):
                 self.actions.execute(mobile, action, session.elements)
+                entry['actionDispatched'] = True
             if action["action"] in ["tap", "credential"]:
                 session.coverage.activated(element)
         except (ValueError, DeviceActionError) as error:

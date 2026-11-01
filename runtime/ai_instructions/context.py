@@ -17,7 +17,7 @@ class InstructionContext:
         session.result['screenshots'] = screenshots
         memory = session.planner.context(session.elements, session.history,
             session.result['requirements'], session.result.get('checks', []),
-            session.result.get('decisions', []), session.coverage.snapshot(), screenshots)
+            session.result.get('decisions', []), session.coverage.snapshot(), screenshots, session.commands.records)
         if session.recovery.pending is not None:
             memory['recoveryRequest'] = self.redactor.records.recovery(session.recovery.pending)
         memory = self.redactor.records.request_context(memory)

@@ -26,14 +26,30 @@ class CommandReplyTests(unittest.TestCase):
     def test_prose_is_a_note_without_a_selected_replacement_command(self):
         result = read_reply(reply('I want to reconsider my plan.'))
         self.assertEqual(result['action'], 'note')
-        self.assertIn('No single executable command', result['resourceFeedback'])
+        self.assertIn('Unreadable reply text', result['resourceFeedback'])
         self.assertEqual(result['modelResponse'], 'I want to reconsider my plan.')
 
-    def test_multiple_objects_are_retained_without_guessing_which_action_to_run(self):
+    def test_multiple_objects_are_decoded_in_received_order(self):
         text = '{"action":"tap","ref":"@one"}{"action":"restart"}'
         result = read_reply(reply(text))
-        self.assertEqual(result['action'], 'note')
+        self.assertEqual(result['action'], 'tap')
+        self.assertEqual([row['action'] for row in result['queuedCommands']], ['restart'])
         self.assertEqual(result['modelResponse'], text)
+
+    def test_array_commands_keep_their_order(self):
+        result = read_reply(reply('[{"action":"tap","ref":"@one"},{"action":"back"},{"action":"done"}]'))
+        self.assertEqual([result['action']] + [row['action'] for row in result['queuedCommands']], ['tap', 'back', 'done'])
+
+    def test_unreadable_suffix_does_not_discard_decoded_prefix(self):
+        result = read_reply(reply('{"action":"tap","ref":"@one"} unreadable trailing text'))
+        self.assertEqual(result['action'], 'tap')
+        self.assertEqual(result['queuedCommands'][0]['action'], 'note')
+        self.assertIn('Unreadable', result['queuedCommands'][0]['resourceFeedback'])
+
+    def test_prose_containing_json_does_not_create_guessed_actions(self):
+        result = read_reply(reply('Example only: {"action":"tap","ref":"@one"}'))
+        self.assertEqual(result['action'], 'note')
+        self.assertNotIn('queuedCommands', result)
 
     def test_unknown_fields_are_preserved_in_the_original_reply(self):
         text = json.dumps(dict(action='wait', myPlan=dict(next='Settings')))

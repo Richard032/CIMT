@@ -1,5 +1,9 @@
 # Complete requirement mapping
 
+## Ordered command objects
+
+FR-99 / AC-69 map to command_reply.py (explicit JSON object/array/stream decoding), command_queue.py (FIFO data/state), ScenarioRunner (per-command dispatch/checks and tail retention), commands in ContextMemory/TestPlanner (exact AI selection), RecordRedactor/ExecutionRedactor (privacy) and PlanningHtmlRenderer (queue status versus actual steps, full reply once per batch). Existing test_command_reply.py, test_command_queue.py, test_runtime_components.py, test_context_memory.py and PlanningReportTests cover order, one-request batches, interruption/limits, failure/recovery, done, retrieval and escaped/redacted HTML. No third-party code changes or live acceptance claim. See [command queue](command-queue.md).
+
 ## Device Adapter boundary and startup recovery
 
 FR-98 / AC-68 map to runtime/device_adapter/. DeviceStartup owns the fixed apps list probe and 90-second cumulative window; NativeDevice classifies/redacts the known native startup failure. Mobile.connect orders lock checks, startup readiness and client connection before app setup. Execution supplies cancellation; stopping_policy/ retains exhausted-error scope. test_device_startup.py covers bounds, failures, cancellation, connection ordering and import boundaries; test_defect_policies.py covers redacted error types and unchanged scope. Existing capture/lifecycle/platform suites use the new package. scripts/install-cimt-runtime.sh packages all modules and removes obsolete flat files. See [Device Adapter](device-adapter.md).

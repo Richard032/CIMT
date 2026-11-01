@@ -1,5 +1,14 @@
 # CIMT implementation status
 
+
+## 1 November 2026 — ordered command queue
+
+Implemented FR-99 / AC-69. Explicit JSON objects, arrays and consecutive objects become a scenario-local FIFO queue. CommandQueue retains receipt/order/state without device or provider calls; ScenarioRunner executes each through existing action/observation paths. One reply can supply multiple commands without another inference request. Cancellation, deadlines, fatal failure, done and recovery preserve the unexecuted tail; answered interaction errors and repetition recovery return to AI for a fresh decision. No semantic reply gate, substituted action or automatic batch replay is added.
+
+The input-only layer exposes commands through exact AI context selection. Python and .NET privacy boundaries preserve generated queue identities/status while scrubbing text. HTML shows command/batch/order/status, actual step numbers, reasons and the complete redacted reply once per batch. Commands that never ran do not become device actions or verified results.
+
+Verification passed: 388 Python unit tests, 310 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 742 offline checks total. The initial sandboxed MSBuild attempt could not open its local pipe; the rerun with the permitted local build environment passed all 310 xUnit tests. Requirements v0.33, architecture v0.39, product v0.34 and installation v0.36 describe the change. No third-party source change, installation, app build, mobile replay or paid API request was performed in this increment. Last installed source is ada8c00; live queue behavior and cost/latency remain unqualified. See [protocol and sequence](command-queue.md).
+
 ## Device Adapter layer and bounded startup recovery — 1 November 2026
 
 Implemented FR-98 / AC-68 under DR-01. Device communication, identity/readiness, app lifecycle, MCP/RPC and masked observations now live in runtime/device_adapter/. Split native commands, lock checks and status into focused modules. Execution supplies shared cancellation/deadline checks. The adapter imports shared privacy/errors, not AI, scenario/planning or stopping-policy implementations. AI Instruction and Context remains input-only; Execution Stopping Policy keeps final failure scope.

@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.33
+Version: 0.34
 Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -488,7 +488,7 @@ HTML shows AI-selected working context and AI-directed recovery in the device sc
 
 CIMT keeps Mobile MCP for device control. Before each AI instruction request, the AI Instruction and Context layer refreshes masked UI information and supplies the current human-interface controls, testing instructions, requirements, setup and AI-selected history. Availability flags describe controls; they do not approve the AI's target. Full masked UI evidence remains available alongside the control catalogue.
 
-The layer does not examine AI replies or choose actions. Execution reads and performs the supported command and records its actual outcome. Repetition facts inform the next instruction after an action; they do not block a chosen command. The existing text-command transport remains, including note feedback when no single command can be decoded. This change does not migrate to Appium or function calling. See [AI Instruction and Context](ai-instruction-context.md).
+The layer does not examine AI replies or choose actions. Execution reads and performs the supported command and records its actual outcome. Repetition facts inform the next instruction after an action; they do not block a chosen command. The existing text-command transport remains. FR-99 queues explicit JSON command objects in received order; unreadable text remains a note with resource feedback. This change does not migrate to Appium or function calling. See [AI Instruction and Context](ai-instruction-context.md).
 
 
 ## Device readiness before testing
@@ -496,3 +496,11 @@ The layer does not examine AI replies or choose actions. Execution reads and per
 CIMT now has a separate Device Adapter layer. Before app setup, it can retry the native helper's known device-server startup failure for a cumulative 90 seconds, capped by the run deadline. It repeats only a read-only readiness probe, with one-second waits. Cancellation remains active. The terminal and HTML activity show retries and any final failure. No extra command or YAML setting is needed.
 
 The helper's internal five-second startup limit remains unchanged. Multiple attempts can recover from a temporary problem; this does not let a single attempt run for 90 seconds. Other device failures are not retried automatically. Install/reset, taps, typing, credentials and AI requests are outside startup recovery. After exhaustion, the existing infrastructure stopping policy applies. See [Device Adapter](device-adapter.md).
+
+## Ordered AI commands
+
+The AI can return several commands in one reply. CIMT saves them in a FIFO queue and executes them in the same order, with the normal checks and observations after each device action. It asks AI again when the queue is empty, or when a failure/recovery needs a fresh decision. The AI can still return one command when it needs to see the next screen before choosing another.
+
+The HTML device scenario shows an AI command queue with batch, order, state, actual step and reason. Queued or not-executed commands are plans; they do not prove that a button was tapped or a requirement passed. Cancellation and limits preserve unperformed work. A done command ends the objective, including any commands following it. The complete redacted reply remains available once per batch.
+
+No new user command, YAML field, model or key is required. Install the matching report host and runtime together. Existing reports are unchanged. Offline verification has passed; this increment has not yet been installed or qualified through a live replay. See [command queue](command-queue.md).

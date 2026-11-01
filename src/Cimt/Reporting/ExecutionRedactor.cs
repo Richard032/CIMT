@@ -33,9 +33,16 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["exploration"] = item => new PlanningRedactor(json).Exploration(item),
             ["contextSelection"] = item => new PlanningRedactor(json).ContextSelection(item),
             ["recoveries"] = items => json.Items(items, item => new PlanningRedactor(json).Recovery(item)),
+            ["commandQueue"] = CommandQueue,
             ["decisions"] = rows => json.Items(rows, row => json.Record(row, ["id", "step"], new() { ["response"] = Action })),
             ["screenshots"] = rows => json.Items(rows, row => json.Record(row, ["id", "path", "sha256"]))
         });
+
+    private JsonNode CommandQueue(JsonElement value) => json.Record(value, [], new()
+    {
+        ["commands"] = rows => json.Items(rows, row => json.Record(row,
+            ["id", "batchId", "position", "status", "step"], new() { ["response"] = Action }))
+    });
 
     private JsonNode Check(JsonElement value) => json.Record(value,
         ["id", "taskId", "source", "status", "requirementId", "step", "screenshot"]);
@@ -52,7 +59,7 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode? Action(JsonElement value) => value.ValueKind == JsonValueKind.String
         ? JsonTextRedactor.Keep(value) // String actions are host-generated step names.
-        : json.Record(value, ["action", "ref", "direction", "credential", "field", "completion", "planStepId"], new()
+        : json.Record(value, ["action", "ref", "direction", "credential", "field", "completion", "planStepId", "commandId", "batchId", "batchPosition"], new()
         {
             ["checks"] = items => json.Items(items, Check),
             ["context"] = item => new PlanningRedactor(json).ContextSelection(item),

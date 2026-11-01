@@ -327,6 +327,111 @@ class ScenarioTests(unittest.TestCase):
         (runner or self.runner).run(mobile, self.build, result, agent, lambda: None)
         return result["scenarios"][0], agent
 
+    def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
+        batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])
+        agent, _, transport = api_agent([batch])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual([name for name, _ in mobile.calls],
+            ['reset', 'mobile_click_on_screen_at_coordinates', 'mobile_press_button'])
+        self.assertEqual(len(transport.bodies), 1)
+        self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
+            ['executed', 'executed', 'handled'])
+
+    def test_done_keeps_later_commands_visible_without_executing_them(self):
+        agent, _, transport = api_agent([json.dumps([action(), action('tap', ref='@later')])])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        rows = result['scenarios'][0]['commandQueue']['commands']
+        self.assertEqual([row['status'] for row in rows], ['handled', 'not executed'])
+        self.assertEqual(len(transport.bodies), 1)
+
+    def test_queued_context_selection_is_applied_before_the_next_ai_request(self):
+        select = action('recall', context=dict(summary='Keep the actual outcome', includeAll=[], records=[]))
+        agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), select]), action()])
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, {'scenarios': []}, agent, lambda: None)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['explorationMemory']['summary'], 'Keep the actual outcome')
+        self.assertNotIn('contextSelectionRequired', state)
+
+    def test_failed_command_defers_the_tail_for_a_fresh_ai_decision(self):
+        batch = json.dumps([action('tap', ref='@earlier'), action('tap', ref='@later')])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = RejectedTargetMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        taps = [args['ref'] for name, args in mobile.calls if name == 'mobile_click_on_screen_at_coordinates']
+        self.assertEqual(taps, ['@earlier'])
+        rows = result['scenarios'][0]['commandQueue']['commands']
+        self.assertEqual([row['status'] for row in rows], ['failed', 'not executed', 'handled'])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('unexecuted commands', state['resourceFeedback'])
+        self.assertEqual(state['explorationMemory']['catalogue']['commands'], 2)
+
+    def test_cancellation_after_first_command_preserves_the_unperformed_tail(self):
+        control = self.control
+        class StopAfterTap(FakeMobile):
+            def call(self, name, **arguments):
+                super().call(name, **arguments)
+                if name == 'mobile_click_on_screen_at_coordinates':
+                    control.interrupt()
+        agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), action('tap', ref='@two')])])
+        mobile = StopAfterTap(self.root, elements=[])
+        result = {'scenarios': []}
+        with self.assertRaises(LimitReached):
+            self.runner.run(mobile, self.build, result, agent, lambda: None)
+        taps = [args['ref'] for name, args in mobile.calls if name == 'mobile_click_on_screen_at_coordinates']
+        self.assertEqual(taps, ['@one'])
+        self.assertEqual(result['scenarios'][0]['commandQueue']['commands'][1]['status'], 'not executed')
+        self.assertEqual(len(transport.bodies), 1)
+
+    def test_deadline_after_first_command_prevents_the_next_queued_action(self):
+        control = self.control
+        class ExpireAfterTap(FakeMobile):
+            def call(self, name, **arguments):
+                super().call(name, **arguments)
+                if name == 'mobile_click_on_screen_at_coordinates':
+                    control.deadline = 0
+        agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), action('tap', ref='@two')])])
+        mobile = ExpireAfterTap(self.root, elements=[])
+        result = {'scenarios': []}
+        with self.assertRaises(LimitReached):
+            self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual([args['ref'] for name, args in mobile.calls if name.startswith('mobile_click')], ['@one'])
+        self.assertEqual(result['scenarios'][0]['commandQueue']['commands'][1]['status'], 'not executed')
+        self.assertEqual(len(transport.bodies), 1)
+
+    def test_fatal_adapter_error_preserves_pending_commands_without_another_request(self):
+        class LostConnection(FakeMobile):
+            def call(self, name, **arguments):
+                super().call(name, **arguments)
+                if name == 'mobile_click_on_screen_at_coordinates':
+                    raise InfrastructureError('Connection lost')
+        agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), action('tap', ref='@two')])])
+        mobile = LostConnection(self.root, elements=[])
+        result = {'scenarios': []}
+        with self.assertRaisesRegex(InfrastructureError, 'Connection lost'):
+            self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
+            ['failed', 'not executed'])
+        self.assertEqual(len(transport.bodies), 1)
+
+    def test_repetition_recovery_defers_a_batch_tail_without_a_fixed_action_stop(self):
+        batch = json.dumps([action('tap', ref='@one') for _ in range(5)])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
+        self.assertEqual(len(transport.bodies), 2)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('recoveryRequest', state['explorationMemory'])
+        self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']][-3:],
+            ['not executed', 'not executed', 'handled'])
+
     def test_unchecked_catalogue_item_prevents_completion(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
         result, agent = self.run_scenario(
@@ -649,7 +754,7 @@ class ScenarioTests(unittest.TestCase):
         response = result['scenarios'][0]['decisions'][0]['response']
         self.assertEqual(response['modelResponse'], '{broken')
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
-        self.assertIn('No single executable command', state['resourceFeedback'])
+        self.assertIn('Unreadable reply text', state['resourceFeedback'])
 
     def test_notes_still_respect_the_shared_request_budget(self):
         budget = Budget(MODEL, 5, 'USD')

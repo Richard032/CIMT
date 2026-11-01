@@ -1,12 +1,12 @@
 # AI command resources and replies
 
-Updated: 1 November 2026. Describes FR-96/AC-66 execution resources; FR-97 defines the input-only layer. This is a source change with offline checks; installation and live acceptance are separate.
+Updated: 1 November 2026. Describes FR-96/AC-66 and FR-99/AC-69 execution resources; FR-97 defines the input-only layer. This is a source change with offline checks; installation and live acceptance are separate.
 
 ## Responsibility
 
 FR-97 supersedes the former reply-reading layer responsibility. [AI Instruction and Context](ai-instruction-context.md) now owns inputs and retained information only, in runtime/ai_instructions/. It queries the confirmed Mobile MCP adapter for fresh masked screen/control information before each instruction request. It does not receive or evaluate replies.
 
-This document describes the separate execution command protocol. runtime/command_reply.py binds explicit commands; Agent owns transport/accounting; AiInteraction coordinates requests and feedback; ActionExecutor executes. Test Planning and Exploration and the evidence store retain information for future instructions. No response approval is delegated to the input layer.
+This document describes the separate execution command protocol. runtime/command_reply.py binds explicit commands; runtime/command_queue.py retains their FIFO order and state; Agent owns transport/accounting; AiInteraction coordinates requests and feedback; ActionExecutor executes. Test Planning and Exploration and the evidence store retain information for future instructions. No response approval is delegated to the input layer.
 
 ## Resources given to AI
 
@@ -18,7 +18,7 @@ CIMT returns actual resource outcomes, including unavailable record addresses an
 
 The current transport remains the Responses API with text output. This change does not migrate to function calling or add a new service. No strict response schema is requested from the provider.
 
-To execute a command, the reply supplies one readable JSON object containing action and its needed arguments. For example:
+The reply supplies readable JSON command objects containing action and its needed arguments. One object, an array of objects or consecutive objects are accepted in received order. For example:
 
 ```json
 {"action":"tap","ref":"@previously-seen-control"}
@@ -26,7 +26,9 @@ To execute a command, the reply supplies one readable JSON object containing act
 
 Plan updates, checks, context selections and recovery acknowledgements are optional. Missing fields receive mechanical defaults for the existing dispatcher. Unknown or differently shaped fields remain in the complete original reply even when they cannot be bound to a typed record. A sparse or inconsistent report does not discard an executable command.
 
-A reply containing prose, multiple concatenated objects or no readable command is retained as an AI note. CIMT reports “No single executable command was supplied. No device action was dispatched.” The next request receives this resource feedback. CIMT does not guess a target, select one of several commands or claim that a proposed action ran. There is no three-response correction limit and no response-format exhaustion stop. Normal shared time, spending and cancellation limits still apply to every request.
+FR-99 supersedes the former single-object limitation. The decoder reads the explicit objects into a scenario-local FIFO queue. Execution takes each in order without another inference request while commands remain pending. A readable prefix survives an unreadable suffix; the unreadable text is retained as a note. Prose is not searched for embedded commands. No readable command results in a note with resource feedback rather than a guessed device action. There is no response-format exhaustion stop. Shared time, spending and cancellation still apply.
+
+Each device action retains normal startup/foreground checks, dispatch and post-action observation. A failure or recovery returns to AI with the queued tail recorded as not executed; AI can retrieve it and decide what to reissue. done ends the objective; recover requests fresh evidence and a decision. Notes/recall have no device action. See [queue state and boundaries](command-queue.md).
 
 Supported-command arguments, platform capabilities, coordinate bounds, credential destinations and privacy are mechanical execution constraints. Provider refusals, incomplete provider responses and transport failures keep their existing infrastructure policy. Removing response evaluation does not make an unavailable resource usable or permit an unmasked image or secret to reach AI.
 
@@ -40,7 +42,7 @@ Repetition facts recorded after execution are supplied as AI-directed recovery i
 
 ## Evidence and report
 
-Each decision retains the full reply under modelResponse after secret redaction. HTML exposes it in “AI replies and resource feedback”, escaped as text. Optional typed planning and check records remain separately readable. AI prose is not proof of execution: only actual dispatcher outcomes add device actions and observed transitions.
+The queue saves every command before dispatch and retains the full reply under modelResponse once per batch after secret redaction. Dequeued decisions keep their command/batch/order identities. HTML exposes it in “AI replies and resource feedback”, escaped as text. The AI command queue shows order, actual execution state, step and reason. Optional typed planning and check records remain separately readable. AI prose is not proof of execution: only actual dispatcher outcomes add device actions and observed transitions.
 
 Older reports may contain Unaccepted AI responses from the removed correction policy. They are historical evidence and are not rewritten. New execution does not produce that evaluation or its rejection/exhaustion events. Instructions, requirements, screenshots and runtime outcomes continue through the existing privacy and evidence boundaries.
 
@@ -58,14 +60,16 @@ sequenceDiagram
     loop Until AI finishes or an execution limit stops the run
         Run->>AI: Instructions, requirements, masked evidence and AI-selected context
         AI-->>Resources: Complete reply
-        Resources-->>Run: Decoded command or note, optional records, original text
-        Run->>Records: Redacted reply and available records
+        Resources-->>Run: Ordered command objects or note, optional records, original text
+        Run->>Records: Redacted reply and all queued commands before dispatch
         alt No executable command
             Run->>AI: Resource feedback, no device action dispatched
-        else Supported command
-            Run->>Device: Execute AI-selected command
-            Device-->>Run: Actual outcome or interaction error
-            Run->>Records: Outcome and masked evidence
+        else Commands queued
+            loop FIFO until empty, done, failure, recovery or execution limit
+                Run->>Device: Check limits and execute next AI-selected device command
+                Device-->>Run: Actual outcome or interaction error
+                Run->>Records: Queue state, outcome and masked evidence
+            end
         end
     end
 ```

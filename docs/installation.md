@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.35
+Version: 0.36
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1146,3 +1146,20 @@ The source installer now copies the complete runtime/device_adapter/ package alo
 No Go compiler, Android NDK, new Python dependency, third-party patch, API key change or YAML field is required. DeviceStartup retries only the native helper's known startup failure from the read-only readiness probe, before application setup. It does not modify the helper's five-second attempt limit. Terminal/HTML activity records recovery attempts; normal execution stopping rules apply after exhaustion. See [Device Adapter](device-adapter.md).
 
 This source increment has not been installed or replayed. The last completed installation is c1a34ea. Its replay stopped on the Android helper startup failure before inference; it is evidence motivating recovery, not acceptance of this newer implementation. The discarded native-helper rebuild was not installed, and no third-party source was modified. Live recovery success remains unqualified.
+
+
+### Device Adapter installation verification — 1 November 2026
+
+The product owner requested installation and replay. Verified all 255 tracked source files against PR #6 revision ada8c0062571f75a42826a157e78961f4972fa1a and published the matching command host. Under the machine run lock, backed up and replaced 13 files, removed the obsolete flat adapter modules and verified all 60 installed host/runtime/license files. CLI help, worker/package imports, command decoding, input-layer metadata, the 90-second startup constant and stopping-policy smoke checks passed. The local receipt retains per-file hashes and the backup location.
+
+No dependency installation or third-party source/binary change was needed. Private settings, retained apps, build workers and historical reports were preserved. A separately identified replay was started with the existing emulator configuration and interactive checkpoints. Installation checks alone do not establish successful live startup recovery.
+
+Live replay qualification for the adapter boundary: Android hit the known native startup error on its first read-only probe, recovered on the second probe, and completed startup recovery in about 19.5 seconds. Android then installed/launched its retained app and captured a masked screen. iOS connected and performed app setup, but failed during retained-app relaunch; this stopped only iOS while Android continued. Android subsequently stopped because the helper could not determine the foreground app. The replay finalized with exit 3, failed verdict and incomplete execution, with both platforms, screenshots and logs saved in its own HTML/JSON report. The usage ledger recorded zero inference requests and zero accounted cost. This verifies one transient-startup recovery, not successful app testing or complete live acceptance. No app rebuild or third-party tool patch was performed.
+
+## 48. Ordered command queue source update
+
+FR-99 adds runtime/command_queue.py and updates command decoding, scenario execution, the commands context collection and redaction. The existing installer copies the new top-level module automatically. Publish and install the matching .NET command host as well as the complete Python runtime: HTML and host redaction now understand commandQueue. Keep the existing run lock, backup and byte-verification procedure. No new dependency, key, YAML field, third-party source patch or helper rebuild is required.
+
+The source verification passed 388 Python unit tests, 310 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 742 offline checks in total. This queue increment is not installed or replayed. The last completed installation remains ada8c00. The later user-cancelled replay on that installation generated its own final report: most AI replies contained several consecutive JSON command objects, which the old single-object decoder retained as notes. That is evidence motivating the queue correction, not a live acceptance result for the new queue. Existing retained apps and historical reports are unchanged.
+
+After installation, a separately authorized replay should qualify consecutive commands, cancellation and report states on running applications. Do not execute commands from old report text as part of installation. See [command queue](command-queue.md).

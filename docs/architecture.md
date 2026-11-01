@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.38
+Version: 0.39
 Date: 1 November 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -463,7 +463,7 @@ Execution journals accepted decisions, selections, pending/completed recovery re
 
 FR-97 changes the layer to inputs and retained information only. runtime/ai_instructions/ contains InstructionContext, ActionPromptBuilder and the human-interface catalogue. Before each AI request, InstructionContext queries the supplied Mobile MCP adapter for a fresh verified masked screen and retains the observation. It assembles instructions, requirements, setup/scope, aliases, resources and the AI-selected context from the existing planning/evidence stores. All masked elements remain evidence; the separate humanInterface catalogue describes adapter-declared controls, including unavailable controls with their state flags. It is not an action whitelist.
 
-Reply reading is in runtime/command_reply.py, provider/accounting in Agent, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. Current text-command decoding remains; this change does not introduce batching or function calling. The owner confirmed Mobile MCP, so no Appium adapter is added.
+Reply reading is in runtime/command_reply.py, provider/accounting in Agent, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. The text-command transport remains. FR-99 adds ordered command batches outside this input-only layer; function calling is not introduced. The owner confirmed Mobile MCP, so no Appium adapter is added.
 
 DR-01 packaging includes the full ai_instructions/, test_planning/, stopping_policy/ and device_adapter/ folders. Remove obsolete ai_exchange source modules and decision_recovery.py when installing. Existing action_prompt.py imports preserve caller compatibility. See [responsibilities, tradeoffs and sequence](ai-instruction-context.md). Source/offline checks remain separate from installation and live qualification.
 
@@ -477,3 +477,11 @@ Mobile.connect checks shared stop and device readiness, waits for DeviceStartup,
 This recovery runs once per adapter connection, not around app lifecycle or AI actions. Successful readiness does not validate app startup. Repeated taps, text, credentials, install/reset and provider calls are never passed to the recovery component. Retry activity and final failure flow through the existing redacted activity/journal/report path. Execution Stopping Policy retains its infrastructure-failure scope after recovery ends. The AI input layer supplies resources without retry or stopping decisions.
 
 Packaging includes the complete device_adapter/ folder and removes obsolete top-level mobile.py, app_lifecycle.py, device_commands.py, device_target.py, mcp_client.py, rpc_messages.py and screen_capture.py. Internal imports and existing tests use the new package; no new public command, YAML setting, dependency or third-party source patch is introduced. See [Device Adapter responsibilities and sequence](device-adapter.md). Offline checks and live qualification are separate.
+
+## 35. Ordered command execution
+
+FR-99 / AC-69 define a scenario-local FIFO queue in runtime/command_queue.py. It is an execution component, not another architectural layer. command_reply.py mechanically reads one object, an array or consecutive JSON objects and preserves original text. It does not search prose for commands or make testing decisions. CommandQueue stores received commands, batch/order and status; it has no provider, device or stopping-policy calls. ScenarioRunner owns the dispatch loop and applies optional records when each command is taken.
+
+Save receipt before dispatch. While commands remain pending, take the next command without another inference request; normal startup/foreground/cancellation checks and post-action masked observations still run. Device actions retain actual step records. Notes and recall are handled without device actions; done ends the objective. An interaction failure, crash, explicit recovery or repetition recovery marks the tail not executed and supplies resource feedback for a fresh AI decision. Fatal failure, time/budget limits and user interruption retain the unexecuted tail. No queued command is silently replayed or replaced.
+
+AI Instruction and Context supplies commands as another exact-selection collection without ranking or filtering them. Both redaction boundaries preserve host-generated identities/status while scrubbing command text. HTML shows queued versus executed/handled/failed/interrupted/not-executed states and one full reply per batch; plans are not evidence of performed actions. Publish the matching .NET report host and Python runtime together. Device Adapter and Execution Stopping Policy keep their existing boundaries; third-party source remains unchanged. See [protocol, outcomes and sequence](command-queue.md).

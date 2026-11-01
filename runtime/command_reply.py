@@ -1,11 +1,11 @@
-"""Read an explicit command and keep the complete AI reply as source data."""
+"""Read ordered commands and keep the complete AI reply as source data."""
 
 import json
 from errors import InfrastructureError
 
 
 def read_reply(response):
-    """A reply without one readable command remains a note for the next turn."""
+    """Decode ordered commands; keep unreadable text as a note for the next turn."""
     if response.get('status') != 'completed':
         raise InfrastructureError('OpenAI response was incomplete; no action executed')
     parts = [part for item in response.get('output', []) if item.get('type') == 'message'
@@ -13,16 +13,39 @@ def read_reply(response):
     if any(part.get('type') == 'refusal' for part in parts):
         raise InfrastructureError('OpenAI refused the request; no action executed')
     text = ''.join(part.get('text', '') for part in parts if part.get('type') == 'output_text')
-    try:
-        value = json.loads(text)
-    except ValueError:
-        value = {}
-    action = command(value if isinstance(value, dict) else {})
-    action['modelResponse'] = text
-    if action['action'] == 'note':
-        action['observation'] = text
-        action['resourceFeedback'] = 'No single executable command was supplied. No device action was dispatched.'
-    return action
+    values, feedback = command_objects(text)
+    commands = [command(value) for value in values]
+    if feedback or not commands:
+        note = command({})
+        note.update(observation=text, resourceFeedback=feedback or
+            'No executable command was supplied. No device action was dispatched.')
+        commands.append(note)
+    first, *following = commands
+    first['modelResponse'] = text
+    if first['action'] == 'note' and not first.get('resourceFeedback'):
+        first.update(observation=text, resourceFeedback=
+            'No executable command was supplied. No device action was dispatched.')
+    if following:
+        first['queuedCommands'] = following
+    return first
+
+
+def command_objects(text):
+    """Read consecutive objects or arrays in order; never guess inside prose."""
+    remaining = text.strip()
+    values = []
+    decoder = json.JSONDecoder()
+    while remaining:
+        try:
+            value, end = decoder.raw_decode(remaining)
+        except ValueError:
+            return values, 'Unreadable reply text was retained as a note; no commands were inferred from it.'
+        objects = value if isinstance(value, list) else [value]
+        if not all(isinstance(item, dict) for item in objects):
+            return values, 'A reply value was not a command object; remaining text was retained as a note.'
+        values.extend(objects)
+        remaining = remaining[end:].lstrip()
+    return values, ''
 
 
 def command(value):

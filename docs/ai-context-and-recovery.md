@@ -27,9 +27,9 @@ Context is optional under FR-96. Omitting it or returning null retains the previ
 }
 ```
 
-Available collections are actions, decisions, observations, screenshots, tasks, paths, states, transitions, requirements, checks, configuration, coverage and routes. The request's catalogue gives their full counts. Bootstrap supplies available records before the AI has made a selection. After that, an empty selection omits historical record content while keeping the AI's summary, collection counts, authoritative instructions and current masked evidence. It does not delete anything locally.
+Available collections are commands, actions, decisions, observations, screenshots, tasks, paths, states, transitions, requirements, checks, configuration, coverage and routes. The request's catalogue gives their full counts. Bootstrap supplies available records before the AI has made a selection. After that, an empty selection omits historical record content while keeping the AI's summary, collection counts, authoritative instructions and current masked evidence. It does not delete anything locally.
 
-Task, requirement, state and path addresses use their stable IDs. Configuration uses its generated control ID. Actions, accepted decisions, checks and transitions also have zero-based addresses. Every collection accepts @0 for its first record and @3:7 for the exact half-open range selected by AI. Unknown/out-of-range addresses return resource feedback without clipping to a different selection or blocking commands. latest follows the newest record only when explicitly selected by AI. Routes use the task ID and contain verified observed edges to that task's AI-selected targetState. Empty routes are not evidence of successful navigation.
+Task, requirement, state and path addresses use their stable IDs. Configuration uses its generated control ID. Commands, accepted decisions, actions, checks and transitions also have zero-based addresses. Commands retain batch/order/status and any reason why they were not executed; they are plans until dispatch. Every collection accepts @0 for its first record and @3:7 for the exact half-open range selected by AI. Unknown/out-of-range addresses return resource feedback without clipping to a different selection or blocking commands. latest follows the newest record only when explicitly selected by AI. Routes use the task ID and contain verified observed edges to that task's AI-selected targetState. Empty routes are not evidence of successful navigation.
 
 An action of recall changes context and requests another model decision without a tap, swipe, wait, restart or reset. This lets AI inspect omitted records before acting. Accepted response/selection records remain in decisions, including recall and recovery requests. Device action history remains in actions. observations retains the already captured masked UI data; screenshots exposes stable addresses of saved masked images; the AI can retrieve an older screen without relying on its summary or adding a new device query. Historical pixels are sent only when explicitly selected by AI, are labelled as historical, and must still match the registered image digest. Identical current/historical pixels share one image payload. Evidence-name reuse preserves earlier images instead of replacing them. Retrieval and filtering consume API budget; update the summary/selection with normal decisions when possible instead of adding a separate filtering call to every step.
 
@@ -100,7 +100,7 @@ sequenceDiagram
         alt AI requests omitted records
             Run->>Memory: Apply exact recall addresses
             Memory-->>Run: Requested records or resource feedback
-        else Reply has no single executable command
+        else Reply has no readable command object
             Run->>AI: No command dispatched, resource feedback
         else Repetition signal or AI-detected loop
             Run->>Device: Refresh masked evidence without an app action
@@ -110,8 +110,8 @@ sequenceDiagram
             Note over Run,AI: No structured acknowledgement gate
         else AI finishes
             Run->>Memory: Retain any unresolved work for the report
-        else Decoded supported command
-            Run->>Device: Execute the AI-selected action
+        else Decoded commands queued in FIFO order
+            Run->>Device: Execute each queued action with normal per-action checks
             Device-->>Run: Actual outcome or interaction error
             Run->>Memory: Record actual action, transition and outcome
         end
@@ -142,3 +142,5 @@ Exclusive AI ownership of relevance is CIMT's approved product choice, not an Op
 | FR-92: mapping/progress corrections | screen_model, ApplicationMap, ExplorationMemory | PlanningRegressionTests, existing map/control tests |
 | FR-93: reports and usage | PlanningHtmlRenderer, RunDiagnosticsRenderer, Budget | PlanningReportTests, RequestUsageTests, existing policy/CLI suites |
 | FR-94: evidence-based qualification | Offline suites and retained request metrics | Offline validation passed; live comparison remains pending |
+
+FR-99 adds ordered command batches in execution, outside the input-only layer. The commands collection makes unexecuted work retrievable using the same AI-owned selection rules. Failure or recovery defers the remaining batch to a fresh AI decision instead of silently resuming it. See [command queue](command-queue.md).

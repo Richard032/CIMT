@@ -29,7 +29,7 @@ class RecordRedactor:
             return value
         return self._record(
             value,
-            ["action", "ref", "direction", "credential", "field", "completion", "planStepId"],
+            ["action", "ref", "direction", "credential", "field", "completion", "planStepId", "commandId", "batchId", "batchPosition"],
             {"checks": lambda items: self._items(items, self.check),
              'context': self.context, 'recovery': self.recovery},
         )
@@ -58,10 +58,17 @@ class RecordRedactor:
                 "exploration": self.exploration,
                 'recoveries': lambda items: self._items(items, self.recovery),
                 'contextSelection': self.context,
+                'commandQueue': self.command_queue,
                 'decisions': lambda rows: self._items(rows, self.decision),
                 'screenshots': lambda rows: self._items(rows, self.screenshot),
             },
         )
+
+    def command_queue(self, value):
+        return self._record(value, [], {'commands': lambda rows: self._items(rows, self.queued_command)})
+
+    def queued_command(self, value):
+        return self._record(value, ['id', 'batchId', 'position', 'status', 'step'], {'response': self.action})
 
     def rejected_response(self, value):
         # The candidate response is untrusted data, including its source and ID fields.
@@ -108,6 +115,7 @@ class RecordRedactor:
                     ['source', 'destination', 'control', 'action', 'destinationObservation'])),
                 'configuration': lambda rows: self._items(rows, lambda item: self._record(item, ['id', 'control', 'observedAt'])),
             }),
+            'selectedCommands': lambda rows: self._items(rows, self.queued_command),
             'selectedActions': lambda rows: self._items(rows, self.action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),
             'selectedChecks': lambda rows: self._items(rows, self.check),

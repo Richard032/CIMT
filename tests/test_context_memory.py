@@ -53,6 +53,12 @@ class ContextSelectionTests(unittest.TestCase):
         self.memory.accept(selection(include_all=['actions']))
         self.assertEqual(len(self.memory.project(self.records)['actions']), 60)
 
+    def test_ai_can_retrieve_an_unexecuted_command_by_identity(self):
+        record = dict(id=3, batchId=0, status='not executed', response=dict(action='tap', ref='@later'))
+        self.records['commands'] = [record]
+        self.memory.accept(selection(records=[dict(collection='commands', id='3')]))
+        self.assertEqual(self.memory.project(self.records)['commands'], [record])
+
     def test_unknown_address_returns_resource_feedback(self):
         self.memory.accept(selection(records=[dict(collection='actions', id='999')]))
         self.assertEqual(self.memory.project(self.records)['actions'], [])

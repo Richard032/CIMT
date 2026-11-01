@@ -22,7 +22,7 @@ Refreshing before a new request also covers note-only and recall turns, when the
 
 Agent and AiInteraction are execution-side coordinators outside this layer. Agent owns the provider request and shared accounting. runtime/command_reply.py reads the command protocol. ActionExecutor performs the AI-selected supported command. ScenarioRunner retains the reply and actual execution outcome for subsequent instructions and the report. These components do not ask the instruction layer to approve a reply, plan, quote or action target.
 
-The existing text-command transport remains. Execution still needs an identifiable supported command and returns actual resource errors. Prose or concatenated command objects retain the existing note/feedback behavior; this source change does not add batching, guess commands from prose or migrate to function calling. That known transport limitation is separate from the layer's responsibility. No semantic response evaluation is introduced.
+The text-command transport remains. Under FR-99, execution decodes explicit JSON objects into a FIFO queue and performs each in received order. It returns actual resource errors and retains unreadable text as a note without guessing commands from prose. The queue belongs outside this layer. Its records are available as the commands context collection, selected only by AI. No semantic response evaluation or migration to function calling is introduced. See [command queue](command-queue.md).
 
 Time, spending, cancellation, credential destinations, masking and platform capability checks remain execution constraints. AI claims about future actions are not records of performed actions. Findings and plan updates remain AI-owned data, independently of dispatch.
 
@@ -55,8 +55,8 @@ sequenceDiagram
         Store-->>Inputs: Requested information and resource feedback
         Inputs-->>Run: Sources, current controls, context and command descriptions
         Run->>AI: Instruction request
-        AI-->>Run: Chosen command and optional records
-        Run->>Commands: Dispatch command without instruction-layer approval
+        AI-->>Run: Ordered command objects and optional records
+        Run->>Commands: Queue objects; take each in FIFO order without input-layer approval
         Commands->>Device: Execute AI choice
         Device-->>Commands: Actual outcome
         Commands-->>Run: Execution result and evidence

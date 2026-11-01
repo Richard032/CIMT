@@ -30,6 +30,53 @@ public sealed class PlanningReportTests
     }
 
     [Fact]
+    public async Task QueueReportDistinguishesExecutedCommandsFromUnperformedPlans()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var context = Context();
+        context = context with { Result = JsonSerializer.SerializeToElement(new
+        {
+            testPlan = context.Result.GetProperty("testPlan"),
+            commandQueue = new { commands = new object[] {
+                new { id = 0, batchId = 0, position = 0, status = "executed", step = 1,
+                    reason = "Observed UI changed", response = new { action = "tap", modelResponse = "<script>synthetic-credential</script>" } },
+                new { id = 1, batchId = 0, position = 1, status = "not executed",
+                    reason = "User interrupted", response = new { action = "back" } }
+            } }
+        }) };
+        var html = new PlanningHtmlRenderer(fixture.State.Configuration).Render(context);
+        Assert.Contains("AI command queue", html);
+        Assert.Contains("not performed actions", html);
+        Assert.Contains("not executed", html);
+        Assert.Contains("User interrupted", html);
+        Assert.Contains("&lt;script&gt;", html);
+        Assert.DoesNotContain("<script>", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+    }
+
+    [Fact]
+    public void QueueRedactionPreservesExecutionIdentityAndScrubsAiText()
+    {
+        var input = JsonSerializer.SerializeToElement(new { devices = new[] { new {
+            device = new { id = "phone", platform = "android" }, scenarios = new[] { new {
+                commandQueue = new { commands = new[] { new {
+                    id = 2, batchId = 1, position = 0, status = "not executed", reason = "secret text",
+                    response = new { action = "tap", @ref = "@e1", modelResponse = "secret reply" }
+                } } }
+            } }
+        } } });
+        var redactor = new ExecutionRedactor(new JsonTextRedactor(text => text.Replace("e", "*")));
+        var output = JsonSerializer.SerializeToElement(redactor.Execution(input));
+        var command = output.GetProperty("devices")[0].GetProperty("scenarios")[0]
+            .GetProperty("commandQueue").GetProperty("commands")[0];
+        Assert.Equal(2, command.GetProperty("id").GetInt32());
+        Assert.Equal("not executed", command.GetProperty("status").GetString());
+        Assert.Equal("@e1", command.GetProperty("response").GetProperty("ref").GetString());
+        Assert.DoesNotContain("secret", command.GetProperty("reason").GetString());
+    }
+
+    [Fact]
     public async Task ReportSeparatesTestResultsFromVisitedPaths()
     {
         using var fixture = new DiagnosticFixture();

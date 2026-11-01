@@ -44,7 +44,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | check_results.py | Validate explicit observations and calculate the scenario verdict. |
 | check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
-| ai_instructions/, ai_interaction.py, command_reply.py | Prepare inputs, coordinate requests and mechanically decode commands in separate responsibilities. |
+| ai_instructions/, ai_interaction.py, command_reply.py, command_queue.py | Prepare inputs, coordinate requests, decode ordered objects and store FIFO execution state in separate responsibilities. |
 | actions.py | Apply mechanical execution constraints and dispatch AI-selected targets; enter credentials locally with verified masking. |
 | coverage_tracker.py | Track observed and activated controls. |
 | test_planning/ | Retain AI-owned plans, selections, paths/outcomes and repetition facts. |
@@ -142,3 +142,9 @@ runtime/test_planning is a separate policy layer. TestPlanner is the execution-f
 Keep ai_instructions/ input-only: sources, fresh masked adapter observations, human-interface metadata and retained AI-selected context. Do not import Agent, provider transport, reply decoding or action dispatch into that folder. CommandReply and AiInteraction are execution components; no approval call into the input layer may precede dispatch. Share repetition facts after actual execution instead of inspecting the proposed response to veto it. Existing tests/test_ai_instructions.py and ScenarioTests cover this boundary. The full Python and existing fake-tool CLI suites remain offline.
 
 Device Adapter may import shared errors/privacy services, but not AI, scenario/planning or stopping-policy implementations. Pass the shared run-stop check into Mobile. DeviceStartup must keep its probe fixed to apps list, with no arbitrary action callback. Tests in test_device_startup.py use fake commands/clocks; native error classification is tested in test_defect_policies.py. Do not retry generic failures or wrap lifecycle/AI commands in startup recovery. Install the entire package and remove obsolete flat modules together. See [the boundary contract](device-adapter.md).
+
+## Ordered command execution checks
+
+FR-99 / AC-69 use the existing suites. test_command_reply.py covers object/array/consecutive-object decoding and unreadable text without prose guessing. test_command_queue.py covers FIFO receipt/state, snapshots and privacy. ScenarioTests in test_runtime_components.py verify one provider reply dispatching multiple commands in order, done, recall, cancellation, deadline, interaction/fatal failure and repeated-action recovery without dispatching the deferred tail. test_context_memory.py verifies exact AI retrieval of unexecuted commands. PlanningReportTests in the existing xUnit project cover readable queue states and both redaction boundaries.
+
+Keep CommandQueue as scenario-local data with no device/provider/stopping calls. ScenarioRunner orders execution through the existing ActionExecutor and observation path. Apply optional metadata on dequeue; do not pre-record later commands as observed actions. No new layer, dependency, test project, harness or third-party patch is needed. Install matching host/runtime files together. See [command queue](command-queue.md).
