@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.39
+Version: 0.40
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1201,3 +1201,11 @@ AI eventually issued done/blocked from its last queued batch, claiming updated p
 Install the matching .NET report host and full Python runtime under the existing lock/backup/verification procedure. New top-level modules batch_feedback.py and observation_recorder.py and Device Adapter warnings.py are included automatically by the existing installer. Do not change Mobile MCP or its native helper. No new dependency, key or YAML field is needed. Preserve retained app builds, private inputs and reports.
 
 The source adds mandatory ordered batch feedback, ANR warnings, explicit unknown observations, evidence reuse and a fresh AI decision before completing an objective after queued actions. This increment has not been installed or replayed. Offline verification is separate from live acceptance. The product owner subsequently approved publishing these installation and execution notes together with all documentation. Private configuration files, credentials, raw evidence and retained app artifacts are excluded.
+
+
+### Complete batch-feedback installation verification — 1 November 2026
+
+Installed PR #6 revision f8ad72dc19b3bfde90d9f132fe9c8d094fe2cb3d after verifying all 265 tracked source files. Published the matching .NET command host from existing local dependencies. Under the machine lock, backed up and replaced 15 files and verified all 64 installed host/runtime/license files against the prepared source and publication. Installed CLI help and runtime imports passed, together with synthetic batch-path, ANR identifier, historical-context, FIFO cancellation, startup-readiness, settling-delay and stopping-policy smoke checks. The local receipt retains file hashes and the backup location.
+
+No application build, test run, replay, device interaction or paid API request was started. No private input, credential, retained app, historical report, dependency or third-party tool was changed. Installation verification is separate from live acceptance of the new batch feedback.
+

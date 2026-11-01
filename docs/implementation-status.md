@@ -1,5 +1,11 @@
 # CIMT implementation status
 
+## 1 November 2026 — complete batch-feedback installation
+
+Installed PR #6 revision f8ad72dc19b3bfde90d9f132fe9c8d094fe2cb3d after verifying all 265 tracked source files. Published the matching .NET command host from existing local dependencies. Under the machine lock, backed up and replaced 15 files and verified all 64 installed host/runtime/license files against the prepared source and publication. Installed CLI help and runtime imports passed, together with synthetic batch-path, ANR identifier, historical-context, FIFO cancellation, startup-readiness, settling-delay and stopping-policy smoke checks. The local receipt retains file hashes and the backup location.
+
+No application build, test run, replay, device interaction or paid API request was started. No private input, credential, retained app, historical report, dependency or third-party tool was changed. Installation verification is separate from live acceptance of the new batch feedback.
+
 ## 1 November 2026 — complete ordered batch feedback source update
 
 Publication status: commit 7f79f8e3a53fdb5775da1b4b3baf54d684908fbb updated PR #6 with 20 source/test files. The product owner then explicitly requested publication of all documentation and notes, including installation/replay findings and operational details. Those documents are included in this documentation update. Private configuration files, credentials, raw test evidence and retained apps are excluded. No installation or live replay was performed for this increment.
