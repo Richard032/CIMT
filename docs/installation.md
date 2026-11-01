@@ -1,7 +1,7 @@
 # CIMT installation and setup guide
 
-Version: 0.30
-Last updated: 30 October 2026  
+Version: 0.40
+Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
@@ -1074,3 +1074,148 @@ Installed under the run lock and verified all ten files byte-for-byte against th
 The host also needs the run cancellation token at its activity boundary. RunCoordinator now supplies it to RunActivityLog for execution stages. A pipe/process exception after a known user stop is recorded as stopped with User interrupted execution before reaching the coordinator. Cleanup deliberately uses its normal uncancelled path so real finalization errors remain visible. The matching exploration_memory.py uses the interrupted step reason instead of claiming a UI change/no change from incomplete observation. Normal progress signatures, coverage counting, ref selection and capture checks are unchanged.
 
 Publish the host and replace exploration_memory.py with the matching source module under the same installation lock/backup procedure. Verification passed: 299 xUnit tests, 243 Python tests, 22 runtime-policy checks and 22 public CLI checks (586 offline checks). The host publication succeeded. Installed six host files and that module, verifying every byte; installed help passed. Backup: /private/tmp/cimt-before-host-cancellation-6dd2tmgb. Host SHA-256: f23bbd83582ffe52f54389e2a8f393bc46c2bb9fcd3e641ebf7847187c055113. New reports use the correction; historical reports remain intact. No mobile run, paid API request or device action was started.
+
+
+## 42. Separate Test Planning and Exploration layer — 31 October 2026
+
+The new runtime/test_planning package contains the planning policy, task model, application map, input interpretation and progress rules. Install its Python files as a package, including __init__.py, under lib/cimt-runtime/test_planning. Copying only runtime/*.py is no longer sufficient. The updated scripts/install-cimt-runtime.sh copies both levels and removes the obsolete top-level exploration_memory.py after copying the replacement package. This source installer retains its existing dependency setup; no new Python dependency was added.
+
+For an incremental update, publish the host using section 15 and back up the six host files plus matching runtime action_prompt.py, actions.py, mobile.py, scenario.py, decision_recovery.py, record_redaction.py and the old exploration_memory.py. Hold the installation run lock, install the new package and those six top-level modules, remove the backed-up obsolete top-level module, and verify file bytes. Preserve configuration, build workers/scripts, third-party tools and existing reports. The host embeds the readable plan/map renderer and typed redaction boundary. The runtime now requires the matching planning response schema, so install host/runtime changes together.
+
+No new YAML field, API key, service or Appium installation is needed. Existing run/replay commands receive the plan through their normal instructions/requirements files. See [the planning example](../examples/test-planning/README.md). The new restart action terminates/relaunches only the verified tested app and preserves app data. It does not reset or reinstall the application.
+
+Offline and live acceptance remain separate. The layer can be exercised with tests/test_test_planner.py and the existing test suites without a phone or API request. Device-specific input accessibility, useful exploration, configuration persistence and report layout on real runs remain live qualification work. No new live run is implied by installation.
+
+
+Verification for this increment passed: 304 xUnit tests, 280 Python tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks (628 offline checks). Host publication and installer syntax checks passed. Installed all 19 matching host/runtime/package files under the run lock and verified every byte. The obsolete top-level memory module was backed up and removed. Installed help and an installed-package import/schema smoke check passed without a device or API call. Original pre-planning backup: /private/tmp/cimt-before-planning-nv4wag87. Final snapshot-retention update backup: /private/tmp/cimt-before-planning-kru9cmu4. Installed host SHA-256: e9afbf3112370c798c99555d93dc3f5a345a00a4bfffc85f6a2fa0cb43c372ef. Existing private inputs, saved reports, build workers/scripts and third-party source were not changed. No live test run or paid inference was started.
+
+## 43. AI-owned context and recovery source increment
+
+The source increment adds test_planning/context_memory.py and test_planning/loop_recovery.py plus request_context.py. The existing installer copies top-level runtime modules and the whole planning package; no new prerequisite, key or configuration field is needed. Install the matching runtime files together: the action/check response contract now includes context, recovery and taskId. The HTML renderer also has matching context/recovery/usage views.
+
+This increment is validated with the existing offline suites. It has not been installed or exercised in a new CIMT mobile run as part of this task. Do not treat the earlier installed planning receipt as proof that this newer source is installed. No private inputs, retained app builds or existing reports are changed. See [AI context and recovery](ai-context-and-recovery.md).
+
+### Installed branch verification — 31 October 2026
+
+After the source increment, the product owner requested the latest main merged into the PR branch before installation. GitHub comparison confirmed that main at `462c1cbb8973707573efc717e4588dae1cf040aa` was already an ancestor of `issue/TestPlanningAndExploration` at `6dbcf29a5b22e25b9bd03745da411b410ca84490`: two commits ahead and zero behind. No merge commit was needed.
+
+Verified the local tracked source against that branch revision, published the matching host and installed it with the complete Python runtime and planning package under the machine run lock. The update changed 23 files and verified all 49 installation files byte-for-byte. The existing build worker already matched. Installed CLI help, worker imports and the context/recovery response-schema check passed without a device operation or API request. The source increment's earlier 669 offline checks remain its unit and fixture evidence; they were not rerun during installation.
+
+Backup: `/private/tmp/cimt-before-ai-context-gn6y7ons`. Installation receipt with file hashes: `/private/tmp/cimt-ai-context-install/receipt.json`. Private configuration, retained app builds, historical reports and third-party tools were preserved. No mobile test or replay was started by this installation. Live exploration quality and recovery acceptance remain to be verified separately.
+
+## 44. Execution Stopping Policy installation — 31 October 2026
+
+Installed PR #6 revision `4125658daa7cbfac2cbab1f3f2bd278bb20495be` after verifying all 240 tracked local source files against its public Git tree. The host publication succeeded. Under the machine run lock, backed up the affected installation files and replaced nine runtime files, including the complete new stopping_policy/ package. All 51 host/runtime/license installation files matched their prepared source bytes. Existing private inputs, retained app builds, reports, build workers and third-party tools were preserved.
+
+Installed public CLI help, worker imports, the context/recovery schema and the local app-launch/global infrastructure stopping decisions passed offline checks. The local installation receipt retains backup location and file hashes. No mobile test, replay, device action or OpenAI request was started by this installation. The earlier 372 offline regression checks remain source-validation evidence; live two-device acceptance is still pending.
+
+
+## 45. AI Resource Exchange source update
+
+Install the matching published host, top-level runtime modules and complete ai_exchange/, test_planning/ and stopping_policy/ packages together. scripts/install-cimt-runtime.sh includes these packages. No new dependency, credential, YAML field or service is needed. The matching HTML renderer shows full redacted replies and resource feedback; a runtime-only replacement would omit that view.
+
+This update removes response-format/semantic evaluation and the three-response correction stop. Existing source/offline tests use no real devices or paid inference. The update is not installed by this source task. Revision 4125658 remains the last recorded installed revision; the later action-ownership and resource-exchange changes require a separate requested installation. Existing private inputs, retained apps and reports remain untouched. See [AI Resource Exchange](ai-resource-exchange.md).
+
+### Installed branch verification — 31 October 2026
+
+The product owner subsequently requested installation and replay. Verified all 244 tracked source files against PR #6 revision `7c784fc98e976aa5ddf951b3451a95b681c041d0`, then published the matching host. Under the machine run lock, backed up and replaced 23 affected files. All 53 host/runtime/license files matched their prepared bytes, including the complete ai_exchange/, test_planning/ and stopping_policy/ packages.
+
+Installed CLI help, worker imports, minimal command decoding, note handling, absence of a strict response schema and device-local/global stopping rules passed offline smoke checks. The local installation receipt retains the backup location and per-file hashes. No dependency installation or private configuration change was needed. Retained apps, historical reports, build workers and third-party tools were preserved. Live replay is a separate execution and is not implied by these installation checks.
+
+
+## 46. AI Instruction and Context source update
+
+The source installer now includes the full ai_instructions/, test_planning/ and stopping_policy/ packages and matching top-level runtime modules. It removes obsolete ai_exchange/replies.py, ai_exchange/__init__.py and decision_recovery.py; command_reply.py and ai_interaction.py replace those execution responsibilities. action_prompt.py preserves existing imports. No new library, key, YAML setting or Appium service is required. Mobile MCP and its native tools remain unchanged.
+
+The instruction layer refreshes verified masked UI information before each AI request and supplies human-interface metadata alongside sources and retained AI-selected context. This is a source update with offline tests. It has not been installed or run against a mobile app as part of this task. The last recorded installed source revision remains 7c784fc. Use the existing installation backup, machine lock and byte-verification procedure before a separately requested update. Retained app artifacts, private inputs and historical reports are not modified by this source increment. See [AI Instruction and Context](ai-instruction-context.md).
+
+
+### Installation verification — 1 November 2026
+
+The product owner requested installation and replay. Verified all 249 tracked source files against PR #6 revision c1a34ea0d1d6376c5fecd24ff5bb579b86a18c06 and published the matching host. Under the machine run lock, backed up and replaced ten files, removed the obsolete exchange/recovery source modules, and verified all 56 host/runtime/license files against the prepared bytes. Installed CLI help, worker imports, input-layer imports, unavailable-control metadata, command decoding and stopping-policy smoke checks passed. The local receipt retains the backup location and file hashes.
+
+No dependency, key, configuration or third-party tool change was required. Retained app builds and historical reports were preserved. Replay is a separate execution with its own dated report and the existing interactive checkpoints. These installation checks do not establish live application-test success.
+
+The requested replay completed with exit 3 and generated its own dated HTML/JSON report. During Android setup, the adapter could not list packages because its device server did not start within five seconds. The existing stopping policy treated that infrastructure error as whole-run scope and stopped the iOS worker after its first masked capture. No inference request or app-control test was executed; the usage ledger recorded zero accounted cost. This outcome does not validate the new instruction flow against a running application. No app build, private configuration edit or automatic retry was performed.
+
+
+## 47. Device Adapter layer and startup-recovery source update
+
+The source installer now copies the complete runtime/device_adapter/ package alongside test_planning/, stopping_policy/ and ai_instructions/. It removes the obsolete flat mobile.py, app_lifecycle.py, device_commands.py, device_target.py, mcp_client.py, rpc_messages.py and screen_capture.py modules. Update the full matching runtime under the run lock, preserve a backup and verify file bytes before using it. The installed command host and build worker do not require source changes for this Python-only increment.
+
+No Go compiler, Android NDK, new Python dependency, third-party patch, API key change or YAML field is required. DeviceStartup retries only the native helper's known startup failure from the read-only readiness probe, before application setup. It does not modify the helper's five-second attempt limit. Terminal/HTML activity records recovery attempts; normal execution stopping rules apply after exhaustion. See [Device Adapter](device-adapter.md).
+
+This source increment has not been installed or replayed. The last completed installation is c1a34ea. Its replay stopped on the Android helper startup failure before inference; it is evidence motivating recovery, not acceptance of this newer implementation. The discarded native-helper rebuild was not installed, and no third-party source was modified. Live recovery success remains unqualified.
+
+
+### Device Adapter installation verification — 1 November 2026
+
+The product owner requested installation and replay. Verified all 255 tracked source files against PR #6 revision ada8c0062571f75a42826a157e78961f4972fa1a and published the matching command host. Under the machine run lock, backed up and replaced 13 files, removed the obsolete flat adapter modules and verified all 60 installed host/runtime/license files. CLI help, worker/package imports, command decoding, input-layer metadata, the 90-second startup constant and stopping-policy smoke checks passed. The local receipt retains per-file hashes and the backup location.
+
+No dependency installation or third-party source/binary change was needed. Private settings, retained apps, build workers and historical reports were preserved. A separately identified replay was started with the existing emulator configuration and interactive checkpoints. Installation checks alone do not establish successful live startup recovery.
+
+Live replay qualification for the adapter boundary: Android hit the known native startup error on its first read-only probe, recovered on the second probe, and completed startup recovery in about 19.5 seconds. Android then installed/launched its retained app and captured a masked screen. iOS connected and performed app setup, but failed during retained-app relaunch; this stopped only iOS while Android continued. Android subsequently stopped because the helper could not determine the foreground app. The replay finalized with exit 3, failed verdict and incomplete execution, with both platforms, screenshots and logs saved in its own HTML/JSON report. The usage ledger recorded zero inference requests and zero accounted cost. This verifies one transient-startup recovery, not successful app testing or complete live acceptance. No app rebuild or third-party tool patch was performed.
+
+## 48. Ordered command queue source update
+
+FR-99 adds runtime/command_queue.py and updates command decoding, scenario execution, the commands context collection and redaction. The existing installer copies the new top-level module automatically. Publish and install the matching .NET command host as well as the complete Python runtime: HTML and host redaction now understand commandQueue. Keep the existing run lock, backup and byte-verification procedure. No new dependency, key, YAML field, third-party source patch or helper rebuild is required.
+
+The source verification passed 388 Python unit tests, 310 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 742 offline checks in total. This queue increment is not installed or replayed. The last completed installation remains ada8c00. The later user-cancelled replay on that installation generated its own final report: most AI replies contained several consecutive JSON command objects, which the old single-object decoder retained as notes. That is evidence motivating the queue correction, not a live acceptance result for the new queue. Existing retained apps and historical reports are unchanged.
+
+After installation, a separately authorized replay should qualify consecutive commands, cancellation and report states on running applications. Do not execute commands from old report text as part of installation. See [command queue](command-queue.md).
+
+## 49. Cancel queued commands on execution failure
+
+The FR-99 refinement updates CommandQueue, ScenarioRunner, AI command instructions and the report explanation. Install matching runtime and command-host files under the existing run lock, with backup and byte verification. No new dependency, setting, key or third-party tool change is needed. Unexecutable commands cancel the pending queue; actual issues go into the next normal AI decision request. Successful batches add no acknowledgement call and autonomous testing continues.
+
+Verification passed 392 Python unit tests, 311 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks (747 offline checks), plus installer shell syntax. This source refinement has not been installed or replayed. Last installed revision remains ada8c00. Offline verification and source publication do not establish live behavior. Existing reports and retained apps are preserved.
+
+### Command queue installation verification — 1 November 2026
+
+For the requested replay, verified all 258 tracked source files against PR #6 revision 046bf758c60c5db76d914402869af7c8def540cd and published the matching command host. Under the machine run lock, backed up and replaced 10 files and verified all 61 installed host/runtime/license files against the prepared bytes. Installed CLI help, runtime/package imports, ordered batch decoding, whole-queue cancellation, the no-success-acknowledgement instructions and existing stopping/readiness smoke checks passed. The local receipt retains backup details and per-file hashes.
+
+No dependency, private setting, API key, mobile helper or third-party source/binary changed. Existing reports and retained apps were preserved. Both configured emulators were running before replay. The public installed replay command loaded and verified retained applications without Git or builds and reached its existing interactive OpenAI checkpoint. Test completion and live queue acceptance remain pending.
+
+The installed-version replay finalized with exit 3, failed verdict and incomplete execution. iOS installed the retained app and captured a masked screen, but relaunch failed; only its worker stopped. Android recovered the known device-server startup error after three failed read-only probes, completing readiness in about 28 seconds. It then installed/launched the retained app and captured a masked screen, but the foreground-app query failed before its first AI request. Both platforms and their diagnostics/screenshots are retained in the replay's new dated HTML/JSON report. The usage ledger recorded zero inference requests and zero accounted cost. No queued command ran, so live queue/cancellation acceptance remains unqualified. No app rebuild or third-party tool change was performed.
+
+Read-only follow-up for the Android foreground failure: Android's activity/window services reported the tested app running, resumed and focused; the crash buffer was empty. A single foreground lookup using the unchanged installed native helper in a fresh temporary daemon home succeeded and returned the tested package/activity. That diagnostic daemon was then stopped. No tap, app relaunch, source patch or new test run was performed. The replay did not capture the raw focus fields at its failure time, so the exact trigger remains unproven; a startup focus transition or run-specific helper state is possible. The successful later lookup does not establish the historical focus state or validate live queue execution. CIMT currently treats the helper's foreground error as infrastructure failure without a foreground-specific retry; its separate startup readiness retry does not cover this query.
+
+## 50. CIMT-owned 20-second settling delay
+
+Install the matching runtime/device_adapter/app_lifecycle.py and mobile.py together using the existing lock, backup and byte-verification process. No .NET host, dependency, configuration or third-party helper change is required for this increment. After successful install/reset/launch, CIMT records and waits 20 seconds before first screen/foreground checks. The helper must already be connected to perform installation; its process startup/internal timeouts remain unchanged. Cancellation/shared stop/deadline stay active in short wait intervals.
+
+The delay source has not been installed or replayed. Last installed revision is 046bf75, whose replay failed before inference on retained iOS relaunch and Android foreground detection. The diagnostic follow-up and installation receipt above remain separate evidence. Offline timing checks do not establish that the historical foreground issue is fixed. Existing retained apps, private inputs, reports and tool binaries are preserved.
+
+### Settling-delay installation verification — 1 November 2026
+
+For the requested installation and replay, verified all 258 tracked source files against PR #6 revision 190a9bd6a0df4a06d271d2b1bf907514adfba19b. Under the machine run lock, backed up and replaced only the two affected Device Adapter modules and verified all 61 installed host/runtime/license files. The unchanged command host matched the earlier tested publication. Installed CLI/runtime smoke checks passed, including FIFO cancellation, the 90-second readiness window and a fake-clock check of the new 20-second wait. The local receipt retains file hashes and backup details.
+
+No dependency, private configuration, API key, retained app, third-party source/binary or historical report was changed. Both configured emulators were booted. Replay was started through the installed public command with the existing inputs and retained apps, without Git or building the tested application. Live delay behavior and final results remain pending.
+
+Live replay of installed revision 190a9bd: the logged post-launch wait completed in about 20.002 seconds on iOS and 20.000 seconds on Android. Both adapter-readiness probes succeeded immediately. iOS still stopped during retained-app relaunch after startup terminations; Android continued independently, passed foreground/startup checks and executed 10 AI-selected device actions across six inference replies, including consecutive queued actions without intervening provider requests. Two initial replies containing prose before JSON were retained as notes. The saved Android screen showed an app-not-responding dialog; AI tapped Wait, then Continue without login, and proceeded into onboarding. No Android crash was recorded.
+
+AI eventually issued done/blocked from its last queued batch, claiming updated post-action evidence was unavailable. Actual post-action captures were saved successfully, with no Android runtime/evidence error; that AI explanation is not proof of a screenshot failure. Android remained inconclusive/incomplete with unfinished coverage. The combined replay finalized with exit 3, failed verdict and incomplete execution because of the independent iOS failure. Its own dated HTML/JSON report includes both platforms, queue states and 21 PNG evidence files. The ledger recorded six requests and a conservative accounted upper cost of USD 0.02768375, with no uncertain cost. This verifies the installed delay and successful FIFO execution in this replay, not permanent foreground recovery, failure-triggered queue cancellation or broad app coverage. No tested-app rebuild or third-party change was performed.
+
+## 51. Complete batch-feedback source update
+
+Install the matching .NET report host and full Python runtime under the existing lock/backup/verification procedure. New top-level modules batch_feedback.py and observation_recorder.py and Device Adapter warnings.py are included automatically by the existing installer. Do not change Mobile MCP or its native helper. No new dependency, key or YAML field is needed. Preserve retained app builds, private inputs and reports.
+
+The source adds mandatory ordered batch feedback, ANR warnings, explicit unknown observations, evidence reuse and a fresh AI decision before completing an objective after queued actions. This increment has not been installed or replayed. Offline verification is separate from live acceptance. The product owner subsequently approved publishing these installation and execution notes together with all documentation. Private configuration files, credentials, raw evidence and retained app artifacts are excluded.
+
+
+### Complete batch-feedback installation verification — 1 November 2026
+
+Installed PR #6 revision f8ad72dc19b3bfde90d9f132fe9c8d094fe2cb3d after verifying all 265 tracked source files. Published the matching .NET command host from existing local dependencies. Under the machine lock, backed up and replaced 15 files and verified all 64 installed host/runtime/license files against the prepared source and publication. Installed CLI help and runtime imports passed, together with synthetic batch-path, ANR identifier, historical-context, FIFO cancellation, startup-readiness, settling-delay and stopping-policy smoke checks. The local receipt retains file hashes and the backup location.
+
+No application build, test run, replay, device interaction or paid API request was started. No private input, credential, retained app, historical report, dependency or third-party tool was changed. Installation verification is separate from live acceptance of the new batch feedback.
+
+
+
+### Batch-feedback emulator replay verification — 1 November 2026
+
+The requested replay used the latest installed batch-feedback runtime and retained Debug_Pride builds on the configured iOS simulator and Android emulator. Report report_2026-11-01_13-25-47-461 finalized with exit 3, failed verdict and incomplete execution. Its HTML and JSON include both platforms and two verified PNG evidence files.
+
+iOS installed/launched its retained app, completed the 20-second settling wait and saved masked observations. Three matching startup terminations stopped only its objective before inference. Android continued, recovered the known device-server startup error after two failed read-only probes, installed/launched the retained app, completed its 20-second settling wait and saved a masked observation. Its foreground-app lookup then failed with could not determine foreground app; no Android crash or ANR warning was recorded.
+
+The inference ledger recorded zero requests and zero accounted or uncertain cost. No AI-selected action or command batch ran, so this replay does not qualify live batch feedback, ANR handling or AI continuation. No repository clone, application build, third-party tool/source change or private-configuration edit was performed. Helpers were finalized and the report was retained.
+

@@ -1,6 +1,6 @@
 """Record checks and their evidence without owning scenario navigation."""
 
-from check_results import scenario_verdict, validate_checks
+from check_results import scenario_verdict
 from requirement_results import RequirementResults
 
 
@@ -13,17 +13,13 @@ class CheckRecorder:
         self.publish = publish
 
     def record(self, session, checks, instructions):
-        validate_checks(checks)
         rows = session.result["requirements"]
-        RequirementResults.validate(checks, rows, instructions)
         if not checks:
             return
         index = len(session.result["steps"])
         safe = [self.redactor.records.check(check) for check in checks]
-        # Verify the exact values that the verdict policy will receive.
-        validate_checks(safe)
-        RequirementResults.validate(safe, rows, instructions)
-        recorded = [dict(check, step=index) for check in safe]
+        first_id = len(session.result['checks'])
+        recorded = [dict(check, step=index, id=first_id + number) for number, check in enumerate(safe)]
         session.result["checks"].extend(recorded)
         RequirementResults.record(rows, recorded)
         step = {

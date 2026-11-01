@@ -1,4 +1,4 @@
-"""Validation and execution of a single model-selected device action."""
+"""Mechanical execution of a single model-selected device action."""
 
 import time
 from errors import InfrastructureError
@@ -16,7 +16,7 @@ class ActionExecutor:
         self.clock = clock
 
     def execute(self, mobile, action, elements):
-        """Validate and execute one allowed action on the current screen."""
+        """Check technical constraints and execute the AI's selected action."""
         self.check()
         mobile.readiness()
         self.check()
@@ -27,6 +27,7 @@ class ActionExecutor:
             "swipe": self._swipe,
             "back": self._back,
             "wait": self._wait,
+            "restart": self._restart,
         }
         handler = handlers.get(action["action"])
         if handler is None:
@@ -35,7 +36,7 @@ class ActionExecutor:
 
     def _tap(self, mobile, action, elements):
         if action["ref"]:
-            self._element(action["ref"], elements)
+            # The AI may use earlier knowledge. Let the adapter resolve its target.
             mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
             return
         size = next(element for element in elements if element.get("type") == "CimtScreenInfo")
@@ -51,7 +52,7 @@ class ActionExecutor:
 
     def _credential(self, mobile, action, elements):
         value = self._credential_value(action)
-        element = self._element(action["ref"], elements)
+        element = self._credential_element(action["ref"], elements)
         identifier = element.get("identifier")
         if not identifier:
             raise InfrastructureError(
@@ -70,10 +71,10 @@ class ActionExecutor:
         return aliases[action["credential"]][action["field"]]
 
     @staticmethod
-    def _element(ref, elements):
+    def _credential_element(ref, elements):
         current = {element.get("ref"): element for element in elements}
         if ref not in current or current[ref].get("enabled") is False:
-            raise ValueError("Action ref is absent or disabled on the current screen")
+            raise ValueError("Credential target is absent or disabled; no secret was entered")
         return current[ref]
 
     @staticmethod
@@ -91,8 +92,17 @@ class ActionExecutor:
     @staticmethod
     def _back(mobile, action, elements):
         if mobile.device["platform"] != "android":
-            raise ValueError("On iOS choose an observed back-button ref")
+            raise ValueError("iOS has no system BACK button; choose a tap or swipe action")
         mobile.call("mobile_press_button", button="BACK")
 
     def _wait(self, mobile, action, elements):
         self.sleep(min(2, max(0, self.deadline - self.clock())))
+
+    def _restart(self, mobile, action, elements):
+        app_id = getattr(mobile, 'app_id', '')
+        if not app_id:
+            raise InfrastructureError('Restart requires the verified application identity')
+        # Use the installed target, never an app ID supplied by the model. Keep app data.
+        mobile.call('mobile_terminate_app', packageName=app_id)
+        self.check()
+        mobile.call('mobile_launch_app', packageName=app_id)

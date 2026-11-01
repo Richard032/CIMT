@@ -1,7 +1,7 @@
 # CIMT product documentation
 
-Version: 0.26
-Date: 31 October 2026  
+Version: 0.37
+Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -294,11 +294,13 @@ Instructions override conflicting requirements. Mark affected requirements overr
 
 ## 11. Limits, crashes, and outcomes
 
+The AI chooses ordinary interactions using the latest screen, earlier observations, its plan or expected app behavior. A tap is not restricted to a control listed or enabled in the latest UI tree. CIMT passes the chosen ref or valid coordinates to the adapter; refs can expire or fail to resolve. An answered interaction failure is recorded and returned with the next evidence so the AI can decide what to do next. CIMT does not choose a replacement button. It distinguishes requested targets from observed controls and does not count unmatched requests as observed coverage. Secret credential entry still needs a verifiable maskable field, and supported commands, coordinate bounds, budgets, masking and authorized permissions still apply.
+
 The time limit covers the whole run. The AI budget is shared across workers. Before each request, reserve the maximum possible charge; if insufficient budget remains, stop incomplete, potentially below the cap. Reporting is local and requires no final AI call.
 
 CIMT relaunches after a crash. Three consecutive matching crashes cancel only the scenario. Matching uses scenario/action or screen, with a matching crash signature when available; a successful retry resets the counter. AI chooses other reproduction effort within limits.
 
-Device disconnection or a blocking AI/infrastructure failure stops execution and generates a report. Unclear instructions continue with recorded interpretation. No startup devices means stop/report.
+Device disconnection or a blocking AI/infrastructure failure stops execution and generates a report. An adapter-reported failure to launch or relaunch the tested app stops only that device; other active and queued devices continue. This applies to both platforms and physical or virtual devices. The final report keeps the failed device's error and partial observations alongside the other devices' results, and the launch error still contributes exit 3. Adapter connection/protocol/timeouts and failed reset verification keep their blocking behavior. Unclear instructions continue with recorded interpretation. No startup devices means stop/report. See the [Execution Stopping Policy](execution-stopping.md).
 
 Without instruction-specific failure rules: confirmed requirement failures or app crashes mean failed; unfinished/inconclusive testing means incomplete; otherwise passed. Reports separately retain test verdict, completion, and execution errors.
 
@@ -398,17 +400,15 @@ Accepted screenshots appear with recorded steps. If no screenshot passed verific
 
 Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
 
-## AI response correction
+## AI replies and resource feedback
 
-CIMT checks an AI decision before recording its observations or executing its action. If the answer has inconsistent reporting fields, an unknown requirement ID, an invalid instruction override quotation, or malformed action JSON, CIMT requests a corrected answer. It allows at most two corrections after the initial answer. Each correction uses a fresh masked screen and counts toward the same AI spending and whole-run time limits. No extra configuration is needed.
-
-The HTML report shows Unaccepted AI responses with the validation reason, candidate response, and available masked decision screenshot. These observations are unverified and do not determine the test verdict; accepted findings remain. The chronological activity shows rejection and recovery, and AI accounting includes correction requests. If all three answers are invalid, execution stops with an infrastructure error and incomplete work. Time/budget exhaustion keeps its normal outcome. This policy does not retry refusals, incomplete provider output, transport errors, device errors, or failed masking/storage.
+CIMT no longer evaluates response format or stops after three response-correction attempts. The AI receives instructions, requirements, masked evidence, its selected context and available commands. Plan IDs, quotes and reporting fields do not approve device actions. A reply without one readable command is kept as a note and returned with resource feedback; CIMT does not guess a command. HTML shows full redacted replies and resource feedback. Older Unaccepted AI responses sections describe historical runs. Time, spending, cancellation, privacy and real provider/resource failures retain their normal policies. See [AI Resource Exchange](ai-resource-exchange.md).
 
 ## Exploration progress and stopping a run
 
 CIMT remembers explored controls, outcomes, untried paths, and the pending plan for each device/target scenario. Each AI request receives a relevant memory summary with current control references. Reports show observed outcomes and the saved exploration memory. An unchanged screen is recorded as such; a successful tap alone does not verify the requested behavior.
 
-After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Replanning is bounded. If it cannot find a useful next action, only that scenario stops incomplete and other work continues. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
+After three unchanged attempts, or repeated travel along a path without discovering new paths, CIMT asks the AI to try another route or explain a blocked path. Every renewed signal asks the AI for recovery. There is no fixed recovery-episode or response-format attempt limit; the shared time and spending limits still apply. AI can finish blocked with remaining work. For an intentional repetition, write the count or reproduction task explicitly in testing instructions, for example: “Tap Refresh five times and check for a crash.” The AI must quote that instruction and explain the repeat in its response. No new YAML field is required.
 
 Press Ctrl+C once to stop. CIMT requests cancellation, allows the device worker up to five seconds to finish saving, closes owned helpers, and writes a final incomplete report. Earlier failures remain failures. Work already in flight may be interrupted. Wait for the report path before closing the terminal. Interrupted host stages, device operations and action records show stopped with the user-interruption reason. If observation was interrupted, its outcome states that interruption instead of claiming the screen changed or stayed unchanged. Successful cleanup still shows completed. A connection/pipe failure without a known user stop remains a real failure. Partial observations survive a connection-close error, and earlier failures keep their original outcome. This applies to new execution reports; saved historical reports are unchanged.
 
@@ -464,3 +464,57 @@ The product owner approved Android Emulator and iOS Simulator execution on 31 Oc
 ### Screenshot mapping tolerance
 
 CIMT accepts a ±5% difference in the ratio between horizontal and vertical image scaling on every supported device. It expands secret masks to cover accepted mapping uncertainty. Larger mismatches still stop testing with an evidence error. Reports distinguish these CIMT evidence failures from verified application failures.
+
+
+## Instruction-driven plans and application maps
+
+CIMT now uses a separate Test Planning and Exploration layer. Keep using the same terminal/Jenkins commands and input text files. Instructions define the task and permitted exploration; requirements define expected behavior. A focused request such as test language settings must not expand silently to all app features. A broad request can explore discovered reachable paths within the configured limits.
+
+Before an action, the AI must select a concrete goal linked to the instructions or a requirement. The plan and unfinished tasks persist through the scenario. Available input controls and AI-identified visible controls become map candidates. The AI explains whether a discovered path is relevant, blocked or outside scope. Unclassified paths and unfinished relevant work keep the run incomplete; unrelated excluded controls do not force unwanted actions. The original control/state counters are still shown as raw observations, not a completeness percentage.
+
+The map grows while CIMT navigates. It records states, paths, outcomes and last-observed configuration. For example, English and German values can produce separate observed states and checks can evaluate whether a language remains after restart. A remembered setting is not proof of persistence or correct behavior; checks still need observed evidence against your requirements. For a requested persistence check, the restart action closes and reopens the tested app without resetting its data. Known return routes help the AI continue its plan, while every action still uses current screen evidence.
+
+The HTML Devices section includes Testing plan, Discovered application paths and Observed application map. Work status pending/active/blocked/tested is separate from passed/failed/not-tested results. Visiting a screen or tapping a button is not a passed test. The detailed map includes last-observed configuration provenance. Existing reports remain unchanged. See the [generic planning example](../examples/test-planning/README.md). No new YAML field, key or Appium installation is needed for this increment; live application qualification remains separate.
+
+## AI working memory and loop recovery
+
+The AI decides which history to keep in its working context, summarise, omit or retrieve. CIMT keeps complete records locally and never picks a relevant subset or silently trims old history. Instructions and requirements remain authoritative. The AI can recall omitted records without tapping or restarting the app. An oversized selected record payload requests a smaller AI selection; it does not delete evidence.
+
+Every detected unproductive loop requests AI-directed recovery. Repeated-action facts and fresh masked evidence help the AI reconsider its plan and retrieve earlier discoveries. The AI chooses whether to try a revised approach, explain intentional repetition or finish blocked. It can request recovery itself before the repetition counter signals. CIMT does not select a replacement button or reset the app. Renewed loops request renewed recovery instead of stopping after three recovery episodes. Time, budget, cancellation and independent crash/infrastructure policies still apply.
+
+HTML shows AI-selected working context and AI-directed recovery in the device scenario. Run overview includes token/cache usage and request-purpose details when available. Missing provider details remain unavailable; the accounted cost remains a conservative bound. Filtering, recall and recovery also consume the configured budget. No new command, YAML field, API key or model is needed. These changes require the updated runtime; they have not been qualified in a new live run. See [the detailed flow](ai-context-and-recovery.md).
+
+## AI instruction and context responsibility
+
+CIMT keeps Mobile MCP for device control. Before each AI instruction request, the AI Instruction and Context layer refreshes masked UI information and supplies the current human-interface controls, testing instructions, requirements, setup and AI-selected history. Availability flags describe controls; they do not approve the AI's target. Full masked UI evidence remains available alongside the control catalogue.
+
+The layer does not examine AI replies or choose actions. Execution reads and performs the supported command and records its actual outcome. Repetition facts inform the next instruction after an action; they do not block a chosen command. The existing text-command transport remains. FR-99 queues explicit JSON command objects in received order; unreadable text remains a note with resource feedback. This change does not migrate to Appium or function calling. See [AI Instruction and Context](ai-instruction-context.md).
+
+
+## Device readiness before testing
+
+CIMT now has a separate Device Adapter layer. Before app setup, it can retry the native helper's known device-server startup failure for a cumulative 90 seconds, capped by the run deadline. It repeats only a read-only readiness probe, with one-second waits. Cancellation remains active. The terminal and HTML activity show retries and any final failure. No extra command or YAML setting is needed.
+
+The helper's internal five-second startup limit remains unchanged. Multiple attempts can recover from a temporary problem; this does not let a single attempt run for 90 seconds. Other device failures are not retried automatically. Install/reset, taps, typing, credentials and AI requests are outside startup recovery. After exhaustion, the existing infrastructure stopping policy applies. See [Device Adapter](device-adapter.md).
+
+## Ordered AI commands
+
+The AI can return several commands in one reply. CIMT saves them in a FIFO queue and executes them in the same order, with the normal checks and observations after each device action. If a command cannot execute, CIMT cancels every remaining command and gives AI the failed command, error and cancelled-command count in the next normal decision request. A successful batch continues testing through the normal next-decision request, without an extra success acknowledgement. Recovery can also require a fresh decision. Run-stop/privacy failures can prevent another AI request; their diagnostics remain in the report. The AI can still return one command when it needs to see the next screen before choosing another.
+
+The HTML device scenario shows an AI command queue with batch, order, state, actual step and reason. Queued, cancelled or not-executed commands are plans; they do not prove that a button was tapped or a requirement passed. Cancellation and limits preserve unperformed work. A done command ends the objective, including any commands following it. The complete redacted reply remains available once per batch.
+
+No new user command, YAML field, model or key is required. Install the matching report host and runtime together. Existing reports are unchanged. Offline verification has passed; this increment has not yet been installed or qualified through a live replay. See [command queue](command-queue.md).
+
+## Wait after installation and launch
+
+CIMT waits 20 seconds after successfully resetting, installing and launching an app, before its first screen/foreground checks and AI request. This applies to both platforms and to physical devices and emulators. The activity log shows Wait 20 seconds after app installation and launch.
+
+The wait is inside CIMT. Mobile MCP and its native helper remain unchanged and are already connected for installation. Cancellation and the run deadline remain active; waiting counts toward the time limit. Failed setup does not wait, and normal AI actions or later app restarts do not gain this extra pause. No configuration change is required. A new replay is needed to evaluate whether the delay helps the observed foreground problem.
+
+## Complete batch results and Android ANR warnings
+
+Each normal next AI request now includes the complete ordered execution path of the previous command batch, including successful commands and taps with no observed UI change. One initial observation is followed by each command and its result. Returning to the starting screen keeps intermediate navigation visible. Independent changes detected between commands get separate observations. Screenshots and UI data are referenced and reused when identical, rather than copied into each before/after record.
+
+The report distinguishes actual execution status from changed, no observed change and observation unavailable. A successful tap does not prove correct behavior. Android system ANR dialogs produce warnings with device, time and step in terminal/log/HTML; the warning alone does not prove a crash or stop testing. Existing privacy, cancellation, time/budget, crash and infrastructure rules remain active. Failed commands still cancel the remaining queue.
+
+Completing a batch returns its results for the next AI decision. A done after other commands is deferred to that handoff; AI reviews actual results before deciding whether to finish. AI can finish by returning done first in a fresh reply. Old batch results and full evidence remain retrievable under AI's context choices. No new user command, YAML setting, key, model or third-party tool is needed. Install matching host/runtime files; live qualification is separate. See [batch feedback](batch-feedback.md).

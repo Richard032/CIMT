@@ -1,8 +1,8 @@
 """Coordinates cost reservation, API access, and action parsing."""
 
-from action_prompt import ActionPromptBuilder, parse_action
-from budget import Budget
-from errors import InfrastructureError, LimitReached
+import json
+from ai_instructions.instructions import ActionPromptBuilder
+from command_reply import read_reply
 from openai_transport import OpenAiTransport
 
 
@@ -30,7 +30,7 @@ class Agent:
         aliases,
         coverage,
         requirement_results=None,
-        correction_feedback=None,
+        resource_feedback=None,
         exploration_memory=None,
     ):
         """Request one action after the shared budget has reserved its maximum cost."""
@@ -44,15 +44,20 @@ class Agent:
             aliases,
             coverage,
             requirement_results,
-            correction_feedback,
+            resource_feedback,
             exploration_memory,
         )
-        return parse_action(self._request_action(body))
+        return read_reply(self._request_action(body))
 
     def _request_action(self, body):
+        state = json.loads(body['input'][1]['content'][0]['text'])
+        kind = ('context selection' if 'contextSelectionRequired' in state else
+            'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision')
         # Keep cache-write charges within the rate used by this pricing profile.
         if self.budget.price.get("cache_ttl"):
-            body["prompt_cache_options"] = {"ttl": self.budget.price["cache_ttl"]}
+            body["prompt_cache_options"] = {"ttl": self.budget.price["cache_ttl"], 'mode': 'explicit'}
+            body['input'][0]['content'] = [dict(type='input_text', text=body['input'][0]['content'],
+                prompt_cache_breakpoint={'mode': 'explicit'})]
         # Reserve before the request. Keep the full bound if usage is unknown.
         self.budget.reserve()
         response = None
@@ -61,4 +66,4 @@ class Agent:
             return response
         finally:
             usage = response.get("usage") if isinstance(response, dict) else None
-            self.budget.finish(usage)
+            self.budget.finish(usage, kind=kind)

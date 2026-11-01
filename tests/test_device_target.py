@@ -9,9 +9,9 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
-from device_target import DeviceTarget
+from device_adapter.target import DeviceTarget
 from errors import InfrastructureError
-from device_commands import DeviceReadiness
+from device_adapter.readiness import DeviceReadiness
 from scenario import application_executable
 
 

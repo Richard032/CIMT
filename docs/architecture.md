@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.31
-Date: 31 October 2026  
+Version: 0.42
+Date: 1 November 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -31,7 +31,11 @@ flowchart TD
     S --> W[Isolated device workers]
     W --> A[Device adapter]
     A --> D[Startup snapshot of physical Android / iOS devices]
+    W --> N[AI Instruction and Context]
+    N --> A
+    N --> E
     W --> P[OpenAI gateway and shared budget ledger]
+    W --> K[Execution Stopping Policy]
     O --> E[Local event and evidence store]
     W --> E
     B --> E
@@ -48,10 +52,10 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 | Mac lock / run context | Enforce one run per host and establish run identity, deadline, startup devices, and output paths. |
 | Repository/build manager | Clone selected branch, resolve commit, run configured builds, keep continuing after target build failures. |
 | Scheduler | Enumerate compatible target/device pairs; serialize work per device; use up to two device workers. |
-| Scenario planner | Interpret text; map requirements; split scenarios; record ambiguity and overrides without prompting. |
+| Scenario planner | Retain the AI-owned plan, mappings, ambiguity and overrides; supply them as context without selecting the next test. |
 | Device worker | Reset, setup/login, execute, observe, collect step screenshots, recover crashes, and replay. |
 | Device adapter | Discovery, installation, launch/stop, data reset, UI observations, actions, screenshots, crash diagnostics. |
-| OpenAI gateway | Centralize model access, redact inputs, constrain output, account usage, and reserve maximum cost. |
+| OpenAI gateway | Centralize model access, redact inputs, describe command resources, account usage, and reserve maximum cost. |
 | Evidence store | Persist events, screenshots, actions, findings, statuses, and redacted metadata incrementally. |
 | Report renderer | Produce local HTML with relative evidence links, including a partial report without further AI calls. |
 | Finalizer | Stop workers, settle accounting, render report, retain work and evidence, and release host lock. |
@@ -74,6 +78,28 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 The report must survive a failure of the model service. Reporting and cleanup cannot depend on another paid AI request.
 
 Hard termination or host failure cannot guarantee helper shutdown. Record ownership before use, stop/release verified abandoned helpers on a later run, and preserve work/reports. Earlier work for those inputs is removed only at a new clone boundary; see section 20. Never delete unrelated folders.
+
+### Execution Stopping Policy layer
+
+The separate `runtime/stopping_policy/` layer owns failure scope, the three-matching-crash threshold and aggregate exit precedence. Its policy.py functions have no device, storage, timing or AI calls. DeviceRunner applies failure-scope decisions, startup/crash services supply their observed counts, and the execution coordinator uses its final exit result. RunControl still enforces shared stop signals and the deadline. This layer is separate from AI planning and context selection; it does not choose application actions or judge progress.
+
+An answered `mobile_launch_app` tool result that reports failure becomes a typed AppLaunchError at the RPC result boundary. It stops the affected device, preserves the error and partial observations, and lets other active/queued devices continue. The rule applies equally to Android, iOS, physical and virtual devices, including initial launch and recovery relaunch. Device locks use the typed DeviceLocked limit and remain local. Scope never depends on matching words in an error message.
+
+MCP connection/protocol/timeouts, failed reset verification, masking/storage failures and shared AI failures retain their blocking infrastructure behavior. Budget, deadline and user interruption remain whole-run stops. Three matching crashes still stop only the affected scenario. A local launch error still produces exit 3 at final aggregation; another device's success cannot hide it. See [execution stopping](execution-stopping.md).
+
+### Layer folders — DR-01
+
+Every explicitly defined architectural layer has its own clearly named folder. The dedicated layers are Test Planning and Exploration in `runtime/test_planning/`, Execution Stopping Policy in `runtime/stopping_policy/`, AI Instruction and Context in `runtime/ai_instructions/` and Device Adapter in `runtime/device_adapter/`. The instruction layer prepares sources, queries the adapter for masked observations and uses retained AI-selected information. It does not receive replies, choose actions or own provider transport. The planning layer consumes supplied observations and AI decisions. The stopping layer depends only on typed runtime errors and supplied counts/results. Planning and stopping policies do not call devices, storage or providers. Device Adapter owns device/tool I/O, readiness, app lifecycle and masked capture; it imports shared privacy/error services, not AI/planning/stopping-policy implementations. It receives a shared-stop check callback from execution. Final failure scope remains outside this layer. The instruction layer requests masked observations and stored context through supplied services; it does not operate app controls or call the provider. Execution components call these layers. The layers do not import execution components; AI Instruction and Context uses the planning package to describe controls and retrieve retained records.
+
+Configuration, orchestration, evidence and reporting in the component table remain components with their existing source boundaries; that table does not define each component as an additional architectural layer. Any new layer must document its responsibility and dependencies and receive its own source folder. Packaging must include each full layer folder, including its package entry point. Tests remain in the existing test suites.
+
+### AI action ownership and mechanical resources — FR-95
+
+The AI selects ordinary actions and targets from current evidence, prior observations, its plan or expected application behavior. ActionExecutor forwards selected refs to the adapter even when absent or marked disabled in the latest UI tree. Coordinate taps need valid device coordinates, not a matched observed control. Current observations and known routes are resources for the AI rather than an action whitelist. CIMT does not select replacement targets.
+
+The RPC result boundary distinguishes an answered interaction rejection as DeviceActionError. ScenarioRunner records that feedback, gathers normal post-action evidence and lets the next AI decision choose how to proceed. It does not retry or substitute an action itself. MCP connection/protocol/timeouts and masking/storage failures retain their existing infrastructure behavior. Failed requests do not become verified routes or observed-control coverage. Requested refs lacking current observations have separate path/crash identities and are labelled as requests.
+
+Credential entry retains current field/ID verification because masking must be registered before secret text is typed. Supported action shape, platform capabilities, coordinate bounds, shared limits, tested-app identity and permission authorization remain mechanical constraints. FR-96 removes plan/check/source approval: optional AI records do not gate target selection or command dispatch. See [AI context and recovery](ai-context-and-recovery.md).
 
 ## 4. Configuration and filesystem proposal
 
@@ -288,7 +314,7 @@ See the [development guide](development.md) for the component map and verificati
 
 The host now creates a complete source catalogue before runtime preflight and builds. It preserves requirement entries with stable internal IDs, original text, line ranges, and a fingerprint of the redacted source snapshot. Paragraphs, list items, labelled items, and completed lines determine result boundaries. Wrapped lines stay together; compound items require evidence for every condition. Explicit Markdown headings are retained separately as context, without requirement IDs or statuses. Each requirement also retains its active heading hierarchy in headingContext, so section meaning reaches the worker. Ambiguous prose and table rows remain requirement entries rather than being silently discarded. This is deterministic source accounting, not semantic scenario decomposition.
 
-The worker sees every catalogue item and its current result. Checks reference known IDs; overrides must explain the conflict and quote the actual testing instructions. A separate CheckRecorder publishes observations before storing their evidence. RequirementResults maintains per-objective statuses, retaining failures across retries and resolving unknown results by ID. A validated instruction override changes the applicable requirement expectation, preserves historical observations, and cannot hide an app crash or instruction failure.
+The worker sees every catalogue item and its current result. Checks reference known IDs; overrides must explain the conflict and quote the actual testing instructions. A separate CheckRecorder publishes observations before storing their evidence. RequirementResults maintains per-objective statuses, retaining failures across retries and resolving unknown results by ID. An AI-declared instruction override changes the applicable requirement expectation, preserves historical observations, and cannot hide an app crash or instruction failure.
 
 The final report builds its matrix from all configured compatible target/startup-device combinations, including failed builds and work that did not start. Unresolved combinations prevent complete coverage even if another combination failed. Every item has a result, source reference, and evidence or an unavailable-evidence explanation. The approved command/YAML interface and requirements baseline are unchanged. See [mapping rules](requirement-mapping.md) and the [offline demonstration](../examples/requirement-mapping/README.md).
 
@@ -342,15 +368,11 @@ Mobile supplies the run deadline and a callback that records each retry in the e
 
 Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
 
-## 23. Bounded AI response correction
+## 23. AI replies and resource execution
 
-DecisionRecovery owns one decision's correction loop; ScenarioRunner owns navigation and CheckRecorder owns accepted findings/evidence. Agent still performs one budgeted API request per call. The check schema uses nested anyOf object variants: instruction checks require an empty requirementId, and requirement checks require a nonblank ID. Host validation still checks catalogue membership, exact override quotations, and evidence fields. InvalidAgentResponse is the only recoverable error category. Refusal/incomplete provider output and other infrastructure errors retain their existing behavior.
+FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. Prose or multiple command objects remain notes with resource feedback; CIMT does not guess which command to execute. See [AI Resource Exchange](ai-resource-exchange.md).
 
-Each decision permits the initial request plus at most two corrections. Validate the complete candidate before updating the remaining-work plan or check ledger. Record the rejected candidate as untrusted text through generic redaction, not the typed action/check metadata exemptions. Publish its unaccepted diagnostic before saving the already masked decision image. Storage failure retains the diagnostic and evidenceError, then stops normally. Rejected candidates never count as checks, coverage activations, action history, or verified findings. Existing accepted checks remain authoritative.
-
-Before a correction, check shared cancellation/deadline and take a fresh fully verified masked snapshot. Update observed coverage and send the current screen with redacted rejection feedback; do not replay a previous action. Every correction uses normal request cost reservation and settlement. As with ordinary decisions, screen capture and later action are not atomic; correction introduces no stronger screen-stability guarantee. Normal device/action validation still applies.
-
-The scenario stores rejectedResponses with attempt (1–3 within that decision), step context, error, redacted candidate, status=unaccepted, and the decision screenshot or evidenceError. The rejected screenshot is the screen supplied for that candidate, not a later screen. Activity records rejection and successful correction under device/target context; the existing request-operation timing and AI ledger include all attempts. HTML always exposes an Unaccepted AI responses section, explains its verdict exclusion, and escapes candidate text. Correction exhaustion raises an explicit blocking AI infrastructure error; existing exit precedence, shared cancellation, report retention, and incomplete-work handling apply. No new YAML setting or retry of app actions is introduced.
+Execution still enforces supported resources, bounds, privacy, shared limits and real provider/infrastructure failures. Legacy rejectedResponses records remain readable in old reports; new execution does not create response-format rejections.
 
 ## 24. Exploration continuity and no-progress control
 
@@ -358,7 +380,7 @@ ScenarioSession owns ExplorationMemory in addition to the existing coverage trac
 
 ScenarioRunner observes the current controls before choosing and records the action's actual UI result after observation/recovery, including action/evidence errors. History includes the control label and observed outcome instead of only action completed. Saved exploration contains all known paths/transitions. AI input includes up to 80 current controls with fresh refs, 40 pending paths, 40 stalled paths, the accepted pending plan, and 12 recent transitions; older attempts remain in the full memory and are available again on revisiting a view. Recent action history remains bounded to 24 records. No cross-run resume or change to initial app reset is implied.
 
-ExplorationMemory validates a candidate against three unchanged attempts or three traversals without discovery of a new view/path. DecisionRecovery requests a different path through its existing bounded correction loop. repeatInstruction and repeatReason are required response strings, empty normally. The host checks exact quote membership and nonempty explanation; the AI is responsible for selecting a quote that explicitly authorizes the repeat. This is not a semantic proof of authorization. NoProgressAction is a distinct invalid-decision subtype; if no-progress replanning exhausts, ExplorationStalled marks that scenario incomplete and permits other targets/devices. Other response-contract failures retain their blocking policy. No control is automatically substituted, and crashes retain their separate three-attempt recovery rule.
+ExplorationMemory supplies repetition facts after three unchanged attempts or repeated traversals without discovered paths. NoProgressAction carries repetition facts after execution. AiInteraction supplies fresh evidence and AI-directed assessment through LoopRecovery; it does not block a chosen command or select a replacement path. AI can recall omitted history, replan, explain purposeful work or finish blocked. Each renewed signal requires renewed assessment, with no fixed semantic-recovery episode limit. There is no separate format-correction limit under FR-96. See section 31 and FR-88–FR-94, which supersede the earlier three-response no-progress stop. Crashes keep their independent three-matching-crash policy.
 
 ## 25. Controlled interruption and partial reports
 
@@ -372,7 +394,7 @@ IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, an
 
 ## 26. Compact recent-action AI input
 
-ActionPromptBuilder projects the most recent 24 action records into navigation facts: action, controlLabel, ref, coordinates/direction, synthetic text, credential alias/field, actual result, and intentional repeat reason when present. Failed/overridden checks retain compact subject/source/status/requirement-ID/observed/reason summaries under findings. The builder does not mutate history. Full check records, remaining-work lists, predictive descriptions, and repeated expectation text stay in saved history/reports and are not duplicated in each recent-action input row. The complete requirement catalogue/current results and exploration-memory summaries remain separate prompt inputs.
+The earlier fixed recent-action projection is superseded by AI-owned context under FR-88–FR-90. ActionPromptBuilder now sends exact AI-selected records and summary with current masked evidence and source authority. ContextMemory does not rank or truncate history; recall retrieves explicit addresses or AI-chosen ranges. Full action, decision, observation and screenshot records remain local. A null context retains the AI's existing selection without regenerating its summary. See section 31 and ai-context-and-recovery.md.
 
 AI guidance requests a check when current evidence changes a result or adds a distinct observation, with an empty list when no new assessment exists. It still requires functional failures, final objective evidence, and complete catalogue accounting. No host-side finding suppression is introduced. All device queries, screenshot masking/verification, action settling, cancellation, report writing, budget reservation, and model settings retain their prior behavior. See [measured baseline and payload comparison](performance.md); actual end-to-end acceleration remains a live comparison gate.
 
@@ -400,7 +422,7 @@ ReportEvidence permits contained local paths only, resolving aliases through Run
 
 The compact journal groups operation/context/status counts. It does not infer pairings because the journal has no unique operation ID. The complete ordered journal remains available with context filters. Large execution JSON is linked through the canonical machine report rather than duplicated inline. Partial/final publication, redaction, folder isolation and verdict calculation still use the existing pipeline.
 
-DecisionRecovery supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
+AiInteraction supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
 
 The briefly installed shared-latest page was removed after the product owner reaffirmed the existing per-execution folder contract. No change to the allocator, timestamps, work ownership, replay build reuse, outcome precedence, or historical evidence is required.
 
@@ -411,3 +433,71 @@ The product owner approved Android Emulator and iOS Simulator execution on 31 Oc
 ### Generic image-to-screen tolerance
 
 MaskGeometry compares the horizontal and vertical image-to-screen scale ratio against 0.95–1.05, inclusive. The same policy applies to both platforms and physical/virtual devices, without a native-density special case. It expands masks on each axis by the rounded-up full-screen scale drift plus the existing two-pixel border, then clips to image bounds. CaptureGuard retains screen-size and sensitive-region stability checks. This corrects the simulator rounding failure while protecting secret edges at the wider accepted tolerance. See [screenshot masking](screenshot-masking.md).
+
+
+## 31. Test Planning and Exploration layer
+
+The separate runtime/test_planning package owns planning records without device, provider, filesystem or HTML dependencies. TestPlanner coordinates source-linked TestPlan tasks, ExplorationMemory, ApplicationMap and ContextMemory. LoopRecovery stores pending recovery requests and AI acknowledgements. Execution supplies observations and performs accepted actions. The host never chooses app recovery actions or context relevance.
+
+### AI ownership and request context
+
+FR-88 is a highest-priority boundary. ContextMemory applies exact AI selections: a summary, includeAll collections and record addresses. It does not rank, trim, summarise or select records itself. Bootstrap supplies the available records; subsequent requests use the last AI selection. Counts and current masked evidence remain available. The AI can issue recall to retrieve more records without a device action. Decisions and selections stay in complete local records. There is no last-24 history window, first/last-40 map/task window or host field projection of selected history.
+
+RequestContext checks the serialized selected-record payload against a 64 KiB transport allowance. If oversized, it defers the entire payload and sends an explicit contextSelectionRequired control request with the AI summary, selection addresses and collection counts alongside current evidence and original instructions. Agent returns resource availability information; AI can recall a smaller selection, act using current evidence or finish blocked with explained remaining work. This notice does not veto a command. This is a capacity-only protocol, not relevance filtering, and no stored record is removed. Original sources and current masking/permission rules remain authoritative. Actual provider context limits and the existing whole-context spending reservation still apply; this byte allowance is not a tokenizer or an exact token-count estimate.
+
+The existing configured model supplies summaries, retrieval choices and recovery decisions. No additional model or provider is introduced. All inference passes through Agent/Budget and the same run deadline. Supported pricing profiles with cache controls use an explicit breakpoint after stable system instructions. Cache usage is measured when supplied, while settlement remains conservative. See [AI context and recovery](ai-context-and-recovery.md) for the response contract and sequence diagram.
+
+### Plan and evidence identity
+
+AI may refine its goals and source links using the supplied information; no concrete-goal or source approval gates dispatch. Requirement tasks retain catalogue IDs, and instruction tasks retain source quotes. Checks now carry taskId; their display subject is not identity. CheckRecorder assigns monotonic check IDs, and TestPlan applies each recorded check once. An old inconclusive observation cannot erase a new blocked status. A later pass cannot erase a known failure. Visiting a path still does not prove an expectation passed.
+
+### Mapping and recovery
+
+Screen/input structure and current input values form map keys; passive text changes remain observation fingerprints/evidence rather than new button paths. The AI still judges the meaning of UI changes. AI-observed configuration remains last-observed context, not proof of persistence. Configuration refinement preserves route relationships; changed known values do not globally alias earlier variants. Direct verified routes remain guidance, with fresh evidence at every action.
+
+Three unchanged attempts or repeated traversals without discovery provide a repetition signal. After an executed action, ScenarioRunner records repetition facts and opens a LoopRecovery notice. AiInteraction supplies fresh masked evidence and that notice in the next instruction; it does not veto the AI command. AI may recall omitted records, replan, explain intentional work or finish blocked. A recover response lets AI report a loop before counters detect it. Each renewed signal requests a fresh AI assessment; no matching structured acknowledgement is required before its command. Notes and recall leave recovery pending. There is no three-episode semantic stop or response-format exhaustion. Time/budget/cancellation, transport/masking failures and three-matching-crash recovery remain independent. AI finish is honored; recorded unresolved work remains visible and completion remains incomplete without an automatic host-selected reconsideration call.
+
+Execution journals accepted decisions, selections, pending/completed recovery records, checks and outcomes before cancellation boundaries. HTML renders working context and recovery alongside the plan/map; the usage ledger records input/output/cache information without claiming an invoice. Redaction preserves generated identities at both Python and .NET boundaries. Historical reports remain unchanged. Representative live qualification is pending; this change does not claim all-path coverage, automatic permission consent or measured savings.
+
+## 33. AI Instruction and Context layer
+
+FR-97 changes the layer to inputs and retained information only. runtime/ai_instructions/ contains InstructionContext, ActionPromptBuilder and the human-interface catalogue. Before each AI request, InstructionContext queries the supplied Mobile MCP adapter for a fresh verified masked screen and retains the observation. It assembles instructions, requirements, setup/scope, aliases, resources and the AI-selected context from the existing planning/evidence stores. All masked elements remain evidence; the separate humanInterface catalogue describes adapter-declared controls, including unavailable controls with their state flags. It is not an action whitelist.
+
+Reply reading is in runtime/command_reply.py, provider/accounting in Agent, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. The text-command transport remains. FR-99 adds ordered command batches outside this input-only layer; function calling is not introduced. The owner confirmed Mobile MCP, so no Appium adapter is added.
+
+DR-01 packaging includes the full ai_instructions/, test_planning/, stopping_policy/ and device_adapter/ folders. Remove obsolete ai_exchange source modules and decision_recovery.py when installing. Existing action_prompt.py imports preserve caller compatibility. See [responsibilities, tradeoffs and sequence](ai-instruction-context.md). Source/offline checks remain separate from installation and live qualification.
+
+
+## 34. Device Adapter layer and startup recovery
+
+FR-98 defines runtime/device_adapter/ as the device I/O boundary. Mobile connects focused services: NativeDevice owns read-only native process calls; DeviceReadiness checks lock/platform state; DeviceStatus reads foreground/process/crash state; DeviceTarget resolves platform identity; AppLifecycle resets/installs/launches the tested app; Mcp/RpcMessages handle the transport; ScreenCapture obtains verified masked observations. DeviceStartup owns only bounded startup probing. Shared privacy helpers stay in their existing modules. AI action choice, scenario scheduling, evidence publication and final stopping scope remain outside the adapter.
+
+Mobile.connect checks shared stop and device readiness, waits for DeviceStartup, rechecks the device lock and only then connects the MCP client. DeviceStartup performs apps list with no app mutation. The native boundary gives the known device-server startup answer a typed DeviceServerStartupError after redaction. Only that error retries. Each probe uses the lesser of the native 30-second process timeout and the remaining window; the 90-second window is also capped by the whole-run deadline. Delays are one second, checked for cancellation at most 0.1 seconds apart. A generic timeout fails immediately; a final clipped timeout following known startup failures reports window exhaustion.
+
+This recovery runs once per adapter connection, not around app lifecycle or AI actions. Successful readiness does not validate app startup. Repeated taps, text, credentials, install/reset and provider calls are never passed to the recovery component. Retry activity and final failure flow through the existing redacted activity/journal/report path. Execution Stopping Policy retains its infrastructure-failure scope after recovery ends. The AI input layer supplies resources without retry or stopping decisions.
+
+Packaging includes the complete device_adapter/ folder and removes obsolete top-level mobile.py, app_lifecycle.py, device_commands.py, device_target.py, mcp_client.py, rpc_messages.py and screen_capture.py. Internal imports and existing tests use the new package; no new public command, YAML setting, dependency or third-party source patch is introduced. See [Device Adapter responsibilities and sequence](device-adapter.md). Offline checks and live qualification are separate.
+
+## 35. Ordered command execution
+
+FR-99 / AC-69 define a scenario-local FIFO queue in runtime/command_queue.py. It is an execution component, not another architectural layer. command_reply.py mechanically reads one object, an array or consecutive JSON objects and preserves original text. It does not search prose for commands or make testing decisions. CommandQueue stores received commands, batch/order and status; it has no provider, device or stopping-policy calls. ScenarioRunner owns the dispatch loop and applies optional records when each command is taken.
+
+Save receipt before dispatch. While commands remain pending, take the next command without another inference request; normal startup/foreground/cancellation checks and post-action masked observations still run. Device actions retain actual step records. Notes and recall are handled without device actions; first-command done ends the objective, while a queued done hands actual results back under FR-101 (section 37). An unexecutable command cancels the entire pending tail before observation. ScenarioRunner retains the failed command identity, actual redacted error and cancelled count as resource feedback for the next normal decision request. A successful batch adds no separate acknowledgement request; the next normal request continues autonomous testing. Crash, explicit recovery and repetition recovery mark their pending tail not executed and supply information for a fresh AI decision. Fatal stopping/privacy rules may prevent a further provider request; issues remain in local records. Fatal failure, time/budget limits and user interruption retain the unexecuted tail. No queued command is silently replayed or replaced.
+
+AI Instruction and Context supplies commands as another exact-selection collection without ranking or filtering them. Both redaction boundaries preserve host-generated identities/status while scrubbing command text. HTML shows queued versus executed/handled/failed/interrupted/cancelled/not-executed states and one full reply per batch; plans are not evidence of performed actions. Publish the matching .NET report host and Python runtime together. Device Adapter and Execution Stopping Policy keep their existing boundaries; third-party source remains unchanged. See [protocol, outcomes and sequence](command-queue.md).
+
+## 36. Post-installation settling delay
+
+FR-100 / AC-70 add a fixed 20-second app-settling interval in CIMT's existing Device Adapter layer. AppLifecycle.wait_after_launch owns the timed wait; Mobile.reset orders successful reset/install/launch, then waits before returning to ScenarioRunner. The first screen capture, startup/foreground check and inference request therefore occur after the interval. Mobile MCP must already be connected for installation; its process startup and internal five-second timeouts are not changed.
+
+The lifecycle receives execution's shared-stop callback and injectable monotonic clock/sleep. It waits in chunks no longer than 0.1 seconds, checking cancellation, shared stop and the run deadline before each chunk and on completion. The wait counts toward the run limit. Mobile wraps the wait in a named activity operation for terminal/HTML timing. Failed setup never reaches the wait. Normal actions, restart/crash relaunches and readiness probes get no new delay. No new layer, field, dependency or retry policy is introduced. The delay may allow startup to settle; live foreground recovery remains unqualified.
+
+## 37. Complete batch feedback and ANR warnings
+
+FR-101 / AC-71 define runtime/batch_feedback.py as scenario-local execution data, not another layer. BatchFeedback retains one initial observation per batch and ordered command/result and independent-observation events. Each event references its resulting observation; there is no duplicated before snapshot. ObservationRecorder registers verified masked frames, links full UI observations into the existing planner catalogue and records system warnings. The Device Adapter's warnings.py recognizes Android's system ANR Wait resource identifier without evaluating arbitrary app text. Warning episodes log device/time/step once while remaining referenced by each affected result; warnings alone do not set verdicts or stop execution.
+
+AiInteraction prepares fresh current evidence and the pending complete paths for the next normal provider request, then marks feedback supplied only after a completed reply. ActionPromptBuilder puts batchFeedback and currentWarnings outside optional historical selection. RequestContext may defer oversized optional history, but cannot drop new batch path steps. Older batches remain retrievable through the batches collection and exact AI selection; original instructions/current evidence remain authoritative. No separate success-acknowledgement call or second model is introduced.
+
+A done behind other commands is a mechanical batch handoff. Retain it as deferred, do not apply its predicted checks/plan/completion, mark later commands unexecuted and return actual results for a new AI decision. A first-command done can end the objective. No semantic response gate or host-selected replacement action is added. Existing failures cancel the pending tail; limits/privacy retain unsupplied results without bypassing stopping rules.
+
+ScenarioEvidence reuses matching verified image bytes and identical masked UI records, preserving every event reference and rejecting modified registered evidence. Observation changes compare the complete masked UI/image identity; changed does not imply the command caused the change or that it was meaningful. Structural screen identity and existing repetition signals remain separate. Python/.NET redaction preserve generated identities/status and scrub free text. BatchFeedbackHtmlRenderer shows ordered paths and mandatory ANR warnings with contained evidence links independently of optional sections. Publish matching host/runtime files together; the existing installer includes the new modules/package. See [the contract and sequence](batch-feedback.md).

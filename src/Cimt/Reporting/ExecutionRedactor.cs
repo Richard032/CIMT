@@ -28,16 +28,50 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["steps"] = items => json.Items(items, Step),
             ["crashes"] = items => json.Items(items, Crash),
             ["rejectedResponses"] = items => json.Items(items, item =>
-                json.Record(item, ["attempt", "step", "status", "screenshot"]))
+                json.Record(item, ["attempt", "step", "status", "screenshot"])),
+            ["testPlan"] = item => new PlanningRedactor(json).Plan(item),
+            ["exploration"] = item => new PlanningRedactor(json).Exploration(item),
+            ["contextSelection"] = item => new PlanningRedactor(json).ContextSelection(item),
+            ["recoveries"] = items => json.Items(items, item => new PlanningRedactor(json).Recovery(item)),
+            ["commandQueue"] = CommandQueue,
+            ["batchFeedback"] = item => json.Record(item, [], new() { ["batches"] = rows => json.Items(rows, Batch) }),
+            ["warnings"] = rows => json.Items(rows, Warning),
+            ["decisions"] = rows => json.Items(rows, row => json.Record(row, ["id", "step"], new() { ["response"] = Action })),
+            ["screenshots"] = rows => json.Items(rows, row => json.Record(row, ["id", "path", "sha256"]))
         });
 
+    private JsonNode CommandQueue(JsonElement value) => json.Record(value, [], new()
+    {
+        ["commands"] = rows => json.Items(rows, row => json.Record(row,
+            ["id", "batchId", "position", "status", "step"], new() { ["response"] = Action }))
+    });
+
+    private JsonNode Batch(JsonElement value) => json.Record(value,
+        ["id", "initialObservation", "delivery"], new()
+        {
+            ["initialWarnings"] = JsonTextRedactor.Keep,
+            ["path"] = rows => json.Items(rows, row => json.Record(row,
+                ["kind", "commandId", "action", "status", "step", "observation", "uiChange", "timestamp"], new()
+                {
+                    ["warnings"] = JsonTextRedactor.Keep,
+                    ["target"] = target => json.Record(target, ["ref", "x", "y", "direction", "credential", "field"])
+                })),
+            ["observations"] = rows => json.Items(rows, row => json.Record(row,
+                ["id", "screen", "uiObservation", "timestamp", "screenshot", "ui"])),
+            ["warnings"] = rows => json.Items(rows, Warning)
+        });
+
+    private JsonNode Warning(JsonElement value) => json.Record(value,
+        ["id", "code", "level", "timestamp", "step", "device", "platform", "target"]);
+
     private JsonNode Check(JsonElement value) => json.Record(value,
-        ["source", "status", "requirementId", "step", "screenshot"]);
+        ["id", "taskId", "source", "status", "requirementId", "step", "screenshot"]);
 
     private JsonNode Requirement(JsonElement value) => json.Record(value,
         ["id", "status", "startLine", "endLine", "step", "screenshot"]);
 
-    private JsonNode Step(JsonElement value) => json.Record(value, ["step", "screenshot", "ui"], new()
+    private JsonNode Step(JsonElement value) => json.Record(value,
+        ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], new()
     {
         ["action"] = Action,
         ["crash"] = CrashKind
@@ -45,9 +79,11 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
 
     private JsonNode? Action(JsonElement value) => value.ValueKind == JsonValueKind.String
         ? JsonTextRedactor.Keep(value) // String actions are host-generated step names.
-        : json.Record(value, ["action", "ref", "direction", "credential", "field", "completion"], new()
+        : json.Record(value, ["action", "ref", "direction", "credential", "field", "completion", "planStepId", "commandId", "batchId", "batchPosition"], new()
         {
-            ["checks"] = items => json.Items(items, Check)
+            ["checks"] = items => json.Items(items, Check),
+            ["context"] = item => new PlanningRedactor(json).ContextSelection(item),
+            ["recovery"] = item => new PlanningRedactor(json).Recovery(item)
         });
 
     private JsonNode Crash(JsonElement value) => json.Record(value, ["step", "matchingAttempt"], new()

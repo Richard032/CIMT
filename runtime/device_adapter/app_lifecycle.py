@@ -1,16 +1,22 @@
 """Installation and reset of the application under test."""
 
 import subprocess
+import time
 from errors import InfrastructureError
-from device_target import DeviceTarget
+from .target import DeviceTarget
 
 
 class AppLifecycle:
     """Resets the app container and runs optional application-specific hooks."""
 
-    def __init__(self, commands, call):
+    SETTLE_SECONDS = 20
+
+    def __init__(self, commands, call, check=lambda: None, clock=time.monotonic, sleep=time.sleep):
         self.commands = commands
         self.call = call
+        self.check = check
+        self.clock = clock
+        self.sleep = sleep
 
     def app_present(self, app_id):
         data = self.commands.native(["apps", "list"]).get("data", [])
@@ -24,6 +30,17 @@ class AppLifecycle:
         self._clear_android_data(app_id)
         self._run_hooks(app_id, target)
         self.call("mobile_launch_app", packageName=app_id)
+
+    def wait_after_launch(self):
+        """Give the newly installed app time to settle before testing starts."""
+        until = self.clock() + self.SETTLE_SECONDS
+        while True:
+            # Short waits keep user cancellation and the run deadline active.
+            self.check()
+            remaining = until - self.clock()
+            if remaining <= 0:
+                return
+            self.sleep(min(0.1, remaining))
 
     @staticmethod
     def _check_app_id(app_id):

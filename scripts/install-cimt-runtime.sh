@@ -22,4 +22,18 @@ fi
 "$CIMT_INSTALL_ROOT/tools/python/bin/python" -m pip install --disable-pip-version-check -r "$SOURCE_ROOT/runtime/requirements.txt"
 mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime"
 cp "$SOURCE_ROOT/runtime/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
+for runtime_package in test_planning stopping_policy ai_instructions device_adapter; do
+  mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package"
+  cp "$SOURCE_ROOT/runtime/$runtime_package/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package/"
+done
+# Remove source modules replaced by the named packages and execution components.
+rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/exploration_memory.py"
+rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/decision_recovery.py"
+# Reply decoding belongs to execution, outside the instruction layer.
+rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/ai_exchange/replies.py"
+rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/ai_exchange/__init__.py"
+# The adapter implementation now lives only in its own package.
+for old_module in mobile app_lifecycle device_commands device_target mcp_client rpc_messages screen_capture; do
+  rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$old_module.py"
+done
 echo "CIMT support runtime installed."
