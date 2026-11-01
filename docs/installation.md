@@ -1209,3 +1209,13 @@ Installed PR #6 revision f8ad72dc19b3bfde90d9f132fe9c8d094fe2cb3d after verifyin
 
 No application build, test run, replay, device interaction or paid API request was started. No private input, credential, retained app, historical report, dependency or third-party tool was changed. Installation verification is separate from live acceptance of the new batch feedback.
 
+
+
+### Batch-feedback emulator replay verification — 1 November 2026
+
+The requested replay used the latest installed batch-feedback runtime and retained Debug_Pride builds on the configured iOS simulator and Android emulator. Report report_2026-11-01_13-25-47-461 finalized with exit 3, failed verdict and incomplete execution. Its HTML and JSON include both platforms and two verified PNG evidence files.
+
+iOS installed/launched its retained app, completed the 20-second settling wait and saved masked observations. Three matching startup terminations stopped only its objective before inference. Android continued, recovered the known device-server startup error after two failed read-only probes, installed/launched the retained app, completed its 20-second settling wait and saved a masked observation. Its foreground-app lookup then failed with could not determine foreground app; no Android crash or ANR warning was recorded.
+
+The inference ledger recorded zero requests and zero accounted or uncertain cost. No AI-selected action or command batch ran, so this replay does not qualify live batch feedback, ANR handling or AI continuation. No repository clone, application build, third-party tool/source change or private-configuration edit was performed. Helpers were finalized and the report was retained.
+

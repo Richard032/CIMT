@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## 1 November 2026 — batch-feedback runtime emulator replay
+
+The requested replay used the latest installed batch-feedback runtime and retained Debug_Pride builds on the configured iOS simulator and Android emulator. Report report_2026-11-01_13-25-47-461 finalized with exit 3, failed verdict and incomplete execution. Its HTML and JSON include both platforms and two verified PNG evidence files.
+
+iOS installed/launched its retained app, completed the 20-second settling wait and saved masked observations. Three matching startup terminations stopped only its objective before inference. Android continued, recovered the known device-server startup error after two failed read-only probes, installed/launched the retained app, completed its 20-second settling wait and saved a masked observation. Its foreground-app lookup then failed with could not determine foreground app; no Android crash or ANR warning was recorded.
+
+The inference ledger recorded zero requests and zero accounted or uncertain cost. No AI-selected action or command batch ran, so this replay does not qualify live batch feedback, ANR handling or AI continuation. No repository clone, application build, third-party tool/source change or private-configuration edit was performed. Helpers were finalized and the report was retained.
+
 ## 1 November 2026 — complete batch-feedback installation
 
 Installed PR #6 revision f8ad72dc19b3bfde90d9f132fe9c8d094fe2cb3d after verifying all 265 tracked source files. Published the matching .NET command host from existing local dependencies. Under the machine lock, backed up and replaced 15 files and verified all 64 installed host/runtime/license files against the prepared source and publication. Installed CLI help and runtime imports passed, together with synthetic batch-path, ANR identifier, historical-context, FIFO cancellation, startup-readiness, settling-delay and stopping-policy smoke checks. The local receipt retains file hashes and the backup location.
