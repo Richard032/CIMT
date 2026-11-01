@@ -1,7 +1,7 @@
 # CIMT installation and setup guide
 
-Version: 0.33
-Last updated: 30 October 2026  
+Version: 0.34
+Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
 
@@ -1115,3 +1115,16 @@ Installed public CLI help, worker imports, the context/recovery schema and the l
 Install the matching published host, top-level runtime modules and complete ai_exchange/, test_planning/ and stopping_policy/ packages together. scripts/install-cimt-runtime.sh includes these packages. No new dependency, credential, YAML field or service is needed. The matching HTML renderer shows full redacted replies and resource feedback; a runtime-only replacement would omit that view.
 
 This update removes response-format/semantic evaluation and the three-response correction stop. Existing source/offline tests use no real devices or paid inference. The update is not installed by this source task. Revision 4125658 remains the last recorded installed revision; the later action-ownership and resource-exchange changes require a separate requested installation. Existing private inputs, retained apps and reports remain untouched. See [AI Resource Exchange](ai-resource-exchange.md).
+
+### Installed branch verification — 31 October 2026
+
+The product owner subsequently requested installation and replay. Verified all 244 tracked source files against PR #6 revision `7c784fc98e976aa5ddf951b3451a95b681c041d0`, then published the matching host. Under the machine run lock, backed up and replaced 23 affected files. All 53 host/runtime/license files matched their prepared bytes, including the complete ai_exchange/, test_planning/ and stopping_policy/ packages.
+
+Installed CLI help, worker imports, minimal command decoding, note handling, absence of a strict response schema and device-local/global stopping rules passed offline smoke checks. The local installation receipt retains the backup location and per-file hashes. No dependency installation or private configuration change was needed. Retained apps, historical reports, build workers and third-party tools were preserved. Live replay is a separate execution and is not implied by these installation checks.
+
+
+## 46. AI Instruction and Context source update
+
+The source installer now includes the full ai_instructions/, test_planning/ and stopping_policy/ packages and matching top-level runtime modules. It removes obsolete ai_exchange/replies.py, ai_exchange/__init__.py and decision_recovery.py; command_reply.py and ai_interaction.py replace those execution responsibilities. action_prompt.py preserves existing imports. No new library, key, YAML setting or Appium service is required. Mobile MCP and its native tools remain unchanged.
+
+The instruction layer refreshes verified masked UI information before each AI request and supplies human-interface metadata alongside sources and retained AI-selected context. This is a source update with offline tests. It has not been installed or run against a mobile app as part of this task. The last recorded installed source revision remains 7c784fc. Use the existing installation backup, machine lock and byte-verification procedure before a separately requested update. Retained app artifacts, private inputs and historical reports are not modified by this source increment. See [AI Instruction and Context](ai-instruction-context.md).

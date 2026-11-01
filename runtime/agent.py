@@ -1,7 +1,8 @@
 """Coordinates cost reservation, API access, and action parsing."""
 
 import json
-from action_prompt import ActionPromptBuilder, parse_action
+from ai_instructions.instructions import ActionPromptBuilder
+from command_reply import read_reply
 from openai_transport import OpenAiTransport
 
 
@@ -46,7 +47,7 @@ class Agent:
             resource_feedback,
             exploration_memory,
         )
-        return parse_action(self._request_action(body))
+        return read_reply(self._request_action(body))
 
     def _request_action(self, body):
         state = json.loads(body['input'][1]['content'][0]['text'])

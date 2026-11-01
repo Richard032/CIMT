@@ -1,5 +1,13 @@
 # CIMT implementation status
 
+## Input-only AI Instruction and Context layer — 1 November 2026
+
+Implemented FR-97 / AC-67 with Mobile MCP retained as confirmed by the product owner. runtime/ai_instructions/ now owns instructions, setup/scope, source requirements, credential aliases, fresh masked screen observations, human-interface metadata and AI-selected retained context. It contains no reply decoder, response evaluator, provider transport or action dispatcher. command_reply.py and AiInteraction remain execution components. The existing text-command transport is unchanged; concatenated/prose replies still produce resource feedback rather than guessed actions. This increment does not claim to solve that separate transport limitation.
+
+Removed the pre-action repetition gate. Facts from actually executed actions become recovery notices in the next instruction, without vetoing a fourth selected tap or choosing a substitute action. Every AI instruction request refreshes masked UI information, including after a note. Full UI evidence and unavailable-control flags remain available. Existing privacy, shared limits, crash rules, AI-owned context relevance and saved findings remain.
+
+Updated requirements v0.31, architecture v0.37, product v0.32, installation v0.34, mapping and development guidance. Added the layer responsibility/sequence document. Source packaging replaces obsolete modules without changing third-party tools or adding dependencies. No installation, mobile test, app build or paid inference was performed for this task. Verification passed: 349 Python unit tests, 22 runtime-policy checks and 22 fake-tool public CLI/lifecycle checks (393 offline checks). Installer shell syntax passed. Live usefulness and latency remain separate qualification work.
+
 ## AI Resource Exchange, no response evaluation — 31 October 2026
 
 Implemented FR-96 / AC-66 and revised FR-65/FR-83 and related acceptance criteria. The separate runtime/ai_exchange/ package reads one command mechanically and retains complete AI reply text. Removed the strict provider schema, whole-response semantic/format evaluators and three-attempt exhaustion. Optional checks, plans, paraphrased quotations, context and unknown IDs do not approve commands. Unbound records do not update unrelated catalogue items. Prose/multiple objects become notes with resource feedback, without a guessed device action. Notes leave recovery pending and do not enter device action history. AI finish is honored; unresolved work remains incomplete in the report rather than forcing another host-selected decision.

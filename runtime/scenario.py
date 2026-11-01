@@ -10,12 +10,12 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
-from errors import DeviceActionError, InfrastructureError
+from errors import DeviceActionError, InfrastructureError, NoProgressAction
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
-from decision_recovery import DecisionRecovery
+from ai_interaction import AiInteraction
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -81,7 +81,7 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
-        self.decisions = DecisionRecovery(inputs, config, redactor, control, activity)
+        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity)
 
     def run(self, mobile, build, result, agent, publish):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
@@ -115,17 +115,11 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action, repetition = self._choose(mobile, session, agent, evidence, publish)
-            if repetition:
-                self.decisions.request_recovery(mobile, session, 'repetition', repetition, publish, evidence)
-                session.recovery.pending['proposal'] = self.redactor.records.action(action)
-                self._save_plan(session)
-                publish()
-                continue
+            action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
                 continue
             if action['action'] == 'recover':
-                self.decisions.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
+                self.ai_interaction.request_recovery(mobile, session, 'AI detected loop', action['recovery']['reason'], publish, evidence)
                 continue
             if action["action"] == "done":
                 self._complete(session, action)
@@ -155,6 +149,16 @@ class ScenarioRunner:
                 publish()
             if cancelled:
                 return
+            self._share_repetition(mobile, session, before, action, evidence, publish)
+
+    def _share_repetition(self, mobile, session, before, action, evidence, publish):
+        """Share facts after execution. Never use them to veto an AI command."""
+        try:
+            session.planner.memory.check_repetition(before, action)
+        except NoProgressAction as error:
+            # The completed action already has fresh masked evidence.
+            self.ai_interaction.request_recovery(mobile, session, 'repetition', str(error),
+                publish, evidence, refresh=False)
 
     def _operation(self, name, mobile, target):
         return self.activity.operation(name, mobile.device, target) if self.activity else nullcontext()
@@ -237,7 +241,7 @@ class ScenarioRunner:
         self._save_plan(session)
         publish()
         with self._operation("Request AI action", mobile, session.result["target"]):
-            action, repetition = self.decisions.choose(mobile, session, agent, evidence, publish)
+            action = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
@@ -246,7 +250,7 @@ class ScenarioRunner:
         session.recovery.acknowledge(action)
         decisions = session.result.setdefault('decisions', [])
         decisions.append(dict(id=len(decisions), step=len(session.result['steps']),
-            response=self.redactor.records.action(action), repetitionSignal=self.redactor.text(repetition or '')))
+            response=self.redactor.records.action(action)))
         self._save_plan(session)
         if action["action"] != "done" and not session.result["remaining"]:
             session.result["remaining"].append(UNFINISHED_OBJECTIVE)
@@ -263,7 +267,7 @@ class ScenarioRunner:
             publish()
         self.control.check()
         publish()
-        return action, repetition
+        return action
 
     def _save_plan(self, session):
         session.result.update(self.redactor.records.planning(session.planner.saved()))

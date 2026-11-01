@@ -1,12 +1,12 @@
-# AI Resource Exchange
+# AI command resources and replies
 
-Updated: 31 October 2026. Implements FR-96 and AC-66. This is a source change with offline checks; installation and live acceptance are separate.
+Updated: 1 November 2026. Describes FR-96/AC-66 execution resources; FR-97 defines the input-only layer. This is a source change with offline checks; installation and live acceptance are separate.
 
 ## Responsibility
 
-AI owns testing decisions, its plan, source interpretation, reporting content and context relevance. CIMT provides resources, executes the requested supported command and returns actual outcomes. It does not evaluate the response format or require a correct plan, quote, source link or path ID before an action.
+FR-97 supersedes the former reply-reading layer responsibility. [AI Instruction and Context](ai-instruction-context.md) now owns inputs and retained information only, in runtime/ai_instructions/. It queries the confirmed Mobile MCP adapter for fresh masked screen/control information before each instruction request. It does not receive or evaluate replies.
 
-The AI Resource Exchange layer lives in runtime/ai_exchange/. It reads provider replies and binds command arguments. It depends only on standard Python modules and the shared infrastructure error type. It does not access a device, choose a target, judge findings or select relevant history. Test Planning and Exploration stores the AI's optional records; execution supplies evidence and dispatches commands. The installer copies all three layer packages, including stopping_policy/.
+This document describes the separate execution command protocol. runtime/command_reply.py binds explicit commands; Agent owns transport/accounting; AiInteraction coordinates requests and feedback; ActionExecutor executes. Test Planning and Exploration and the evidence store retain information for future instructions. No response approval is delegated to the input layer.
 
 ## Resources given to AI
 
@@ -36,7 +36,7 @@ AI task, path and requirement references are stored without semantic approval. K
 
 CIMT reports the AI's findings and keeps known failures, crashes and unresolved work visible. It does not judge whether an explanation or quotation is correct. An unfamiliar result cannot manufacture a passed verdict. AI may finish when it chooses; the report still shows any recorded unresolved work and marks completion incomplete. No host-selected reconsideration call is added merely because a finish conflicts with the plan.
 
-Every repetition signal still asks for AI-directed recovery with fresh masked evidence. The AI chooses its next approach. A command does not need a matching structured recovery acknowledgement. Notes and recall requests leave recovery pending; they are not recorded as device actions or completed recovery commands.
+Repetition facts recorded after execution are supplied as AI-directed recovery information with fresh masked evidence in the next instruction. They do not veto a chosen command. The AI chooses its next approach. A command does not need a matching structured recovery acknowledgement. Notes and recall requests leave recovery pending; they are not recorded as device actions or completed recovery commands.
 
 ## Evidence and report
 
@@ -51,7 +51,7 @@ The existing Python suites cover minimal commands, optional records, unbound IDs
 ```mermaid
 sequenceDiagram
     participant Run as Execution
-    participant Resources as AI Resource Exchange
+    participant Resources as Command Decoding
     participant AI as Configured Model
     participant Device as Device Adapter
     participant Records as Local Records and HTML

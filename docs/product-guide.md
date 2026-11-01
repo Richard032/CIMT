@@ -1,7 +1,7 @@
 # CIMT product documentation
 
-Version: 0.31
-Date: 31 October 2026  
+Version: 0.32
+Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -483,3 +483,9 @@ The AI decides which history to keep in its working context, summarise, omit or 
 Every detected unproductive loop requests AI-directed recovery. Repeated-action facts and fresh masked evidence help the AI reconsider its plan and retrieve earlier discoveries. The AI chooses whether to try a revised approach, explain intentional repetition or finish blocked. It can request recovery itself before the repetition counter signals. CIMT does not select a replacement button or reset the app. Renewed loops request renewed recovery instead of stopping after three recovery episodes. Time, budget, cancellation and independent crash/infrastructure policies still apply.
 
 HTML shows AI-selected working context and AI-directed recovery in the device scenario. Run overview includes token/cache usage and request-purpose details when available. Missing provider details remain unavailable; the accounted cost remains a conservative bound. Filtering, recall and recovery also consume the configured budget. No new command, YAML field, API key or model is needed. These changes require the updated runtime; they have not been qualified in a new live run. See [the detailed flow](ai-context-and-recovery.md).
+
+## AI instruction and context responsibility
+
+CIMT keeps Mobile MCP for device control. Before each AI instruction request, the AI Instruction and Context layer refreshes masked UI information and supplies the current human-interface controls, testing instructions, requirements, setup and AI-selected history. Availability flags describe controls; they do not approve the AI's target. Full masked UI evidence remains available alongside the control catalogue.
+
+The layer does not examine AI replies or choose actions. Execution reads and performs the supported command and records its actual outcome. Repetition facts inform the next instruction after an action; they do not block a chosen command. The existing text-command transport remains, including note feedback when no single command can be decoded. This change does not migrate to Appium or function calling. See [AI Instruction and Context](ai-instruction-context.md).

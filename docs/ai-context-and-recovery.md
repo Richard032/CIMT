@@ -1,6 +1,6 @@
 # AI-owned context and recovery
 
-Date: 31 October 2026. Requirements: FR-88–FR-96. Source implementation and offline validation; installation and live acceptance are separate.
+Date: 31 October 2026. Requirements: FR-88–FR-97. Source implementation and offline validation; installation and live acceptance are separate.
 
 ## Responsibility
 
@@ -8,7 +8,7 @@ FR-96 removes response-format evaluation and three-attempt correction exhaustion
 
 The AI exclusively decides what history and context to retain in working memory, summarise, omit from a request or retrieve. CIMT stores complete records and resolves the AI's exact selections. It does not rank relevance, choose a history window, silently truncate records or choose app recovery actions. Original instructions and requirements remain authoritative. An AI summary is working memory, not a replacement correctness oracle.
 
-The existing Test Planning and Exploration layer owns this policy. ContextMemory applies selections, TestPlan owns task/source identity, ExplorationMemory/ApplicationMap hold observations and LoopRecovery holds recovery requests. Execution owns device calls, storage, report publication, privacy and mechanical resource limits. All inference uses the configured model and shared budget/deadline.
+Test Planning and Exploration stores the records and AI selections. AI Instruction and Context supplies those retained records and fresh masked screen/control information without receiving replies. ContextMemory applies selections, TestPlan owns task/source identity, ExplorationMemory/ApplicationMap hold observations and LoopRecovery holds recovery requests. Execution owns device calls, storage, report publication, privacy and mechanical resource limits. All inference uses the configured model and shared budget/deadline.
 
 ## Context contract
 
@@ -45,7 +45,7 @@ Supported pricing profiles with prompt-cache controls place an explicit cache br
 
 ## Recovery contract
 
-Three unchanged attempts or repeated traversals without discovery provide repetition facts. They pause new app actions and request fresh masked evidence and an AI assessment. A signal does not itself prove a functional defect or an unproductive loop. The AI determines whether repetition is intentional and chooses its revised approach. AI may also return recover with recovery id -1, decision replan and a reason to request this workflow before counters signal.
+After executed unchanged attempts or repeated traversals without discovery, CIMT supplies repetition facts and a recovery notice in the next instruction with fresh masked evidence. This does not veto an AI-selected command. A signal does not itself prove a functional defect or an unproductive loop. The AI determines whether repetition is intentional and chooses its revised approach. AI may also return recover with recovery id -1, decision replan and a reason to request this workflow before counters signal.
 
 Every pending request has a stable ID. Its response includes:
 
@@ -73,7 +73,7 @@ Map identity distinguishes screen structure, observed input values and last-obse
 
 HTML shows AI-selected working context, source-linked tasks, path scope, the application map and AI-directed recovery. Recovery entries identify trigger, reason, AI decision/explanation and waiting/continued/blocked status. A waiting entry after cancellation means no completed recovery decision was recorded. JSON retains full redacted AI replies, optional decisions, selections and resource feedback; HTML exposes the original replies as escaped text. The run overview includes available input/output/cache counts and request-purpose usage records. Both report boundaries redact text while preserving typed IDs. Historical reports remain unchanged.
 
-Existing offline suites cover AI-only selection, exact paging, action-free retrieval, capacity-only reduction requests, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new CIMT app run is part of this source increment.
+Existing offline suites cover AI-only selection, exact paging, action-free retrieval, capacity-only reduction requests, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new CIMT app run is part of this source increment. FR-97 keeps Mobile MCP and separates the input-only layer from command decoding and execution; see [AI Instruction and Context](ai-instruction-context.md).
 
 ## Sequence
 

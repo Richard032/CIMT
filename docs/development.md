@@ -12,7 +12,7 @@ Keep methods short enough to read without searching through unrelated work. Long
 
 ## Layer folders
 
-Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Resource Exchange lives in runtime/ai_exchange/. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
+Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Instruction and Context lives in runtime/ai_instructions/. It supplies inputs and retained knowledge; reply decoding is runtime/command_reply.py and dispatch stays in execution. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
 
 ## Comments
 
@@ -135,3 +135,7 @@ ReplayReportTests in the existing xUnit project verify a new replay folder, immu
 ## Test Planning and Exploration boundary
 
 runtime/test_planning is a separate policy layer. TestPlanner is the execution-facing entry point. The package owns source-linked plans, observed application states, input candidates, path scope and no-progress rules; it must not import device clients, API clients, process/file services or report renderers. Execution supplies masked observations and recorded checks, and executes one accepted action. Report rendering/redaction remains in its existing boundary. Use the existing Python unittest suite, including test_test_planner.py; its dependency-boundary test guards this separation. Packaging must include the package directory and __init__.py, not only top-level modules.
+
+## Instruction-layer boundary — 1 November 2026
+
+Keep ai_instructions/ input-only: sources, fresh masked adapter observations, human-interface metadata and retained AI-selected context. Do not import Agent, provider transport, reply decoding or action dispatch into that folder. CommandReply and AiInteraction are execution components; no approval call into the input layer may precede dispatch. Share repetition facts after actual execution instead of inspecting the proposed response to veto it. Existing tests/test_ai_instructions.py and ScenarioTests cover this boundary. The full Python and existing fake-tool CLI suites remain offline.

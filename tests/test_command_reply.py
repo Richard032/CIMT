@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
-from ai_exchange.replies import read_reply
+from command_reply import read_reply
 from test_planning.context_memory import ContextMemory
 from test_planning.loop_recovery import LoopRecovery
 
@@ -16,7 +16,7 @@ def reply(text):
         content=[dict(type='output_text', text=text)])])
 
 
-class AiExchangeTests(unittest.TestCase):
+class CommandReplyTests(unittest.TestCase):
     def test_minimal_device_command_needs_no_plan_or_report_fields(self):
         result = read_reply(reply('{"action":"tap","ref":"@earlier"}'))
         self.assertEqual(result['action'], 'tap')

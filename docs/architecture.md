@@ -1,7 +1,7 @@
 # CIMT architecture
 
-Version: 0.36
-Date: 31 October 2026  
+Version: 0.37
+Date: 1 November 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
 
@@ -31,6 +31,9 @@ flowchart TD
     S --> W[Isolated device workers]
     W --> A[Device adapter]
     A --> D[Startup snapshot of physical Android / iOS devices]
+    W --> N[AI Instruction and Context]
+    N --> A
+    N --> E
     W --> P[OpenAI gateway and shared budget ledger]
     W --> K[Execution Stopping Policy]
     O --> E[Local event and evidence store]
@@ -49,7 +52,7 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 | Mac lock / run context | Enforce one run per host and establish run identity, deadline, startup devices, and output paths. |
 | Repository/build manager | Clone selected branch, resolve commit, run configured builds, keep continuing after target build failures. |
 | Scheduler | Enumerate compatible target/device pairs; serialize work per device; use up to two device workers. |
-| Scenario planner | Interpret text; map requirements; split scenarios; record ambiguity and overrides without prompting. |
+| Scenario planner | Retain the AI-owned plan, mappings, ambiguity and overrides; supply them as context without selecting the next test. |
 | Device worker | Reset, setup/login, execute, observe, collect step screenshots, recover crashes, and replay. |
 | Device adapter | Discovery, installation, launch/stop, data reset, UI observations, actions, screenshots, crash diagnostics. |
 | OpenAI gateway | Centralize model access, redact inputs, describe command resources, account usage, and reserve maximum cost. |
@@ -86,7 +89,7 @@ MCP connection/protocol/timeouts, failed reset verification, masking/storage fai
 
 ### Layer folders — DR-01
 
-Every explicitly defined architectural layer has its own clearly named folder. The dedicated layers are Test Planning and Exploration in `runtime/test_planning/`, Execution Stopping Policy in `runtime/stopping_policy/` and AI Resource Exchange in `runtime/ai_exchange/`. The exchange layer reads replies and binds command arguments using only the standard library and shared error types. The planning layer consumes supplied observations and AI decisions. The stopping layer depends only on typed runtime errors and supplied counts/results. These layers do not call devices, storage or providers. Execution components call these layers; the layers do not import execution components or each other.
+Every explicitly defined architectural layer has its own clearly named folder. The dedicated layers are Test Planning and Exploration in `runtime/test_planning/`, Execution Stopping Policy in `runtime/stopping_policy/` and AI Instruction and Context in `runtime/ai_instructions/`. The instruction layer prepares sources, queries the adapter for masked observations and uses retained AI-selected information. It does not receive replies, choose actions or own provider transport. The planning layer consumes supplied observations and AI decisions. The stopping layer depends only on typed runtime errors and supplied counts/results. Planning and stopping policies do not call devices, storage or providers. The instruction layer requests masked observations and stored context through supplied services; it does not operate app controls or call the provider. Execution components call these layers. The layers do not import execution components; AI Instruction and Context uses the planning package to describe controls and retrieve retained records.
 
 Configuration, orchestration, device adapters, evidence and reporting in the component table remain components with their existing source boundaries; that table does not define each component as an additional architectural layer. Any new layer must document its responsibility and dependencies and receive its own source folder. Packaging must include each full layer folder, including its package entry point. Tests remain in the existing test suites.
 
@@ -367,7 +370,7 @@ Permission decisions are controlled by testing instructions. The AI guidance req
 
 ## 23. AI replies and resource execution
 
-FR-96 replaces the earlier bounded response-correction policy. The separate runtime/ai_exchange/ layer reads provider text and binds one command's arguments without semantic or response-format evaluation. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. Prose or multiple command objects remain notes with resource feedback; CIMT does not guess which command to execute. See [AI Resource Exchange](ai-resource-exchange.md).
+FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. Prose or multiple command objects remain notes with resource feedback; CIMT does not guess which command to execute. See [AI Resource Exchange](ai-resource-exchange.md).
 
 Execution still enforces supported resources, bounds, privacy, shared limits and real provider/infrastructure failures. Legacy rejectedResponses records remain readable in old reports; new execution does not create response-format rejections.
 
@@ -377,7 +380,7 @@ ScenarioSession owns ExplorationMemory in addition to the existing coverage trac
 
 ScenarioRunner observes the current controls before choosing and records the action's actual UI result after observation/recovery, including action/evidence errors. History includes the control label and observed outcome instead of only action completed. Saved exploration contains all known paths/transitions. AI input includes up to 80 current controls with fresh refs, 40 pending paths, 40 stalled paths, the accepted pending plan, and 12 recent transitions; older attempts remain in the full memory and are available again on revisiting a view. Recent action history remains bounded to 24 records. No cross-run resume or change to initial app reset is implied.
 
-ExplorationMemory supplies repetition facts after three unchanged attempts or repeated traversals without discovered paths. NoProgressAction is now a repetition signal, not a malformed-response error. DecisionRecovery requests fresh evidence and AI-directed assessment through LoopRecovery; it does not choose a replacement path. AI can recall omitted history, replan, explain purposeful work or finish blocked. Each renewed signal requires renewed assessment, with no fixed semantic-recovery episode limit. There is no separate format-correction limit under FR-96. See section 31 and FR-88–FR-94, which supersede the earlier three-response no-progress stop. Crashes keep their independent three-matching-crash policy.
+ExplorationMemory supplies repetition facts after three unchanged attempts or repeated traversals without discovered paths. NoProgressAction carries repetition facts after execution. AiInteraction supplies fresh evidence and AI-directed assessment through LoopRecovery; it does not block a chosen command or select a replacement path. AI can recall omitted history, replan, explain purposeful work or finish blocked. Each renewed signal requires renewed assessment, with no fixed semantic-recovery episode limit. There is no separate format-correction limit under FR-96. See section 31 and FR-88–FR-94, which supersede the earlier three-response no-progress stop. Crashes keep their independent three-matching-crash policy.
 
 ## 25. Controlled interruption and partial reports
 
@@ -419,7 +422,7 @@ ReportEvidence permits contained local paths only, resolving aliases through Run
 
 The compact journal groups operation/context/status counts. It does not infer pairings because the journal has no unique operation ID. The complete ordered journal remains available with context filters. Large execution JSON is linked through the canonical machine report rather than duplicated inline. Partial/final publication, redaction, folder isolation and verdict calculation still use the existing pipeline.
 
-DecisionRecovery supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
+AiInteraction supplies the current platform/device/target as scoped setup context so a worker reports its own remaining plan. It does not erase contradictory historical observations or infer another worker's result. This is a prompt-context correction with no extra request or changed budget/permission/action policy.
 
 The briefly installed shared-latest page was removed after the product owner reaffirmed the existing per-execution folder contract. No change to the allocator, timestamps, work ownership, replay build reuse, outcome precedence, or historical evidence is required.
 
@@ -446,18 +449,20 @@ The existing configured model supplies summaries, retrieval choices and recovery
 
 ### Plan and evidence identity
 
-Concrete task/source validation remains before app dispatch; recall/recover can occur before a concrete goal is selected. Requirement tasks retain catalogue IDs, and instruction tasks retain source quotes. Checks now carry taskId; their display subject is not identity. CheckRecorder assigns monotonic check IDs, and TestPlan applies each recorded check once. An old inconclusive observation cannot erase a new blocked status. A later pass cannot erase a known failure. Visiting a path still does not prove an expectation passed.
+AI may refine its goals and source links using the supplied information; no concrete-goal or source approval gates dispatch. Requirement tasks retain catalogue IDs, and instruction tasks retain source quotes. Checks now carry taskId; their display subject is not identity. CheckRecorder assigns monotonic check IDs, and TestPlan applies each recorded check once. An old inconclusive observation cannot erase a new blocked status. A later pass cannot erase a known failure. Visiting a path still does not prove an expectation passed.
 
 ### Mapping and recovery
 
 Screen/input structure and current input values form map keys; passive text changes remain observation fingerprints/evidence rather than new button paths. The AI still judges the meaning of UI changes. AI-observed configuration remains last-observed context, not proof of persistence. Configuration refinement preserves route relationships; changed known values do not globally alias earlier variants. Direct verified routes remain guidance, with fresh evidence at every action.
 
-Three unchanged attempts or repeated traversals without discovery provide a repetition signal. DecisionRecovery pauses app dispatch, refreshes masked evidence and opens a LoopRecovery request. AI may recall omitted records, replan, explain intentional work or finish blocked. A recover response lets AI report a loop before counters detect it. Each renewed signal requests a fresh AI assessment; no matching structured acknowledgement is required before its command. Notes and recall leave recovery pending. There is no three-episode semantic stop or response-format exhaustion. Time/budget/cancellation, transport/masking failures and three-matching-crash recovery remain independent. AI finish is honored; recorded unresolved work remains visible and completion remains incomplete without an automatic host-selected reconsideration call.
+Three unchanged attempts or repeated traversals without discovery provide a repetition signal. After an executed action, ScenarioRunner records repetition facts and opens a LoopRecovery notice. AiInteraction supplies fresh masked evidence and that notice in the next instruction; it does not veto the AI command. AI may recall omitted records, replan, explain intentional work or finish blocked. A recover response lets AI report a loop before counters detect it. Each renewed signal requests a fresh AI assessment; no matching structured acknowledgement is required before its command. Notes and recall leave recovery pending. There is no three-episode semantic stop or response-format exhaustion. Time/budget/cancellation, transport/masking failures and three-matching-crash recovery remain independent. AI finish is honored; recorded unresolved work remains visible and completion remains incomplete without an automatic host-selected reconsideration call.
 
 Execution journals accepted decisions, selections, pending/completed recovery records, checks and outcomes before cancellation boundaries. HTML renders working context and recovery alongside the plan/map; the usage ledger records input/output/cache information without claiming an invoice. Redaction preserves generated identities at both Python and .NET boundaries. Historical reports remain unchanged. Representative live qualification is pending; this change does not claim all-path coverage, automatic permission consent or measured savings.
 
-## 33. AI Resource Exchange layer
+## 33. AI Instruction and Context layer
 
-FR-96 is implemented in runtime/ai_exchange/. The layer owns provider reply reading and mechanical command binding, with only standard-library and shared error dependencies. It has no device, storage, planning-decision or relevance policy. ActionPromptBuilder supplies source authority, current masked evidence, exact AI-selected records and command descriptions. ScenarioRunner stores full redacted replies, optional records and resource feedback; ActionExecutor handles actual device calls. Test Planning and Exploration stores records without approving their meaning. The installer includes the complete ai_exchange/, test_planning/ and stopping_policy/ packages. Install the matching runtime and HTML host together.
+FR-97 changes the layer to inputs and retained information only. runtime/ai_instructions/ contains InstructionContext, ActionPromptBuilder and the human-interface catalogue. Before each AI request, InstructionContext queries the supplied Mobile MCP adapter for a fresh verified masked screen and retains the observation. It assembles instructions, requirements, setup/scope, aliases, resources and the AI-selected context from the existing planning/evidence stores. All masked elements remain evidence; the separate humanInterface catalogue describes adapter-declared controls, including unavailable controls with their state flags. It is not an action whitelist.
 
-Missing or inconsistent optional metadata never vetoes a supported command. Unknown references stay unbound, not reassigned to other evidence. The Responses text transport remains; this increment is not a migration to function calling. See [the resource contract and sequence](ai-resource-exchange.md). Source/offline validation is separate from installation and live exploration acceptance.
+Reply reading is in runtime/command_reply.py, provider/accounting in Agent, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. Current text-command decoding remains; this change does not introduce batching or function calling. The owner confirmed Mobile MCP, so no Appium adapter is added.
+
+DR-01 packaging includes the full ai_instructions/, test_planning/ and stopping_policy/ folders. Remove obsolete ai_exchange source modules and decision_recovery.py when installing. Existing action_prompt.py imports preserve caller compatibility. See [responsibilities, tradeoffs and sequence](ai-instruction-context.md). Source/offline checks remain separate from installation and live qualification.

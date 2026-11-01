@@ -1,8 +1,12 @@
 # Complete requirement mapping
 
+## Input-only layer and human-interface information
+
+FR-97 / AC-67 map to runtime/ai_instructions/: InstructionContext, ActionPromptBuilder and human_interface. They provide sources, credential aliases, fresh masked adapter observations and exact AI-selected context. Reply decoding is a separate execution component. ScenarioRunner supplies repetition notices after execution instead of vetoing the proposed command. tests/test_ai_instructions.py verifies control/source information and import boundaries; ScenarioTests verifies refresh after a note, fourth-tap execution, recovery information and shared limits. Mobile MCP remains the confirmed adapter. See [AI Instruction and Context](ai-instruction-context.md).
+
 ## AI replies and resource exchange
 
-FR-96 / AC-66 supersede the earlier FR-65/AC-39 response-correction contract. runtime/ai_exchange/replies.py binds explicit commands and preserves full original text. DecisionRecovery supplies resources without response evaluation. CheckRecorder and TestPlanner store optional AI records; unknown joins remain unbound. ScenarioRunner keeps notes/feedback and honors AI finish while reporting unresolved work. PlanningHtmlRenderer displays redacted/escaped full replies. Existing suites cover minimal commands, more than three notes, optional metadata, unavailable addresses, shared limits and privacy. See [AI Resource Exchange](ai-resource-exchange.md).
+FR-96 / AC-66 supersede the earlier FR-65/AC-39 response-correction contract. runtime/command_reply.py binds explicit commands and preserves full original text. AiInteraction coordinates requests without response approval; input preparation is in ai_instructions/. CheckRecorder and TestPlanner store optional AI records; unknown joins remain unbound. ScenarioRunner keeps notes/feedback and honors AI finish while reporting unresolved work. PlanningHtmlRenderer displays redacted/escaped full replies. Existing suites cover minimal commands, more than three notes, optional metadata, unavailable addresses, shared limits and privacy. See [AI Resource Exchange](ai-resource-exchange.md).
 
 ## Stopping scope and layer folders
 

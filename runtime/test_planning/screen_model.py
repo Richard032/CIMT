@@ -28,9 +28,14 @@ def label(element):
 
 def control_kind(element):
     """Use available semantics. Unknown generic views need an AI identification."""
-    kind = (element.get('type', '') + ' ' + element.get('role', '')).lower()
     if element.get('enabled') is False or element.get('visible') is False:
         return ''
+    return declared_control_kind(element)
+
+
+def declared_control_kind(element):
+    """Read control semantics separately from visibility and enabled state."""
+    kind = (element.get('type', '') + ' ' + element.get('role', '')).lower()
     if element.get('editable') is True or any(x in kind for x in ['edittext', 'textfield', 'xcuielementtypetextview', 'entry', 'input']):
         return 'text'
     if any(x in kind for x in ['switch', 'checkbox', 'toggle']):
