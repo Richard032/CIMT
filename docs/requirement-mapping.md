@@ -1,5 +1,9 @@
 # Complete requirement mapping
 
+## Complete ordered batch results
+
+FR-101 / AC-71 map to BatchFeedback (ordered paths, evidence references and delivery), ObservationRecorder (verified observations/system warnings), device_adapter/warnings.py (system ANR identifier), ScenarioRunner/CommandQueue (actual results, cancelled tails and deferred queued finish), AiInteraction/InstructionContext/ActionPromptBuilder (mandatory new feedback), ScenarioEvidence (verified deduplication), batches in TestPlanner/ContextMemory (exact historical retrieval), Python/.NET redaction and BatchFeedbackHtmlRenderer. Existing test_batch_feedback.py, ScenarioTests, ContextCapacityTests and BatchFeedbackReportTests cover complete cycles, unchanged/unknown observations, independent updates, warnings, cancellation, delivery/finish semantics, privacy and contained HTML evidence. No new test project, third-party patch or live-success claim. See [batch feedback](batch-feedback.md).
+
 ## Post-installation settling delay
 
 FR-100 / AC-70 map to AppLifecycle.wait_after_launch (fixed duration, fake-clock/sleep seam and short checked waits) and Mobile.reset (ordering, shared-stop wiring and explicit activity operation). LaunchWaitTests and ConnectionTests in the existing test_device_startup.py cover 20 seconds, cancellation, shared/deadline stops, production callback wiring, ordering and failed-setup exclusion. No third-party source, new dependency or live-success claim. See [Device Adapter](device-adapter.md).

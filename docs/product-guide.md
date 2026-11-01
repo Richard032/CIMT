@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.36
+Version: 0.37
 Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -510,3 +510,11 @@ No new user command, YAML field, model or key is required. Install the matching 
 CIMT waits 20 seconds after successfully resetting, installing and launching an app, before its first screen/foreground checks and AI request. This applies to both platforms and to physical devices and emulators. The activity log shows Wait 20 seconds after app installation and launch.
 
 The wait is inside CIMT. Mobile MCP and its native helper remain unchanged and are already connected for installation. Cancellation and the run deadline remain active; waiting counts toward the time limit. Failed setup does not wait, and normal AI actions or later app restarts do not gain this extra pause. No configuration change is required. A new replay is needed to evaluate whether the delay helps the observed foreground problem.
+
+## Complete batch results and Android ANR warnings
+
+Each normal next AI request now includes the complete ordered execution path of the previous command batch, including successful commands and taps with no observed UI change. One initial observation is followed by each command and its result. Returning to the starting screen keeps intermediate navigation visible. Independent changes detected between commands get separate observations. Screenshots and UI data are referenced and reused when identical, rather than copied into each before/after record.
+
+The report distinguishes actual execution status from changed, no observed change and observation unavailable. A successful tap does not prove correct behavior. Android system ANR dialogs produce warnings with device, time and step in terminal/log/HTML; the warning alone does not prove a crash or stop testing. Existing privacy, cancellation, time/budget, crash and infrastructure rules remain active. Failed commands still cancel the remaining queue.
+
+Completing a batch returns its results for the next AI decision. A done after other commands is deferred to that handoff; AI reviews actual results before deciding whether to finish. AI can finish by returning done first in a fresh reply. Old batch results and full evidence remain retrievable under AI's context choices. No new user command, YAML setting, key, model or third-party tool is needed. Install matching host/runtime files; live qualification is separate. See [batch feedback](batch-feedback.md).

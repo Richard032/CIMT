@@ -31,11 +31,11 @@ Every decoded object is queued before the first dispatch. Each row has a scenari
 
 While commands remain queued, CIMT takes the next command without a new inference request. Before each iteration, the normal shared stop, startup and foreground checks run. Every device action still gets post-action crash checks and masked observation. Queuing does not disable credential-destination verification, masking, supported-capability checks or coordinate bounds. References may become unavailable after navigation; the adapter returns the actual outcome, and CIMT does not guess another target.
 
-A note or recall command is handled without a device action. recall changes the AI's selected context; if another command follows in the same batch, it runs before a new provider request. A done command ends the objective and leaves any later commands not executed. A recover command requests fresh evidence and an AI recovery decision; the rest of that batch is not executed.
+A note or recall command is handled without a device action. recall changes the AI's selected context; if another command follows in the same batch, it runs before a new provider request. A done returned first can end the objective and leaves later commands not executed. Under FR-101, done after other commands is deferred as batch handoff: its predicted checks/completion are not applied, later commands stay unexecuted, and actual results go to a fresh AI decision. A recover command requests fresh evidence and an AI recovery decision; the rest of that batch is not executed.
 
 If a command cannot execute, CIMT immediately cancels every pending command before post-action observation. This includes adapter interaction rejections and mechanical capability/argument failures. The failed command keeps its actual outcome; all pending commands become cancelled with the original redacted error. After the last attempted command, the next normal AI request includes the command/batch/order, actual error and cancelled-command count. A failure on the last queued command still provides feedback, with a zero count. There is no automatic retry or continuation of cancelled commands. AI may retrieve their records and issue new commands.
 
-Successful batches have no separate success acknowledgement or feedback-only request. CIMT continues autonomous testing through the normal next-decision request with current evidence and the AI-selected context. An observed crash or repetition recovery can still leave the pending tail not executed and return recovery information to AI. Fatal infrastructure errors retain their existing scope. Run-stop, budget, time, unavailable transport or privacy failures can prevent another AI request; cancel/retain the pending queue and keep diagnostics in the report instead of bypassing those rules. Cancellation, shared limits, leaving the permitted app workflow or ending a scenario preserve the remaining commands. No deferred command resumes automatically in another batch or replay.
+Successful batches have no separate acknowledgement-only request. Under FR-101, the normal next-decision request supplies the complete ordered batch path, even when AI omits historical context. It includes unchanged steps and observed intermediate navigation with compact evidence references, plus current evidence and AI-selected older context. An observed crash or repetition recovery can still leave the pending tail not executed and return recovery information to AI. Fatal infrastructure errors retain their existing scope. Run-stop, budget, time, unavailable transport or privacy failures can prevent another AI request; cancel/retain the pending queue and keep diagnostics in the report instead of bypassing those rules. Cancellation, shared limits, leaving the permitted app workflow or ending a scenario preserve the remaining commands. No deferred command resumes automatically in another batch or replay.
 
 ## Records and privacy
 
@@ -44,6 +44,7 @@ Successful batches have no separate success acknowledgement or feedback-only req
 | queued | Received and retained, not yet taken for execution. |
 | started | Taken from the queue; completion is not yet known. |
 | executed | ActionExecutor returned successfully; observation may still report a problem. |
+| deferred | A finish behind commands handed actual batch results back for a fresh AI decision. |
 | handled | A note, recall, recover or done command was handled without a device action. |
 | failed | The command did not return successfully; reason/step retain the available diagnostic. Partial effects are possible. |
 | interrupted | Execution stopped while this command was active; completion is not confirmed. |
@@ -103,3 +104,5 @@ sequenceDiagram
         Run->>AI: AI decides the next commands and context selection
     end
 ```
+
+FR-101 adds the [complete batch feedback contract](batch-feedback.md), mandatory new execution results, ANR warnings, identity-based evidence reuse and first-command-only objective completion. A finish predicted before its batch ran cannot replace actual result assessment. Closed scenarios retain explicit unsupplied delivery status when no further request is permitted.

@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.38
+Version: 0.39
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1185,3 +1185,19 @@ Read-only follow-up for the Android foreground failure: Android's activity/windo
 Install the matching runtime/device_adapter/app_lifecycle.py and mobile.py together using the existing lock, backup and byte-verification process. No .NET host, dependency, configuration or third-party helper change is required for this increment. After successful install/reset/launch, CIMT records and waits 20 seconds before first screen/foreground checks. The helper must already be connected to perform installation; its process startup/internal timeouts remain unchanged. Cancellation/shared stop/deadline stay active in short wait intervals.
 
 The delay source has not been installed or replayed. Last installed revision is 046bf75, whose replay failed before inference on retained iOS relaunch and Android foreground detection. The diagnostic follow-up and installation receipt above remain separate evidence. Offline timing checks do not establish that the historical foreground issue is fixed. Existing retained apps, private inputs, reports and tool binaries are preserved.
+
+### Settling-delay installation verification — 1 November 2026
+
+For the requested installation and replay, verified all 258 tracked source files against PR #6 revision 190a9bd6a0df4a06d271d2b1bf907514adfba19b. Under the machine run lock, backed up and replaced only the two affected Device Adapter modules and verified all 61 installed host/runtime/license files. The unchanged command host matched the earlier tested publication. Installed CLI/runtime smoke checks passed, including FIFO cancellation, the 90-second readiness window and a fake-clock check of the new 20-second wait. The local receipt retains file hashes and backup details.
+
+No dependency, private configuration, API key, retained app, third-party source/binary or historical report was changed. Both configured emulators were booted. Replay was started through the installed public command with the existing inputs and retained apps, without Git or building the tested application. Live delay behavior and final results remain pending.
+
+Live replay of installed revision 190a9bd: the logged post-launch wait completed in about 20.002 seconds on iOS and 20.000 seconds on Android. Both adapter-readiness probes succeeded immediately. iOS still stopped during retained-app relaunch after startup terminations; Android continued independently, passed foreground/startup checks and executed 10 AI-selected device actions across six inference replies, including consecutive queued actions without intervening provider requests. Two initial replies containing prose before JSON were retained as notes. The saved Android screen showed an app-not-responding dialog; AI tapped Wait, then Continue without login, and proceeded into onboarding. No Android crash was recorded.
+
+AI eventually issued done/blocked from its last queued batch, claiming updated post-action evidence was unavailable. Actual post-action captures were saved successfully, with no Android runtime/evidence error; that AI explanation is not proof of a screenshot failure. Android remained inconclusive/incomplete with unfinished coverage. The combined replay finalized with exit 3, failed verdict and incomplete execution because of the independent iOS failure. Its own dated HTML/JSON report includes both platforms, queue states and 21 PNG evidence files. The ledger recorded six requests and a conservative accounted upper cost of USD 0.02768375, with no uncertain cost. This verifies the installed delay and successful FIFO execution in this replay, not permanent foreground recovery, failure-triggered queue cancellation or broad app coverage. No tested-app rebuild or third-party change was performed.
+
+## 51. Complete batch-feedback source update
+
+Install the matching .NET report host and full Python runtime under the existing lock/backup/verification procedure. New top-level modules batch_feedback.py and observation_recorder.py and Device Adapter warnings.py are included automatically by the existing installer. Do not change Mobile MCP or its native helper. No new dependency, key or YAML field is needed. Preserve retained app builds, private inputs and reports.
+
+The source adds mandatory ordered batch feedback, ANR warnings, explicit unknown observations, evidence reuse and a fresh AI decision before completing an objective after queued actions. This increment has not been installed or replayed. Offline verification is separate from live acceptance. The product owner subsequently approved publishing these installation and execution notes together with all documentation. Private configuration files, credentials, raw evidence and retained app artifacts are excluded.

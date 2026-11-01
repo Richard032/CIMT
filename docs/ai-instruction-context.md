@@ -63,3 +63,5 @@ sequenceDiagram
         Run->>Store: Save outcome and repetition facts for future instructions
     end
 ```
+
+FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history deferral. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
