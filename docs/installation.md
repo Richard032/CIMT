@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.37
+Version: 0.38
 Last updated: 1 November 2026  
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: supported Intel Macs for local command-line and Jenkins execution
@@ -1169,3 +1169,19 @@ After installation, a separately authorized replay should qualify consecutive co
 The FR-99 refinement updates CommandQueue, ScenarioRunner, AI command instructions and the report explanation. Install matching runtime and command-host files under the existing run lock, with backup and byte verification. No new dependency, setting, key or third-party tool change is needed. Unexecutable commands cancel the pending queue; actual issues go into the next normal AI decision request. Successful batches add no acknowledgement call and autonomous testing continues.
 
 Verification passed 392 Python unit tests, 311 xUnit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks (747 offline checks), plus installer shell syntax. This source refinement has not been installed or replayed. Last installed revision remains ada8c00. Offline verification and source publication do not establish live behavior. Existing reports and retained apps are preserved.
+
+### Command queue installation verification — 1 November 2026
+
+For the requested replay, verified all 258 tracked source files against PR #6 revision 046bf758c60c5db76d914402869af7c8def540cd and published the matching command host. Under the machine run lock, backed up and replaced 10 files and verified all 61 installed host/runtime/license files against the prepared bytes. Installed CLI help, runtime/package imports, ordered batch decoding, whole-queue cancellation, the no-success-acknowledgement instructions and existing stopping/readiness smoke checks passed. The local receipt retains backup details and per-file hashes.
+
+No dependency, private setting, API key, mobile helper or third-party source/binary changed. Existing reports and retained apps were preserved. Both configured emulators were running before replay. The public installed replay command loaded and verified retained applications without Git or builds and reached its existing interactive OpenAI checkpoint. Test completion and live queue acceptance remain pending.
+
+The installed-version replay finalized with exit 3, failed verdict and incomplete execution. iOS installed the retained app and captured a masked screen, but relaunch failed; only its worker stopped. Android recovered the known device-server startup error after three failed read-only probes, completing readiness in about 28 seconds. It then installed/launched the retained app and captured a masked screen, but the foreground-app query failed before its first AI request. Both platforms and their diagnostics/screenshots are retained in the replay's new dated HTML/JSON report. The usage ledger recorded zero inference requests and zero accounted cost. No queued command ran, so live queue/cancellation acceptance remains unqualified. No app rebuild or third-party tool change was performed.
+
+Read-only follow-up for the Android foreground failure: Android's activity/window services reported the tested app running, resumed and focused; the crash buffer was empty. A single foreground lookup using the unchanged installed native helper in a fresh temporary daemon home succeeded and returned the tested package/activity. That diagnostic daemon was then stopped. No tap, app relaunch, source patch or new test run was performed. The replay did not capture the raw focus fields at its failure time, so the exact trigger remains unproven; a startup focus transition or run-specific helper state is possible. The successful later lookup does not establish the historical focus state or validate live queue execution. CIMT currently treats the helper's foreground error as infrastructure failure without a foreground-specific retry; its separate startup readiness retry does not cover this query.
+
+## 50. CIMT-owned 20-second settling delay
+
+Install the matching runtime/device_adapter/app_lifecycle.py and mobile.py together using the existing lock, backup and byte-verification process. No .NET host, dependency, configuration or third-party helper change is required for this increment. After successful install/reset/launch, CIMT records and waits 20 seconds before first screen/foreground checks. The helper must already be connected to perform installation; its process startup/internal timeouts remain unchanged. Cancellation/shared stop/deadline stay active in short wait intervals.
+
+The delay source has not been installed or replayed. Last installed revision is 046bf75, whose replay failed before inference on retained iOS relaunch and Android foreground detection. The diagnostic follow-up and installation receipt above remain separate evidence. Offline timing checks do not establish that the historical foreground issue is fixed. Existing retained apps, private inputs, reports and tool binaries are preserved.

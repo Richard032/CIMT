@@ -1,6 +1,6 @@
 # CIMT architecture
 
-Version: 0.40
+Version: 0.41
 Date: 1 November 2026  
 Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
 Authority: [confirmed requirements](requirements.md)
@@ -485,3 +485,9 @@ FR-99 / AC-69 define a scenario-local FIFO queue in runtime/command_queue.py. It
 Save receipt before dispatch. While commands remain pending, take the next command without another inference request; normal startup/foreground/cancellation checks and post-action masked observations still run. Device actions retain actual step records. Notes and recall are handled without device actions; done ends the objective. An unexecutable command cancels the entire pending tail before observation. ScenarioRunner retains the failed command identity, actual redacted error and cancelled count as resource feedback for the next normal decision request. A successful batch adds no separate acknowledgement request; the next normal request continues autonomous testing. Crash, explicit recovery and repetition recovery mark their pending tail not executed and supply information for a fresh AI decision. Fatal stopping/privacy rules may prevent a further provider request; issues remain in local records. Fatal failure, time/budget limits and user interruption retain the unexecuted tail. No queued command is silently replayed or replaced.
 
 AI Instruction and Context supplies commands as another exact-selection collection without ranking or filtering them. Both redaction boundaries preserve host-generated identities/status while scrubbing command text. HTML shows queued versus executed/handled/failed/interrupted/cancelled/not-executed states and one full reply per batch; plans are not evidence of performed actions. Publish the matching .NET report host and Python runtime together. Device Adapter and Execution Stopping Policy keep their existing boundaries; third-party source remains unchanged. See [protocol, outcomes and sequence](command-queue.md).
+
+## 36. Post-installation settling delay
+
+FR-100 / AC-70 add a fixed 20-second app-settling interval in CIMT's existing Device Adapter layer. AppLifecycle.wait_after_launch owns the timed wait; Mobile.reset orders successful reset/install/launch, then waits before returning to ScenarioRunner. The first screen capture, startup/foreground check and inference request therefore occur after the interval. Mobile MCP must already be connected for installation; its process startup and internal five-second timeouts are not changed.
+
+The lifecycle receives execution's shared-stop callback and injectable monotonic clock/sleep. It waits in chunks no longer than 0.1 seconds, checking cancellation, shared stop and the run deadline before each chunk and on completion. The wait counts toward the run limit. Mobile wraps the wait in a named activity operation for terminal/HTML timing. Failed setup never reaches the wait. Normal actions, restart/crash relaunches and readiness probes get no new delay. No new layer, field, dependency or retry policy is introduced. The delay may allow startup to settle; live foreground recovery remains unqualified.

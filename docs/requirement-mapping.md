@@ -1,5 +1,9 @@
 # Complete requirement mapping
 
+## Post-installation settling delay
+
+FR-100 / AC-70 map to AppLifecycle.wait_after_launch (fixed duration, fake-clock/sleep seam and short checked waits) and Mobile.reset (ordering, shared-stop wiring and explicit activity operation). LaunchWaitTests and ConnectionTests in the existing test_device_startup.py cover 20 seconds, cancellation, shared/deadline stops, production callback wiring, ordering and failed-setup exclusion. No third-party source, new dependency or live-success claim. See [Device Adapter](device-adapter.md).
+
 ## Ordered command objects
 
 FR-99 / AC-69 map to command_reply.py (explicit JSON object/array/stream decoding), command_queue.py (FIFO data/state), ScenarioRunner (per-command dispatch/checks, immediate pending cancellation and actual-issue feedback on the next normal request), commands in ContextMemory/TestPlanner (exact AI selection), RecordRedactor/ExecutionRedactor (privacy) and PlanningHtmlRenderer (queue status versus actual steps, full reply once per batch). Existing test_command_reply.py, test_command_queue.py, test_runtime_components.py, test_context_memory.py and PlanningReportTests cover order, one-request batches, immediate cancellation after command failure, last-command issue feedback, no separate success acknowledgement, interruption/limits, recovery, done, retrieval and escaped/redacted HTML. No third-party code changes or live acceptance claim. See [command queue](command-queue.md).

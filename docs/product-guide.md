@@ -1,6 +1,6 @@
 # CIMT product documentation
 
-Version: 0.35
+Version: 0.36
 Date: 1 November 2026  
 Status: reviewed product behaviour, command responsibilities, and YAML fields approved  
 Product: CIMT — Curtis Intelligent Mobile Test
@@ -504,3 +504,9 @@ The AI can return several commands in one reply. CIMT saves them in a FIFO queue
 The HTML device scenario shows an AI command queue with batch, order, state, actual step and reason. Queued, cancelled or not-executed commands are plans; they do not prove that a button was tapped or a requirement passed. Cancellation and limits preserve unperformed work. A done command ends the objective, including any commands following it. The complete redacted reply remains available once per batch.
 
 No new user command, YAML field, model or key is required. Install the matching report host and runtime together. Existing reports are unchanged. Offline verification has passed; this increment has not yet been installed or qualified through a live replay. See [command queue](command-queue.md).
+
+## Wait after installation and launch
+
+CIMT waits 20 seconds after successfully resetting, installing and launching an app, before its first screen/foreground checks and AI request. This applies to both platforms and to physical devices and emulators. The activity log shows Wait 20 seconds after app installation and launch.
+
+The wait is inside CIMT. Mobile MCP and its native helper remain unchanged and are already connected for installation. Cancellation and the run deadline remain active; waiting counts toward the time limit. Failed setup does not wait, and normal AI actions or later app restarts do not gain this extra pause. No configuration change is required. A new replay is needed to evaluate whether the delay helps the observed foreground problem.

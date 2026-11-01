@@ -29,7 +29,7 @@ class Mobile:
         self.commands = commands or NativeDevice(binary, device, context, redactor)
         self.guard = DeviceReadiness(self.commands, folder)
         self.status = DeviceStatus(self.commands, folder)
-        self.lifecycle = AppLifecycle(self.commands, self.call)
+        self.lifecycle = AppLifecycle(self.commands, self.call, check=self.check)
         self.screen = ScreenCapture(
             self.call,
             self.commands.native,
@@ -69,6 +69,8 @@ class Mobile:
         with self._operation("Reset, install, and request app launch"):
             self.lifecycle.reset(artifact, app_id, target)
             self.app_id = app_id
+        with self._operation(f"Wait {AppLifecycle.SETTLE_SECONDS} seconds after app installation and launch"):
+            self.lifecycle.wait_after_launch()
 
     def snapshot(self):
         with self._operation("Capture and validate masked screenshot"):

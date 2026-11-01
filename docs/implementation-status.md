@@ -1,5 +1,11 @@
 # CIMT implementation status
 
+## 1 November 2026 — wait before effective app testing
+
+Implemented FR-100 / AC-70 with a fixed 20-second delay in CIMT's existing Device Adapter lifecycle. Mobile.reset waits after successful install/reset/launch and before returning to the scenario's first masked capture, startup/foreground check or AI request. The helper is already connected for installation; no helper process startup, third-party source or internal timeout is changed. The timed wait uses a monotonic clock, short sleeps and execution's shared-stop callback. Cancellation, shared-worker stop and the run deadline remain active. An explicit activity operation records the wait. Failed setup and normal later actions/restarts do not receive the new pause.
+
+Verification passed: 400 Python unit tests, 22 runtime-policy checks and 22 fake-tool CLI/lifecycle checks, 444 offline checks total, plus installer shell syntax. No .NET host source changed; the earlier 311 xUnit tests were not rerun for this Python/docs increment. Requirements v0.35, architecture v0.41, product v0.36 and installation v0.38 document the behavior. No app build, new replay or paid API call was started. The delay is not installed; last installed source remains 046bf75. Its replay produced a complete final report but no inference/queued commands, owing to independent iOS relaunch and Android foreground errors. Live usefulness of the delay remains unqualified.
+
 ## 1 November 2026 — cancel pending commands and return actual issues
 
 Refined FR-99 / AC-69 as requested. If a command cannot execute, CommandQueue cancels every pending command before post-action observation. ScenarioRunner retains the failed command identity, actual redacted error and cancelled count for the next normal AI decision request, including failure on the last command. Successful batches continue autonomous testing without a separate acknowledgement or feedback-only request. Fatal run-stop/privacy rules still prevent further inference when required; issues and cancelled commands remain in local records.

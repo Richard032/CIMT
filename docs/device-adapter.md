@@ -1,6 +1,6 @@
 # Device Adapter
 
-Updated: 1 November 2026. Implements FR-98 / AC-68 and the separate-folder requirement DR-01.
+Updated: 1 November 2026. Implements FR-98 / AC-68 and FR-100 / AC-70 and the separate-folder requirement DR-01.
 
 ## Responsibility
 
@@ -13,7 +13,7 @@ The layer lives in runtime/device_adapter/. It provides device communication, pl
 | readiness.py | Verify the device lock and platform readiness. |
 | status.py, target.py | Read app/process/crash status and resolve platform identities. |
 | startup.py | Probe adapter startup within a bounded recovery window. |
-| app_lifecycle.py | Reset, install and launch the configured app. |
+| app_lifecycle.py | Reset, install and launch the configured app; wait for startup to settle. |
 | mcp_client.py, rpc_messages.py | Handle MCP transport and mechanical RPC results. |
 | screen_capture.py | Obtain verified masked UI information and pixels using shared privacy helpers. |
 
@@ -30,6 +30,12 @@ The cumulative recovery window is 90 seconds, starting with the first probe and 
 Recovery ends on readiness, cancellation, shared stop, the run deadline or window exhaustion. A final process timeout clipped by the window following known startup failures is reported as exhaustion; an unrelated timeout fails immediately. The final error includes the probe count and last redacted failure. Retry activity is written to the existing terminal/HTML timeline. This is one window per device connection; it does not restart around individual app commands or targets.
 
 After recovery fails, the existing infrastructure stopping policy applies. This increment does not change failure scope or final exit precedence. It never automatically repeats taps, swipes, typing, credentials, install/reset, app launch or provider requests. A helper that consistently needs more than five seconds for one attempt can still fail every probe; a longer recovery window is not a longer native attempt.
+
+## Wait before effective app testing
+
+After successful reset/install/launch, Mobile.reset calls AppLifecycle.wait_after_launch before returning to the scenario. The wait lasts 20 seconds and is logged as an explicit activity operation. It precedes the first masked capture, startup/foreground check and AI request. Mobile supplies execution's shared-stop check; AppLifecycle uses a monotonic duration and 0.1-second sleep chunks, with checks before sleeping and on completion. Cancellation, shared stop or the run deadline end the wait and prevent subsequent checks.
+
+This belongs entirely to CIMT. The helper is already connected during installation; the wait does not delay its process startup, patch source or change an internal timeout. Failed setup never waits. The new interval applies to each successful scenario installation on either platform/device kind, not every tap, normal AI command, app restart or crash relaunch. It is a settling delay, not a foreground-specific retry or proof that the historical error is fixed.
 
 ## Packaging and verification
 
@@ -57,6 +63,8 @@ sequenceDiagram
         Adapter->>Adapter: Recheck lock and connect MCP
         Adapter-->>Run: Ready for app setup
         Run->>Adapter: Perform app setup once
+        Adapter->>Adapter: Wait 20 seconds with shared-stop checks; record activity
+        Adapter-->>Run: Ready for screen and foreground/startup checks
         Inputs->>Adapter: Request masked observations for AI inputs
         Adapter-->>Inputs: Verified masked UI and screenshot
     else Final failure
