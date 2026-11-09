@@ -9,15 +9,29 @@ This document is a handover for an AI agent continuing work on CIMT. It is a sna
 3. Explain meaningful progress to the user. After each requested step, state what is done and what remains. Identify any differences between requirements, design and implementation so the user can decide how to resolve them.
 4. Use [installation.md](docs/installation.md) for computer setup. Keep setup instructions there, not in this handover.
 
+## How to continue a request
+
+- Read the relevant requirements, architecture and implementation first. Treat a requirement, a design and existing behavior as separate facts. If they differ, tell the user what differs and discuss the correction; do not silently redefine the product.
+- Work on the branch and scope requested by the user. Check the status of related pull requests and existing changes before modifying or publishing anything. Preserve unrelated work. Do not merge a pull request unless the user asks.
+- Make the requested change, update affected requirements and design, review the result and run relevant existing checks. Report what passed, what could not be checked and why. Do not claim a run or test succeeded without evidence.
+- Keep the user informed in simple English. After a step, explain what was completed, the result and the next outstanding step. If the user asks for an explanation or tells you to stop, respect that instruction.
+- For a report review, identify the exact run and use recorded evidence. Separate confirmed observations from possible causes. Check all configured platforms and devices, cancellation and stopping reasons, and whether the report is complete. Never invent a crash, action or result.
+- Do not expose API keys, login credentials or private configuration in chat, logs, commits or reports. Do not ask the user to paste a secret into chat. Follow the project's redaction and screenshot-masking rules.
+- Do not start a device test, replay or paid AI request merely to investigate a documentation task. When requested to run, use the configured user-facing workflow, report progress and respect the user's stop or cancellation request.
+
 ## Product and decisions
 
 CIMT means Curtis Intelligent Mobile Test. It is intended to test .NET MAUI applications independently of the application, using plain-text testing instructions and requirements. A developer starts it from a terminal; Jenkins can run it on a Mac. Configuration defines the application repository, branch, build targets, devices, model, budget and other run settings. Both iOS and Android, physical devices and emulators are in scope. Up to two devices run simultaneously. Every configured target is tested on every selected device. The initial release focuses on one branch; comparing two branches is future work.
 
 Instructions take priority when they conflict with requirements; report the conflict and interpretation. Report ambiguous instructions and the interpretation while continuing where possible. The user wants clear, useful HTML reports with screenshots, chronological activity, failures and stopping reasons. CIMT creates output under the input folder, including a separate report folder for every run and replay. Keep private credentials, personal configuration, unmasked screenshots and private test data out of Git.
 
+The planning and exploration layer supplies instructions, requirements, screen controls and retained context to AI. It gathers human-interface elements from the current screen through Mobile MCP. It is an information and instruction layer, not a judge of whether the AI's testing decision is correct. Every detected unproductive loop triggers AI-directed recovery. The host may execute mechanics and enforce existing stopping, privacy and budget limits.
+
 The AI is the testing decision maker. CIMT provides the instructions, requirements, screen observations, available controls, history and device operations. The AI chooses what to explore, how to recover from loops, and what historical information to retain. Do not add host-side rules that decide the meaning or relevance of observations or reject AI decisions merely for semantic reasons. Mechanical execution, privacy, budget and stopping rules remain necessary. Do not modify Mobile MCP source code; it is the selected device adapter.
 
-Send the complete ordered result of each command batch in the next normal AI decision request. Record the initial state once, then each command and its resulting observation. Include unchanged steps, unavailable observations, independent changes, warnings, errors and commands cancelled after a failure. Preserve intermediate transitions even when the final screen matches the starting screen. Reuse evidence references rather than duplicating unchanged evidence. AI decides what the results mean. Android ANR events are warnings, not automatic crashes or stopping reasons. Permission prompts are not errors and should only be accepted when testing instructions authorize that action.
+Execute commands in their received order. If a command cannot be executed, cancel the remaining queued commands and report the failure and cancellations. A successful batch does not itself complete the objective. Send the complete ordered result of each command batch in the next normal AI decision request. Record the initial state once, then each command and its resulting observation. Include unchanged steps, unavailable observations, independent changes, warnings, errors and commands cancelled after a failure. Preserve intermediate transitions even when the final screen matches the starting screen. Reuse evidence references rather than duplicating unchanged evidence. AI decides what the results mean. Android ANR events are warnings, not automatic crashes or stopping reasons. Permission prompts are not errors and should only be accepted when testing instructions authorize that action.
+
+CIMT uses the configured OpenAI model and enforces a strict run budget. Do not silently substitute another model. Account for actual usage and report budget or time limits clearly. A device failure should be isolated so other devices can continue when the applicable stopping rules allow it. If an app repeatedly crashes at the same point, stop the affected scenario after three attempts, subject to the current documented rules.
 
 Replay uses the retained application build and creates a new report; do not silently rebuild. The working clone is retained after a run and is cleared before a new clone. A replay is not necessarily a saved-action playback: check the documented implementation and its current limitations. Runs may reset app data and incur API costs. Run or replay when the user requests it, and follow the configured checkpoints.
 
@@ -35,12 +49,14 @@ The user has raised prompt size, cost and speed as open questions. Investigate w
 
 ## Project references
 
+Some design documents below are part of the still-open PR #6 and may not exist on `main` until that PR is merged. Their links point to the PR branch for this snapshot. Verify the PR state and use the current version when continuing work.
+
 - [README](README.md): overview and entry points.
 - [Requirements](docs/requirements.md) and [requirement mapping](docs/requirement-mapping.md): product requirements and coverage.
-- [Architecture](docs/architecture.md), [device adapter](docs/device-adapter.md), and [execution stopping](docs/execution-stopping.md): responsibilities and constraints.
+- [Architecture](docs/architecture.md), [device adapter](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/device-adapter.md), and [execution stopping](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/execution-stopping.md): responsibilities and constraints.
 - [Product guide](docs/product-guide.md), [installation](docs/installation.md), and [development](docs/development.md): usage, setup and development.
 - [Implementation status](docs/implementation-status.md): history and known gaps; verify older entries against current code.
-- [Batch feedback](docs/batch-feedback.md), [command queue](docs/command-queue.md), [AI instruction context](docs/ai-instruction-context.md), and [AI context and recovery](docs/ai-context-and-recovery.md): AI interaction and execution details.
+- [Batch feedback](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/batch-feedback.md), [command queue](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/command-queue.md), [AI instruction context](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/ai-instruction-context.md), and [AI context and recovery](https://github.com/Richard032/CIMT/blob/issue/TestPlanningAndExploration/docs/ai-context-and-recovery.md): AI interaction and execution details.
 - [Work retention and replay](docs/work-retention-and-replay.md), [redaction](docs/redaction.md), and [screenshot masking](docs/screenshot-masking.md): persistence and privacy.
 
 ## User coding instructions
