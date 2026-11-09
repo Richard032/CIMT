@@ -36,4 +36,7 @@ rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/ai_exchange/__init__.py"
 for old_module in mobile app_lifecycle device_commands device_target mcp_client rpc_messages screen_capture; do
   rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$old_module.py"
 done
+# Keep test-folder wrappers separate from the backend scripts they invoke.
+mkdir -p "$CIMT_INSTALL_ROOT/templates/test-run/build"
+cp "$SOURCE_ROOT/scripts/test-run/build/"*.sh "$CIMT_INSTALL_ROOT/templates/test-run/build/"
 echo "CIMT support runtime installed."

@@ -241,6 +241,17 @@ build:
 
 When script is omitted, CIMT uses its installed default. A CIMT update replaces supplied defaults and preserves separate user-customized copies.
 
+To keep build entry points with the test settings, copy the supplied wrappers into the input folder:
+
+```bash
+mkdir -p ./build
+cp "$CIMT_INSTALL_ROOT/templates/test-run/build/"*.sh ./build/
+```
+
+The source copies are in scripts/test-run/build. Set the target's Android script to ./build/android.sh and its iOS script to ./build/ios.sh. Both call the adjacent build.sh, which delegates to CIMT's installed backend. Keep all three files together. Customize the test folder's build.sh when the application needs explicit preparation before building; updates to CIMT leave that copy unchanged. Do not install these wrappers over scripts/build in the installation, because they delegate there.
+
+A normal run clones the configured remote branch and builds it. Commit and push required application and submodule changes before starting. A source copy beside the test configuration is not used by run. After a successful CIMT build has been retained, replay skips cloning and building; a standalone dotnet build does not create that retained-build record.
+
 CIMT supplies a result-file path to the script. A successful script writes JSON such as:
 
 ```json
