@@ -423,3 +423,7 @@ Test settings shall support local external files stored beside the test configur
 CIMT shall check source readability before model access or app reset, then copy and verify the declared files after every reset and optional reset hooks, before launching the app. Transfer or verification failures stop setup. Original host files are preserved, and file contents are not supplied as AI instructions. The feature applies to run and replay. Device permissions and existing deadline, cancellation and privacy rules remain active.
 
 The first configured CE1-I560 test shall use only an explicitly selected iPhone simulator. Its XPA shall be colocated with the test settings. Creating these inputs does not authorize starting a paid AI run.
+
+## Device adapter executable preflight
+
+Before model access and before any repository clone or application build, run and replay shall verify that node and mcp-server-mobile are executable through the runtime PATH. The launcher shall discover its installation and load its local environment automatically. CIMT shall add its installed command directories, including pnpm shims, to every child process without requiring the user to source an environment file. Missing commands shall stop preparation with a clear error naming the command and explaining the installation requirement. Successful device inventory discovery alone shall not establish adapter executable readiness. This check shall issue no provider request or application action.

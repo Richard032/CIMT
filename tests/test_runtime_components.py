@@ -10,6 +10,7 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
@@ -280,7 +281,7 @@ class ConfiguredModelTests(unittest.TestCase):
             execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
                                   agent_factory=lambda: agent)
             output = io.StringIO()
-            with redirect_stdout(output):
+            with patch("run_ui.shutil.which", return_value="/tools/executable"), redirect_stdout(output):
                 self.assertEqual(execution.run(preflight=True), 0)
             ledger = json.loads(pathlib.Path(folder, "ai-budget.json").read_text())
             self.assertEqual(ledger["model"], "gpt-5.6-luna")
@@ -288,6 +289,21 @@ class ConfiguredModelTests(unittest.TestCase):
             self.assertIn("passed for gpt-5.6-luna", output.getvalue())
             self.assertEqual(calls, ["models/gpt-5.6-luna"])
             self.assertFalse(pathlib.Path(folder, "devices").exists())
+
+
+    def test_preflight_rejects_missing_adapter_tools_before_model_access(self):
+        for missing in ("node", "mcp-server-mobile"):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as folder:
+                config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                          "ai-budget": {"amount": 1, "currency": "USD"}}
+                calls = []
+                execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                      agent_factory=lambda: calls.append("model access"))
+                with patch("run_ui.shutil.which", side_effect=lambda tool: None if tool == missing else "/tools/" + tool):
+                    with self.assertRaisesRegex(InfrastructureError, missing):
+                        execution.run(preflight=True)
+                self.assertEqual(calls, [])
+                self.assertFalse(pathlib.Path(folder, "devices").exists())
 
 
 class ScenarioTests(unittest.TestCase):

@@ -52,6 +52,14 @@ public sealed class RuntimePaths(string root)
     public string Worker => Path.Combine(root, "lib/cimt-runtime/run_ui.py");
     public string Python => Path.Combine(root, "tools/python/bin/python");
     public string BuildScript(string platform) => Path.Combine(root, "scripts/build/" + platform + ".sh");
+
+    public string ExecutablePath(string? inheritedPath)
+    {
+        var paths = new[] { Path.Combine(root, "bin"), Path.Combine(root, "tools/node-packages/bin"),
+            Path.Combine(root, "tools/node-packages/lib/node_modules/.bin") };
+        return string.Join(Path.PathSeparator, string.IsNullOrEmpty(inheritedPath)
+            ? paths : paths.Append(inheritedPath));
+    }
 }
 
 /// <summary>Applies the shared deadline to process calls made during a run.</summary>

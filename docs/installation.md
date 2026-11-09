@@ -1340,6 +1340,7 @@ Create ~/Development/CIMT/.local/install/environment.sh with the following conte
 ```bash
 export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
 export PATH="/usr/local/share/dotnet:/usr/local/bin:$HOME/Development/CIMT/scripts:$PATH"
+export PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.bin:$PATH"
 export MOBILECLI_PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
 export JAVA_HOME="$(/usr/libexec/java_home -v 21 -a arm64)"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -1351,6 +1352,8 @@ Load and verify it:
 
 ```bash
 source ~/Development/CIMT/.local/install/environment.sh
+node --version
+command -v mcp-server-mobile
 java -version
 javac -version
 adb version
@@ -1358,7 +1361,9 @@ ls -1 "$ANDROID_HOME/platforms"
 ls -1 "$ANDROID_HOME/build-tools"
 ```
 
-The source launcher loads this environment when CIMT_INSTALL_ROOT is set. For a new development terminal, explicitly source the file before CIMT commands. The observed setup did not globally register CIMT as a packaged application.
+The Mobile MCP command directory must be on PATH as well as the native helper override. Discovery loads a module by explicit path, so successful discovery alone does not verify that mcp-server-mobile can be launched. Run/replay preflight checks both node and mcp-server-mobile before model access and before cloning/building. CIMT adds its installed command directories to each child process automatically. Missing commands stop with the executable name and installation guidance.
+
+The launcher identifies its installation root and automatically loads its environment.sh. The source launcher also discovers .local/install/environment.sh beside the checkout when CIMT_INSTALL_ROOT is unset. An explicit CIMT_INSTALL_ROOT remains supported. You do not need to source this file manually before launching CIMT; sourcing is useful when running external setup commands directly. The observed setup did not globally register CIMT as a packaged application.
 
 ### 6. Source CLI and offline checks
 

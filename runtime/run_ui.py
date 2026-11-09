@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import shutil
 import sys
 from actions import ActionExecutor
 from agent import Agent
@@ -46,6 +47,12 @@ class Execution:
     def run(self, preflight=False):
         """Check access or schedule the startup devices with at most two active."""
         if preflight:
+            for tool in ("node", "mcp-server-mobile"):
+                if shutil.which(tool) is None:
+                    raise InfrastructureError(
+                        "Required device adapter executable is missing from PATH: " + tool
+                        + ". Repair the CIMT tool installation; its command paths are configured automatically."
+                    )
             self.agent_factory().check_access()
             print(
                 "Model access and local runtime/pricing checks passed for "
