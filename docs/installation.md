@@ -1,9 +1,9 @@
 # CIMT installation and setup guide
 
-Version: 0.40
-Last updated: 1 November 2026  
+Version: 0.41
+Last updated: 9 November 2026
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
-Scope: supported Intel Macs for local command-line and Jenkins execution
+Scope: Intel Mac baseline for local command-line and Jenkins execution; observed Apple Silicon development setup in section 52
 
 ## 1. Purpose and current status
 
@@ -11,7 +11,7 @@ This document describes how to prepare another supported Mac, install CIMT, conf
 
 The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. cimt validate produces readiness reports; setup and saved-action-history replay remain unimplemented; replay without --scenario reuses retained builds with current testing instructions. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
 
-The agreed initial host scope is **Intel Macs**. This guide does not claim support for every macOS release, Apple Silicon, or every possible Xcode/device combination. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
+The agreed initial host scope is **Intel Macs**. [Section 52](#52-apple-silicon-development-setup--9-november-2026) records a separately observed Apple Silicon development setup and its remaining acceptance work. These observations do not establish general Apple Silicon or Jenkins support. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
 Related documents: [requirements](requirements.md), [architecture](architecture.md), [product guide and approved YAML](product-guide.md).
 
@@ -1219,3 +1219,231 @@ iOS installed/launched its retained app, completed the 20-second settling wait a
 
 The inference ledger recorded zero requests and zero accounted or uncertain cost. No AI-selected action or command batch ran, so this replay does not qualify live batch feedback, ANR handling or AI continuation. No repository clone, application build, third-party tool/source change or private-configuration edit was performed. Helpers were finalized and the report was retained.
 
+
+## 52. Apple Silicon development setup — 9 November 2026
+
+This procedure records commands run by the user on an Apple M4 Mac and the terminal results supplied during guided setup. It was not executed on the Linux cloud host. CIMT source revision was `1b42e8a`. Application builds, real application validation, signing, device control and paid inference remain unverified on this Mac. The installed source launcher is usable for development; this is not a completed packaged installation or release acceptance.
+
+### Observed profile
+
+| Component | Observed result |
+| --- | --- |
+| Host | Apple M4, Mac16,12, arm64, 24 GiB RAM; 289 GiB free at initial inspection. |
+| macOS | 26.5.1, build 25F80. |
+| Xcode | 26.5, build 17F42; selected at /Applications/Xcode.app/Contents/Developer; first-launch check passed; iPhoneOS SDK 26.5. |
+| .NET | Native ARM64 SDK 10.0.300 selected inside CIMT; SDK 10.0.403 remains installed alongside it. An older x64 installation is separate. |
+| MAUI | maui-android and maui-ios; workload set 10.0.300.3, MAUI manifest 10.0.20; iOS SDK 26.5.10284. |
+| Python | python.org universal installer, Python 3.15.2 running as arm64; pip 26.2.2. |
+| Python dependencies | Pillow 13.0.0 ARM64 wheel and truststore 0.10.5 installed in CIMT's virtual environment. |
+| Node / pnpm | Native Node 26.13.0, pnpm 12.18.0 from the official standalone installer. Adapter loading and discovery passed; broader Node compatibility is not established. |
+| Java | Eclipse Temurin JDK 21.0.13+9, arm64. |
+| Android | Android Studio for Apple Silicon; SDK at ~/Library/Android/sdk; API 36 and Build Tools 36.0.0; platform-tools 37.0.1. APIs 36.1 and 37.0 were also installed. |
+| Android command-line tools | sdkmanager reported its deprecation in favour of android sdk, version 1.1.16717390 (Android CLI). |
+| Adapter | Mobile MCP 1.0.14 via pnpm, native mobilecli-darwin-arm64 1.0.21. |
+
+These are observed versions, not instructions to choose whatever is latest. Keep the matching .NET/Xcode/workload combination. The existing Intel bootstrap scripts contain x64 downloads; do not run them unchanged on Apple Silicon. The mobile-tools installer also uses npm and historical adapter-evaluation setup. This manual pnpm procedure leaves third-party source unchanged.
+
+### 1. Source checkout and native .NET
+
+Use the intended execution account. Inspect the host as in section 4, then clone CIMT:
+
+```bash
+mkdir -p ~/Development
+git clone https://github.com/Richard032/CIMT.git ~/Development/CIMT
+```
+
+Install Xcode through Apple's distribution channel and complete its first-launch requirements. Verify with the section 4 Xcode commands. Install the **macOS ARM64 SDK 10.0.300** using Microsoft's installer:
+
+- [Exact SDK download page](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.300-macos-arm64-installer)
+- [Official Xcode 26.5 workload release](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10284)
+
+That release explicitly documents SDK 10.0.300 and workload set 10.0.300.3. SDK 10.0.403 alone did not satisfy CIMT's global.json, whose latestPatch policy excludes another feature band. No macOS or Xcode upgrade was needed for this profile.
+
+If dotnet is installed but not found, check /usr/local/share/dotnet/dotnet before reinstalling. On this Mac, the installer created that native executable but no /usr/local/bin/dotnet link. Add its directory once:
+
+```bash
+touch ~/.zprofile
+grep -qxF 'export PATH="/usr/local/share/dotnet:$PATH"' ~/.zprofile || printf '\nexport PATH="/usr/local/share/dotnet:$PATH"\n' >> ~/.zprofile
+export PATH="/usr/local/share/dotnet:$PATH"
+cd ~/Development/CIMT
+dotnet --version
+dotnet --info
+sudo /usr/local/share/dotnet/dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
+dotnet workload --info
+```
+
+Expected SDK: 10.0.300; architecture: arm64; both workloads listed under set 10.0.300.3. A workload verification warning appeared initially; a subsequent diagnostic workload list showed both workloads without the warning. No workload update or repair was performed. Do not use an unpinned update to suppress a warning; retain and diagnose persistent errors.
+
+### 2. Python support runtime
+
+Install native/universal Python from [python.org](https://www.python.org/downloads/macos/). This Mac used 3.15.2. Apple /usr/bin/python3 remained 3.9.6, so use the new interpreter explicitly. Leave the system Python unchanged.
+
+```bash
+/usr/local/bin/python3.15 --version
+/usr/local/bin/python3.15 -c 'import platform; print(platform.machine())'
+cd ~/Development/CIMT
+export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
+export CIMT_PYTHON_BOOTSTRAP=/usr/local/bin/python3.15
+bash scripts/install-cimt-runtime.sh
+```
+
+Expected: arm64 and successful installation of the pinned runtime/requirements.txt dependencies. The .local installation is ignored by Git and does not require administrator privileges. This installs Python support files, not the .NET host or build workers.
+
+### 3. Node, pnpm and the native device helper
+
+Install the macOS ARM64 Node distribution from [nodejs.org](https://nodejs.org/en/download). This Mac used 26.13.0 rather than the Intel profile's Node 22. Verify the actual version and architecture:
+
+```bash
+/usr/local/bin/node --version
+/usr/local/bin/node -p 'process.arch'
+export PATH="/usr/local/bin:$PATH"
+curl -fsSL https://get.pnpm.io/install.sh -o /tmp/cimt-install-pnpm.sh
+sh /tmp/cimt-install-pnpm.sh
+```
+
+The official pnpm installer created ~/.zshrc and added PNPM_HOME on this Mac. Load its changes with `source ~/.zshrc`, or open a new Terminal, then verify `pnpm --version`. Installation does not update the already running shell automatically.
+
+```bash
+export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
+mkdir -p "$CIMT_INSTALL_ROOT/tools/node-packages/lib"
+pnpm --dir "$CIMT_INSTALL_ROOT/tools/node-packages/lib" add --save-exact @mobilenext/mobile-mcp@1.0.14
+```
+
+The local package manifest and pnpm lockfile remain under the ignored installation folder. Retain that lockfile when refreshing dependencies. The observed install selected native helper 1.0.21. Mobile MCP's automatic binary lookup failed with pnpm's nested layout even though the binary was downloaded. Use its supported MOBILECLI_PATH override:
+
+```bash
+export MOBILECLI_PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
+"$MOBILECLI_PATH" --version
+node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log("Helper:", new Mobilecli().getPath());'
+```
+
+Expected: mobilecli version 1.0.21 and the same helper path. This exact path belongs to the observed pnpm installation; recheck it if the helper version or package layout changes. No adapter source patch, Appium installation or helper rebuild was needed for these discovery checks.
+
+### 4. Java and Android SDK
+
+Install **Temurin JDK 21 for macOS aarch64**, using the .pkg from [Eclipse Adoptium](https://adoptium.net/temurin/releases/?version=21&os=mac&arch=aarch64&package=jdk). Verify with `/usr/libexec/java_home -V`. The observed home was /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home.
+
+Install [Android Studio for Mac with Apple chip](https://developer.android.com/studio), copy it into Applications, launch it and finish the Standard setup wizard. Copying the application alone does not install the SDK. Keep ~/Library/Android/sdk as the SDK location.
+
+In SDK Manager:
+
+- Under SDK Platforms, enable Show Package Details and install **Android SDK Platform 36**. Platform 36.1 is a separate package and did not replace the need for 36 in this profile.
+- Under SDK Tools, install **Android SDK Build-Tools 36.0.0**, **Android SDK Platform-Tools** and **Android SDK Command-line Tools (latest)**. Keep existing platforms and tools.
+- Apply the changes and accept the relevant licences through the wizard.
+
+The latest command-line tools in this inspection supplied sdkmanager with a deprecation notice pointing to android sdk. Its version response was 1.1.16717390 (Android CLI). Do not assume the older bootstrap's sdkmanager commands have been qualified against this new CLI; SDK components were installed through Android Studio here.
+
+### 5. Save the local environment
+
+Create ~/Development/CIMT/.local/install/environment.sh with the following contents. If it already exists, inspect and merge the settings; preserve existing user configuration. The file on the observed Mac was created first and extended as each component was verified.
+
+```bash
+export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
+export PATH="/usr/local/share/dotnet:/usr/local/bin:$HOME/Development/CIMT/scripts:$PATH"
+export MOBILECLI_PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
+export JAVA_HOME="$(/usr/libexec/java_home -v 21 -a arm64)"
+export PATH="$JAVA_HOME/bin:$PATH"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$PATH"
+```
+
+Load and verify it:
+
+```bash
+source ~/Development/CIMT/.local/install/environment.sh
+java -version
+javac -version
+adb version
+ls -1 "$ANDROID_HOME/platforms"
+ls -1 "$ANDROID_HOME/build-tools"
+```
+
+The source launcher loads this environment when CIMT_INSTALL_ROOT is set. For a new development terminal, explicitly source the file before CIMT commands. The observed setup did not globally register CIMT as a packaged application.
+
+### 6. Source CLI and offline checks
+
+```bash
+cd ~/Development/CIMT
+source .local/install/environment.sh
+dotnet build src/Cimt/Cimt.csproj -c Release
+bash scripts/cimt --help
+bash scripts/check-development.sh > ~/Desktop/cimt-development-check.txt 2>&1
+echo "Development checks exit code: $?"
+```
+
+The source CLI build and help command passed. The captured development run, before Node/adapter installation, had these results:
+
+| Check | Result |
+| --- | --- |
+| xUnit | 315 passed, zero failed or skipped. |
+| Python runtime-policy checks | 22 passed. |
+| Python unit tests | 426 passed on Python 3.15.2. |
+| CLI/lifecycle regressions | 22 passed. |
+| Simulated build-contract cases | 4 passed. |
+| MSBuild adapter fixture tests | 4 passed. |
+| Final public output-layout fixture | Failed on its first readiness invocation with Win32Exception; whole script exited 1. |
+
+The failure log alone did not name the missing executable. Node was absent at the time. Separately, source inspection showed the output-layout fixture creates fake readiness tools but omits the Mobile MCP module now used by discovery. The same fixture had failed in Linux cloud setup with a missing adapter module. The Mac suite was not rerun after Node and adapter installation, so do not claim the final fixture passed or that all checks are green. These results do demonstrate that the Python unit suites ran successfully with 3.15.2; they do not prove full device execution compatibility.
+
+### 7. Start virtual devices and verify adapter discovery
+
+Create/start an ARM64 Android emulator through Android Studio Device Manager. This Mac used Medium_Phone_API_37.0. Initial adb status was offline while booting; after the home screen appeared:
+
+```bash
+adb devices -l
+adb -s emulator-5554 shell getprop sys.boot_completed
+```
+
+The emulator became device and returned 1. Substitute its actual adb serial on another Mac. Android API 37 app execution compatibility remains unverified. A tablet emulator was also being prepared, but its completion/discovery was not verified.
+
+Open Simulator with `open -a Simulator` and choose an existing iOS 26.5 iPhone from File → Open Simulator. Alternatively, list devices with `xcrun simctl list devices available`, boot the chosen UUID, and wait using `xcrun simctl bootstatus <UUID> -b`. The iPhone 17 Pro on iOS 26.5 completed boot. Matching the simulator OS exactly to Xcode is not a general requirement; this was the chosen initial validation target. Older simulators need not be deleted.
+
+Verify both native device types separately:
+
+```bash
+source ~/Development/CIMT/.local/install/environment.sh
+node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"emulator"}),null,2));'
+node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"simulator"}),null,2));'
+```
+
+Both returned status ok. Android discovery listed the online API 37 phone; iOS discovery listed online iPhone simulators on 18.5 and 26.5 and an iPad on 26.3. This is device discovery, not app installation, screenshots or control qualification. The paired physical iPhone was unavailable and was not counted as ready.
+
+For later CIMT inputs, use execution.device-kind: virtual and explicitly select intended device IDs if other simulators should be excluded. Android discovery uses the AVD name while iOS uses the simulator UUID. A future ARM64 iOS simulator build needs properties.RuntimeIdentifier: iossimulator-arm64; the Intel example iossimulator-x64 is not appropriate here. These app build settings have not yet been validated on this Mac.
+
+### 8. Application access and selected first branch
+
+The first unauthenticated Subgit read failed because prompts were disabled. Interactive authentication using the existing macOS Keychain helper succeeded; credentials were entered only in Terminal and are not recorded here:
+
+```bash
+git -c credential.helper=osxkeychain ls-remote --symref https://subgit.curtis.ch/ECON/ag-econ-mobile.git HEAD
+GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper=osxkeychain ls-remote --symref https://subgit.curtis.ch/ECON/ag-econ-mobile.git HEAD
+git -c credential.helper=osxkeychain clone https://subgit.curtis.ch/ECON/ag-econ-mobile.git "$HOME/Development/ag-econ-mobile"
+cd ~/Development/ag-econ-mobile
+git -c credential.helper=osxkeychain submodule update --init --recursive
+```
+
+The noninteractive read succeeded, the application cloned, and all nine submodules initialized at their recorded revisions. The per-command credential.helper setting does not establish that future CIMT child Git processes have the same default helper; verify normal noninteractive access under the final execution configuration before a CIMT run. Never embed credentials in repository URLs or private files committed to Git.
+
+The selected first test branch is **issue/CE1-I560_string_parameter_hidden_by_keyboard**. The hosting namespace ECON/ is not part of its Git branch name. The user switched with:
+
+```bash
+git -c credential.helper=osxkeychain fetch origin
+git switch issue/CE1-I560_string_parameter_hidden_by_keyboard
+git submodule update --init --recursive
+git status --short
+```
+
+The branch tracked origin's matching branch, submodules aligned with its recorded commits, and the working tree was clean. Preserve any existing local changes before switching on another checkout. Do not use submodule update --remote; these steps intentionally retain parent-recorded revisions.
+
+The application contains a CuRMiTagger.exe pre-build invocation. The user directed that CuRMiT be removed from the application working branch before testing. That removal was **not performed** during this setup. Inspect the invocation on the selected branch and remove only the agreed CuRMiT step, preserving unrelated build steps. Any CIMT-managed fresh clone must also receive the agreed preparation through the eventual application build workflow; editing only the independent development checkout will not change a fresh clone.
+
+### Remaining qualification
+
+- Remove the agreed CuRMiT invocation and inspect the selected branch's current build settings before choosing application targets/configurations.
+- Verify application builds for Android and ARM64 iOS Simulator with the chosen SDK/workloads, package feeds and required application resources.
+- Complete private CIMT input configuration, persistent Git credential-helper verification and any required signing setup. No API key was configured in this guided sequence.
+- Diagnose and rerun the failed output-layout fixture without masking its readiness failure.
+- Verify CIMT validate for the real application, then separately authorize any app installation/reset, run/replay or paid inference.
+- Confirm the Android tablet and any physical devices separately. Jenkins operation and general Apple Silicon release support remain unqualified.
+
+Keep these results separate from the first Intel Mac's historical installation receipts. No application build, CIMT real-app run/replay, paid AI request or physical-device acceptance was completed in this Apple Silicon setup.
