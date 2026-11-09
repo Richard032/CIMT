@@ -4,6 +4,7 @@ import subprocess
 import time
 from errors import InfrastructureError
 from .target import DeviceTarget
+from .external_files import ExternalFiles
 
 
 class AppLifecycle:
@@ -29,6 +30,7 @@ class AppLifecycle:
         self._install(artifact, app_id)
         self._clear_android_data(app_id)
         self._run_hooks(app_id, target)
+        ExternalFiles(self.commands, self.check).copy(app_id)
         self.call("mobile_launch_app", packageName=app_id)
 
     def wait_after_launch(self):

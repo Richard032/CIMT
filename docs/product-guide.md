@@ -254,6 +254,27 @@ Build logs remain separate from the result file. Script-returned values take pre
 
 A build target failure is reported while other targets continue. It produces final exit code 3.
 
+## External test files
+
+Keep test data beside the YAML test configuration. Declare the file in test settings rather than copying it to a device manually:
+
+```yaml
+external-files:
+  - source: ./test.xpa
+    platform: ios
+    destination: Documents/test.xpa
+```
+
+`source` is relative to the folder of the YAML file that declares it, including inherited settings. Files may be in subfolders of that test folder; absolute paths, URLs and parent-directory traversal are rejected. `platform` is `ios` or `android`. `destination` is a file path relative to the tested app's data container, not a device-wide path. Multiple files are supported. Destinations must be unique per platform; iOS also rejects names differing only by case.
+
+Validation and run/replay input preparation check that each source can be read before model access or device reset. File bytes are not text instructions and are not added to AI prompts. Use de-identified test data or the existing credential/masking settings for any sensitive information that the app displays.
+
+After each app reinstall/reset and any configured reset hooks, CIMT copies matching-platform files into that app's data container, verifies the destination content with SHA-256, then launches the app. Replay performs the same provisioning with current test settings. A missing file, inaccessible container, failed command or hash mismatch stops setup before app launch. Original host files are preserved. No reset hook or application source change is needed to seed files.
+
+On iOS Simulator, CIMT resolves the selected simulator's data container with simctl. Paired physical iOS devices use devicectl appDataContainer transfer and read-back verification; normal developer/device authorization must already be complete. Android uses adb run-as and requires a debuggable app. It does not root devices or fall back to public storage when private access is unavailable. Physical-device and Android command paths have offline tests; this feature has not yet been qualified on live devices.
+
+For the keyboard regression test, put test.xpa alongside application.yaml and include setup instructions telling the AI to open it from the app's XPA screen. CIMT provides the file before launch; the AI still tests opening and using it through the normal interface. Select a specific iPhone simulator with execution.device-kind and execution.device-ids when only that device is in scope.
+
 ## 9. Additional reset commands
 
 CIMT performs the platform reset before each scenario. Optional reset.command and reset.verify-command augment that reset for app/backend state and verification. Commands receive the current target, device, and app identifier through environment variables; they are CIMT_TARGET, CIMT_DEVICE, and CIMT_APP_ID. See [run-engine notes](run-engine.md) for the current reset limits.

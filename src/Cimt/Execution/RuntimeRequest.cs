@@ -16,8 +16,14 @@ public static class RuntimeRequest
         ["devices"] = state.Devices,
         ["inputs"] = state.Inputs,
         ["requirements"] = state.Requirements,
-        ["resetDirectories"] = ResetDirectories(state.Configuration.Root)
+        ["resetDirectories"] = ResetDirectories(state.Configuration.Root),
+        ["externalFiles"] = ExternalFiles(state.Configuration.Root)
     };
+
+    public static object[] ExternalFiles(Node root) => ExternalFileSettings.Read(root).Select(file => (object)new
+    {
+        source = file.Source, platform = file.Platform, destination = file.Destination
+    }).ToArray();
 
     public static object? ConvertNode(Node node, string key = "")
     {

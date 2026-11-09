@@ -37,7 +37,7 @@ public sealed class ConfigurationValidator
     /// <summary>Check each settings section; file access checks belong to a separate service.</summary>
     public void Validate(Node root)
     {
-        Keys(root, "workspace", "reports", "repository", "build", "inputs", "credentials", "reset", "masking", "execution", "ai-model", "ai-budget");
+        Keys(root, "workspace", "reports", "repository", "build", "inputs", "credentials", "reset", "masking", "execution", "ai-model", "ai-budget", "external-files");
         // Accept old output settings so private files still load. OutputLayout ignores their paths.
         Keys(root.Get("workspace"), "root");
         ValidateReports(root.Get("reports"));
@@ -50,6 +50,7 @@ public sealed class ConfigurationValidator
         ValidateCredentials(root.Get("credentials"));
         ValidateReset(root.Get("reset"));
         ValidateMasking(root.Get("masking"));
+        _ = ExternalFileSettings.Read(root);
     }
 
     private static void ValidateRepository(Node repository)

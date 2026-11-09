@@ -9,6 +9,9 @@ public sealed class RuntimeFilesCheck(RuntimePaths paths) : IRunStep
     {
         if (!File.Exists(paths.Worker) || !File.Exists(paths.Python))
             throw new ConfigurationException("CIMT support runtime is missing. Install it with scripts/install-cimt-runtime.sh from the source installation.");
+        if (ExternalFileSettings.Read(state.Configuration.Root).Count > 0
+            && !File.Exists(Path.Combine(Path.GetDirectoryName(paths.Worker)!, "device_adapter", "external_files.py")))
+            throw new ConfigurationException("External test files require the matching CIMT support runtime. Reinstall it before running.");
         return Task.CompletedTask;
     }
 }

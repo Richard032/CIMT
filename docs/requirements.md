@@ -415,3 +415,11 @@ On 1 November 2026, the product owner refined FR-99 / AC-69: an unexecutable com
 On 1 November 2026, the product owner requested a 20-second settling delay only if implemented in CIMT. FR-100 / AC-70 place it after successful install/launch and before effective testing checks, because the helper is already connected to perform installation. The native helper and its timeouts remain unchanged.
 
 On 1 November 2026, the product owner approved FR-101 / AC-71: complete ordered batch results, ANR warnings, one initial observation followed by command results, independent observations, efficient evidence references and AI continuation after actual feedback. This refines FR-99 completion semantics and defines new batch results as mandatory execution resources alongside AI-selected historical context.
+
+## Configured external test files — 9 November 2026
+
+Test settings shall support local external files stored beside the test configuration or in its subfolders. Each entry declares its source, target platform and app-container-relative destination. Relative sources retain the origin of their declaring configuration; parent-directory and absolute-path escapes are rejected. Test assets shall not require custom seeding scripts.
+
+CIMT shall check source readability before model access or app reset, then copy and verify the declared files after every reset and optional reset hooks, before launching the app. Transfer or verification failures stop setup. Original host files are preserved, and file contents are not supplied as AI instructions. The feature applies to run and replay. Device permissions and existing deadline, cancellation and privacy rules remain active.
+
+The first configured CE1-I560 test shall use only an explicitly selected iPhone simulator. Its XPA shall be colocated with the test settings. Creating these inputs does not authorize starting a paid AI run.
