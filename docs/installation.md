@@ -1,6 +1,6 @@
 # CIMT installation and setup guide
 
-Version: 0.41
+Version: 0.42
 Last updated: 9 November 2026
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: Intel Mac baseline for local command-line and Jenkins execution; observed Apple Silicon development setup in section 52
@@ -36,9 +36,9 @@ Do not turn this Mac's observed versions into a supported baseline without testi
 | Component | Selection rule | Current state |
 | --- | --- | --- |
 | Intel Mac/macOS | Must run the selected developer tools. | Intel scope confirmed; supported macOS range not selected. |
-| Xcode and iPhone OS | Match Apple support and the selected .NET iOS workload. | Xcode 26.5 retained; matching iOS SDK 26.5.10284 installed in the pilot profile. Device build/install remains unverified. |
-| .NET SDK | Support CIMT's implementation and the application's target frameworks/global.json. | Isolated 10.0.300 pilot profile installed alongside existing SDKs; application-specific selection remains to be validated. |
-| MAUI Android/iOS workloads | Match the chosen SDK and application. | maui-android and maui-ios installed at workload set 10.0.300.3 in CIMT's separate SDK. |
+| Xcode and iPhone OS | Match Apple support and the selected .NET iOS workload. | Matching Apple tools and iOS workload installed in the historical pilot profile. Device build/install remains unverified. |
+| .NET SDK | Support CIMT's implementation and the application's target frameworks/global.json. | Isolated pilot SDK installed alongside existing SDKs; application-specific selection remains to be validated. |
+| MAUI Android/iOS workloads | Match the chosen SDK and application. | maui-android and maui-ios installed in the historical pilot SDK; verify the application-selected SDK separately. |
 | JDK and Android SDK/build tools | Match the application's Android targets and selected .NET Android tooling. | JDK 21, Android API 36, build-tools 36.0.0, command-line tools 22.0, and platform-tools 37.0.1 installed. |
 | Device adapter | Select after evaluating physical Android/iOS and unattended Intel/Jenkins operation. | Both evaluation candidates installed; no final selection. Mobile MCP startup/tool discovery verified. |
 | Supporting runtimes | Provide runtimes needed for adapter evaluation. | Node 22.23.4/npm 10.9.9 installed for both candidates. |
@@ -121,13 +121,30 @@ Use the MAUI-compatible Xcode version rather than automatically selecting whiche
 
 ### Step 5 — Prepare .NET and MAUI workloads
 
-1. Inspect dotnet --list-sdks and dotnet --list-runtimes.
-2. Install/select the manifest's Intel/x64 SDK, accounting for the application's global.json and target frameworks.
-3. Install the matching Android and iOS MAUI workloads. The .NET SDK alone does not provide all platform dependencies.
-4. Check dotnet workload list under the selected SDK.
-5. Record exact SDK/workload versions and verify through the first application's builds.
+Install the native .NET SDK for the host architecture and the application's target frameworks. Run SDK and workload commands from the application checkout: SDK selection depends on the working directory and any existing global.json in its parent directories. Do not add a global.json merely to reuse workloads installed for another SDK feature band.
 
-Section 8 records the verified pilot installation command. A different application's SDK/global.json or a different Xcode version may need another validated profile. Do not treat the presence of maui-android as proof that iOS is installed.
+```bash
+cd /path/to/application
+dotnet --version
+dotnet --info
+dotnet --list-sdks
+xcodebuild -version
+dotnet workload list
+```
+
+Check the current [.NET for iOS release notes](https://github.com/dotnet/macios/releases) against the selected Xcode and macOS before installation. Install the Android and iOS MAUI workloads for the SDK selected above. When the current default workload release matches the Apple tools, use:
+
+```bash
+sudo dotnet workload install maui-android maui-ios --source https://api.nuget.org/v3/index.json
+dotnet workload --info
+dotnet workload list
+```
+
+If the default release requires different Apple tools, select a workload set from the official release notes that supports the installed tools and SDK, or update the tools together. To install a selected compatible set, assign its release-specific value locally and use `--version "$WORKLOAD_SET_VERSION"`. This manual deliberately does not prescribe a workload-set number. Confirm SDK compatibility before using a set from another SDK feature band; a successful installation alone is not proof of a working toolchain.
+
+System-wide .NET installations on macOS require administrator authorization. Enter passwords only in the local terminal. Do not change ownership of the SDK or bypass its permissions. A failed sudo command means installation has not completed.
+
+Verify both workload IDs under the application's selected SDK, then build the actual Android and iOS targets. Retain exact versions in local installation receipts or build logs rather than making one machine's versions universal instructions. The SDK alone does not install all platform dependencies. See [Microsoft's workload installation guidance](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-workload-install) and [Xcode compatibility guidance](https://learn.microsoft.com/en-us/dotnet/ios/troubleshooting/xcode-requirement).
 
 ### Step 6 — Prepare Java and Android SDK tools
 
@@ -260,7 +277,7 @@ Inspection only: no dependency installations, tool replacements, credential chan
 | iPhoneOS SDK | 26.5. | Observed; actual target-device compatibility needs validation. |
 | .NET SDKs | 3.1.413, 3.1.420, 5.0.401, 5.0.408, 9.0.302, 10.0.401. | Reuse only a validated selection; no SDK removed or changed. |
 | .NET 10 runtime | Microsoft.NETCore.App and Microsoft.AspNetCore.App 10.0.12. | Present; app execution not tested. |
-| MAUI workloads | maui-android and maui-tizen, manifest 10.0.110/10.0.100; installed list reports workload version 10.0.401.1. | Android workload present; reported installed list lacks maui-ios. Tizen is not a CIMT target. |
+| MAUI workloads | maui-android and maui-tizen were reported by the inspected SDK. | Android workload present; reported installed list lacks maui-ios. Tizen is not a CIMT target. |
 | Java/JDK | Java launcher exists, but java_home reports no Java runtime; no JDK found in checked standard locations. | Prepare/validate a compatible JDK. A launcher stub is not an installed JDK. |
 | Android tools | adb, sdkmanager, emulator absent from PATH; SDK absent from checked conventional locations. ANDROID_HOME/ANDROID_SDK_ROOT unset. | Physical Android readiness not testable yet. Custom uninspected install paths are not ruled out. Emulator is not required. |
 | Node/npm | Not found in PATH or checked conventional/version-manager locations. | Supporting runtime to evaluate after adapter selection. |
@@ -334,15 +351,14 @@ The installer defaults to /Users/Shared/CIMT. To use another absolute installati
 The wrapper performs:
 
 1. Intel/runtime bootstrap through scripts/bootstrap-macos-prerequisites.sh.
-2. Version-pinned workloads under the separate SDK:
-   dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
+2. Workload installation under the separate SDK. The historical helper pins a pilot workload set; inspect it before reuse. Follow Step 5 for general installation instead of treating the helper's version as a requirement.
 3. Android and adapter tooling through scripts/install-macos-mobile-tools.sh.
 
 The scripts are preliminary prerequisite helpers, not the completed cimt setup command. They do not yet read setup.yaml/toolchain.manifest. The supplied installed-version YAML is an inventory/profile record; final manifest-driven enforcement remains implementation work.
 
 Activation is explicit so the existing account-wide SDK selection is preserved. Source environment.sh in the developer terminal or Jenkins pipeline before using these tools. No shell startup file was changed.
 
-The profile uses Microsoft's documented .NET 10.0.300 / workload-set 10.0.300.3 combination for Xcode 26.5. A newer workload set requiring another Xcode version was not silently substituted. [Official Xcode 26.5 workload release](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10284).
+The historical pilot used an SDK/workload combination matched to its Apple tools. For a new installation, select the combination using the current [official iOS release notes](https://github.com/dotnet/macios/releases) and Step 5; the pilot is not a fixed installation requirement.
 
 ### Installed and verified versions
 
@@ -351,11 +367,11 @@ The profile uses Microsoft's documented .NET 10.0.300 / workload-set 10.0.300.3 
 | Node.js | 22.23.4, Intel archive. |
 | npm | 10.9.9 bundled with Node. |
 | Microsoft OpenJDK | 21.0.13.0.2, build 21.0.13.0.2+1-LTS. |
-| Isolated .NET SDK | 10.0.300. |
-| Workload set | 10.0.300.3. |
-| MAUI workloads | maui-android and maui-ios, MAUI SDK 10.0.20. |
-| .NET iOS SDK | 26.5.10284. |
-| .NET Android SDK | 36.1.53 in the selected workload set. |
+| Isolated .NET SDK | Native SDK selected for the historical pilot. |
+| Workload set | Pilot-specific; inspect the local receipt rather than reuse a fixed version. |
+| MAUI workloads | maui-android and maui-ios. |
+| .NET iOS SDK | Matched to the pilot Xcode. |
+| .NET Android SDK | Supplied by the selected workload set. |
 | Android command-line tools | 22.0, Intel archive build 15859902. |
 | Android platform-tools | 37.0.1; adb 1.0.41. |
 | Android platform | API 36, revision 2. |
@@ -373,7 +389,7 @@ Direct package versions are pinned in the helpers. The Android SDK manager resol
 ### Verification actually completed
 
 - Bootstrap runtime versions matched the pinned values.
-- Both MAUI workloads installed successfully; dotnet workload list reports set 10.0.300.3.
+- Both MAUI workloads installed successfully; dotnet workload list confirmed both workload IDs in the pilot SDK.
 - Android tooling versions and API/build-tools files were checked.
 - Both Appium drivers report installed at the selected versions.
 - Mobile MCP initialized over local standard input/output and listed 33 tools, including physical-device discovery. This sent no AI requests and did not operate an app.
@@ -1231,8 +1247,8 @@ This procedure records commands run by the user on an Apple M4 Mac and the termi
 | Host | Apple M4, Mac16,12, arm64, 24 GiB RAM; 289 GiB free at initial inspection. |
 | macOS | 26.5.1, build 25F80. |
 | Xcode | 26.5, build 17F42; selected at /Applications/Xcode.app/Contents/Developer; first-launch check passed; iPhoneOS SDK 26.5. |
-| .NET | Native ARM64 SDK 10.0.300 selected inside CIMT; SDK 10.0.403 remains installed alongside it. An older x64 installation is separate. |
-| MAUI | maui-android and maui-ios; workload set 10.0.300.3, MAUI manifest 10.0.20; iOS SDK 26.5.10284. |
+| .NET | Native ARM64 SDK selected in the checkout; other SDKs are installed alongside it. Verify selection from the application directory. |
+| MAUI | maui-android and maui-ios installed for the SDK used in this historical check. |
 | Python | python.org universal installer, Python 3.15.2 running as arm64; pip 26.2.2. |
 | Python dependencies | Pillow 13.0.0 ARM64 wheel and truststore 0.10.5 installed in CIMT's virtual environment. |
 | Node / pnpm | Native Node 26.13.0, pnpm 12.18.0 from the official standalone installer. Adapter loading and discovery passed; broader Node compatibility is not established. |
@@ -1252,27 +1268,18 @@ mkdir -p ~/Development
 git clone https://github.com/Richard032/CIMT.git ~/Development/CIMT
 ```
 
-Install Xcode through Apple's distribution channel and complete its first-launch requirements. Verify with the section 4 Xcode commands. Install the **macOS ARM64 SDK 10.0.300** using Microsoft's installer:
+Install Xcode through Apple's distribution channel and complete its first-launch requirements. Install a native macOS ARM64 .NET SDK from the [official .NET downloads](https://dotnet.microsoft.com/download/dotnet) that supports the application's target frameworks. Use Step 5 to match the selected SDK, workloads and Apple tools; no fixed SDK or workload-set version is prescribed here.
 
-- [Exact SDK download page](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.300-macos-arm64-installer)
-- [Official Xcode 26.5 workload release](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10284)
-
-That release explicitly documents SDK 10.0.300 and workload set 10.0.300.3. SDK 10.0.403 alone did not satisfy CIMT's global.json, whose latestPatch policy excludes another feature band. No macOS or Xcode upgrade was needed for this profile.
-
-If dotnet is installed but not found, check /usr/local/share/dotnet/dotnet before reinstalling. On this Mac, the installer created that native executable but no /usr/local/bin/dotnet link. Add its directory once:
+If dotnet is installed but not found, check /usr/local/share/dotnet/dotnet before reinstalling. On the observed Mac, the installer created that native executable but no /usr/local/bin/dotnet link. Add the directory to the execution account's PATH once, preserving existing shell configuration:
 
 ```bash
-touch ~/.zprofile
-grep -qxF 'export PATH="/usr/local/share/dotnet:$PATH"' ~/.zprofile || printf '\nexport PATH="/usr/local/share/dotnet:$PATH"\n' >> ~/.zprofile
 export PATH="/usr/local/share/dotnet:$PATH"
-cd ~/Development/CIMT
+cd /path/to/application
 dotnet --version
 dotnet --info
-sudo /usr/local/share/dotnet/dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
-dotnet workload --info
 ```
 
-Expected SDK: 10.0.300; architecture: arm64; both workloads listed under set 10.0.300.3. A workload verification warning appeared initially; a subsequent diagnostic workload list showed both workloads without the warning. No workload update or repair was performed. Do not use an unpinned update to suppress a warning; retain and diagnose persistent errors.
+Then perform Step 5 from that application directory. Expected: native arm64 SDK and both workload IDs listed for the SDK the application actually selects. Sourcing an environment file adds executable paths; it does not make workloads installed for one SDK feature band available in another. Diagnose workload errors rather than introducing a project SDK pin to hide them.
 
 ### 2. Python support runtime
 
@@ -1447,3 +1454,92 @@ The application contains a CuRMiTagger.exe pre-build invocation. The user direct
 - Confirm the Android tablet and any physical devices separately. Jenkins operation and general Apple Silicon release support remain unqualified.
 
 Keep these results separate from the first Intel Mac's historical installation receipts. No application build, CIMT real-app run/replay, paid AI request or physical-device acceptance was completed in this Apple Silicon setup.
+
+## 53. Apple Silicon local follow-up verification — 9 November 2026
+
+This follow-up supersedes section 52’s pending CuRMiTagger removal and statement that the offline suite was not rerun after adapter installation. It is a local setup record for the developer account, not a supported compatibility manifest or end-to-end acceptance result. The user reported that CIMT already builds and device discovery works. This continuation verified the environment, existing offline checks, installed runtime bytes and the requested application pre-build change. No real CIMT run, replay, application installation, paid inference, commit or push was performed.
+
+### Activate and inspect the existing ARM64 installation
+
+From the CIMT checkout:
+
+```bash
+cd "$HOME/Development/CIMT"
+source .local/install/environment.sh
+uname -m
+sw_vers
+dotnet --info
+dotnet workload list
+xcodebuild -version
+xcodebuild -checkFirstLaunchStatus
+xcrun --sdk iphoneos --show-sdk-version
+java -version
+file "$MOBILECLI_PATH"
+cimt --help
+```
+
+Verified on this Mac:
+
+| Component | Observed result |
+| --- | --- |
+| Host | arm64; macOS 26.5.1, build 25F80. |
+| CIMT source | main, revision 1b42e8a; clean before this documentation edit. |
+| .NET in CIMT checkout | ARM64 SDK selected by CIMT's existing global.json during this historical check. |
+| Additional .NET SDK | 10.0.403 is installed; the application pre-build commands selected it (MSBuild 18.9.15). Source environment activation alone does not pin the SDK outside the CIMT checkout. |
+| MAUI | maui-android and maui-ios installed for the historically selected SDK. |
+| Xcode | 26.5, build 17F42; first-launch status passed; iPhoneOS SDK 26.5. |
+| Java | Native ARM64 Temurin 21.0.13+9, selected with java_home -v 21 -a arm64. |
+| Android platform-tools | adb 1.0.41, platform-tools 37.0.1. |
+| Mobile CLI | Mach-O arm64 helper, package mobilecli-darwin-arm64 1.0.21. |
+| Python support runtime | Existing venv imports Pillow 13.0.0 and truststore 0.10.5. All 57 installed Python source modules match the checkout byte for byte. |
+| CIMT launcher | cimt --help passed; source launcher uses the checkout's Release host when no packaged host exists. |
+
+The local environment sets CIMT_INSTALL_ROOT to `$HOME/Development/CIMT/.local/install`, adds the source scripts and native .NET paths, selects Java 21 ARM64, and adds `$HOME/Library/Android/sdk` tools. MOBILECLI_PATH explicitly selects the installed ARM64 binary inside the existing pnpm package layout. Preserve the actual installed path when reusing this environment; do not substitute an Intel helper. The file is private/local and is not a portable package manifest.
+
+The Intel bootstrap remains Intel-only and downloads x64 archives. Do not run `scripts/setup-prerequisites-macos.sh` as an Apple Silicon installation recipe. Fresh ARM64 download/install automation and package-integrity verification were not performed in this continuation. pnpm was not available on the activated PATH; existing packages were reused without package installation.
+
+### Read-only device discovery
+
+```bash
+source "$HOME/Development/CIMT/.local/install/environment.sh"
+adb devices -l
+xcrun simctl list devices booted
+xcrun devicectl list devices
+```
+
+Verified outside the agent's restricted sandbox: one authorized ARM64 Android emulator, and booted iOS simulators running 18.5, 26.3 and 26.5. The paired physical iPhone was unavailable. Device identifiers are omitted here. Discovery does not establish signing, install/launch, UI control or real-device readiness. Sandbox-denied ADB socket creation and CoreSimulator connections were resolved by rerunning discovery with host-service access; they were not established toolchain defects.
+
+### Requested application change and remaining build blocker
+
+Application: `$HOME/Development/ag-econ-mobile`, branch `issue/CE1-I560_string_parameter_hidden_by_keyboard`. The application was clean initially and recursive submodules were already initialized. No submodule revisions were changed during this continuation.
+
+Removed only the CuRMiTagger.exe Exec element from `EconMobile.Common/EconMobile.Common.csproj`. The PreBuild target and its Android-only MSBuild Copy remain unchanged, including file line endings. This is a local application modification, separate from CIMT; it will not be present in a fresh remote clone until the application change is shared through its normal workflow.
+
+The following real MSBuild target checks were run from the application checkout after environment activation:
+
+```bash
+dotnet msbuild EconMobile.Common/EconMobile.Common.csproj -t:PreBuild -p:TargetFramework=net10.0-ios -p:Configuration=Debug_Pride -v:minimal
+dotnet msbuild EconMobile.Common/EconMobile.Common.csproj -t:PreBuild -p:TargetFramework=net10.0-android36.0 -p:Configuration=Debug_Pride -v:minimal
+```
+
+The iOS pre-build target passed. Android failed with MSB3030 because `Platforms/Android/Resources/values/template/strings.xml` is absent. Only `strings.template.xml` is present. These are pre-build checks, not complete application builds. The intended generation/preparation of strings.xml must be supplied before Android can build with the preserved copy step. Do not rename an unresolved template, fabricate version metadata or silently skip the copy. This repeats the clean-clone generated-input gap described in section 29; removing the tagger does not resolve that separate dependency.
+
+### Offline verification and next setup steps
+
+Ran the existing `bash scripts/check-development.sh` with the activated environment. Passed: 315 xUnit tests, 22 runtime-policy checks, 426 Python unit tests, 22 CLI/lifecycle checks, four simulated build-contract checks and four example-build tests. The final public output-layout fixture failed: Node could not find `@mobilenext/mobile-mcp/lib/mobilecli.js` under the fixture's isolated installation root. That fixture supplies fake readiness tools but no Mobile MCP package at that path. The overall script exited 1; it is not an all-green setup result. No unrelated tests were modified to bypass this blocker.
+
+Next: establish the application's intended generated strings input, verify full Android/iOS application builds and signing with the selected SDK, resolve the output-layout fixture dependency, and run public CIMT validate with the intended private inputs. A real device/app run and paid AI qualification require a separate user request. Physical-device, Jenkins, second-Intel-Mac and release acceptance remain open.
+
+## 54. General SDK/workload installation follow-up — 9 November 2026
+
+This follow-up supersedes section 53's temporary tagger removal and pending iOS build status. The original application pre-build invocation was restored, and the CuRMiT submodule was updated to the new Mac/Windows distribution. Its Mac installation script places the native launcher at the existing pre-build path.
+
+The application-only global.json introduced to reuse the older workload installation was removed at the user's request. The application now selects the installed SDK without that added pin. CIMT's pre-existing global.json is a separate source-repository setting and was not changed.
+
+The manual's installation steps now select workloads by the application's SDK, host architecture and current Apple compatibility guidance rather than prescribing fixed workload-set or MAUI/iOS pack versions. Historical helper scripts still contain their pilot versions; they were not rewritten as part of this documentation change. Use Step 5 rather than copying their pilot profile into a new machine setup.
+
+The system .NET installation is administrator-owned, so the user completed workload installation in their own terminal. Verification from the application checkout confirmed that both maui-android and maui-ios are registered for the SDK selected without the added global.json. The workload set was matched to the existing Apple tools rather than upgrading them implicitly. Exact installed versions are retained in the ignored local installation receipt, not prescribed by this manual.
+
+The application then built successfully for the ARM64 iOS Simulator in Debug_Pride with zero errors and 701 warnings. The unchanged CuRMiTagger pre-build invocation succeeded and generated the next local build number. The build used the local cache of private packages copied from the external drive plus nuget.org. The existing protobuf-net compatibility warning NU1701 remained visible and was explicitly allowed for this build; package versions were unchanged. The resulting app bundle and ARM64 executable were verified on disk. This is build verification only: no simulator launch, physical-device signing, Android application build or paid AI run was performed.
+
+The application's CuRMiT submodule target and revision changes remain local until separately committed in that application repository. The application has no added SDK pin. CIMT's existing source-repository SDK selection remains unchanged.
