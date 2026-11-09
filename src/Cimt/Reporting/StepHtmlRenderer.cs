@@ -31,11 +31,29 @@ public sealed class StepHtmlRenderer(Configuration configuration, ReportEvidence
             + Note(step, "actionError", "Action error")
             + Note(step, "crash", "Crash/termination evidence") + Note(step, "recovery", "Recovery")
             + Note(step, "navigation", "Navigation") + Note(step, "evidenceError", "Unavailable evidence") + "</dl>";
+        if (ReportScenario.Action(step) == "swipe" && step.TryGetProperty("action", out var requested)
+            && requested.ValueKind == JsonValueKind.Object)
+        {
+            var fields = new[] { "action", "ref", "x", "y", "direction", "distance" };
+            var arguments = requested.EnumerateObject().Where(field => fields.Contains(field.Name))
+                .ToDictionary(field => field.Name, field => field.Value);
+            body += Arguments(JsonSerializer.SerializeToElement(arguments), "Requested action");
+        }
+        if (step.TryGetProperty("adapterCall", out var dispatched))
+            body += Arguments(dispatched, "Adapter call attempted");
         if (Field(step, "screenshot").Length > 0)
             body += evidence.Image(Field(step, "screenshot"), context.Label + " / " + (id.Length == 0 ? "unnumbered record" : "step " + id), context.Anchor);
         else
             body += "<p>No screenshot was saved for this record.</p>";
         return body + "</details>";
+    }
+
+    private string Arguments(JsonElement value, string label)
+    {
+        var safe = new JsonTextRedactor(configuration.Scrub).Text(value);
+        return "<details><summary>" + Encode(label) + "</summary><pre>"
+            + Encode(safe?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "null")
+            + "</pre></details>";
     }
 
     private string Note(JsonElement step, string key, string label) => Field(step, key).Length == 0 ? ""

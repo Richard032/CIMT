@@ -35,7 +35,11 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], {"action": self.action})
+        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], {"action": self.action, "adapterCall": self.adapter_call})
+
+    def adapter_call(self, value):
+        return self._record(value, ['tool', 'status'], {
+            'arguments': lambda row: self._record(row, ['device', 'direction'])})
 
     def crash(self, value):
         return self._record(
@@ -86,7 +90,8 @@ class RecordRedactor:
     def batch_event(self, value):
         return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp'], {
             'warnings': lambda rows: list(rows),
-            'target': lambda row: self._record(row, ['ref', 'x', 'y', 'direction', 'credential', 'field'])})
+            'adapterCall': self.adapter_call,
+            'target': lambda row: self._record(row, ['ref', 'direction', 'credential', 'field'])})
 
     def warning(self, value):
         return self._record(value, ['id', 'code', 'level', 'timestamp', 'step', 'device', 'platform', 'target'])

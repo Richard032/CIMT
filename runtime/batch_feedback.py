@@ -40,14 +40,16 @@ class BatchFeedback:
     def _command(row):
         action = row['response']
         # Secret text is never copied into the compact feedback target.
-        target = {key: action[key] for key in ('ref', 'x', 'y', 'direction', 'credential', 'field') if key in action}
+        target = {key: action[key] for key in ('ref', 'x', 'y', 'direction', 'distance', 'credential', 'field') if key in action}
         return dict(kind='command', commandId=row['id'], action=action['action'], target=target,
             status=row['status'], step=row.get('step'), observation=None,
             uiChange='observation unavailable', warnings=[], error='')
 
-    def finish(self, row, error='', target_label=''):
+    def finish(self, row, error='', target_label='', adapter_call=None):
         if self.current is not None:
             self.current.update(status=row['status'], step=row.get('step'), error=error, targetLabel=target_label)
+            if adapter_call is not None:
+                self.current['adapterCall'] = deepcopy(adapter_call)
             if row['status'] in ('handled', 'deferred'):
                 self.current.update(observation=self.latest, uiChange='not applicable')
             self.current = None

@@ -435,3 +435,11 @@ Capacity feedback shall report the exact selected UTF-8 byte count, the allowanc
 Credential command guidance shall show alias, field and an explicit target ref or coordinates together. It shall preserve local credential resolution, masking and the existing failure when a credential target is missing or disabled.
 
 Activity shall distinguish context preparation, evidence refresh/reuse, action/context-selection cycles, and provider-response elapsed time. Provider timing shall cover only the transport call, including failures, with the device/target and request kind. Existing budget reservation and uncertain-usage accounting shall remain unchanged. Combined decision-cycle times contain nested operations and shall not be added to those components. Existing historical reports shall remain unchanged.
+
+## Faithful swipe argument forwarding
+
+CIMT shall preserve the AI's selected swipe direction, target and optional distance through command decoding, execution, ordered feedback and reporting. A target shall be either a ref or both x/y device coordinates. Mechanically resolve a ref to the centre of its current bounds; never replace an unresolved targeted swipe with a whole-screen gesture. Explicit coordinates and distance shall be forwarded unchanged, without screenshot-pixel scaling, target substitutions or application-specific value selection. Disabled state alone shall not veto the AI's requested swipe.
+
+An untargeted swipe without distance shall retain the adapter's whole-screen behavior. The installed Mobile MCP adapter ignores distance on that path; CIMT shall therefore report an explicit argument error when distance is supplied without a target. Reject missing/ambiguous bounds, conflicting target forms, partial/nonfinite/out-of-screen start coordinates and nonfinite or sub-unit distances before dispatch. Retain the original reply, return the mechanical failure to AI and cancel queued tail commands under the existing rules.
+
+For each attempted swipe, retain both the requested action and the exact adapter tool/arguments with attempted/completed/failed/stopped status. Return that record in ordered batch feedback and show it in the step report. Completion of the tool call shall not establish that the intended app value changed. Preserve credential redaction and existing cancellation, budget, privacy and crash policies.

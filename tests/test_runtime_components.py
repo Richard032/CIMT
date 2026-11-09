@@ -38,6 +38,10 @@ from device_adapter.screen_capture import ScreenCapture
 MODEL = "gpt-5.4-mini-2026-03-17"
 BUTTON = {"ref": "@e1", "identifier": "ButtonA", "type": "Button", "label": "Open"}
 SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
+SWIPE_SCREEN = dict(type='CimtScreenInfo', screenWidth=402, screenHeight=874,
+                    imageWidth=1206, imageHeight=2622)
+SWIPE_WHEEL = dict(ref='@wheel', type='PickerWheel', value='DEVELOPER',
+                   coordinates=dict(x=9, y=620, width=384, height=291))
 
 
 def check(status="passed"):
@@ -1158,6 +1162,40 @@ class ScenarioTests(unittest.TestCase):
         self.assertNotIn('actionError', result['scenarios'][0]['steps'][-1])
         self.assertNotIn('synthetic-user', json.dumps(result))
 
+
+    def test_requested_and_dispatched_swipe_arguments_reach_step_and_next_ai_feedback(self):
+        agent,_,transport=api_agent([action('swipe',ref='@wheel',direction='up',distance=40),action()])
+        mobile=FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN])
+        result={'scenarios':[]}
+        self.runner.run(mobile,self.build,result,agent,lambda:None)
+        step=result['scenarios'][0]['steps'][1]
+        self.assertEqual(step['action']['ref'],'@wheel')
+        self.assertEqual(step['action']['distance'],40)
+        self.assertEqual(step['adapterCall']['arguments']['y'],765.5)
+        self.assertEqual(step['adapterCall']['status'],'completed')
+        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        command=state['batchFeedback'][0]['path'][0]
+        self.assertEqual(command['target']['distance'],40)
+        self.assertEqual(command['adapterCall']['arguments']['x'],201)
+
+    def test_unresolved_swipe_cancels_following_commands_and_reports_failure(self):
+        batch=json.dumps([action('swipe',ref='@missing',direction='up',distance=40),action('tap',ref='@wheel')])
+        agent,_,transport=api_agent([batch,action()])
+        mobile=FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN]);result={'scenarios':[]}
+        self.runner.run(mobile,self.build,result,agent,lambda:None)
+        self.assertEqual([name for name,_ in mobile.calls],['reset'])
+        scenario=result['scenarios'][0]
+        self.assertEqual([row['status'] for row in scenario['commandQueue']['commands']],['failed','cancelled','handled'])
+        self.assertNotIn('adapterCall',scenario['steps'][1])
+        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('cannot be resolved',state['resourceFeedback'])
+
+    def test_nonfinite_argument_failure_still_produces_valid_json_reports(self):
+        agent,_,_=api_agent([action('swipe',ref='@wheel',direction='up',distance=float('inf')),action()])
+        result={'scenarios':[]}
+        self.runner.run(FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN]),self.build,result,agent,lambda:None)
+        json.dumps(result,allow_nan=False)
+        self.assertIn('distance',result['scenarios'][0]['steps'][1]['actionError'])
 
 class StopThenReportFailure:
     """Simulate a limit reached while the model is returning a finding."""

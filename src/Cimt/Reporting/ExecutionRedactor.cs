@@ -54,7 +54,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
                 ["kind", "commandId", "action", "status", "step", "observation", "uiChange", "timestamp"], new()
                 {
                     ["warnings"] = JsonTextRedactor.Keep,
-                    ["target"] = target => json.Record(target, ["ref", "x", "y", "direction", "credential", "field"])
+                    ["target"] = target => json.Record(target, ["ref", "direction", "credential", "field"]),
+                    ["adapterCall"] = AdapterCall
                 })),
             ["observations"] = rows => json.Items(rows, row => json.Record(row,
                 ["id", "screen", "uiObservation", "timestamp", "screenshot", "ui"])),
@@ -74,7 +75,13 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
         ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], new()
     {
         ["action"] = Action,
+        ["adapterCall"] = AdapterCall,
         ["crash"] = CrashKind
+    });
+
+    private JsonNode AdapterCall(JsonElement value) => json.Record(value, ["tool", "status"], new()
+    {
+        ["arguments"] = arguments => json.Record(arguments, ["device", "direction"])
     });
 
     private JsonNode? Action(JsonElement value) => value.ValueKind == JsonValueKind.String

@@ -18,6 +18,8 @@ FIELDS = {
     "x": {"type": "integer"},
     "y": {"type": "integer"},
     "direction": {"type": "string", "enum": ["", "up", "down", "left", "right"]},
+    "distance": {"type": ["number", "null"], "minimum": 1,
+                 "description": "Swipe distance in device coordinates. Use a ref or x/y target; omit or null for the adapter default."},
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
@@ -74,6 +76,13 @@ SYSTEM_PROMPT = (
     "Focus a field first when needed; an alias and field alone do not identify a UI target. "
     "For example, use {\"action\":\"credential\",\"credential\":\"test-account\",\"field\":\"username\",\"ref\":\"<current input ref>\"}. "
     "their secret values are never supplied to you. Use synthetic non-secret text otherwise. "
+    "For swipe, supply direction and either a target ref or both x/y coordinates, never both target forms. "
+    "CIMT translates a ref to the centre of that element's bounds in device coordinates. "
+    "Use CimtScreenInfo.screenWidth/screenHeight, not screenshot image pixels. "
+    "Optional distance is forwarded unchanged; it must be a finite number at least 1 and needs a target. "
+    "An untargeted swipe with x=y=-1 and no distance keeps the adapter's whole-screen gesture. "
+    "For small controls such as picker wheels, choose a start point inside the control and a suitable short distance; "
+    "inspect the actual result and select a revised action when needed. The AI chooses the desired value and confirms it. "
     "iOS has no system BACK button; choose a tap or swipe for back navigation. Record ambiguity and blocked "
     "paths in observation/remaining. Do not claim exhaustive coverage of unseen states. "
     "Choose done only when the objective is explored or blocked, with explicit remaining "
@@ -233,6 +242,7 @@ class ActionPromptBuilder:
             'actions': ['tap', 'text', 'credential', 'swipe', 'back', 'wait', 'restart', 'recall', 'recover', 'done'],
             'arguments': FIELDS,
             'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
+            'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=40),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
         return state

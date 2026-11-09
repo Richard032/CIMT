@@ -56,6 +56,13 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('keeps the existing selection', prompt)
         self.assertIn('explicit target', prompt)
 
+    def test_swipe_resources_expose_target_and_distance_together(self):
+        resources = state([])['commandResources']
+        self.assertEqual(resources['swipeExample'], dict(action='swipe', ref='<current target ref>',
+                                                       direction='up', distance=40))
+        self.assertEqual(resources['arguments']['distance']['minimum'], 1)
+        self.assertIn('null', resources['arguments']['distance']['type'])
+
     def test_instruction_layer_does_not_import_reply_or_execution_services(self):
         forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client', 'device_adapter'}
         package = Path(__file__).resolve().parents[1] / 'runtime/ai_instructions'

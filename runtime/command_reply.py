@@ -1,6 +1,7 @@
 """Read ordered commands and keep the complete AI reply as source data."""
 
 import json
+import math
 from errors import InfrastructureError
 
 
@@ -50,7 +51,7 @@ def command_objects(text):
 
 def command(value):
     """Fill omitted resource arguments. Do not score or approve the AI's content."""
-    defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', credential='',
+    defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, credential='',
         field='', observation='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
         configuration=[], pathDecisions=[], planStepId=0, context=None,
@@ -60,6 +61,18 @@ def command(value):
         supplied = value.get(name, default)
         if default is None or type(supplied) is type(default):
             result[name] = supplied
+    if result['action'] == 'swipe':
+        # Preserve numeric/invalid gesture arguments for execution feedback, never a centre fallback.
+        for name in ['x', 'y', 'distance']:
+            supplied = value.get(name, defaults[name])
+            # Invalid numbers/containers must still produce valid JSON failure reports.
+            if isinstance(supplied, (dict, list)):
+                supplied = json.dumps(supplied, ensure_ascii=False)
+            elif type(supplied) is float and not math.isfinite(supplied):
+                supplied = str(supplied)
+            result[name] = supplied
+        if 'ref' in value and not isinstance(value['ref'], str):
+            result['argumentError'] = 'Swipe ref must be a string'
     result['remaining'] = [str(row) for row in result['remaining']]
     result['recovery'] = records([result['recovery']], defaults['recovery'])[0]
     result['checks'] = records(result['checks'], dict(taskId=-1, subject='', source='',

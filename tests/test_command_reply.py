@@ -51,6 +51,14 @@ class CommandReplyTests(unittest.TestCase):
         self.assertEqual(result['action'], 'note')
         self.assertNotIn('queuedCommands', result)
 
+    def test_swipe_distance_and_fractional_coordinates_survive_decoding(self):
+        result = read_reply(reply('{"action":"swipe","x":12.5,"y":30.25,"direction":"up","distance":40.5}'))
+        self.assertEqual((result['x'], result['y'], result['distance']), (12.5, 30.25, 40.5))
+
+    def test_invalid_swipe_distance_is_retained_for_explicit_execution_failure(self):
+        result = read_reply(reply('{"action":"swipe","ref":"@wheel","direction":"up","distance":"bad"}'))
+        self.assertEqual(result['distance'], 'bad')
+
     def test_unknown_fields_are_preserved_in_the_original_reply(self):
         text = json.dumps(dict(action='wait', myPlan=dict(next='Settings')))
         result = read_reply(reply(text))

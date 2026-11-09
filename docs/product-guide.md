@@ -560,3 +560,17 @@ Repeated context-only exchanges can reuse the last masked image, marked by curre
 A credential action needs credential (the configured alias), field (username/password), and either the chosen input's current ref or valid x/y coordinates. Alias and field alone do not identify an input. CIMT enters the value locally; the AI does not receive it. The application's navigation guide belongs in inputs.setup and should identify controls, login requirements and expected states without storing credentials in AI text.
 
 These changes have offline regression coverage. Their effect on live latency and successful requirement coverage must be measured in a separately started run/replay.
+
+## Targeted swipes
+
+The AI may request a swipe using the target element's current ref, or explicit device x/y coordinates, with direction and optional distance. For example:
+
+```json
+{"action":"swipe","ref":"<current wheel ref>","direction":"up","distance":40}
+```
+
+The example is a resource description, not a fixed picker strategy. The AI chooses the control, direction, distance and desired value. CIMT translates a ref to the centre of its bounds and passes coordinates/distance to the adapter. Coordinates use CimtScreenInfo.screenWidth/screenHeight, not the larger screenshot image dimensions. Do not provide ref and x/y together. Omitted/null distance leaves the targeted adapter default; a suitable shorter distance can be requested for a small control.
+
+A swipe without a target and without distance retains the whole-screen gesture. Supplying distance without a target is an explicit error, because the installed adapter would ignore it. Unresolved refs, missing/invalid bounds, partial coordinates and invalid distances produce feedback and cancel the remaining command batch; CIMT does not silently swipe elsewhere.
+
+New step reports show the requested action and exact attempted adapter call. The same call record is provided to AI in batch feedback. A successful call is distinct from observing a changed value. Offline tests cover forwarding, errors, cancellation, masking and HTML; live picker selection remains a separately executed device check.
