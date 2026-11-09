@@ -7,7 +7,7 @@ import subprocess
 import threading
 import time
 from errors import InfrastructureError, LimitReached
-from rpc_messages import RpcMessages
+from .rpc_messages import RpcMessages
 
 
 class Mcp:
@@ -92,13 +92,7 @@ class Mcp:
     def call(self, name, arguments, timeout=45):
         """Call one adapter tool and redact any error text before raising it."""
         value = self.request("tools/call", {"name": name, "arguments": arguments}, timeout)
-        if value.get("isError"):
-            raise InfrastructureError(
-                self.redactor.text(
-                    " ".join(item.get("text", "") for item in value.get("content", []))
-                )
-            )
-        return value
+        return self.messages.tool_result(value, name, self.redactor.text)
 
     def close(self):
         """Stop the client process and release its streams and diagnostic reader."""

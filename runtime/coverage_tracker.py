@@ -60,7 +60,7 @@ class CoverageTracker:
             "observedControls": len(self.observed),
             "attemptedControls": len(self.attempted),
             "outstandingObservedControls": len(outstanding),
-            "outstandingExamples": list(outstanding.values())[:40],
+            "outstandingExamples": list(outstanding.values()),
         }
 
     def _key(self, element):
@@ -70,6 +70,7 @@ class CoverageTracker:
         fallback = (
             element_key(element)
             if element
-            else action["action"] + action.get("direction", "") + str((action["x"], action["y"]))
+            else json.dumps([action["action"], action.get("ref", ""),
+                             action.get("direction", ""), action["x"], action["y"]])
         )
         return target + ":" + (element.get("identifier") or self.state + ":" + fallback)

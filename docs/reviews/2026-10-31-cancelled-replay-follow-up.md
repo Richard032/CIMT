@@ -68,3 +68,8 @@ First recommendation: measure the native boundary before selecting a transport r
 ### Cancellation follow-up: host stages and observation wording
 
 A second review found the Python worker classification was fixed, but host RunActivityLog.Run still logged an IOException as failed before RunCoordinator recognized user interruption. Host stages now receive the cancellation token and log stopped with the known interruption reason first. Cleanup remains uncancelled so actual finalization failures are preserved. ExplorationMemory also retains the interrupted step reason instead of generating an observed-unchanged result from a stale screen. Recorded crash/action failures retain priority. The broader repeated-action and speed proposals above remain unimplemented, and no additional startup diagnostic collector was added.
+
+
+### Approved planning implementation
+
+The product owner subsequently approved instruction/requirement-driven planning and required it as a separate layer. The Test Planning and Exploration package implements that increment, including known status-indicator filtering, source-linked path scope, current-ref generic-input discovery, configuration-sensitive states and persistent tasks. See architecture section 31 and FR-82–FR-87. Legacy coverage counters and capture timing/checks are unchanged. The earlier additional startup-diagnostics item remains cancelled. Appium adapter replacement and capture-speed work are not part of this implementation.

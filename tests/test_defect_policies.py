@@ -8,15 +8,17 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
-from check_results import scenario_verdict, validate_checks
-from device_commands import NativeDevice
+from check_results import scenario_verdict
+from device_adapter.native import NativeDevice
 from device_scheduler import DeviceScheduler
-from errors import InfrastructureError
+from errors import AppLaunchError, DeviceLocked, DeviceServerStartupError, InfrastructureError, LimitReached
 from redaction import Redactor
+from stopping_policy.policy import matching_crash_limit_reached, stops_entire_run
 
 
 def check(status="passed", source="instructions"):
     return {
+        "taskId": 0,
         "subject": "Save setting",
         "source": source,
         "status": status,
@@ -26,6 +28,34 @@ def check(status="passed", source="instructions"):
         "requirementId": "REQ-0001" if source == "requirements" else "",
         "instructionQuote": "",
     }
+
+
+class StoppingPolicyTests(unittest.TestCase):
+    def test_launch_failure_stops_only_the_affected_device(self):
+        self.assertFalse(stops_entire_run(AppLaunchError('Could not launch the app')))
+
+    def test_locked_device_does_not_stop_other_devices(self):
+        self.assertFalse(stops_entire_run(DeviceLocked('Unlock this device')))
+
+    def test_budget_deadline_and_user_interruption_stop_the_whole_run(self):
+        for reason in ['AI budget exhausted', 'Whole-run time limit reached', 'User interrupted']:
+            with self.subTest(reason=reason):
+                self.assertTrue(stops_entire_run(LimitReached(reason)))
+
+    def test_error_text_cannot_change_the_stopping_scope(self):
+        self.assertTrue(stops_entire_run(LimitReached('Shared resource is locked')))
+
+    def test_shared_infrastructure_failure_stops_the_whole_run(self):
+        self.assertTrue(stops_entire_run(InfrastructureError('AI service unavailable')))
+
+    def test_exhausted_adapter_startup_keeps_infrastructure_stopping_scope(self):
+        self.assertTrue(stops_entire_run(DeviceServerStartupError('startup recovery exhausted')))
+
+    def test_third_matching_crash_stops_the_scenario(self):
+        for attempts in [1, 2]:
+            self.assertFalse(matching_crash_limit_reached(attempts))
+        for attempts in [3, 4]:
+            self.assertTrue(matching_crash_limit_reached(attempts))
 
 
 class CheckResultTests(unittest.TestCase):
@@ -64,17 +94,14 @@ class CheckResultTests(unittest.TestCase):
         unknown = dict(check("inconclusive"), reason="Value is not visible yet")
         self.assertEqual(scenario_verdict([unknown, check()], False, True), "passed")
 
-    def test_decided_check_needs_observed_evidence(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([dict(check(), observed="")])
+    def test_report_uses_ai_result_without_evaluating_its_evidence_text(self):
+        self.assertEqual(scenario_verdict([dict(check(), observed='')], False, True), 'passed')
 
-    def test_unresolved_check_needs_a_reason(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([check("not tested")])
+    def test_unresolved_result_remains_inconclusive_without_a_format_error(self):
+        self.assertEqual(scenario_verdict([check('not tested')], False, True), 'inconclusive')
 
-    def test_instruction_cannot_be_overridden(self):
-        with self.assertRaises(InfrastructureError):
-            validate_checks([dict(check("overridden"), reason="Conflicting request")])
+    def test_unfamiliar_result_does_not_invent_a_pass(self):
+        self.assertEqual(scenario_verdict([check('AI assessment')], False, True), 'inconclusive')
 
     def test_requirement_can_be_overridden_with_a_reason(self):
         overridden = dict(
@@ -82,7 +109,6 @@ class CheckResultTests(unittest.TestCase):
             reason="Instructions take priority",
             instructionQuote="Explore only",
         )
-        validate_checks([overridden])
         self.assertEqual(scenario_verdict([check(), overridden], False, True), "passed")
 
 
@@ -168,6 +194,20 @@ class NativeCommandTests(unittest.TestCase):
             self.native(result).native([])
         self.assertNotIn("synthetic-secret", str(raised.exception))
         self.assertIn("failed", str(raised.exception))
+
+    def test_known_device_server_failure_has_a_redacted_startup_type(self):
+        result = subprocess.CompletedProcess([], 1, "",
+            "failed synthetic-secret: device server did not start within 5s on port 1234")
+        with self.assertRaises(DeviceServerStartupError) as raised:
+            self.native(result).native(["apps", "list"])
+        self.assertNotIn("synthetic-secret", str(raised.exception))
+        self.assertIn("device server did not start", str(raised.exception))
+
+    def test_unrelated_native_failure_is_not_a_retryable_startup_error(self):
+        result = subprocess.CompletedProcess([], 1, "", "device connection failed")
+        with self.assertRaises(InfrastructureError) as raised:
+            self.native(result).native(["apps", "list"])
+        self.assertNotIsInstance(raised.exception, DeviceServerStartupError)
 
     def test_invalid_json_is_an_infrastructure_error(self):
         with self.assertRaisesRegex(InfrastructureError, "invalid JSON"):

@@ -10,6 +10,10 @@ A class owns one area of work. A method has one purpose. A workflow method may c
 
 Keep methods short enough to read without searching through unrelated work. Long request/schema literals are data; they are not a reason to mix more behavior into a method. Put test setup in named helpers so each test shows its action and expected result clearly. If a unit test needs complicated or advanced code, simplify the tested source first. If it is still complicated, split the behavior into several simple cases. Do not replace methods at runtime to build a test fixture.
 
+## Layer folders
+
+Every architectural layer has its own source folder under DR-01. Test Planning and Exploration lives in runtime/test_planning/; Execution Stopping Policy lives in runtime/stopping_policy/; AI Instruction and Context lives in runtime/ai_instructions/; Device Adapter lives in runtime/device_adapter/. AI Instruction and Context supplies inputs and retained knowledge; reply decoding is runtime/command_reply.py and dispatch stays in execution. Keep their complete packages in deployment. Components within a layer do not each need another layer or abstraction. Document a new layer's responsibility, folder and allowed dependencies before adding it.
+
 ## Comments
 
 Use short sentences in simple English. Explain what a component owns and why an important rule exists. For example: “The registry and folder must agree before any recursive deletion.” Avoid unexplained abbreviations and comments that only repeat an obvious assignment. Add a summary for public behavior and document important private rules beside the code. Keep comments up to date when behavior changes.
@@ -40,22 +44,23 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | check_results.py | Validate explicit observations and calculate the scenario verdict. |
 | check_recorder.py, requirement_results.py | Record mapped checks/evidence and update per-objective requirement decisions. |
 | scenario.py | Order one objective using local scenario state. |
-| decision_recovery.py | Correct invalid decisions before check recording/actions; retain redacted rejected candidates. |
-| actions.py | Validate and execute allowed actions; enter credentials locally. |
+| ai_instructions/, ai_interaction.py, command_reply.py, command_queue.py | Prepare inputs, coordinate requests, decode ordered objects and store FIFO execution state in separate responsibilities. |
+| actions.py | Apply mechanical execution constraints and dispatch AI-selected targets; enter credentials locally with verified masking. |
 | coverage_tracker.py | Track observed and activated controls. |
-| exploration_memory.py | Retain scenario paths/outcomes and reject no-progress repetitions. |
+| test_planning/ | Retain AI-owned plans, selections, paths/outcomes and repetition facts. |
 | run_signals.py | Convert terminal signals into worker stop flags. |
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
 | action_prompt.py, agent.py, openai_transport.py | Build model input, reserve cost, parse actions, and send HTTPS requests. |
-| mobile.py | Connect the device services used by a scenario. |
-| app_lifecycle.py, device_commands.py | Install/reset the tested app and query readiness/status. |
-| redaction.py, screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
+| device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
+| device_adapter/app_lifecycle.py, native.py, readiness.py, status.py, target.py | Keep app lifecycle, read-only native calls, readiness, status and platform identity separate. |
+| device_adapter/startup.py | Retry only the fixed read-only readiness probe before app setup; never select stopping scope. |
+| redaction.py, device_adapter/screen_capture.py | Identify sensitive fields and produce masked screen evidence. |
 | screenshot_image.py | Verify lossless image input and create a clean opaque image without source metadata. |
 | mask_geometry.py, capture_guard.py | Validate coordinate conversion and compare required regions/screen size around capture. |
 | record_redaction.py | Redact text according to each result record type while preserving its control metadata. |
-| mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
+| device_adapter/mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
 
@@ -105,9 +110,9 @@ NativeHomeLink separates the short socket address from its actual run-owned stor
 
 The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/build/example checks. No live API or phone was used. The user's next actual test run remains separate acceptance evidence.
 
-## Response correction tests — 30 October 2026
+## AI resource exchange tests — 31 October 2026
 
-Use the existing Python unittest suite and xUnit project. ScriptedTransport returns queued synthetic provider responses through Agent's normal constructor; fake phones expose changed screens or capture failures. Cases cover correction before one tap, bounded exhaustion, unknown IDs/override quotations, malformed JSON, redaction of invalid metadata and feedback, fresh refs, preserved accepted/rejected failures, budget/deadline stops, and no retries for unrelated errors. The HTML case verifies mandatory visibility, redaction, escaping, and screenshot links. No live OpenAI or device access is required.
+Use the existing Python unittest suite and xUnit project. ScriptedTransport supplies synthetic replies through Agent's normal constructor. Cases cover minimal commands, optional records, unknown IDs, more than three notes before a command, resource feedback, AI-owned quotations and plans, privacy and shared limits. HTML tests verify escaped/redacted full replies. Legacy rejection rendering stays for historical reports. No new test project, live OpenAI request or device access is needed.
 
 ## Exploration and interruption verification — 30 October 2026
 
@@ -115,7 +120,7 @@ The Python unittest suite tests identity/ref changes, long-history retention, pe
 
 ## Compact AI history verification — 30 October 2026
 
-MappingPromptTests in the existing Python unittest suite verifies the public prompt builder's recent-action projection: navigation facts, observed outcomes, aliases/coordinates, critical failures/overrides, the most recent 24 records, and preservation of the caller's full history. Requirement catalogue and exploration-memory coverage remain exercised by their existing tests. The performance comparison reads only saved redacted execution records; it sends no request and changes no report. See performance.md for byte counts and measurement limits.
+MappingPromptTests now verifies that bootstrap records are not host-filtered or cut to the most recent 24. ContextSelectionTests and PlanningRegressionTests in tests/test_context_memory.py cover exact AI selection, retaining an unchanged summary, paging, recoverable observations/screenshots, byte-capacity requests and identity/redaction regressions. ScenarioTests verifies action-free recall, AI-directed recovery beyond three episodes, cancellation and incomplete reporting after AI finish. FR-96 removes the response-format and semantic approval gate. Optional metadata must not block a decoded command; return resource outcomes and retain full redacted replies. See ai-resource-exchange.md. No new test project or harness is introduced. See performance.md for the historical baseline and the distinction between offline protocol checks and live quality/cost measurements.
 
 ## Configured-model budget checks
 
@@ -126,3 +131,30 @@ The existing RuntimeChecks cover Mini reservation/accounting and Luna cache-writ
 RunFolderAllocator selects one folder pair and invocation identity for each run/replay. RunReportWriter updates only that execution's index.html/result.json. Replay build reuse does not imply report reuse. Keep report paths and relative evidence inside the allocated folder; do not introduce a shared latest page or redirect evidence into another execution.
 
 ReplayReportTests in the existing xUnit project verify a new replay folder, immutable earlier HTML, partial/final updates in the same folder, early run/replay errors, and both platforms' relative screenshot references. The existing public replay fixture checks its own command/identity and absence of a shared report or HTML base. These checks use temporary folders or simulated dependencies without provider or device access.
+
+
+## Test Planning and Exploration boundary
+
+runtime/test_planning is a separate policy layer. TestPlanner is the execution-facing entry point. The package owns source-linked plans, observed application states, input candidates, path scope and no-progress rules; it must not import device clients, API clients, process/file services or report renderers. Execution supplies masked observations and recorded checks, and executes one accepted action. Report rendering/redaction remains in its existing boundary. Use the existing Python unittest suite, including test_test_planner.py; its dependency-boundary test guards this separation. Packaging must include the package directory and __init__.py, not only top-level modules.
+
+## Instruction-layer boundary — 1 November 2026
+
+Keep ai_instructions/ input-only: sources, fresh masked adapter observations, human-interface metadata and retained AI-selected context. Do not import Agent, provider transport, reply decoding or action dispatch into that folder. CommandReply and AiInteraction are execution components; no approval call into the input layer may precede dispatch. Share repetition facts after actual execution instead of inspecting the proposed response to veto it. Existing tests/test_ai_instructions.py and ScenarioTests cover this boundary. The full Python and existing fake-tool CLI suites remain offline.
+
+Device Adapter may import shared errors/privacy services, but not AI, scenario/planning or stopping-policy implementations. Pass the shared run-stop check into Mobile. DeviceStartup must keep its probe fixed to apps list, with no arbitrary action callback. Tests in test_device_startup.py use fake commands/clocks; native error classification is tested in test_defect_policies.py. Do not retry generic failures or wrap lifecycle/AI commands in startup recovery. Install the entire package and remove obsolete flat modules together. See [the boundary contract](device-adapter.md).
+
+## Ordered command execution checks
+
+FR-99 / AC-69 use the existing suites. test_command_reply.py covers object/array/consecutive-object decoding and unreadable text without prose guessing. test_command_queue.py covers FIFO receipt/state, snapshots and privacy. ScenarioTests in test_runtime_components.py verify one provider reply dispatching multiple commands in order, done, recall, cancellation, deadline, interaction/fatal failure and repeated-action recovery without dispatching the deferred tail. test_context_memory.py verifies exact AI retrieval of unexecuted commands. PlanningReportTests in the existing xUnit project cover readable queue states and both redaction boundaries.
+
+Keep CommandQueue as scenario-local data with no device/provider/stopping calls. ScenarioRunner orders execution through the existing ActionExecutor and observation path. Apply optional metadata on dequeue; do not pre-record later commands as observed actions. No new layer, dependency, test project, harness or third-party patch is needed. Install matching host/runtime files together. See [command queue](command-queue.md).
+
+FR-99 failure refinement: CommandQueue.cancel_pending records cancelled status and removes all pending commands without changing the active/earlier outcome. ScenarioRunner cancels before observation and supplies one detailed issue message on the next normal AI request. Successful batches do not add a feedback call. Existing scenario tests cover adapter/mechanical failures, zero pending commands on failure and normal successful continuation. HTML tests keep cancelled commands distinguishable from performed actions and scrub their reasons. Fatal stopping/privacy rules still prevent extra inference requests.
+
+FR-100 / AC-70: keep the post-install/launch wait in AppLifecycle.wait_after_launch and its ordering/activity wrapper in Mobile.reset. Inject execution's shared-stop callback; fake clock/sleep in the existing LaunchWaitTests so the suite does not actually wait 20 seconds. ConnectionTests cover callback wiring and successful/failed setup ordering. Do not add this delay around every action or change the helper's internal timeouts. No new test project, harness or dependency is needed.
+
+## Complete batch feedback
+
+BatchFeedback is execution data without device/provider/filesystem calls. ObservationRecorder registers verified masked observations and factual system warnings; the Device Adapter recognizes Android system identifiers. ScenarioRunner owns actual execution/finish handoff; input preparation only supplies recorded resources. Keep complete new path feedback outside optional context deferral, and let AI select historical batches. Avoid copying raw UI/images into event records or applying a queued finish's future checks.
+
+The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded/oversized history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Installation and replay findings are recorded in installation.md and implementation-status.md. The owner approved publishing these notes with the documentation.

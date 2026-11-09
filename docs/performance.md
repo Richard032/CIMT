@@ -1,6 +1,6 @@
 # CIMT execution performance
 
-Updated: 30 October 2026. Scope: measured user-run baseline and the first runtime optimization.
+Updated: 31 October 2026. Scope: historical measurements and the AI-owned context source increment. No new live benchmark was executed.
 
 ## Measured baseline
 
@@ -15,11 +15,11 @@ The user-started replay report_2026-10-30_15-04-19-467 lasted 361 seconds includ
 
 These durations are observed components, not independent benchmark guarantees. Capture is nested inside post-action observation, and raw tool timings must not be added again. Timing varies with UI state, device/tool response, network, model output, and corrections.
 
-## First optimization: compact recent actions
+## Historical optimization: compact recent actions (superseded)
 
 The prompt previously repeated full check descriptions, expected behavior, unchanged unknown results, predictive prose, and earlier remaining-work lists inside each of 24 historical actions. The complete catalogue/current requirement results and exploration memory were already supplied separately.
 
-ActionPromptBuilder now projects navigation facts and observed outcomes, retaining compact failed/overridden findings and credential aliases. It does not mutate the original records. Full findings, history, and screenshots remain in reports. AI guidance requests new assessments instead of repeating unchanged unknown results, while retaining catalogue coverage and explicit objective evidence.
+That earlier ActionPromptBuilder projected navigation facts and observed outcomes, retaining compact failed/overridden findings and credential aliases. It does not mutate the original records. Full findings, history, and screenshots remain in reports. AI guidance requests new assessments instead of repeating unchanged unknown results, while retaining catalogue coverage and explicit objective evidence.
 
 An offline comparison reconstructed the latest 24 history records from saved steps and used the public prompt builder:
 
@@ -40,3 +40,9 @@ The measured capture and tap costs remain substantial. Device-query batching or 
 The validated pricing profiles now include gpt-5.6-luna. Operators can select it through the existing ai-model.name; installation does not change private input files. Access checks and inference use the selected model without fallback. Standard service tier, low reasoning effort, and the 2,048-token output cap remain in place. The Luna request fixes the default 30-minute cache lifetime so accounting includes the correct cache-write bound. Strict shared budget enforcement includes long-context charges and uncertain usage.
 
 Luna support is an alternative for user-started evaluation, not a demonstrated speed or quality improvement. Compare total time, distinct paths, repeated navigation, rejected decisions, findings, and cost on equivalent app states. The earlier 89.5% reduction measures only compact history on a saved Mini run. No live Luna inference or device comparison was performed.
+
+## Current increment: AI-owned context selection
+
+The product owner replaced host filtering with exclusive AI relevance decisions. The earlier last-24 projection is removed. AI maintains a summary and exact collection/record/range selections, including older masked UI observations. recall performs no device action. A 64 KiB selected-record transport allowance requests a smaller AI selection rather than a host-ranked subset. Paging is chosen by AI, not a fixed host window. This can reduce repeated context, but summaries/retrieval/recovery also cost tokens and no savings percentage is claimed.
+
+The configured cache-capable pricing profile now uses an explicit stable system-instruction breakpoint. Budget retains provider input/output/cache details and request purpose when available. Missing cache details remain unknown, and cost settlement keeps its conservative bounds. Repeated loops invoke AI-directed recovery instead of a fixed semantic retry stop. Compare completion, useful paths, repetition, recovery success, rejected requests, latency and total cost before claiming an improvement. See [AI context and recovery](ai-context-and-recovery.md). The earlier 89.5% serialized-history reduction is historical evidence for a superseded projection, not a claim about this implementation.

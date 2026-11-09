@@ -1,8 +1,9 @@
-"""Execution and fault handling for one physical device."""
+"""Execution and fault handling for one physical or virtual device."""
 
 import pathlib
 from contextlib import nullcontext
 from errors import InfrastructureError, LimitReached
+from stopping_policy.policy import stops_entire_run
 
 
 class DeviceRunner:
@@ -84,8 +85,7 @@ class DeviceRunner:
     def _record_limit(self, result, error):
         result["stoppingReason"] = str(error)
         self._stop_event(result, error)
-        # A locked phone affects that device. Shared limits affect every worker.
-        if "locked" not in str(error):
+        if stops_entire_run(error):
             self.control.stop()
 
     def _record_error(self, result, error):
@@ -98,30 +98,5 @@ class DeviceRunner:
         if not result["error"]:
             result["error"] = self.redactor.text(message)
         self._stop_event(result, error)
-        self.control.stop()
-
-
-def result_exit_code(results):
-    """Apply exit precedence to saved results, without any device operations."""
-    if any(device["error"] for device in results):
-        return 3
-    if any(
-        scenario["crashes"] or scenario.get("verdict") == "failed"
-        for device in results
-        for scenario in device["scenarios"]
-    ):
-        return 1
-    if not results or any(_incomplete(device) for device in results):
-        return 2
-    return 0
-
-
-def _incomplete(device):
-    return (
-        device["stoppingReason"]
-        or not device["scenarios"]
-        or any(
-            scenario["completion"] != "complete" or scenario.get("verdict") != "passed"
-            for scenario in device["scenarios"]
-        )
-    )
+        if stops_entire_run(error):
+            self.control.stop()

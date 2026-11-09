@@ -14,7 +14,7 @@ from PIL import Image
 from crashes import CrashRecovery, StartupGuard, TerminationObservation
 from errors import InfrastructureError, LimitReached
 from redaction import Redactor, ScreenMasker
-from screen_capture import ScreenCapture
+from device_adapter.screen_capture import ScreenCapture
 
 SECRET_FIELD = {
     "identifier": "Password",

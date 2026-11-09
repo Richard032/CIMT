@@ -50,9 +50,7 @@ New captures can retry a valid screen/mask-region transition at most three times
 
 ## Unaccepted AI responses
 
-For FR-65/AC-39, each rejected candidate is retained under its scenario as rejectedResponses, separately from checks and executed steps. Every entry contains its attempt, decision-step context, redacted validation error/candidate, and the already masked screen used for that decision, or an evidenceError. Candidate fields are untrusted data: even source, status, and requirementId are redacted. Raw provider envelopes, private requests, prompts, and unmasked images are not added. This is a diagnostic record, not a verified finding or hidden reasoning.
-
-The mandatory HTML section exposes these candidates even with optional details disabled. A failed observation in an unaccepted response remains inspectable after successful correction; it does not automatically fail the app or disappear from history. Previously accepted failures remain effective. Rejection and successful recovery appear in chronological activity with attempt and device/target context. Exhaustion is an explicit AI response-correction infrastructure error; other workers retain their separate cancellation reasons. Rejected remaining-work lists do not replace the last accepted plan.
+FR-96 replaces response rejection with resource exchange. Every decision retains modelResponse as redacted text and any resourceFeedback. The HTML planning details expose “AI replies and resource feedback”, escaped and redacted. A note means no command was dispatched; AI prose does not prove execution. Optional plan/check/source metadata does not veto an executable action. There is no response-format attempt count, rejection event or exhaustion stop. Legacy rejectedResponses remain readable as historical diagnostics. Real device/provider/privacy failures and shared limits keep their existing policy. See [AI Resource Exchange](ai-resource-exchange.md).
 
 ## Exploration outcomes and interrupted runs
 

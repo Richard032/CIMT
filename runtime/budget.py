@@ -47,6 +47,9 @@ class Budget:
         self.uncertain = Decimal(0)
         self.pending = Decimal(0)
         self.input_tokens = self.output_tokens = self.requests = 0
+        self.cached_tokens = 0
+        self.cache_usage_requests = 0
+        self.usage_records = []
         self.lock = threading.Lock()
         self.journal = lambda: None
         # Reserve the ENTIRE model context, including image input, plus the
@@ -62,14 +65,29 @@ class Budget:
             self.requests += 1
         self.journal()
 
-    def finish(self, usage=None):
+    def finish(self, usage=None, kind='decision'):
         """Settle one reservation, keeping its full cost when usage is uncertain."""
         with self.lock:
             self.pending -= self.bound
             invalid = self._settle_usage(usage)
+            self._record_usage(usage, kind, invalid)
         self.journal()
         if invalid:
             raise InfrastructureError("API usage did not fit the validated reservation bounds")
+
+    def _record_usage(self, usage, kind, invalid):
+        if not isinstance(usage, dict) or invalid:
+            self.usage_records.append(dict(kind=kind, status='uncertain'))
+            return
+        details = usage.get('input_tokens_details')
+        cached = details.get('cached_tokens') if isinstance(details, dict) else None
+        if type(cached) is not int or not 0 <= cached <= usage['input_tokens']:
+            cached = None
+        else:
+            self.cached_tokens += cached
+            self.cache_usage_requests += 1
+        self.usage_records.append(dict(kind=kind, status='recorded', inputTokens=usage['input_tokens'],
+            outputTokens=usage['output_tokens'], cachedInputTokens=cached))
 
     def _settle_usage(self, usage):
         if not isinstance(usage, dict):
@@ -116,6 +134,9 @@ class Budget:
                 "requests": self.requests,
                 "inputTokens": self.input_tokens,
                 "outputTokens": self.output_tokens,
+                'cachedInputTokens': self.cached_tokens if self.cache_usage_requests else None,
+                'cacheUsageRequests': self.cache_usage_requests,
+                'requestUsage': [dict(row) for row in self.usage_records],
                 "maximumRequestReservation": str(self.bound),
                 "pricingSource": self.price["source"],
                 "pricingVerified": self.price["verified"],

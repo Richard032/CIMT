@@ -25,6 +25,8 @@ public sealed class StepHtmlRenderer(Configuration configuration, ReportEvidence
             + Attributes(context.DeviceLabel, context.Target, status) + "><summary>" + Encode(title)
             + " — " + Safe(Field(step, "controlLabel")) + " " + Badge(status) + "</summary>";
         body += "<dl>" + Note(step, "observation", "Decision observation")
+            + Note(step, "planStepId", "Plan task") + Note(step, "sourceState", "Starting state")
+            + Note(step, "destinationState", "Observed destination")
             + Note(step, "stoppingReason", "Stopping reason") + Note(step, "observedOutcome", "Observed outcome")
             + Note(step, "actionError", "Action error")
             + Note(step, "crash", "Crash/termination evidence") + Note(step, "recovery", "Recovery")

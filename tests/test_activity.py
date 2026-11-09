@@ -11,8 +11,9 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runtime"))
 from activity import ActivityLog
-from device_runner import DeviceRunner, result_exit_code
-from errors import InfrastructureError, LimitReached
+from device_runner import DeviceRunner
+from stopping_policy.policy import result_exit_code
+from errors import AppLaunchError, InfrastructureError, LimitReached
 from evidence import RunJournal
 from redaction import Redactor
 from run_control import RunControl
@@ -222,6 +223,38 @@ class ActivityTests(unittest.TestCase):
         self.assertIn("mask geometry changed", self.output.getvalue())
         self.assertTrue(control.stopped.is_set())
         self.assertTrue(any(row["target"] == "Debug_Generic" and row["status"] == "failed" for row in self.records()))
+
+    def test_failed_launch_does_not_cancel_testing_on_the_other_platform(self):
+        for failed_platform, continuing_platform in [('ios', 'android'), ('android', 'ios')]:
+            with self.subTest(failed_platform=failed_platform):
+                control = RunControl(100, clock=lambda: 0)
+                journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+
+                def test_target(mobile, build, result, agent, publish):
+                    control.check()
+                    result['scenarios'].append(dict(target='fixture', crashes=[], steps=[],
+                        verdict='inconclusive', completion='incomplete'))
+                    if mobile.device['platform'] == failed_platform:
+                        raise AppLaunchError('Application relaunch failed')
+                    result['scenarios'][-1].update(verdict='passed', completion='complete')
+
+                def mobile(device, folder):
+                    return SimpleNamespace(device=device, connect=lambda: None, close=lambda: None)
+
+                builds = [dict(platform=platform, target='fixture') for platform in ['ios', 'android']]
+                runner = DeviceRunner(dict(report=str(self.root), builds=builds), self.redactor,
+                    control, journal, SimpleNamespace(run=test_target), mobile, lambda: None,
+                    activity=self.activity)
+                runner.run(dict(platform=failed_platform, id='failed-device'), 1)
+                runner.run(dict(platform=continuing_platform, id='continuing-device'), 2)
+
+                failed, continued = sorted(journal.results, key=lambda row: row['index'])
+                self.assertEqual(failed['error'], 'Application relaunch failed')
+                self.assertEqual(continued['scenarios'][0]['completion'], 'complete')
+                self.assertIsNone(continued['error'])
+                self.assertIsNone(continued['stoppingReason'])
+                self.assertFalse(control.stopped.is_set())
+                self.assertEqual(result_exit_code(journal.results), 3)
 
     def test_adapter_setup_failure_is_logged_before_device_execution_starts(self):
         journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
