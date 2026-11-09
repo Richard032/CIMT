@@ -1452,3 +1452,9 @@ The application contains a CuRMiTagger.exe pre-build invocation. The user direct
 - Confirm the Android tablet and any physical devices separately. Jenkins operation and general Apple Silicon release support remain unqualified.
 
 Keep these results separate from the first Intel Mac's historical installation receipts. No application build, CIMT real-app run/replay, paid AI request or physical-device acceptance was completed in this Apple Silicon setup.
+
+## Context feedback, evidence reuse and timings — 10 November 2026
+
+Install the matching runtime snapshot, including agent.py, ai_interaction.py, observation_recorder.py, request_context.py, scenario.py and ai_instructions/context.py and instructions.py, under the existing run lock with backups and hash verification. This increment adds no dependency, model, budget or YAML setting. The .NET host and mobile adapter are unchanged. Preserve private configuration, retained builds and earlier reports.
+
+New runs/replays expose selected-history byte sizes, timestamped evidence reuse during repeated capacity-selection requests, explicit credential targets and separate provider timings. Existing reports are not rewritten. Unit and fake-tool checks qualify the mechanics; live latency, cost savings and successful app navigation require a separately authorized replay.

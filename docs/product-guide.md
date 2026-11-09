@@ -550,3 +550,13 @@ Each normal next AI request now includes the complete ordered execution path of 
 The report distinguishes actual execution status from changed, no observed change and observation unavailable. A successful tap does not prove correct behavior. Android system ANR dialogs produce warnings with device, time and step in terminal/log/HTML; the warning alone does not prove a crash or stop testing. Existing privacy, cancellation, time/budget, crash and infrastructure rules remain active. Failed commands still cancel the remaining queue.
 
 Completing a batch returns its results for the next AI decision. A done after other commands is deferred to that handoff; AI reviews actual results before deciding whether to finish. AI can finish by returning done first in a fresh reply. Old batch results and full evidence remain retrievable under AI's context choices. No new user command, YAML setting, key, model or third-party tool is needed. Install matching host/runtime files; live qualification is separate. See [batch feedback](batch-feedback.md).
+
+## Context feedback and decision timings
+
+The AI receives contextUsage byte counts and per-collection sizes. includeAll means every record in a named collection; an additional individual address does not narrow it. To retrieve only a particular record or latest, use an empty includeAll list and explicit records. recall without a new context retains the old selection. Capacity feedback supplies that example and permits continuing from the supplied screen evidence or explaining a blocker. CIMT preserves the full history and follows the AI's exact selection.
+
+Repeated context-only exchanges can reuse the last masked image, marked by currentEvidence.observedAt and reusedForContextSelection. A normal decision after the selection fits refreshes the screen first. The activity report distinguishes Prepare AI context, Refresh AI screen evidence, Reuse AI screen evidence, AI action decision / AI context selection, and AI provider response. The provider duration excludes capture, context preparation, decoding and budget accounting. Combined AI decision cycle durations overlap their nested components.
+
+A credential action needs credential (the configured alias), field (username/password), and either the chosen input's current ref or valid x/y coordinates. Alias and field alone do not identify an input. CIMT enters the value locally; the AI does not receive it. The application's navigation guide belongs in inputs.setup and should identify controls, login requirements and expected states without storing credentials in AI text.
+
+These changes have offline regression coverage. Their effect on live latency and successful requirement coverage must be measured in a separately started run/replay.

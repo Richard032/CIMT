@@ -65,3 +65,9 @@ sequenceDiagram
 ```
 
 FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history deferral. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
+
+## Capacity feedback and observation freshness
+
+Selected-history capacity is measured from the same assembled state used by ActionPromptBuilder. Feedback contains selected bytes, allowance bytes, per-collection counts/sizes and an example using includeAll: [] with an individual/latest record. It explains that whole collections and individual records are combined, and null/absent context keeps the existing selection. No record relevance is chosen by the host.
+
+Instruction preparation may reuse timestamped, already masked evidence for repeated oversized context-only exchanges. It refreshes evidence before the next fitting normal decision request and after actions/recovery; currentEvidence identifies its capture time and reuse status. Provider timing belongs to Agent/execution, outside this layer; context preparation and screen acquisition have their own activity records. Credential resources describe alias, field and target together while values remain local.

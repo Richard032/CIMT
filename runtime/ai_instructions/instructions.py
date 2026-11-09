@@ -13,7 +13,7 @@ FIELDS = {
         "type": "string",
         "enum": ["tap", "swipe", "text", "credential", "back", "wait", "restart", "recall", "recover", "done"],
     },
-    "ref": {"type": "string"},
+    "ref": {"type": "string", "description": "Target UI ref. Credential entry needs this or valid x/y coordinates."},
     "text": {"type": "string"},
     "x": {"type": "integer"},
     "y": {"type": "integer"},
@@ -58,7 +58,8 @@ SYSTEM_PROMPT = (
     "Other unreadable text is retained as your note; CIMT does not infer commands from prose. "
     "Describe queued actions as plans, never as already performed or verified. Use "
     "a ref or coordinates you select from current evidence, earlier observations, your plan or expected behavior. "
-    "CIMT does not require the target to appear enabled or present in the latest UI tree. "
+    "Tap targets need not appear enabled or present in the latest UI tree. "
+    "Credential entry requires a present, enabled target before any secret can be entered. "
     "Refs are resolved by the device adapter and may expire; a failed attempt is an observation for your next decision. "
     "For coordinates, use an empty ref with x/y in device coordinates, scaled using CimtScreenInfo; "
     "use -1 for unused coordinates. Explore reachable buttons, menus and scrolling "
@@ -68,7 +69,10 @@ SYSTEM_PROMPT = (
     "a permission request unless the testing instructions explicitly authorize that choice. "
     "If permission blocks progress without that authorization, choose done with completion "
     "blocked and describe the permission needed in remaining work. Never assume consent. "
-    "Request credentials by alias and field; "
+    "Request credentials with credential (alias), field (username or password), and an explicit target: "
+    "use the input field\'s current ref, or an empty ref with valid x/y coordinates. "
+    "Focus a field first when needed; an alias and field alone do not identify a UI target. "
+    "For example, use {\"action\":\"credential\",\"credential\":\"test-account\",\"field\":\"username\",\"ref\":\"<current input ref>\"}. "
     "their secret values are never supplied to you. Use synthetic non-secret text otherwise. "
     "iOS has no system BACK button; choose a tap or swipe for back navigation. Record ambiguity and blocked "
     "paths in observation/remaining. Do not claim exhaustive coverage of unseen states. "
@@ -134,7 +138,13 @@ SYSTEM_PROMPT = (
     "Any collection also supports @0 for its first record or @0:10 for exactly your chosen "
     "half-open index range; use ranges to discover unknown IDs without loading a whole collection. Routes use task IDs "
     "and contain observed edges to the targetState you selected for that task. "
-    "Return action recall to retrieve selected records without any device action. "
+    "Return action recall with context to retrieve selected records without any device action. "
+    "includeAll loads the ENTIRE named collections, including when records also names an individual item. "
+    "To request just the latest record, use includeAll: [] and records: [{collection: observations, id: latest}]. "
+    "recall with no context or context null keeps the existing selection; it does not reduce history. "
+    "contextUsage gives selected UTF-8 byte counts and per-collection sizes, not token or relevance scores. "
+    "Current screen elements and pixels are already supplied; retrieve historical evidence only when you need it. "
+    "currentEvidence records its capture time and whether a context-only request reused it. "
     "observations contains earlier masked UI data. Select screenshots by address when you need older pixels; "
     "historical images are labelled and are not the current screen. Unselected historical pixels are not sent. "
     "Select context incrementally during normal decisions, avoiding a separate filtering call on every step. "
@@ -174,8 +184,30 @@ class ActionPromptBuilder:
         exploration_memory=None,
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
+        historical_images = (exploration_memory or {}).get('historicalImages', [])
+        state = self.state(instructions, requirements, setup, elements, screenshot, history,
+            aliases, coverage, requirement_results, resource_feedback, exploration_memory)
+        state = prepare_context(state)
+        body = {
+            "model": self.model,
+            "store": False,
+            "service_tier": "default",
+            "max_output_tokens": MAX_OUTPUT,
+            "truncation": "disabled",
+            "reasoning": {"effort": "low"},
+            "input": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                self._screen_message(state, screenshot, [] if 'contextSelectionRequired' in state else historical_images),
+            ],
+        }
+        return body
+
+    @staticmethod
+    def state(instructions, requirements, setup, elements, screenshot, history, aliases, coverage,
+              requirement_results=None, resource_feedback=None, exploration_memory=None):
+        """Assemble the same state for capacity checks and provider requests."""
         memory = dict(exploration_memory or {})
-        historical_images = memory.pop('historicalImages', [])
+        memory.pop('historicalImages', None)
         batch_feedback = memory.pop('batchFeedback', [])
         current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory
@@ -192,6 +224,7 @@ class ActionPromptBuilder:
             "coverage": memory.pop('selectedCoverage') if selected else coverage,
             "explorationMemory": memory,
         }
+        state['currentEvidence'] = memory.pop('currentEvidence', {})
         state['batchFeedback'] = batch_feedback
         state['currentWarnings'] = current_warnings
         if resource_feedback:
@@ -199,22 +232,10 @@ class ActionPromptBuilder:
         state['commandResources'] = {
             'actions': ['tap', 'text', 'credential', 'swipe', 'back', 'wait', 'restart', 'recall', 'recover', 'done'],
             'arguments': FIELDS,
+            'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
-        state = prepare_context(state)
-        body = {
-            "model": self.model,
-            "store": False,
-            "service_tier": "default",
-            "max_output_tokens": MAX_OUTPUT,
-            "truncation": "disabled",
-            "reasoning": {"effort": "low"},
-            "input": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                self._screen_message(state, screenshot, [] if 'contextSelectionRequired' in state else historical_images),
-            ],
-        }
-        return body
+        return state
 
     @staticmethod
     def _screen_message(state, screenshot, historical_images=None):

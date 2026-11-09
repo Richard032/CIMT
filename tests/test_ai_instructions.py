@@ -40,6 +40,22 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(inputs['setup'], 'Use the test setup')
         self.assertEqual(inputs['credentialAliases'], ['test-account'])
 
+    def test_credential_resources_show_alias_field_and_target_together(self):
+        resources = state([])['commandResources']
+        example = resources['credentialExample']
+        self.assertEqual(example['action'], 'credential')
+        self.assertTrue(example['credential'])
+        self.assertEqual(example['field'], 'username')
+        self.assertTrue(example['ref'])
+        self.assertIn('Credential entry', resources['arguments']['ref']['description'])
+
+    def test_prompt_explains_whole_collection_and_unchanged_selection(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('ENTIRE named collections', prompt)
+        self.assertIn('keeps the existing selection', prompt)
+        self.assertIn('explicit target', prompt)
+
     def test_instruction_layer_does_not_import_reply_or_execution_services(self):
         forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client', 'device_adapter'}
         package = Path(__file__).resolve().parents[1] / 'runtime/ai_instructions'

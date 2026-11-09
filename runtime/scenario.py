@@ -40,6 +40,8 @@ class ScenarioSession:
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
+    observed_at: str | None = None
+    context_only: bool = False
     commands: CommandQueue = field(default_factory=CommandQueue)
     feedback: BatchFeedback = field(default_factory=BatchFeedback)
     observer: ObservationRecorder | None = None
@@ -132,10 +134,12 @@ class ScenarioRunner:
                 return
             action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
+                session.context_only = action['action'] == 'recall'
                 self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
                 publish()
                 continue
+            session.context_only = False
             if action['action'] == 'recover':
                 self._finish_command(session, 'handled', 'AI requested recovery')
                 session.commands.stop('AI requested fresh evidence and a recovery decision')
@@ -302,7 +306,7 @@ class ScenarioRunner:
         self._save_plan(session)
         publish()
         if not session.commands.pending:
-            with self._operation("Request AI action", mobile, session.result["target"]):
+            with self._operation("AI decision cycle", mobile, session.result["target"]):
                 reply = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
             session.commands.add(reply)
             session.feedback.start(session.commands.next_batch - 1)

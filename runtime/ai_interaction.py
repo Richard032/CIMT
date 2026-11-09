@@ -1,5 +1,6 @@
 """Provide resources and loop feedback without evaluating AI response format."""
 
+from contextlib import nullcontext
 from ai_instructions.context import InstructionContext
 
 
@@ -14,12 +15,40 @@ class AiInteraction:
 
     def choose(self, mobile, session, agent, evidence, publish):
         self.control.check()
-        self.instructions.observe(mobile, session, evidence)
-        publish()
-        arguments = self.instructions.prepare(session, mobile.device, evidence)
-        reply = agent.choose(*arguments)
+        arguments, selection = self._prepare(mobile, session, evidence)
+        reuse = session.context_only and session.observed_at is not None and selection
+        if reuse:
+            arguments[-1]['currentEvidence']['reusedForContextSelection'] = True
+            if self.activity:
+                self.activity.write('Reuse AI screen evidence', 'info',
+                    'Context-only exchange; captured at ' + session.observed_at,
+                    mobile.device, session.result['target'])
+        else:
+            with self._operation('Refresh AI screen evidence', mobile, session):
+                self.instructions.observe(mobile, session, evidence)
+            publish()
+            arguments, selection = self._prepare(mobile, session, evidence)
+        operation = 'AI context selection' if selection else 'AI action decision'
+        try:
+            with self._operation(operation, mobile, session):
+                reply = agent.choose(*arguments)
+        finally:
+            timing = getattr(agent, 'last_request_timing', None)
+            if self.activity and timing is not None:
+                status = 'stopped' if self.control.interrupted else timing['status']
+                self.activity.write('AI provider response', status, timing['kind'],
+                    mobile.device, session.result['target'], seconds=timing['seconds'])
         session.feedback.delivered()
         return reply
+
+    def _prepare(self, mobile, session, evidence):
+        with self._operation('Prepare AI context', mobile, session):
+            arguments = self.instructions.prepare(session, mobile.device, evidence)
+            return arguments, self.instructions.selection_required(arguments)
+
+    def _operation(self, name, mobile, session):
+        return (self.activity.operation(name, mobile.device, session.result['target'])
+                if self.activity else nullcontext())
 
     def request_recovery(self, mobile, session, kind, reason, publish, evidence=None, refresh=True):
         session.recovery.request(kind, reason, len(session.result['steps']))
