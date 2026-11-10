@@ -1462,3 +1462,7 @@ New runs/replays expose selected-history byte sizes, timestamped evidence reuse 
 ## Targeted swipe forwarding — 10 November 2026
 
 Install the matching published .NET report host and runtime/actions.py, command_reply.py, scenario.py, batch_feedback.py, record_redaction.py and ai_instructions/instructions.py under the existing run lock with backup and hash verification. No dependency, model, budget, YAML, application build or Mobile MCP change is required. Existing retained apps can be reused by replay. The adapter API was checked against the installed Mobile MCP 1.0.14 server: targeted swipe accepts x, y, direction and optional distance; its untargeted path ignores distance. Offline checks qualify the translation and reporting; a paid replay is not started by installation.
+
+## Generic command syntax feedback — 10 November 2026
+
+Install matching runtime/command_reply.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. The host, mobile adapter, application and private configuration need no change. Malformed command replies now produce generic correction guidance in the next normal AI request, with no partial execution of a readable prefix. Installation does not start a paid run or replay.

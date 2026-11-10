@@ -56,6 +56,14 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('keeps the existing selection', prompt)
         self.assertIn('explicit target', prompt)
 
+    def test_prompt_explains_whole_reply_syntax_feedback(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Prefer an array for multiple commands', prompt)
+        self.assertIn('Commas between commands require enclosing array brackets', prompt)
+        self.assertIn('CIMT executes none of that reply', prompt)
+        self.assertIn('reason and expected format', prompt)
+
     def test_swipe_resources_expose_target_and_distance_together(self):
         resources = state([])['commandResources']
         self.assertEqual(resources['swipeExample'], dict(action='swipe', ref='<current target ref>',

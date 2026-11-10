@@ -26,7 +26,8 @@ class CommandReplyTests(unittest.TestCase):
     def test_prose_is_a_note_without_a_selected_replacement_command(self):
         result = read_reply(reply('I want to reconsider my plan.'))
         self.assertEqual(result['action'], 'note')
-        self.assertIn('Unreadable reply text', result['resourceFeedback'])
+        self.assertIn('Invalid JSON command reply', result['resourceFeedback'])
+        self.assertIn('Expected one JSON command object', result['resourceFeedback'])
         self.assertEqual(result['modelResponse'], 'I want to reconsider my plan.')
 
     def test_multiple_objects_are_decoded_in_received_order(self):
@@ -40,11 +41,58 @@ class CommandReplyTests(unittest.TestCase):
         result = read_reply(reply('[{"action":"tap","ref":"@one"},{"action":"back"},{"action":"done"}]'))
         self.assertEqual([result['action']] + [row['action'] for row in result['queuedCommands']], ['tap', 'back', 'done'])
 
-    def test_unreadable_suffix_does_not_discard_decoded_prefix(self):
-        result = read_reply(reply('{"action":"tap","ref":"@one"} unreadable trailing text'))
-        self.assertEqual(result['action'], 'tap')
-        self.assertEqual(result['queuedCommands'][0]['action'], 'note')
-        self.assertIn('Unreadable', result['queuedCommands'][0]['resourceFeedback'])
+    def test_unreadable_suffix_prevents_partial_execution(self):
+        text = '{"action":"tap","ref":"@one"} unreadable trailing text'
+        result = read_reply(reply(text))
+        self.assertEqual(result['action'], 'note')
+        self.assertNotIn('queuedCommands', result)
+        self.assertIn('No commands from this reply were executed', result['resourceFeedback'])
+        self.assertEqual(result['modelResponse'], text)
+
+    def test_comma_separated_commands_explain_the_missing_array(self):
+        text = '{"action":"wait"},{"action":"wait"}'
+        result = read_reply(reply(text))
+        self.assertEqual(result['action'], 'note')
+        self.assertNotIn('queuedCommands', result)
+        self.assertIn('Unexpected comma between top-level commands', result['resourceFeedback'])
+        self.assertIn('[{"action":"wait"},{"action":"wait"}]', result['resourceFeedback'])
+        self.assertEqual(result['modelResponse'], text)
+
+    def test_json_error_reports_its_position_in_the_original_reply(self):
+        result = read_reply(reply('  \n{"action":"wait"}\n{broken'))
+        self.assertIn('line 3, column 2', result['resourceFeedback'])
+        self.assertIn('Expecting property name enclosed in double quotes', result['resourceFeedback'])
+
+    def test_non_object_values_prevent_the_entire_reply_from_executing(self):
+        for text in ['42', 'null', '"text"', '[{"action":"wait"},42]',
+                     '{"action":"wait"} [false]', '[[{"action":"wait"}]]']:
+            with self.subTest(text=text):
+                result = read_reply(reply(text))
+                self.assertEqual(result['action'], 'note')
+                self.assertNotIn('queuedCommands', result)
+                self.assertIn('every command must be a JSON object', result['resourceFeedback'])
+
+    def test_empty_replies_explain_the_expected_command_formats(self):
+        for text in ['', '  ', '[]']:
+            with self.subTest(text=text):
+                result = read_reply(reply(text))
+                self.assertEqual(result['action'], 'note')
+                self.assertIn('No command objects were supplied', result['resourceFeedback'])
+                self.assertIn('Expected one JSON command object', result['resourceFeedback'])
+
+    def test_error_feedback_does_not_repeat_untrusted_reply_values(self):
+        result = read_reply(reply('{"action":"wait"} synthetic-secret'))
+        self.assertNotIn('synthetic-secret', result['resourceFeedback'])
+
+    def test_valid_note_before_commands_does_not_claim_the_whole_reply_was_skipped(self):
+        result = read_reply(reply('[{}, {"action":"wait"}]'))
+        self.assertEqual(result['action'], 'note')
+        self.assertEqual(result['queuedCommands'][0]['action'], 'wait')
+        self.assertNotIn('No commands from this reply', result['resourceFeedback'])
+
+    def test_whitespace_between_commands_remains_supported(self):
+        result = read_reply(reply(' \n{"action":"wait"} \n {"action":"back"} \n'))
+        self.assertEqual([result['action']] + [row['action'] for row in result['queuedCommands']], ['wait', 'back'])
 
     def test_prose_containing_json_does_not_create_guessed_actions(self):
         result = read_reply(reply('Example only: {"action":"tap","ref":"@one"}'))

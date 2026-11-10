@@ -900,7 +900,34 @@ class ScenarioTests(unittest.TestCase):
         response = result['scenarios'][0]['decisions'][0]['response']
         self.assertEqual(response['modelResponse'], '{broken')
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
-        self.assertIn('Unreadable reply text', state['resourceFeedback'])
+        self.assertIn('Invalid JSON command reply', state['resourceFeedback'])
+        self.assertIn('Expected one JSON command object', state['resourceFeedback'])
+
+    def test_malformed_batch_has_no_device_effect_before_corrected_reply(self):
+        malformed = '{"action":"tap","ref":"@wrong"},{"action":"back"}'
+        corrected = json.dumps([action('tap', ref='@correct'), action('back')])
+        agent, _, transport = api_agent([malformed, corrected, action()])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        calls = [(name, args) for name, args in mobile.calls if name != 'reset']
+        self.assertEqual(calls, [('mobile_click_on_screen_at_coordinates', dict(ref='@correct')),
+                                 ('mobile_press_button', dict(button='BACK'))])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Unexpected comma', state['resourceFeedback'])
+        self.assertIn('No commands from this reply were executed', state['resourceFeedback'])
+        self.assertIn('Expected one JSON command object', state['resourceFeedback'])
+        self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], malformed)
+        self.assertEqual(len(transport.bodies), 3)
+
+    def test_malformed_reply_is_redacted_in_saved_feedback_and_next_request(self):
+        self.redactor = Redactor({'credentials': {'test': {'password': 'synthetic-secret'}}})
+        runner = self.create_runner()
+        agent, _, transport = api_agent(['{"action":"wait"} synthetic-secret', action()])
+        result = {'scenarios': []}
+        runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertNotIn('synthetic-secret', json.dumps(result))
+        self.assertNotIn('synthetic-secret', json.dumps(transport.bodies))
 
     def test_notes_still_respect_the_shared_request_budget(self):
         budget = Budget(MODEL, 5, 'USD')

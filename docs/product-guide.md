@@ -574,3 +574,10 @@ The example is a resource description, not a fixed picker strategy. The AI choos
 A swipe without a target and without distance retains the whole-screen gesture. Supplying distance without a target is an explicit error, because the installed adapter would ignore it. Unresolved refs, missing/invalid bounds, partial coordinates and invalid distances produce feedback and cancel the remaining command batch; CIMT does not silently swipe elsewhere.
 
 New step reports show the requested action and exact attempted adapter call. The same call record is provided to AI in batch feedback. A successful call is distinct from observing a changed value. Offline tests cover forwarding, errors, cancellation, masking and HTML; live picker selection remains a separately executed device check.
+
+
+## Command syntax feedback
+
+CIMT accepts one JSON command object, an array of command objects, or consecutive objects with optional whitespace. Prefer an array for multiple commands, such as `[{"action":"wait"},{"action":"wait"}]`. Commas between top-level objects without array brackets are invalid.
+
+If any part of a reply has invalid JSON syntax or a non-object command value, none of that reply executes. The next normal AI request includes resourceFeedback explaining why, the JSON error line/column when available, the accepted formats and an example. AI chooses the correction and resends the intended commands. The redacted original reply remains in the report; no automatic command repair, application-specific recovery or separate acknowledgement call is introduced. Existing provider failures and shared budget/time/cancellation limits still apply.
