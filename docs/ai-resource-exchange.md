@@ -1,5 +1,7 @@
 # AI command resources and replies
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 1 November 2026. Describes FR-96/AC-66 and FR-99/AC-69 execution resources; FR-97 defines the input-only layer. This is a source change with offline checks; installation and live acceptance are separate.
 
 ## Responsibility
@@ -26,7 +28,7 @@ The reply supplies readable JSON command objects containing action and its neede
 
 Plan updates, checks, context selections and recovery acknowledgements are optional. Missing fields receive mechanical defaults for the existing dispatcher. Unknown or differently shaped fields remain in the complete original reply even when they cannot be bound to a typed record. A sparse or inconsistent report does not discard an executable command.
 
-FR-99 supersedes the former single-object limitation. The decoder reads the explicit objects into a scenario-local FIFO queue. Execution takes each in order without another inference request while commands remain pending. A readable prefix survives an unreadable suffix; the unreadable text is retained as a note. Prose is not searched for embedded commands. No readable command results in a note with resource feedback rather than a guessed device action. There is no response-format exhaustion stop. Shared time, spending and cancellation still apply.
+FR-99 supersedes the former single-object limitation. The decoder reads the explicit objects into a scenario-local FIFO queue. Execution takes each in order without another inference request while commands remain pending. The complete reply is decoded before queuing any commands. A malformed suffix or non-object command value prevents execution of the entire reply; its redacted text is retained as a note, with generic feedback explaining the error, accepted formats and a correction example. Prose is not searched for embedded commands. No readable command results in a note with resource feedback rather than a guessed device action. There is no response-format exhaustion stop. Shared time, spending and cancellation still apply.
 
 Each device action retains normal startup/foreground checks, dispatch and post-action observation. If a command cannot execute, execution cancels all pending commands before observation and retains the actual issue. The next normal AI request includes the failed command/batch/order, actual error and cancelled-command count, even when no commands remained. Successful batches add no acknowledgement request; normal next decisions continue testing. Recovery can leave the tail not executed. AI can retrieve cancelled/unexecuted records and decide what new commands to issue. Shared stopping/privacy rules can prevent a further provider request; issues remain locally. A first-command done can end the objective; a done behind commands instead returns actual results for a fresh decision under FR-101. recover requests fresh evidence and a decision. Notes/recall have no device action. See [queue state and boundaries](command-queue.md).
 

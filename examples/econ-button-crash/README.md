@@ -1,13 +1,12 @@
 # Main-branch button/crash example
 
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+
 This is the user-facing test example for the supplied ECON MAUI repository.
 All run configuration, text inputs, and application-specific build integration
 live in this folder. CIMT and its Mac prerequisites must first be installed.
 
-The initial single-objective run engine is implemented and its policy/contract
-checks pass. This example has not yet completed a real application test. Its
-live run is waiting for the existing API key to be configured locally; no crash
-finding or application pass has been claimed.
+This is a configurable example, not a recorded application test pass. Supply your own private settings and inspect current [implementation status](../../docs/implementation-status.md) for executed evidence and open checks. No usable key or login is bundled.
 
 ## Configure once
 
@@ -17,8 +16,7 @@ credentials, if needed, belong in the private YAML as named credentials; do not
 put them in the tracked text files. default.private.yaml, work, and reports are
 ignored by Git. No key is bundled.
 
-An owner-only default.private.yaml was prepared on the development Mac without a
-key. On a fresh checkout:
+On a fresh checkout:
 
 ```bash
 cp examples/econ-button-crash/default.example.yaml examples/econ-button-crash/default.private.yaml
@@ -39,8 +37,12 @@ published pricing were checked on 28 October 2026 in the
 From the CIMT source folder:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
 cimt validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+```
+
+After reviewing readiness, a separately authorized test uses:
+
+```bash
 cimt run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
 ```
 
@@ -99,7 +101,7 @@ Exit codes: 0 passed, 1 test failure/crash, 2 incomplete, 3 configuration,
 infrastructure, or build error. Final adapter and full-product acceptance remain
 separate from this example.
 
-The runtime supports this explicit GPT-5.4 Mini snapshot and gpt-5.6-luna with USD accounting. Select either through ai-model.name; see the [model selection guide](../../docs/product-guide.md#select-the-ai-model).
+The runtime supports this explicit GPT-5.4 Mini snapshot and gpt-5.6-luna with USD accounting. Select either through ai-model.name; see the [model selection guide](../../docs/product-guide.md#configuration-files-and-precedence).
 Unknown model/currency pricing is rejected before inference. Maximum output is
 bounded and each request reserves its full context cost before being sent; API
 timeouts retain the worst-case reservation. This is conservative accounting rather

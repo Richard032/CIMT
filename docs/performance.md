@@ -1,5 +1,7 @@
 # CIMT execution performance
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 31 October 2026. Scope: historical measurements and the AI-owned context source increment. No new live benchmark was executed.
 
 ## Measured baseline

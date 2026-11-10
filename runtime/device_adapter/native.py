@@ -1,4 +1,4 @@
-"""Read-only calls to the installed native helper."""
+"""Calls to the installed native helper within one fixed device and deadline."""
 
 import json
 import os

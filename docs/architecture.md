@@ -1,9 +1,11 @@
 # CIMT architecture
 
-Version: 0.42
-Date: 1 November 2026  
-Status: architecture and reviewed command/YAML contracts approved; adapter selection and implementation validation open  
+Documentation baseline: 1.0
+Updated: 10 November 2026
+Status: approved architecture with dated implementation increments; Mobile MCP selected, release qualification open
 Authority: [confirmed requirements](requirements.md)
+
+Read later increments as superseding earlier design descriptions. Use the [current product guide](product-guide.md) for implemented commands and [release readiness](release-1.0.md) for acceptance gaps. Numerical tool/pricing examples below belong to their recorded revision; [dependency selection](dependencies.md) identifies current version authorities.
 
 Implemented redaction correction: observations and other free text are redacted separately from typed control metadata. The worker uses RecordRedactor; the .NET report boundary uses JsonTextRedactor, ExecutionRedactor, and RunReportRedactor before serialization. JSON syntax, status values, generated IDs, numbers, and evidence links are preserved. Screen masking searches original nested UI strings before encoding. See the [redaction contract and verification](redaction.md). This implements FR-28/FR-36 without changing the public interface.
 
@@ -11,18 +13,18 @@ Implemented screenshot correction: the existing device adapter now injects a nat
 
 ## 1. Architectural boundary
 
-Confirmed: one Intel Mac hosts a single CIMT run; terminal invocation is the public interface; Jenkins invokes it unchanged. Testing uses physical Android/iOS devices connected at startup, with no more than two active device workers. OpenAI supplies model reasoning. Application backends and manually prepared external equipment are outside CIMT.
+One Mac hosts a single CIMT run; terminal invocation is the public interface and Jenkins is intended to invoke it unchanged. Intel is the original pilot; Apple Silicon installation/build evidence is now recorded. Testing selects physical or virtual Android/iOS devices available at startup, with no more than two active device workers. OpenAI supplies model reasoning. Application backends and manually prepared external equipment are outside CIMT.
 
 Approved: a local .NET command-line orchestrator owns configuration, builds, device scheduling, policy enforcement, evidence, cost accounting, and reports. The model proposes actions and interpretations; deterministic host code controls budgets, limits, cleanup, and concurrency. The model must not be the sole enforcer of these rules.
 
-Approved implementation: a .NET command-line application, shell script for Mac setup, YAML configuration, interchangeable device-control adapter, and local HTML reports. Supporting runtimes may be used where needed. The foundation uses .NET 10.0.300; distribution and the final adapter remain open. The installed prerequisite profile still requires a complete compatibility/acceptance proof.
+Approved implementation: a .NET command-line application, shell script for Mac setup, YAML configuration, interchangeable device-control adapter, and local HTML reports. Supporting runtimes may be used where needed. The .NET target and SDK selector are defined by the checkout metadata rather than a permanent tool version in this design. Mobile MCP is the selected adapter. Distribution/setup automation and comprehensive toolchain/device acceptance remain open.
 
 ## 2. Components
 
 ```mermaid
 flowchart TD
     T[Developer terminal] --> C[CIMT command]
-    J[Jenkins pipeline on Intel Mac] --> C
+    J[Jenkins pipeline on Mac] --> C
     Y[Default YAML / run YAML / arguments] --> C
     I[Instruction / requirement / setup text] --> C
     C --> O[Run orchestrator and Mac lock]
@@ -30,7 +32,7 @@ flowchart TD
     O --> S[Device scheduler: maximum two active devices]
     S --> W[Isolated device workers]
     W --> A[Device adapter]
-    A --> D[Startup snapshot of physical Android / iOS devices]
+    A --> D[Selected startup Android / iOS devices]
     W --> N[AI Instruction and Context]
     N --> A
     N --> E
@@ -40,7 +42,7 @@ flowchart TD
     W --> E
     B --> E
     E --> R[Portable HTML report]
-    O --> F[Finalization and clone cleanup]
+    O --> F[Finalization and owned work retention]
 ```
 
 The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the CIMT lifecycle, evaluation policy, or strict cost cap.
@@ -103,7 +105,7 @@ Credential entry retains current field/ID verification because masking must be r
 
 ## 4. Configuration and filesystem proposal
 
-Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Approved commands and YAML fields are recorded in the product guide. Additional options and complete schema validation constraints remain to be specified.
+Approved configuration rules: recursively merge nested mappings, replace lists completely, reject unknown keys and invalid values before building/testing, and treat terminal arguments as explicit final overrides. Resolve relative paths relative to the declaring YAML file. Record the effective configuration with secrets removed. Require an explicit model, whole-run time limit, and AI budget in the effective configuration; missing or invalid values produce an error report before testing. Implemented commands and YAML fields are recorded in the product guide; approved but unfinished commands remain in requirements/history. ConfigurationValidator defines current accepted keys and constraints.
 
 Installed execution is independent of the launch folder and source checkout. OutputLayout selects the input folder from the explicit --run-config path, or --config if no run override is supplied. Shared settings can live elsewhere. ConfigurationLoader preserves this selection before applying branch overrides; inherited input/script paths still keep their declaring YAML origins. No configuration discovery or current-directory change is needed.
 
@@ -235,8 +237,8 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 
 | Topic | State / next evidence |
 | --- | --- |
-| Intel host / physical devices by default, optional virtual devices / OpenAI / YAML / local HTML | Confirmed product choices. |
-| Device adapter | Both candidates demonstrated Android/iPhone basic control. Mobile MCP passed eight guarded iPhone smoke checks; the preference remains provisional and the full selection gate remains open. |
+| Mac host (Intel pilot and Apple Silicon evidence) / physical devices by default, optional virtual devices / OpenAI / YAML / local HTML | Confirmed product choices. |
+| Device adapter | Mobile MCP is selected. The historical comparison is retained; complete application/privacy/device qualification remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
 | Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
@@ -256,7 +258,7 @@ The product owner confirmed the reviewed requirements and architecture policies 
 
 ## 12. Approved command and configuration contracts
 
-The [product guide](product-guide.md) is the reference for the reviewed command invocations and YAML fields. Its examples describe the approved interface. validate, default build workers, and an initial run engine now exist; setup and saved-action-history replay remain pending; current-instruction replay reuses retained builds. See sections 14 and 20 for implementation limits.
+The [product guide](product-guide.md) is the reference for implemented command invocations and YAML fields. The [historical product guide](product-guide-history.md) preserves the broader approved interface, including unfinished setup. validate, default build workers, and an initial run engine now exist; setup and saved-action-history replay remain pending; current-instruction replay reuses retained builds. See sections 14 and 20 for implementation limits.
 
 - setup consumes setup.yaml, including the installation root, tested toolchain manifest, and optional application validation configuration.
 - default.yaml supplies shared settings. app.yaml is a reusable per-run override. ai-model and ai-budget are separate sections.
@@ -370,7 +372,7 @@ Permission decisions are controlled by testing instructions. The AI guidance req
 
 ## 23. AI replies and resource execution
 
-FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. Prose or multiple command objects remain notes with resource feedback; CIMT does not guess which command to execute. See [AI Resource Exchange](ai-resource-exchange.md).
+FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. FR-99 supersedes the earlier single-object limitation: one object, an array or consecutive objects execute FIFO after complete-reply decoding. Prose and malformed replies remain notes with generic resource feedback; CIMT does not guess embedded commands. See [AI Resource Exchange](ai-resource-exchange.md).
 
 Execution still enforces supported resources, bounds, privacy, shared limits and real provider/infrastructure failures. Legacy rejectedResponses records remain readable in old reports; new execution does not create response-format rejections.
 
@@ -378,7 +380,7 @@ Execution still enforces supported resources, bounds, privacy, shared limits and
 
 ScenarioSession owns ExplorationMemory in addition to the existing coverage tracker. The memory stores observed and untried view/control paths, attempts, transitions, UI outcomes, and the accepted plan for the whole scenario. Stable identities prefer identifier/name; fallback uses type/label/geometry. View identity uses sorted control identities and available navigation headings. Capture-local refs are used only to bind current controls, never as persistent identity. Existing coverage counters retain their prior meaning; memory is a navigation aid and does not prove exhaustive coverage. Ambiguous/duplicated identifiers and visual-only changes remain best-effort observations.
 
-ScenarioRunner observes the current controls before choosing and records the action's actual UI result after observation/recovery, including action/evidence errors. History includes the control label and observed outcome instead of only action completed. Saved exploration contains all known paths/transitions. AI input includes up to 80 current controls with fresh refs, 40 pending paths, 40 stalled paths, the accepted pending plan, and 12 recent transitions; older attempts remain in the full memory and are available again on revisiting a view. Recent action history remains bounded to 24 records. No cross-run resume or change to initial app reset is implied.
+ScenarioRunner observes the current controls before choosing and records the action's actual UI result after observation/recovery, including action/evidence errors. History includes the control label and observed outcome instead of only action completed. Saved exploration contains all known paths/transitions. The earlier fixed control/path/history windows are superseded by AI-owned exact context selection under section 31. Complete stored records remain available; the host does not rank or trim them for relevance. No cross-run resume or change to initial app reset is implied.
 
 ExplorationMemory supplies repetition facts after three unchanged attempts or repeated traversals without discovered paths. NoProgressAction carries repetition facts after execution. AiInteraction supplies fresh evidence and AI-directed assessment through LoopRecovery; it does not block a chosen command or select a replacement path. AI can recall omitted history, replan, explain purposeful work or finish blocked. Each renewed signal requires renewed assessment, with no fixed semantic-recovery episode limit. There is no separate format-correction limit under FR-96. See section 31 and FR-88–FR-94, which supersede the earlier three-response no-progress stop. Crashes keep their independent three-matching-crash policy.
 
@@ -501,3 +503,37 @@ AiInteraction prepares fresh current evidence and the pending complete paths for
 A done behind other commands is a mechanical batch handoff. Retain it as deferred, do not apply its predicted checks/plan/completion, mark later commands unexecuted and return actual results for a new AI decision. A first-command done can end the objective. No semantic response gate or host-selected replacement action is added. Existing failures cancel the pending tail; limits/privacy retain unsupplied results without bypassing stopping rules.
 
 ScenarioEvidence reuses matching verified image bytes and identical masked UI records, preserving every event reference and rejecting modified registered evidence. Observation changes compare the complete masked UI/image identity; changed does not imply the command caused the change or that it was meaningful. Structural screen identity and existing repetition signals remain separate. Python/.NET redaction preserve generated identities/status and scrub free text. BatchFeedbackHtmlRenderer shows ordered paths and mandatory ANR warnings with contained evidence links independently of optional sections. Publish matching host/runtime files together; the existing installer includes the new modules/package. See [the contract and sequence](batch-feedback.md).
+
+## External test file boundary
+
+ExternalFileSettings validates declared file paths and resolves each source against its YAML origin. Readiness validation and TextInputLoader check readability before execution proceeds to model access. RuntimeRequest passes resolved paths, platform and app-relative destinations to the private Python request, independently of the AI text inputs.
+
+The Device Adapter's ExternalFiles component owns app-container file transfer and byte verification. AppLifecycle invokes it after reinstall/data reset and optional reset hooks, before app launch, for both normal runs and replay. Platform commands use the selected device and app identifiers. Simulator destinations are checked against the resolved data-container path, including symbolic-link escapes; subprocess calls keep normal deadline and cancellation checks. Transfer failures remain setup infrastructure errors, not application defect findings. Mobile MCP and its native helper are unchanged.
+
+## Installation environment and adapter preflight
+
+The launcher resolves its installation root, loads that installation's environment.sh, and supports the source checkout's ignored .local/install environment. CommandRunner constructs each child process environment with the selected installation's bin, tools/node-packages/bin and tools/node-packages/lib/node_modules/.bin directories before inherited PATH entries. It preserves explicit process environment values and does not change the user's shell. Python run/replay preflight checks node and mcp-server-mobile before model access, cloning or building. Device discovery by module path cannot substitute for checking the executable used by device workers.
+
+## Context request capacity and evidence reuse
+
+ActionPromptBuilder.state supplies the same state layout to instruction preparation and prompt construction. request_context.context_usage measures the selected record package in UTF-8 bytes and reports each collection's count/size; it performs no relevance selection. Capacity deferral preserves mandatory current evidence and new batch feedback. The feedback explains whole-collection selection, unchanged selections and an explicit latest-record example.
+
+ScenarioSession records the last capture time and whether the last command was an action-free recall. AiInteraction prepares context before acquiring another image. If a recall still leaves an oversized history package, it reuses the verified image and timestamp, marks the request as reused and records that fact. Fitting selections receive fresh masked evidence before their normal decision request. Actions, notes and recovery return to fresh observation behavior; unknown capture times are never reused. The AI can still act from the explicitly timestamped supplied evidence during capacity deferral under the existing historical-evidence policy; no semantic command veto or fixed recall limit is introduced.
+
+Prepare AI context measures state preparation and capacity checking. Refresh AI screen evidence measures observation acquisition. AI context selection and AI action decision identify the request purpose; AI decision cycle includes their nested work. Agent measures only OpenAiTransport.request with a monotonic clock, resetting its last measurement before every choice. AiInteraction records AI provider response with that duration, status, kind, device and target, including failed transports. A request stopped before transport has no provider timing. The HTML activity renderer uses these existing structured activity records.
+
+## Targeted swipe translation and audit records
+
+The swipe contract adds optional distance, while ref and x/y remain alternate target forms. command_reply preserves swipe numeric arguments, including fractional values, and retains invalid values for explicit execution failure. Nonfinite values and containers in numeric slots are represented safely in failure records; the full original reply is retained.
+
+ActionExecutor resolves only geometry: current ref bounds map to their centre in the CimtScreenInfo device coordinate system. It never scales by imageWidth/imageHeight, selects an application control/value, or silently substitutes a whole-screen gesture. Validation rejects conflicting/unknown targets and invalid numeric arguments. Untargeted gestures with no distance use the adapter default. Distance requires a target because Mobile MCP 1.0.14 forwards it only through swipeFromCoordinate(x, y, direction, distance).
+
+An execution-local callback records the exact attempted mobile_swipe_on_screen call before dispatch and updates its status after the adapter returns or raises. ScenarioRunner saves it beside the requested action and BatchFeedback supplies it with the next normal request. No mutable call record is shared between device workers. Both report redactors preserve protocol metadata and numeric values while redacting textual data. StepHtmlRenderer shows Requested action and Adapter call attempted details, including failures. Mobile MCP source and the application project are unchanged.
+
+ActionPromptBuilder supplies generic picker mechanics in its system prompt and direction/distance resource descriptions. The same guidance accompanies normal decisions, deferred-context requests and recovery. It describes finger motion and observation-based corrections without adding execution rules, selecting application values, or changing Mobile MCP.
+
+ActionExecutor uses Mobile.replace_text for configured credential values after focus and masking registration. Mobile invokes the installed mobilecli io fill operation through NativeDevice, which pins the device and deadline; Mobile MCP source is unchanged. A non-ok helper response is a device action error; helper transport/startup failures keep their existing infrastructure policy. No replacement failure falls back to append typing. Successful execution returns a static secret-free actionFeedback, retained by ScenarioRunner in the step and by BatchFeedback for the next normal AI request. StepHtmlRenderer displays it through the existing escaped/redacted note renderer.
+
+Timed swipes use the existing native adapter boundary because Mobile MCP 1.0.14 does not expose swipe duration. ActionExecutor resolves geometry, rounds nonnegative points using the same half-up rule as Mobile MCP native gestures, validates both endpoints, and calls Mobile.swipe_coordinates. The helper receives io swipe x1,y1,x2,y2 --duration milliseconds. The actual adapterCall records tool mobilecli io swipe with the exact integer endpoints and unchanged durationMs. Untimed swipes retain their existing adapter path; a timed failure never falls back to default timing.
+
+Bootstrap ContextMemory.project supplies all collections while selection is None. Without an explicit AI selection, retained observations, states and other collections grow until prepare_context defers the selected package. ActionPromptBuilder now demonstrates a normal command plus an explicit compact context and gives shorter context guidance. Capacity feedback adds selectionActive and exampleReply (recall plus an explicit summary/selection). These are resources for AI; bootstrap behavior, optional selection and execution policy are unchanged.

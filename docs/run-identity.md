@@ -1,5 +1,7 @@
 # Shared run identity
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Implemented: 28 October 2026; input-local placement updated 29 October 2026 under FR-08, FR-30, FR-52/FR-53, and AC-22/AC-25/AC-26.
 
 ## Folder contract

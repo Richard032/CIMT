@@ -1,86 +1,48 @@
 # CIMT — Curtis Intelligent Mobile Test
 
-CIMT is a command-line product in development for autonomous everyday testing of .NET MAUI applications on connected Android and iOS devices.
+CIMT builds a configured .NET MAUI application and uses AI to test it on Android and iOS through Mobile MCP. It produces local HTML reports with observations, screenshots, requirement coverage and stopping reasons. The same command-line interface is intended for developer Macs and Jenkins.
 
-Developers supply a Git repository, configurable build targets, plain-text testing instructions, and requirements. CIMT will build the application, operate it on the devices, and produce a local HTML report with observations and evidence. Jenkins will invoke the same command through its pipelines.
+Current commands are `validate`, `run` and retained-build `replay`. Physical and virtual devices are supported as separate run kinds; at most two device workers run simultaneously. AI chooses tests, actions and recovery. CIMT owns execution, privacy, shared limits and reporting. Mobile MCP supplies device tools and is not a second testing agent.
 
-**Status: CLI validation, default build workers, an initial single-objective run engine, and complete source requirement mapping are implemented. The real application run, final adapter qualification, and release acceptance remain pending.**
+## Start here
 
-## Documentation
+1. [Install on a Mac](docs/installation.md): a step-by-step how-to, including commands from our Apple Silicon setup and rules for selecting newer compatible tools.
+2. [Configure and run](docs/product-guide.md): public commands, YAML, output and troubleshooting.
+3. [Write test inputs](docs/test-inputs.md): separate app knowledge, scenarios and acceptance requirements; provide fixtures through settings.
+4. [Check 1.0 readiness](docs/release-1.0.md): implemented scope, known gaps and the evidence required before release approval.
 
-- [Requirements](docs/requirements.md): confirmed product requirements, outcome rules, and acceptance criteria.
-- [Architecture](docs/architecture.md): approved structure and policies, technology evaluation, and unresolved engineering decisions.
-- [Product documentation](docs/product-guide.md): intended user workflow, configuration concepts, reporting, and Mac setup plan.
-- [Installation and setup guide](docs/installation.md): repeatable Mac preparation, verification steps, and findings maintained during implementation.
+The [documentation index](docs/README.md) separates operator guides, design contracts and historical working notes. Exact observed tool versions are examples, not permanent requirements; see [dependency selection](docs/dependencies.md).
 
-The requirements baseline is version 0.20 and architecture version 0.26, updated 30 October 2026. Product and installation guides include current implementation findings. Requirements, main architecture policies, and reviewed CLI/YAML contracts are confirmed. Final adapter selection, the supported compatibility matrix, full schema constraints, and end-to-end acceptance remain open.
+## Commands
 
-## Initial release
-
-- Intel Mac host; .NET command-line application, shell setup script, one installation and one active run per Mac.
-- Single Git branch; private repositories supported through existing Git credentials.
-- All supported physical devices connected at startup; at most two tested simultaneously.
-- Every configured build target on every compatible device.
-- OpenAI-driven testing; strict per-run AI budget and configurable whole-run time limit.
-- Local HTML reports with screenshots for every test step and saved actions for adaptive replay.
-- Work retained after execution and replaced only before the next clone for those inputs; reports retained.
-- Launch installed CIMT from any folder; supply inputs only. CIMT creates generated work and reports under the input folder's CIMT output subfolder.
-
-Two-branch comparison is planned for a later release. Device-control technology remains to be selected after evaluation.
-
-## Review order
-
-Start with the requirements, review the architecture against them, then review the proposed operator experience in the product guide. Open decisions are collected in the architecture document.
-
-## Approved command and configuration design
-
-The planned commands are setup, validate, run, and replay. Configuration uses setup.yaml, default.yaml, and an app.yaml per-run override, with separate ai-model and ai-budget sections.
-
-CIMT will supply default Android/iOS build scripts. User replacements/custom copies are supported. All commands and script integrations require examples and runnable demos using a user-supplied app; no demo MAUI application will be bundled.
-
-See the [product guide](docs/product-guide.md) for approved command invocations, YAML examples, path rules, and script contracts. The [main-branch button/crash example](examples/econ-button-crash/README.md) supplies the public validate/run commands and all application-specific inputs. The [run-engine notes](docs/run-engine.md) distinguish the current implementation from the complete approved design.
-
-## Prerequisite bootstrap
-
-For the validated first-Mac prerequisite profile (Intel, Xcode 26.5):
+After preparing a private configuration and application inputs:
 
 ```bash
-bash scripts/setup-prerequisites-macos.sh
-source /Users/Shared/CIMT/environment.sh
+cimt validate --config ./default.private.yaml --run-config ./application.yaml
 ```
 
-The helper installs isolated runtimes, MAUI Android/iOS workloads, Android tools, and both adapter candidates. It is not the completed YAML-driven cimt setup command. Read the [installation guide](docs/installation.md#8-prerequisite-installation-performed--28-october-2026) for exact versions, checks, limitations, Git authentication, and remaining device/application validation.
+Validation checks readiness without a paid AI request or application reset/build/test. A separately authorized fresh test uses:
 
-[Installed prerequisite profile](docs/installed-prerequisites-macos-intel.yaml) records observed versions; it is not yet an enforced installer manifest.
+```bash
+cimt run --config ./default.private.yaml --run-config ./application.yaml
+```
 
-## Repository locations
+A later test against the retained binaries uses current text inputs:
 
-The first application to test is [ag-econ-mobile on Subgit](https://subgit.curtis.ch/ECON/ag-econ-mobile.git). Noninteractive read access and initial build validation of main were performed on this Mac. Each run still requires an explicit configured branch.
+```bash
+cimt replay --config ./default.private.yaml --run-config ./application.yaml
+```
 
-CIMT's product code and documentation remain in this GitHub repository for now. The product owner plans to move CIMT to Subgit later; that migration has not been performed. Application repository URLs remain configurable.
+`run` clones and builds; `replay` does neither. A changed source commit requires `run` to test the changed application. Replay is not saved-action playback. YAML-driven `setup`, saved-action/adaptive replay via `--scenario`, and a rebuild-existing-clone command are not implemented.
 
-## Current implementation
+Each invocation writes its own `<input-folder>/CIMT output/reports/report_<UTC-time>/index.html`. Open the exact path printed by that invocation. A live report is explicitly incomplete until finalization. Build success does not establish functional acceptance.
 
-Read the [reviewed implementation status](docs/implementation-status.md) for done, remaining, and blocked work after each increment. The installed cimt validate command produces configuration/readiness reports. cimt run now owns cloning, builds, device scheduling, bounded AI exploration, evidence, and cleanup for one objective per target/device. Retained-build replay executes current instructions without cloning/building. setup and saved-action-history replay remain unfinished. No real application pass is claimed from implementation fixtures.
+## Status and development
 
-- [Adapter evaluation](docs/adapter-evaluation.md): both candidates exercised on Android and iPhone; Appium passed 11 iPhone checks and Mobile MCP passed 8 guarded iPhone smoke checks. Final application qualification remains open.
-- [Default build-script contract](docs/build-script-contract.md): installed scripts and verification results.
+The [current implementation status](docs/implementation-status.md) is the release-facing summary. Dated [installation notes](docs/installation-notes.md), [implementation history](docs/implementation-history.md) and [reviews](docs/README.md#historical-working-records) retain earlier observations without turning old failures or proposed commands into current instructions.
 
-Run development checks with bash scripts/check-development.sh. The [development guide](docs/development.md) explains the small services, unit-test boundaries, and simple English comment rules from [AGENTS.md](AGENTS.md). Private configuration, run evidence, and temporary work stay local.
+The latest recorded Apple Silicon application run cloned its configured issue branch and built both Android and iOS. Its functional result remained inconclusive/incomplete. Offline checks and individual manual app checks do not establish full CIMT release acceptance. Jenkins, second-host and remaining physical-device gates must be qualified explicitly.
 
-- [Complete requirement mapping](docs/requirement-mapping.md): source catalogue, five statuses, evidence, and every applicable target/device combination.
-- [Offline mapping demonstration](examples/requirement-mapping/README.md): runnable synthetic report; no API key or phone needed.
+Use [AGENTS.md](AGENTS.md), [the continuation handover](GPT%20continuation.md) and [the development guide](docs/development.md) for source work. Run `bash scripts/check-development.sh` with the selected CIMT environment for existing offline checks. Private keys, credentials, fixtures, local feeds, test folders and generated reports stay out of Git.
 
-- [Shared run identity](docs/run-identity.md): identical UTC timestamps for work/report names, safe collisions, retained metadata, and cleanup/portability checks.
-
-- [Retained work and replay](docs/work-retention-and-replay.md): deletion only before cloning, unchanged build properties, and reuse of built apps.
-
-- [Readable diagnostic reports](docs/diagnostic-reporting.md): run overview, ordered activity, failures, and stopping reasons.
-
-AI decision correction now allows two bounded retries for invalid response contracts before stopping. The HTML report retains redacted unaccepted candidates separately from verified findings. See [diagnostic reporting](docs/diagnostic-reporting.md) and FR-65 in the requirements. No real test run is started by installation.
-
-Whole-scenario exploration memory now records control attempts and actual UI outcomes. Repeated paths without progress trigger replanning. Ctrl+C requests an incomplete final report, and index.html is available as a clearly marked interim report during execution. See [product usage](docs/product-guide.md) and [diagnostics](docs/diagnostic-reporting.md).
-
-AI request history now uses compact navigation/outcome facts while full records stay in reports. See [performance measurements and limits](docs/performance.md) for the saved-run timing baseline and offline payload comparison.
-
-Each run and replay has its own `<input-folder>/CIMT output/reports/report_<date-time>/index.html`. Open the exact Report path printed by that execution. See the [report folder procedure](docs/product-guide.md#open-a-run-or-replay-report).
+CIMT remains in this GitHub repository. Application repository URLs and branches are configurable. No application-specific code, credential or hardware is required by the generic orchestration contract.

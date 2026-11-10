@@ -9,6 +9,7 @@ from .mcp_client import Mcp
 from redaction import ScreenMasker
 from .screen_capture import ScreenCapture
 from contextlib import nullcontext
+from errors import DeviceActionError
 
 
 class Mobile:
@@ -63,6 +64,23 @@ class Mobile:
         # Arguments can contain typed credentials. Log only the operation name and outcome.
         with self._operation(name):
             return self.client.call(name, dict(device=self.device["id"], **arguments), timeout)
+
+    def replace_text(self, value):
+        """Replace a focused field through the installed helper; never log its contents."""
+        self.check()
+        with self._operation("Replace focused credential field contents"):
+            result = self.commands.native(['io', 'fill', value])
+            if not isinstance(result, dict) or result.get('status') != 'ok':
+                raise DeviceActionError('Device adapter did not confirm replacing the focused field contents')
+
+    def swipe_coordinates(self, x1, y1, x2, y2, durationMs):
+        """Forward AI-selected integer points and timing through the native helper."""
+        self.check()
+        with self._operation("Swipe with explicit duration"):
+            result = self.commands.native(['io', 'swipe', f'{x1},{y1},{x2},{y2}',
+                                           '--duration', str(durationMs)])
+            if not isinstance(result, dict) or result.get('status') != 'ok':
+                raise DeviceActionError('Device adapter did not confirm the timed swipe')
 
     def reset(self, artifact, app_id, target):
         self.target = target

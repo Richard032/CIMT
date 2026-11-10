@@ -1,5 +1,7 @@
 # Physical and virtual execution devices
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Date: 31 October 2026
 Authority: product-owner request to run the previous test on Android Emulator and iOS Simulator.
 
@@ -39,6 +41,10 @@ Keep the project/SDK signing policy. Simulator apps still need a signature accep
 An explicit `iossimulator-*` RID selects `dotnet build` rather than phone-oriented `dotnet publish`. The default worker requires one top-level `.app` bundle and retains it as a ZIP with the bundle at its root, the adapter's simulator install format. The bundle identifier and executable are checked from `Info.plist`, as for an IPA. Android retains its APK workflow. Replay retains the physical/virtual environment and refuses reuse across those environments; it never rebuilds automatically.
 
 The HTML overview records the selected device environment. Startup JSON preserves each native type. A virtual-device result does not establish physical hardware, Bluetooth, camera or equipment compatibility. Unavailable hardware and missing native-library slices must be reported as test limitations or infrastructure/build failures, not invented app crashes.
+
+## Apple Silicon example
+
+Use native ARM64 images. From our Mac setup, the iOS target used `RuntimeIdentifier: iossimulator-arm64` and `EnableCodeSigning: true`; Android used an ARM64 emulator and a standalone APK containing its assemblies (`EmbedAssembliesIntoApk: true` where required). These are explicit application properties, not injected defaults. The [installation how-to](installation.md) shows current preparation and [product guide](product-guide.md) supplies a complete target example. Select the newest mutually compatible simulator runtime, workload and Xcode; the Intel commands below are a dated concrete example rather than a portable version requirement.
 
 ## Intel Mac preparation
 
