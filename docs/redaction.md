@@ -1,5 +1,7 @@
 # Redaction and test records
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Implemented correction: 28 October 2026. Resolves D1 and D2 in the [design review](reviews/2026-10-28-design-contract-review.md), under the existing FR-28 and FR-36 requirements. No command, YAML field, or credential-source change is needed.
 
 ## Text and control data

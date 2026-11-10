@@ -1,5 +1,7 @@
 # Complete ordered batch feedback
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Implements FR-101 / AC-71. The source is verified offline; installation and live qualification are separate. No public command, configuration field, dependency, provider or third-party tool change is required.
 
 ## Execution contract

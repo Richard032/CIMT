@@ -1,5 +1,8 @@
 # HTML report usability gap analysis
 
+> Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
+
+
 Date: 30 October 2026  
 Product: CIMT — Curtis Intelligent Mobile Test  
 Status: analysis and proposed improvements; implementation is not authorized by this document

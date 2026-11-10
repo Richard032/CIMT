@@ -1,5 +1,7 @@
 # Device Adapter
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 1 November 2026. Implements FR-98 / AC-68 and FR-100 / AC-70 and the separate-folder requirement DR-01.
 
 ## Responsibility

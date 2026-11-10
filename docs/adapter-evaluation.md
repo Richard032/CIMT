@@ -1,5 +1,8 @@
 # Physical-device adapter evaluation
 
+> Historical evaluation record. Mobile MCP is the selected current adapter; references below to a pending selection describe the earlier comparison. Current use is in the [product guide](product-guide.md), and remaining qualification is in [release readiness](release-1.0.md). Probe commands below are not instructions to start device activity for this review.
+
+
 Date: 29 October 2026  
 Status: both candidates have Android/iPhone basic control evidence; full application qualification remains open
 
@@ -46,7 +49,7 @@ The follow-up check found one valid legacy iPhone Developer identity with its pr
 
 Mobile MCP requests agent installation with a provisioning profile. Appium's session reported no usable development profile for WebDriverAgent, plus device-install diagnostics. No signing checks were disabled and no new account credentials or certificates were created.
 
-The first dedicated WebDriverAgent build with automatic provisioning exited 65 because Xcode rejected its saved Apple-account login. After the product owner restored account access, the same build succeeded and signature verification passed. Its new development profile covers the connected phone. The phone is paired, wired, and has Developer Mode and developer services enabled. Appium then installed/launched the signed WDA helper and completed 11 control checks. See installation sections 11–12.
+The first dedicated WebDriverAgent build with automatic provisioning exited 65 because Xcode rejected its saved Apple-account login. After the product owner restored account access, the same build succeeded and signature verification passed. Its new development profile covers the connected phone. The phone is paired, wired, and has Developer Mode and developer services enabled. Appium then installed/launched the signed WDA helper and completed 11 control checks. See historical installation notes, sections 11–12.
 
 ## Original Mobile MCP preference and current evidence
 
@@ -93,7 +96,7 @@ The refreshed profile inventory now contains an unexpired team wildcard developm
 
 The initial control probe timed out launching Settings. UI and screenshot responses were returned, but local inspection showed the passcode screen. A repeated attempt had the same readiness issue. These are retained as incomplete application checks, not passed app control. devicectl JSON confirmed passcodeRequired=true.
 
-The probe now checks iPhone lock readiness before application actions. An actual locked-device check verified that it records one failed readiness check and stops before launch/screenshots/gestures. Installation is complete. The first probe was pending an unlocked phone; the subsequent successful result is recorded below. See installation section 13. Raw profile details, device IDs, UI, and images remain private.
+The probe now checks iPhone lock readiness before application actions. An actual locked-device check verified that it records one failed readiness check and stops before launch/screenshots/gestures. Installation is complete. The first probe was pending an unlocked phone; the subsequent successful result is recorded below. See historical installation notes, section 13. Raw profile details, device IDs, UI, and images remain private.
 
 
 ## Successful Mobile MCP check after unlocking
@@ -106,6 +109,6 @@ The temporary MCP client and native daemon were stopped. DeviceKit remains insta
 
 Both connected platforms passed the production lossless-PNG capture and element-ID masking smoke check. Android returned 1080 × 2340 pixels; iPhone returned 828 × 1792 pixels. The selected visible mask was black, its UI text was hidden, and image metadata was absent. Checks ran sequentially without navigation, typing, app resets, AI calls, or a real MAUI build. No raw screen image or UI response was saved.
 
-The connected iPhone initially had no DeviceKit installed. Installing it with an existing profile matching the phone and an available signing identity restored UI access; the repeated check passed. Connection and pairing must therefore be checked separately from helper installation. No CIMT product-code change was needed. See [installation section 22](installation.md#22-connected-device-masking-check--29-october-2026) and [masking limits](screenshot-masking.md).
+The connected iPhone initially had no DeviceKit installed. Installing it with an existing profile matching the phone and an available signing identity restored UI access; the repeated check passed. Connection and pairing must therefore be checked separately from helper installation. No CIMT product-code change was needed. See [installation section 22](installation-notes.md#22-connected-device-masking-check--29-october-2026) and [masking limits](screenshot-masking.md).
 
 This adds physical capture/masking evidence. It does not establish real credential-entry, orientation changes, simultaneous two-device operation, application reset/crash handling, or unattended Jenkins acceptance. Final adapter selection remains open.

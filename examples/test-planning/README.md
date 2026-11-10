@@ -1,5 +1,7 @@
 # Instruction-driven planning example
 
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+
 Use these text inputs with an application's existing working CIMT configuration. They demonstrate a focused objective, configuration alternatives, navigation back to a known screen and requirement checks. They do not assume a particular app or authorize unrelated actions.
 
 Copy instructions.txt and requirements.txt into your test input folder. In its existing application.yaml, point inputs.instructions and inputs.requirements to those files:
@@ -15,7 +17,6 @@ Keep your own Git branch, build targets, platform/device selection, model, time/
 Run using the normal command from any directory:
 
 ```sh
-source /Users/Shared/CIMT/environment.sh
 cimt run --config /absolute/path/default.private.yaml --run-config /absolute/path/application.yaml
 ```
 
@@ -26,7 +27,7 @@ Expected demonstration: the AI first defines/selects a concrete task, identifies
 For an offline demonstration of the same policy without a device or paid request, run the existing test module from the CIMT source folder:
 
 ```sh
-/Users/Shared/CIMT/tools/python/bin/python -m unittest discover -s tests -p test_test_planner.py -v
+"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_test_planner.py -v
 ```
 
 The separate implementation layer is runtime/test_planning. It receives masked observations, instructions and requirements; it has no device/API/storage access. The current runtime adapter remains Mobile MCP. An Appium implementation can supply the same semantics after separate qualification.
@@ -38,8 +39,8 @@ With the updated runtime, normal testing decisions also select working context. 
 The existing offline cases demonstrate these protocols without a mobile test run or paid request:
 
 ```sh
-/Users/Shared/CIMT/tools/python/bin/python -m unittest discover -s tests -p test_context_memory.py -v
-/Users/Shared/CIMT/tools/python/bin/python -m unittest discover -s tests -p test_runtime_components.py -v
+"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_context_memory.py -v
+"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_runtime_components.py -v
 ```
 
 These examples validate protocol behavior with synthetic data. They do not establish real-app effectiveness or cost savings. See [the contract and sequence diagram](../../docs/ai-context-and-recovery.md).

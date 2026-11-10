@@ -1,5 +1,8 @@
 # Hardcoded behavior and project-override audit
 
+> Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
+
+
 Date: 29 October 2026  
 Source baseline: 70afdb85f2b50fab3a3755ba324d5698c744292e  
 Status: review findings; no runtime or configuration changes made during this audit

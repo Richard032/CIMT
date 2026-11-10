@@ -1,5 +1,7 @@
 # AI-owned context and recovery
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Date: 31 October 2026. Requirements: FR-88–FR-97. Source implementation and offline validation; installation and live acceptance are separate.
 
 ## Responsibility
@@ -65,7 +67,7 @@ AI done/complete ends interaction. CIMT preserves unresolved plan, path and requ
 
 ## Identity and mapping corrections
 
-Optional checks use taskId and source/requirement IDs for linking; an unknown reference stays unbound without blocking a command. Display subjects can be redacted without breaking identity. CheckRecorder assigns monotonic check IDs and publishes before image persistence. Valid current-evidence checks from a repetition proposal are recorded before fresh recovery capture, even though its app action is not dispatched. TestPlan applies each check once, keeps a new blocked status when there is no new assessment, and preserves failure/override precedence.
+Optional checks use taskId and source/requirement IDs for linking; an unknown reference stays unbound without blocking a command. Display subjects can be redacted without breaking identity. CheckRecorder assigns monotonic check IDs and publishes before image persistence. Checks and observations remain recorded across recovery capture. A repetition notice does not veto an executable AI action; actual dispatch outcomes determine whether an app action occurred. TestPlan applies each check once, keeps a new blocked status when there is no new assessment, and preserves failure/override precedence.
 
 Map identity distinguishes screen structure, observed input values and last-observed configuration. Passive text changes remain full masked UI observations, fingerprints and normal screen evidence without multiplying structural button paths. A changing label is still visible to AI and can be meaningful; the host does not decide its correctness or remove the source observation. Configuration learning refines observed navigation relationships. A changed known value does not globally alias an earlier configuration variant. Verified routes remain guidance. Current evidence is supplied, while the AI may select earlier refs or expected targets under FR-95.
 

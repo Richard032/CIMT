@@ -1,6 +1,8 @@
 # Development guide
 
-Updated: 28 October 2026.
+Updated: 10 November 2026.
+
+Use [dependency selection](dependencies.md) for version authority and [installation](installation.md) for setup. Historical counts below describe individual increments; [implementation status](implementation-status.md) records the latest executed bundle and its open fixture failure. No live device or paid AI test is part of the normal offline bundle.
 
 The repository rules are in [AGENTS.md](../AGENTS.md). The product requirements remain in [requirements.md](requirements.md). The refactor and defect fixes keep the approved public commands, YAML fields, limits, and outcome rules. The review and its resolution record are in [the product review](reviews/2026-10-28-product-implementation-review.md).
 
@@ -88,7 +90,7 @@ Capture reads sensitive field positions before and after taking an image, even w
 
 BuildResultResolver is a pure per-field policy. BuildArtifactStore reads metadata and saves artifacts; ApplicationBuilder records an unusable target and permits later targets. Helper shutdown and owned work deletion are separate cleanup attempts. Ownership checks still apply when helper shutdown fails.
 
-The mapping demo uses the real input and report services with synthetic observations. It is separate from the small unit tests. See [mapping rules](requirement-mapping.md) for the catalogue contract and status precedence. The action schema follows [official Structured Outputs guidance](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses); local mapping/quote validation remains mandatory.
+The mapping demo uses the real input and report services with synthetic observations. It is separate from the small unit tests. See [mapping rules](requirement-mapping.md) for the catalogue contract and status precedence. The current reply decoder follows the [command resource contract](ai-resource-exchange.md). Optional mapping/quote records do not impose a semantic action gate; unknown links remain unbound rather than updating unrelated catalogue items.
 
 ## Shared identity boundary
 
@@ -135,7 +137,7 @@ ReplayReportTests in the existing xUnit project verify a new replay folder, immu
 
 ## Test Planning and Exploration boundary
 
-runtime/test_planning is a separate policy layer. TestPlanner is the execution-facing entry point. The package owns source-linked plans, observed application states, input candidates, path scope and no-progress rules; it must not import device clients, API clients, process/file services or report renderers. Execution supplies masked observations and recorded checks, and executes one accepted action. Report rendering/redaction remains in its existing boundary. Use the existing Python unittest suite, including test_test_planner.py; its dependency-boundary test guards this separation. Packaging must include the package directory and __init__.py, not only top-level modules.
+runtime/test_planning is a separate policy layer. TestPlanner is the execution-facing entry point. The package owns source-linked plans, observed application states, input candidates, path scope and no-progress rules; it must not import device clients, API clients, process/file services or report renderers. Execution supplies masked observations and recorded checks, and dispatches executable commands in FIFO order. Report rendering/redaction remains in its existing boundary. Use the existing Python unittest suite, including test_test_planner.py; its dependency-boundary test guards this separation. Packaging must include the package directory and __init__.py, not only top-level modules.
 
 ## Instruction-layer boundary — 1 November 2026
 
@@ -157,4 +159,4 @@ FR-100 / AC-70: keep the post-install/launch wait in AppLifecycle.wait_after_lau
 
 BatchFeedback is execution data without device/provider/filesystem calls. ObservationRecorder registers verified masked observations and factual system warnings; the Device Adapter recognizes Android system identifiers. ScenarioRunner owns actual execution/finish handoff; input preparation only supplies recorded resources. Keep complete new path feedback outside optional context deferral, and let AI select historical batches. Avoid copying raw UI/images into event records or applying a queued finish's future checks.
 
-The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded/oversized history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Installation and replay findings are recorded in installation.md and implementation-status.md. The owner approved publishing these notes with the documentation.
+The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded/oversized history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Dated installation and replay findings are preserved in [installation notes](installation-notes.md) and [implementation history](implementation-history.md). Current acceptance status is recorded separately.

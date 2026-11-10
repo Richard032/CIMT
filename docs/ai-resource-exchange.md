@@ -1,5 +1,7 @@
 # AI command resources and replies
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 1 November 2026. Describes FR-96/AC-66 and FR-99/AC-69 execution resources; FR-97 defines the input-only layer. This is a source change with offline checks; installation and live acceptance are separate.
 
 ## Responsibility

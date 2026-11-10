@@ -1,15 +1,17 @@
 # CIMT requirements
 
-Version: 0.36
-Date: 1 November 2026  
-Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
+Documentation baseline: 1.0
+Updated: 10 November 2026
+Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending
 Product: CIMT — Curtis Intelligent Mobile Test
 
 ## 1. Source and authority
 
+Use [current implementation status](implementation-status.md) and [release readiness](release-1.0.md) to distinguish implemented/verified behavior from approved scope. The documentation baseline does not mark acceptance criteria complete.
+
 This document records decisions from the product-owner interview. Requirements using “shall” are confirmed product expectations, not claims of implemented functionality. Architecture proposals do not become product requirements without review.
 
-Later answers refine earlier answers. In particular: build failures continue other targets; app crashes follow scenario recovery rules; the first release tests one branch; the host is an Intel Mac.
+Later answers refine earlier answers. In particular: build failures continue other targets; app crashes follow scenario recovery rules; the first release tests one branch; the original host pilot was an Intel Mac. Later approved virtual-device and Apple Silicon installation work extends that pilot; it does not establish complete qualification on every host.
 
 The project repository is [Richard032/CIMT](https://github.com/Richard032/CIMT). Documentation, setup scripts, and product source code belong there.
 

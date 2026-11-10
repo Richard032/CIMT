@@ -1,5 +1,7 @@
 # Readable run diagnostics
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 30 October 2026. Scope: FR-61–FR-69 and AC-35–AC-43 for run/replay execution reports.
 
 ## Reading the report
@@ -54,7 +56,7 @@ FR-96 replaces response rejection with resource exchange. Every decision retains
 
 ## Exploration outcomes and interrupted runs
 
-Step details show the selected control and the observed UI outcome after execution, including rejected coordinates or unavailable evidence. Saved exploration memory includes all known control paths, attempts, transitions, and the accepted pending plan. It does not claim every observed change is a functional pass. Current-control, pending-path, and stalled-path summaries help the next AI decision continue the scenario. No-progress proposals are retained as unaccepted diagnostics; exhausted no-progress replanning leaves the scenario incomplete without cancelling unrelated work.
+Step details show the selected control and the observed UI outcome after execution, including rejected coordinates or unavailable evidence. Saved exploration memory includes all known control paths, attempts, transitions, and the accepted pending plan. It does not claim every observed change is a functional pass. Current-control, pending-path, and stalled-path summaries help the next AI decision continue the scenario. Repetition facts open AI-directed recovery notices; there is no fixed semantic-recovery exhaustion stop. AI chooses the next action or finishes with explained unresolved work. Earlier unaccepted diagnostics remain historical records.
 
 The host catches Ctrl+C/SIGTERM and records User interruption separately from infrastructure failure. It keeps earlier findings and applies normal exit precedence. Interim index.html and result.json are written through the same production rendering/redaction pipeline at stage boundaries and about every two seconds during UI execution. The JSON inProgress/updated fields and HTML partial marker identify snapshots; finished remains null until finalization. Latest budget data is read from ai-budget.json, including pending reservations when an API request has not settled. Each file is replaced atomically. A force-killed process leaves the preceding complete snapshot, which is explicitly not a confirmed final result. Existing reports are not retroactively regenerated.
 

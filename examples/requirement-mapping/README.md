@@ -1,9 +1,10 @@
 # Requirement mapping example
 
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+
 This example shows the complete mapping report with synthetic data. It does not test an app and needs no API key or phone. Run from the CIMT source folder on a prepared Mac:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
 dotnet run --project tools/Cimt.RequirementDemo/Cimt.RequirementDemo.csproj -c Release
 ```
 
