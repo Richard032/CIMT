@@ -23,7 +23,7 @@ Choose native ARM64 packages for `arm64` and x64 packages for `x86_64`. Select t
 
 Read CIMT's `global.json`, project target frameworks and the tested application's own SDK settings before choosing an SDK. A source checkout may require a different SDK selection from the application. Do not create or overwrite an application `global.json` just to follow this guide. Current source selection is recorded in the repository, not enforced by an example command in this document.
 
-Example used on our Apple M4 Mac: Xcode 26.5, native .NET SDKs 10.0.300 and 10.0.403, with the compatible workload set 10.0.300.3. CIMT's checkout selects the former SDK; the application, after removal of its SDK pin, selected the latter. This combination built the application; it does not establish compatibility for every later SDK/Xcode pair.
+Example used on our Apple M4 Mac: Xcode 26.5, native .NET SDKs 10.0.300 and 10.0.403, with the compatible workload set 10.0.300.3. CIMT's checkout selects the former SDK; the application, after removal of its SDK pin, selected the latter. This combination built the application; it does not establish compatibility for every later SDK/Xcode pair. A separate Debug_Pride iOS Simulator build succeeded with the project’s restored CuRMiTagger pre-build invocation; it reported 701 warnings and explicitly allowed the existing NU1701 warning. The [dated follow-up](installation-notes.md#54-general-sdkworkload-installation-follow-up--9-november-2026) records the conditions and limits.
 
 ## 2. Obtain CIMT and choose an installation folder
 

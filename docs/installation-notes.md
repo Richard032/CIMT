@@ -1484,3 +1484,94 @@ Timed swipe control — 10 November 2026: install the matching report host and r
 The same one-row movement and restoration were also verified through the new CIMT ActionExecutor and Mobile.swipe_coordinates path: the actual native call recorded (201,766) to (201,801) with durationMs 1000. Original selection was restored without pressing Done or calling AI.
 
 Bootstrap context guidance — 10 November 2026: update runtime/request_context.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. No host rebuild, adapter, model, budget or application change is required. The installed examples and shorter guidance help AI make an explicit working-history selection; they do not change bootstrap defaults, choose records or guarantee a live reduction in requests. Private test-text cleanup is independent of the published runtime.
+
+> The following 9 November follow-ups were preserved from PR #9. Section 54 supersedes the temporary tagger removal described in section 53. These are historical records; use the current installation how-to for instructions.
+
+## 53. Apple Silicon local follow-up verification — 9 November 2026
+
+This follow-up supersedes section 52’s pending CuRMiTagger removal and statement that the offline suite was not rerun after adapter installation. It is a local setup record for the developer account, not a supported compatibility manifest or end-to-end acceptance result. The user reported that CIMT already builds and device discovery works. This continuation verified the environment, existing offline checks, installed runtime bytes and the requested application pre-build change. No real CIMT run, replay, application installation, paid inference, commit or push was performed.
+
+### Activate and inspect the existing ARM64 installation
+
+From the CIMT checkout:
+
+```bash
+cd "$HOME/Development/CIMT"
+source .local/install/environment.sh
+uname -m
+sw_vers
+dotnet --info
+dotnet workload list
+xcodebuild -version
+xcodebuild -checkFirstLaunchStatus
+xcrun --sdk iphoneos --show-sdk-version
+java -version
+file "$MOBILECLI_PATH"
+cimt --help
+```
+
+Verified on this Mac:
+
+| Component | Observed result |
+| --- | --- |
+| Host | arm64; macOS 26.5.1, build 25F80. |
+| CIMT source | main, revision 1b42e8a; clean before this documentation edit. |
+| .NET in CIMT checkout | ARM64 SDK selected by CIMT's existing global.json during this historical check. |
+| Additional .NET SDK | 10.0.403 is installed; the application pre-build commands selected it (MSBuild 18.9.15). Source environment activation alone does not pin the SDK outside the CIMT checkout. |
+| MAUI | maui-android and maui-ios installed for the historically selected SDK. |
+| Xcode | 26.5, build 17F42; first-launch status passed; iPhoneOS SDK 26.5. |
+| Java | Native ARM64 Temurin 21.0.13+9, selected with java_home -v 21 -a arm64. |
+| Android platform-tools | adb 1.0.41, platform-tools 37.0.1. |
+| Mobile CLI | Mach-O arm64 helper, package mobilecli-darwin-arm64 1.0.21. |
+| Python support runtime | Existing venv imports Pillow 13.0.0 and truststore 0.10.5. All 57 installed Python source modules match the checkout byte for byte. |
+| CIMT launcher | cimt --help passed; source launcher uses the checkout's Release host when no packaged host exists. |
+
+The local environment sets CIMT_INSTALL_ROOT to `$HOME/Development/CIMT/.local/install`, adds the source scripts and native .NET paths, selects Java 21 ARM64, and adds `$HOME/Library/Android/sdk` tools. MOBILECLI_PATH explicitly selects the installed ARM64 binary inside the existing pnpm package layout. Preserve the actual installed path when reusing this environment; do not substitute an Intel helper. The file is private/local and is not a portable package manifest.
+
+The Intel bootstrap remains Intel-only and downloads x64 archives. Do not run `scripts/setup-prerequisites-macos.sh` as an Apple Silicon installation recipe. Fresh ARM64 download/install automation and package-integrity verification were not performed in this continuation. pnpm was not available on the activated PATH; existing packages were reused without package installation.
+
+### Read-only device discovery
+
+```bash
+source "$HOME/Development/CIMT/.local/install/environment.sh"
+adb devices -l
+xcrun simctl list devices booted
+xcrun devicectl list devices
+```
+
+Verified outside the agent's restricted sandbox: one authorized ARM64 Android emulator, and booted iOS simulators running 18.5, 26.3 and 26.5. The paired physical iPhone was unavailable. Device identifiers are omitted here. Discovery does not establish signing, install/launch, UI control or real-device readiness. Sandbox-denied ADB socket creation and CoreSimulator connections were resolved by rerunning discovery with host-service access; they were not established toolchain defects.
+
+### Requested application change and remaining build blocker
+
+Application: `$HOME/Development/ag-econ-mobile`, branch `issue/CE1-I560_string_parameter_hidden_by_keyboard`. The application was clean initially and recursive submodules were already initialized. No submodule revisions were changed during this continuation.
+
+Removed only the CuRMiTagger.exe Exec element from `EconMobile.Common/EconMobile.Common.csproj`. The PreBuild target and its Android-only MSBuild Copy remain unchanged, including file line endings. This is a local application modification, separate from CIMT; it will not be present in a fresh remote clone until the application change is shared through its normal workflow.
+
+The following real MSBuild target checks were run from the application checkout after environment activation:
+
+```bash
+dotnet msbuild EconMobile.Common/EconMobile.Common.csproj -t:PreBuild -p:TargetFramework=net10.0-ios -p:Configuration=Debug_Pride -v:minimal
+dotnet msbuild EconMobile.Common/EconMobile.Common.csproj -t:PreBuild -p:TargetFramework=net10.0-android36.0 -p:Configuration=Debug_Pride -v:minimal
+```
+
+The iOS pre-build target passed. Android failed with MSB3030 because `Platforms/Android/Resources/values/template/strings.xml` is absent. Only `strings.template.xml` is present. These are pre-build checks, not complete application builds. The intended generation/preparation of strings.xml must be supplied before Android can build with the preserved copy step. Do not rename an unresolved template, fabricate version metadata or silently skip the copy. This repeats the clean-clone generated-input gap described in section 29; removing the tagger does not resolve that separate dependency.
+
+### Offline verification and next setup steps
+
+Ran the existing `bash scripts/check-development.sh` with the activated environment. Passed: 315 xUnit tests, 22 runtime-policy checks, 426 Python unit tests, 22 CLI/lifecycle checks, four simulated build-contract checks and four example-build tests. The final public output-layout fixture failed: Node could not find `@mobilenext/mobile-mcp/lib/mobilecli.js` under the fixture's isolated installation root. That fixture supplies fake readiness tools but no Mobile MCP package at that path. The overall script exited 1; it is not an all-green setup result. No unrelated tests were modified to bypass this blocker.
+
+Next: establish the application's intended generated strings input, verify full Android/iOS application builds and signing with the selected SDK, resolve the output-layout fixture dependency, and run public CIMT validate with the intended private inputs. A real device/app run and paid AI qualification require a separate user request. Physical-device, Jenkins, second-Intel-Mac and release acceptance remain open.
+
+## 54. General SDK/workload installation follow-up — 9 November 2026
+
+This follow-up supersedes section 53's temporary tagger removal and pending iOS build status. The original application pre-build invocation was restored, and the CuRMiT submodule was updated to the new Mac/Windows distribution. Its Mac installation script places the native launcher at the existing pre-build path.
+
+The application-only global.json introduced to reuse the older workload installation was removed at the user's request. The application now selects the installed SDK without that added pin. CIMT's pre-existing global.json is a separate source-repository setting and was not changed.
+
+The manual's installation steps now select workloads by the application's SDK, host architecture and current Apple compatibility guidance rather than prescribing fixed workload-set or MAUI/iOS pack versions. Historical helper scripts still contain their pilot versions; they were not rewritten as part of this documentation change. Use Step 5 rather than copying their pilot profile into a new machine setup.
+
+The system .NET installation is administrator-owned, so the user completed workload installation in their own terminal. Verification from the application checkout confirmed that both maui-android and maui-ios are registered for the SDK selected without the added global.json. The workload set was matched to the existing Apple tools rather than upgrading them implicitly. Exact installed versions are retained in the ignored local installation receipt, not prescribed by this manual.
+
+The application then built successfully for the ARM64 iOS Simulator in Debug_Pride with zero errors and 701 warnings. The unchanged CuRMiTagger pre-build invocation succeeded and generated the next local build number. The build used the local cache of private packages copied from the external drive plus nuget.org. The existing protobuf-net compatibility warning NU1701 remained visible and was explicitly allowed for this build; package versions were unchanged. The resulting app bundle and ARM64 executable were verified on disk. This is build verification only: no simulator launch, physical-device signing, Android application build or paid AI run was performed.
+
+The application's CuRMiT submodule target and revision changes remain local until separately committed in that application repository. The application has no added SDK pin. CIMT's existing source-repository SDK selection remains unchanged.
