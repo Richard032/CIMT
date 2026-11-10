@@ -45,9 +45,11 @@ class BatchFeedback:
             status=row['status'], step=row.get('step'), observation=None,
             uiChange='observation unavailable', warnings=[], error='')
 
-    def finish(self, row, error='', target_label='', adapter_call=None):
+    def finish(self, row, error='', target_label='', adapter_call=None, action_feedback=''):
         if self.current is not None:
             self.current.update(status=row['status'], step=row.get('step'), error=error, targetLabel=target_label)
+            if action_feedback:
+                self.current['actionFeedback'] = action_feedback
             if adapter_call is not None:
                 self.current['adapterCall'] = deepcopy(adapter_call)
             if row['status'] in ('handled', 'deferred'):

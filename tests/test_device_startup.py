@@ -13,7 +13,7 @@ from device_adapter.mobile import Mobile
 from device_adapter.app_lifecycle import AppLifecycle
 from run_control import RunControl
 from device_adapter.startup import DeviceStartup
-from errors import DeviceCommandTimeout, DeviceLocked, DeviceServerStartupError, InfrastructureError, LimitReached
+from errors import DeviceActionError, DeviceCommandTimeout, DeviceLocked, DeviceServerStartupError, InfrastructureError, LimitReached
 from redaction import Redactor
 
 
@@ -211,6 +211,36 @@ class ConnectionTests(unittest.TestCase):
             context={}, run_command=lock_query, native=probe, env={}, screenshot=lambda: b'')
         return Mobile('helper', commands.device, Path(folder), {'deadline': 99999999999},
                       Redactor({}), commands=commands, client_factory=client, check=check)
+
+    def test_replacement_uses_native_fill_for_the_focused_field(self):
+        with tempfile.TemporaryDirectory() as folder:
+            mobile = self.mobile(folder, [])
+            calls = []
+            def fill(arguments):
+                calls.append(arguments)
+                return {'status': 'ok'}
+            mobile.commands.native = fill
+            mobile.replace_text('synthetic value')
+        self.assertEqual(calls, [['io', 'fill', 'synthetic value']])
+
+    def test_unconfirmed_native_fill_is_an_action_error_without_exposing_its_response(self):
+        for result in [None, [], {}, {'status': 'error', 'error': 'synthetic-secret'}]:
+            with self.subTest(result=result), tempfile.TemporaryDirectory() as folder:
+                mobile = self.mobile(folder, [])
+                mobile.commands.native = lambda arguments: result
+                with self.assertRaises(DeviceActionError) as raised:
+                    mobile.replace_text('synthetic-secret')
+                self.assertNotIn('synthetic-secret', str(raised.exception))
+
+    def test_cancelled_replacement_never_calls_the_native_helper(self):
+        def cancel():
+            raise LimitReached('User interrupted')
+        with tempfile.TemporaryDirectory() as folder:
+            events = []
+            mobile = self.mobile(folder, events, check=cancel)
+            with self.assertRaises(LimitReached):
+                mobile.replace_text('synthetic-secret')
+        self.assertEqual(events, [])
 
     def test_launch_wait_uses_the_executions_shared_stop_check(self):
         def cancel():

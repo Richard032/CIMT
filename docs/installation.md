@@ -1470,3 +1470,9 @@ Install matching runtime/command_reply.py and ai_instructions/instructions.py un
 ## Generic picker guidance — 10 November 2026
 
 Update runtime/ai_instructions/instructions.py under the existing run lock with backup and hash verification. The host, action execution, Mobile MCP, application and test configuration need no change. Normal decisions, context deferral and recovery receive the same generic finger-direction, fine-adjustment and value-confirmation guidance. Installation does not start a paid run or replay.
+
+## Credential replacement — 10 November 2026
+
+Install the matching published report host and runtime/actions.py, scenario.py, batch_feedback.py, device_adapter/mobile.py, device_adapter/native.py and ai_instructions/instructions.py under the existing run lock with backup and hash verification. The installed mobilecli 1.0.21 help documents io fill [text] as replacing the focused field in one step, with an empty value clearing it; focus must be set first. Verify this capability on other installations before use. Mobile MCP 1.0.14 has append typing but no fill tool, so CIMT uses its existing native-helper boundary for replacement. No new dependency, application change or private test-setting change is needed.
+
+Verified on the configured iPhone simulator using the new Mobile.replace_text path: synthetic email replacement twice retained exactly one value, and empty replacement cleared it. The prior email contents were restored and verified; Login was not submitted and no AI request was made. Secure-field and Android behavior have offline regression coverage; no live Android or authentication run is claimed.

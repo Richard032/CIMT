@@ -49,6 +49,14 @@ class InstructionTests(unittest.TestCase):
         self.assertTrue(example['ref'])
         self.assertIn('Credential entry', resources['arguments']['ref']['description'])
 
+    def test_prompt_explains_credential_replacement_and_hidden_value_confirmation(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('repeating it replaces the value again instead of appending', prompt)
+        self.assertIn('not that authentication succeeded', prompt)
+        self.assertIn('do not re-enter credentials solely because their values are hidden', prompt)
+        self.assertIn('text types into the focused field and may append', prompt)
+
     def test_prompt_explains_whole_collection_and_unchanged_selection(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']

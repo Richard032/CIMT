@@ -184,7 +184,8 @@ class ScenarioRunner:
                 reason = entry.get('actionError', entry.get('stoppingReason', entry.get('observedOutcome', '')))
                 error = entry.get('actionError') or entry.get('evidenceError') or entry.get('crash', '')
                 self._finish_command(session, status, reason, entry['step'],
-                    error=error, target_label=entry.get('controlLabel', ''), adapter_call=entry.get('adapterCall'))
+                    error=error, target_label=entry.get('controlLabel', ''), adapter_call=entry.get('adapterCall'),
+                    action_feedback=entry.get('actionFeedback', ''))
                 self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
@@ -345,10 +346,10 @@ class ScenarioRunner:
         return action
 
     @staticmethod
-    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None):
+    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None, action_feedback=''):
         row = session.commands.finish(status, reason, step)
         if row is not None:
-            session.feedback.finish(row, error, target_label, adapter_call)
+            session.feedback.finish(row, error, target_label, adapter_call, action_feedback)
 
     def _save_plan(self, session):
         session.feedback.sync(session.commands.records)
@@ -373,11 +374,13 @@ class ScenarioRunner:
         try:
             with self._operation("Execute device action: " + action["action"], mobile, session.result["target"]):
                 if action['action'] == 'swipe':
-                    self.actions.execute(mobile, action, session.elements,
+                    feedback = self.actions.execute(mobile, action, session.elements,
                         record_call=lambda call: entry.update(adapterCall=call))
                 else:
-                    self.actions.execute(mobile, action, session.elements)
+                    feedback = self.actions.execute(mobile, action, session.elements)
                 entry['actionDispatched'] = True
+                if feedback:
+                    entry['actionFeedback'] = feedback
             if action["action"] in ["tap", "credential"]:
                 session.coverage.activated(element)
         except (ValueError, DeviceActionError) as error:

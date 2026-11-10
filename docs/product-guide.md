@@ -588,3 +588,7 @@ If any part of a reply has invalid JSON syntax or a non-object command value, no
 CIMT tells AI that screen coordinates start at the top left and swipe direction describes finger movement. For a conventional vertical picker, moving the finger down brings an option above the selection band toward it; moving up brings an option below toward it. AI must verify how the actual control responds.
 
 Distance is not a row count. The guidance asks AI to make one gesture, inspect the resulting wheel value and image, reduce/reverse after overshooting, and revise ineffective gestures instead of repeating them. It may consider tapping a visible option at absolute screen coordinates. AI confirms the desired selection using the available confirmation control, then checks the displayed field value after the picker closes. The desired value comes from test instructions. This prompt guidance has offline coverage; successful live selection requires a separately started run/replay.
+
+## Credential replacement
+
+Credential commands now replace the focused target field with the configured value. Retrying the same command replaces again instead of appending. The installed native helper must support io fill; CIMT does not fall back to typing when replacement fails. The step report and next AI batch feedback confirm adapter completion without revealing the value. AI should expect masked fields, submit through the application control, and inspect the authentication result. Ordinary text commands continue typing into the focused field and may append.

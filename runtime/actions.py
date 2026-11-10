@@ -34,9 +34,8 @@ class ActionExecutor:
         if handler is None:
             raise ValueError("Unsupported action")
         if action['action'] == 'swipe':
-            handler(mobile, action, elements, record_call)
-        else:
-            handler(mobile, action, elements)
+            return handler(mobile, action, elements, record_call)
+        return handler(mobile, action, elements)
 
     def _tap(self, mobile, action, elements):
         if action["ref"]:
@@ -66,7 +65,9 @@ class ActionExecutor:
         self.redactor.ids.add(identifier)
         mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
         self.check()
-        mobile.call("mobile_type_keys", text=value, submit=False)
+        mobile.replace_text(value)
+        return ('Credential field contents replaced using the configured value; adapter confirmed completion. '
+                'The value is hidden. This does not confirm authentication; inspect the app after submitting.')
 
     def _credential_value(self, action):
         aliases = self.config.get("credentials", {})

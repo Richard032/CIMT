@@ -6,6 +6,24 @@ namespace Cimt.UnitTests;
 public sealed class PlanningReportTests
 {
     [Fact]
+    public async Task CredentialReplacementFeedbackIsVisibleAndRedacted()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"phone","platform":"ios"},"scenarios":[{"target":"Debug","steps":[
+              {"step":1,"action":{"action":"credential","ref":"@field"},
+               "actionFeedback":"Credential field contents replaced; <synthetic-credential>"}]}]}]}
+            """);
+        var html = new StepHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report))
+            .Render(Assert.Single(ReportScenario.Read(execution)));
+        Assert.Contains("Action feedback", html);
+        Assert.Contains("Credential field contents replaced", html);
+        Assert.DoesNotContain("synthetic-credential", html);
+        Assert.Contains("&lt;", html);
+    }
+
+    [Fact]
     public async Task AiRepliesAreVisibleEscapedAndRedactedWithoutFormatJudgments()
     {
         using var fixture = new DiagnosticFixture();

@@ -167,6 +167,10 @@ class FakeMobile:
     def call(self, name, **arguments):
         self.calls.append((name, arguments))
 
+    def replace_text(self, value):
+        self.calls.append(("replace_text", dict(text=value)))
+        self.text_contents = value
+
 
 class RejectedTargetMobile(FakeMobile):
     """A missing adapter target is an interaction result, not a lost connection."""
@@ -1183,12 +1187,48 @@ class ScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(LimitReached, 'User interrupted'):
             runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
-        self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
+        self.assertFalse(any(name in ['mobile_type_keys', 'replace_text'] for name, _ in mobile.calls))
         self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['stoppingReason'])
         self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['observedOutcome'])
         self.assertNotIn('actionError', result['scenarios'][0]['steps'][-1])
         self.assertNotIn('synthetic-user', json.dumps(result))
 
+
+    def test_credential_replacement_feedback_reaches_the_next_ai_request_without_secrets(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        self.redactor = Redactor(config)
+        self.actions = ActionExecutor(config, self.redactor, self.control.deadline)
+        agent, _, transport = api_agent([action('credential', ref='@e1', credential='test', field='password'), action()])
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+        step = result['scenarios'][0]['steps'][1]
+        self.assertIn('contents replaced', step['actionFeedback'])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['batchFeedback'][0]['path'][0]['actionFeedback'], step['actionFeedback'])
+        self.assertNotIn('synthetic-secret', json.dumps(result))
+        self.assertNotIn('synthetic-secret', json.dumps(transport.bodies))
+
+    def test_failed_credential_replacement_cancels_login_without_append_fallback(self):
+        class FailedFillMobile(FakeMobile):
+            def replace_text(self, value):
+                raise DeviceActionError('Replacement was not confirmed')
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        self.redactor = Redactor(config)
+        self.actions = ActionExecutor(config, self.redactor, self.control.deadline)
+        batch = json.dumps([action('credential', ref='@e1', credential='test', field='username'),
+                            action('tap', ref='@login')])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FailedFillMobile(self.root)
+        result = {'scenarios': []}
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+        self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
+        self.assertFalse(any(args.get('ref') == '@login' for _, args in mobile.calls))
+        rows = result['scenarios'][0]['commandQueue']['commands']
+        self.assertEqual([r['status'] for r in rows], ['failed', 'cancelled', 'handled'])
+        self.assertNotIn('actionFeedback', result['scenarios'][0]['steps'][1])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Replacement was not confirmed', state['resourceFeedback'])
 
     def test_requested_and_dispatched_swipe_arguments_reach_step_and_next_ai_feedback(self):
         agent,_,transport=api_agent([action('swipe',ref='@wheel',direction='up',distance=40),action()])
@@ -1287,6 +1327,32 @@ class BoundaryTests(unittest.TestCase):
                 with self.assertRaises(DeviceActionError):
                     RpcMessages.tool_result(dict(isError=True, content=[dict(text='Target unavailable')]),
                         name, lambda text: text)
+
+    def test_repeating_credential_replaces_existing_contents_for_both_fields(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        for field in ['username', 'password']:
+            with self.subTest(field=field):
+                mobile = FakeMobile(pathlib.Path('/unused'))
+                mobile.text_contents = 'previous text'
+                redactor = Redactor(config)
+                executor = ActionExecutor(config, redactor, time.time() + 30)
+                for _ in range(2):
+                    feedback = executor.execute(mobile,
+                        action('credential', ref='@e1', credential='test', field=field), [BUTTON])
+                self.assertEqual(mobile.text_contents, config['credentials']['test'][field])
+                self.assertIn(BUTTON['identifier'], redactor.ids)
+                self.assertNotIn('mobile_type_keys', [name for name, _ in mobile.calls])
+                self.assertIn('adapter confirmed', feedback)
+                self.assertNotIn(config['credentials']['test'][field], feedback)
+
+    def test_disabled_credential_target_is_not_focused_or_replaced(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        mobile = FakeMobile(pathlib.Path('/unused'))
+        executor = ActionExecutor(config, Redactor(config), time.time() + 30)
+        with self.assertRaisesRegex(ValueError, 'absent or disabled'):
+            executor.execute(mobile, action('credential', ref='@e1', credential='test', field='username'),
+                             [dict(BUTTON, enabled=False)])
+        self.assertFalse(mobile.calls)
 
     def test_unobserved_credential_target_never_receives_secret_text(self):
         mobile = FakeMobile(pathlib.Path('/unused'), elements=[SIZE])

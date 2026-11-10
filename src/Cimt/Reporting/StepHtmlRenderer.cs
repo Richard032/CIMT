@@ -28,6 +28,7 @@ public sealed class StepHtmlRenderer(Configuration configuration, ReportEvidence
             + Note(step, "planStepId", "Plan task") + Note(step, "sourceState", "Starting state")
             + Note(step, "destinationState", "Observed destination")
             + Note(step, "stoppingReason", "Stopping reason") + Note(step, "observedOutcome", "Observed outcome")
+            + Note(step, "actionFeedback", "Action feedback")
             + Note(step, "actionError", "Action error")
             + Note(step, "crash", "Crash/termination evidence") + Note(step, "recovery", "Recovery")
             + Note(step, "navigation", "Navigation") + Note(step, "evidenceError", "Unavailable evidence") + "</dl>";
