@@ -42,8 +42,6 @@ class ScenarioSession:
     resource_feedback: str = ''
     observed_at: str | None = None
     context_only: bool = False
-    application_knowledge: dict = field(default_factory=lambda: dict(enabled=False))
-    learned_app_knowledge: str | None = None
     commands: CommandQueue = field(default_factory=CommandQueue)
     feedback: BatchFeedback = field(default_factory=BatchFeedback)
     observer: ObservationRecorder | None = None
@@ -80,7 +78,6 @@ class ScenarioRunner:
         clock=time.time,
         requirements=None,
         activity=None,
-        app_knowledge=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -92,7 +89,6 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
-        self.app_knowledge = app_knowledge
         self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity)
 
     def run(self, mobile, build, result, agent, publish):
@@ -115,16 +111,11 @@ class ScenarioRunner:
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
         try:
-            if self.app_knowledge is not None:
-                session.application_knowledge = self.app_knowledge.load(session.app_id, mobile.device['platform'])
-                result['applicationKnowledge'] = session.application_knowledge
             self._execute(mobile, build, session, monitor, agent, evidence, publish)
         finally:
             session.commands.stop('Scenario ended before these commands were performed')
             session.feedback.close()
             self._save_plan(session)
-            if self.app_knowledge is not None:
-                self.app_knowledge.stage(session, mobile.device, build)
             publish()
 
     def _execute(self, mobile, build, session, monitor, agent, evidence, publish):
@@ -330,12 +321,6 @@ class ScenarioRunner:
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
-        learned = action.get('learnedAppKnowledge')
-        if learned is not None and self.app_knowledge is not None:
-            if isinstance(learned, str) and learned.strip():
-                session.learned_app_knowledge = self.redactor.text(learned.strip())
-            else:
-                session.resource_feedback += ' learnedAppKnowledge must be nonempty text or null; previous knowledge was kept.'
         session.result["remaining"] = list(action["remaining"])
         session.planner.accept(action, session.elements)
         session.recovery.acknowledge(action)

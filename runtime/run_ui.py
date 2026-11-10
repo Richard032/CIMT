@@ -17,7 +17,6 @@ from run_control import RunControl
 from scenario import ScenarioRunner
 from device_scheduler import DeviceScheduler
 from activity import ActivityLog
-from app_knowledge import AppKnowledge
 from run_signals import RunSignals
 
 
@@ -44,8 +43,6 @@ class Execution:
         self.mobile_factory = mobile_factory or self._mobile
         self.agent_factory = agent_factory or self._agent
         self.scheduler = scheduler or DeviceScheduler()
-        settings = context.get('appKnowledge')
-        self.app_knowledge = AppKnowledge(settings, context, self.redactor, interrupted=lambda: self.control.interrupted) if settings else None
 
     def run(self, preflight=False):
         """Check access or schedule the startup devices with at most two active."""
@@ -56,9 +53,6 @@ class Execution:
                         "Required device adapter executable is missing from PATH: " + tool
                         + ". Repair the CIMT tool installation; its command paths are configured automatically."
                     )
-            if self.app_knowledge is not None and not self.app_knowledge.repository.token():
-                self.activity.write('Knowledge PR publication', 'warning',
-                    'GitHub authentication is unavailable; proposals can be retained but PR publication needs GH_TOKEN, GITHUB_TOKEN or a Git credential helper.')
             self.agent_factory().check_access()
             print(
                 "Model access and local runtime/pricing checks passed for "
@@ -66,15 +60,8 @@ class Execution:
             )
             return 0
         pathlib.Path(self.context["report"], "devices").mkdir(exist_ok=True)
-        if self.app_knowledge is not None:
-            self.app_knowledge.prepare()
         worker = self._device_runner()
         self.scheduler.run(self.context["devices"], worker)
-        if self.app_knowledge is not None:
-            publication = self.app_knowledge.publish(interrupted=self.control.interrupted)
-            self.journal.app_knowledge_publication = publication
-            self.activity.write('Knowledge PR publication', publication['status'],
-                publication.get('url', publication.get('error', 'No guide changes need publication.')))
         self.journal.save()
         self.activity.write("Device test summary", "finished",
             "Exit " + str(result_exit_code(self.journal.results))
@@ -92,7 +79,6 @@ class Execution:
             self.context["report"],
             requirements=self.context.get("requirements", []),
             activity=self.activity,
-            app_knowledge=self.app_knowledge,
         )
         return DeviceRunner(
             self.context,

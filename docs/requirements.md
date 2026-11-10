@@ -1,7 +1,7 @@
 # CIMT requirements
 
-Version: 0.37
-Date: 10 November 2026
+Version: 0.36
+Date: 1 November 2026  
 Status: requirements, reviewed architecture policies, and reviewed command/YAML contracts confirmed; implementation validation pending  
 Product: CIMT — Curtis Intelligent Mobile Test
 
@@ -453,11 +453,3 @@ A credential action shall replace the chosen field contents with its configured 
 Optional swipe durationMs shall let AI choose native gesture timing in milliseconds, with an explicit target and distance. Accept nonnegative integer timing; zero requests native platform timing. Omitted/null timing retains the existing Mobile MCP path. Never silently replace requested timing with the default gesture. Translate geometry mechanically to integer native start/end points, reject offscreen/nonfinite endpoints, preserve requested timing and record exact native points/timing in feedback and reports. AI owns gesture speed, corrections and desired values.
 
 Context resources shall show a normal action with an explicit AI-owned summary and selection from the first decision. Capacity feedback shall distinguish unselected bootstrap history from an explicit selection and include a complete executable context-selection example. Explain that omitted/null context before a selection retains growing bootstrap history. Preserve optional selection, AI ownership, all stored records, current evidence and mandatory ordered feedback; no host selection, trimming, action gate or extra inference request is added.
-
-## Shared application knowledge through pull requests
-
-FR-102: CIMT shall retain AI-authored reusable application knowledge in its Git repository, keyed by verified app ID and platform. Automatically supply the configured shared branch's guide in later runs. Current test instructions and supplied manual setup take priority. Keep learned guidance separate from issue descriptions, requirements and verdicts; AI owns content and applicability. Preserve stable UI identifiers and provenance. Redact configured secrets; instruct AI to exclude private/test-specific data and transient targets. No separate AI summarization call shall be added.
-
-FR-103: After execution, automatically commit only changed guide files to a separate branch, push it and create a PR against the configured shared branch. Never automatically merge or push guides directly to that branch. Preserve developer HEAD, staged/unstaged files and unrelated submodules. Retain per-device/target drafts and report publication failures independently of test results. Skip publication after explicit interruption and honor the run deadline. Only merged guidance is automatically reused.
-
-AC-72: Offline tests shall verify matching app/platform reuse, current-instruction priority, redaction, draft retention, absent/invalid learning metadata, deferred predicted finishes, no extra AI request, isolated Git commits, configured PR base/head, safe failures and unchanged local work. Real learning quality and authenticated PR publication remain separate acceptance checks. See [shared knowledge](../knowledge/README.md).

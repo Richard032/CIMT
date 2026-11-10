@@ -10,14 +10,13 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
 from action_prompt import parse_action
 from activity import ActivityLog
 from ai_interaction import AiInteraction
-from app_knowledge import AppKnowledge
 from scenario import ScenarioSession
 from evidence import ScenarioEvidence
 from actions import ActionExecutor
@@ -354,50 +353,6 @@ class ScenarioTests(unittest.TestCase):
         agent = FakeAgent(actions)
         (runner or self.runner).run(mobile, self.build, result, agent, lambda: None)
         return result["scenarios"][0], agent
-
-    def enable_knowledge(self, guide='Use the menu to open Settings'):
-        repository = Mock()
-        repository.read.return_value = dict(schemaVersion=1, appId='com.example.app', platform='android', guide=guide)
-        self.runner.app_knowledge = AppKnowledge({}, dict(report=str(self.root), runId='run-1', sourceCommit='abc'),
-            self.redactor, repository)
-        return repository
-
-    def test_reviewed_app_guide_reaches_the_normal_ai_request_without_an_extra_call(self):
-        self.enable_knowledge()
-        agent, _, transport = api_agent([action(learnedAppKnowledge='Use Settings, then choose Tier')])
-        result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        inputs = json.loads(transport.bodies[0]['input'][1]['content'][0]['text'])
-        self.assertEqual(inputs['applicationKnowledge']['guide'], 'Use the menu to open Settings')
-        self.assertEqual(len(transport.bodies), 1)
-        proposal = result['scenarios'][0]['appKnowledgeProposal']
-        self.assertEqual(proposal['guide'], 'Use Settings, then choose Tier')
-        self.assertTrue((self.root / proposal['artifact']).is_file())
-
-    def test_deferred_finish_does_not_learn_predicted_results(self):
-        self.enable_knowledge()
-        batch = json.dumps([action('tap', ref='@one'), action(learnedAppKnowledge='Prediction, not observed')])
-        agent, _, _ = api_agent([batch, action()])
-        result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        self.assertNotIn('appKnowledgeProposal', result['scenarios'][0])
-
-    def test_invalid_learning_metadata_does_not_discard_the_selected_action(self):
-        self.enable_knowledge()
-        result, agent = self.run_scenario(FakeMobile(self.root), [
-            action('tap', ref='@e1', learnedAppKnowledge=['invalid']), action()])
-        self.assertTrue(any(isinstance(step['action'], dict) and step['action']['action'] == 'tap' for step in result['steps']))
-        self.assertIn('learnedAppKnowledge must be nonempty text or null', agent.calls[1][9])
-        self.assertNotIn('appKnowledgeProposal', result)
-
-    def test_latest_observed_guide_survives_a_later_infrastructure_error(self):
-        self.enable_knowledge()
-        agent, _, transport = api_agent([action('wait', learnedAppKnowledge='Observed guide'), InfrastructureError('offline')])
-        result = {'scenarios': []}
-        with self.assertRaises(InfrastructureError):
-            self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
-        self.assertEqual(result['scenarios'][0]['appKnowledgeProposal']['guide'], 'Observed guide')
-        self.assertEqual(len(transport.bodies), 2)
 
     def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
         batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])

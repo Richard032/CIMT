@@ -48,31 +48,6 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
 /// <summary>Maps installation paths used by the execution services.</summary>
 public sealed class RuntimePaths(string root)
 {
-    public JsonElement? AppKnowledgeSettings
-    {
-        get
-        {
-            var file = Path.Combine(root, "state", "app-knowledge-settings.json");
-            if (!File.Exists(file))
-                return null;
-            try
-            {
-                var value = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
-                foreach (var name in new[] { "repository", "remote", "baseBranch" })
-                    if (!value.TryGetProperty(name, out var setting) || setting.ValueKind != JsonValueKind.String
-                        || string.IsNullOrWhiteSpace(setting.GetString()))
-                        throw new ConfigurationException("App knowledge settings require repository, remote and baseBranch strings.");
-                if (!Path.IsPathRooted(value.GetProperty("repository").GetString()!))
-                    throw new ConfigurationException("App knowledge repository must be an absolute Git worktree path.");
-                return value;
-            }
-            catch (Exception error) when (error is JsonException or IOException or InvalidOperationException)
-            {
-                throw new ConfigurationException("App knowledge installation settings could not be read.");
-            }
-        }
-    }
-
     public string NativeModule => Path.Combine(root, "tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js");
     public string Worker => Path.Combine(root, "lib/cimt-runtime/run_ui.py");
     public string Python => Path.Combine(root, "tools/python/bin/python");

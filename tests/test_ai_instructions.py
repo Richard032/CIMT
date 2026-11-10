@@ -122,19 +122,6 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('verify the displayed field value after the picker closes', prompt)
         self.assertNotIn('OEM', prompt)
 
-    def test_shared_guide_stays_available_when_optional_history_is_deferred(self):
-        knowledge = dict(enabled=True, appId='org.example.app', platform='ios', status='loaded', guide='Use Settings')
-        body = ActionPromptBuilder('fixture').build('Current issue scope', '', '', [], b'masked',
-            [dict(observation='x' * 70000)], [], {}, exploration_memory=dict(applicationKnowledge=knowledge))
-        inputs = json.loads(body['input'][1]['content'][0]['text'])
-        self.assertIn('contextSelectionRequired', inputs)
-        self.assertEqual(inputs['applicationKnowledge'], knowledge)
-        self.assertEqual(inputs['instructions'], 'Current issue scope')
-        prompt = body['input'][0]['content']
-        self.assertIn('Current testing instructions', prompt)
-        self.assertIn('learnedAppKnowledge', prompt)
-        self.assertIn('Git PR', prompt)
-
     def test_instruction_layer_does_not_import_reply_or_execution_services(self):
         forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client', 'device_adapter'}
         package = Path(__file__).resolve().parents[1] / 'runtime/ai_instructions'

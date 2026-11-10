@@ -3,11 +3,9 @@ namespace Cimt;
 /// <summary>Builds the private request sent to Python through standard input.</summary>
 public static class RuntimeRequest
 {
-    public static Dictionary<string, object?> Create(RunState state, System.Text.Json.JsonElement? appKnowledge = null) => new()
+    public static Dictionary<string, object?> Create(RunState state) => new()
     {
         ["runId"] = state.Identity.Id,
-        ["sourceCommit"] = state.Commit,
-        ["appKnowledge"] = appKnowledge,
         ["config"] = ConvertNode(state.Configuration.Root),
         ["report"] = state.Report,
         ["work"] = state.Work,

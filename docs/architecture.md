@@ -535,24 +535,3 @@ ActionExecutor uses Mobile.replace_text for configured credential values after f
 Timed swipes use the existing native adapter boundary because Mobile MCP 1.0.14 does not expose swipe duration. ActionExecutor resolves geometry, rounds nonnegative points using the same half-up rule as Mobile MCP native gestures, validates both endpoints, and calls Mobile.swipe_coordinates. The helper receives io swipe x1,y1,x2,y2 --duration milliseconds. The actual adapterCall records tool mobilecli io swipe with the exact integer endpoints and unchanged durationMs. Untimed swipes retain their existing adapter path; a timed failure never falls back to default timing.
 
 Bootstrap ContextMemory.project supplies all collections while selection is None. Without an explicit AI selection, retained observations, states and other collections grow until prepare_context defers the selected package. ActionPromptBuilder now demonstrates a normal command plus an explicit compact context and gives shorter context guidance. Capacity feedback adds selectionActive and exampleReply (recall plus an explicit summary/selection). These are resources for AI; bootstrap behavior, optional selection and execution policy are unchanged.
-
-## Git-shared application knowledge
-
-AppKnowledge owns reviewed-guide loading, per-device draft artifacts and the latest AI-owned proposal per app/platform. KnowledgeGit owns bounded noninteractive Git operations, temporary-index commits, separate-branch pushes and GitHub PR creation. InstructionContext only supplies loaded guidance/current proposal; reply execution retains optional learnedAppKnowledge alongside normal decisions. Run execution publishes after workers finish, and reporting displays guidance, proposals and publication status separately from the verdict. RuntimePaths reads the local installation marker; the installer preserves its established shared branch. No Mobile MCP changes or semantic guide-ranking layer is added. See [format and publication contract](../knowledge/README.md).
-
-```mermaid
-sequenceDiagram
-    participant Run as CIMT execution
-    participant Git as KnowledgeGit
-    participant AI as Configured AI
-    participant PR as GitHub PR
-    Run->>Git: Fetch configured shared branch and matching guide
-    Run->>AI: Current test inputs, UI evidence, shared guide
-    AI-->>Run: Normal action and optional complete learned guide
-    Note over Run,AI: Repeat normal decision cycles; no extra learning call
-    Run->>Run: Save redacted per-device/target draft
-    Run->>Git: Commit guide files using temporary index
-    Git->>PR: Push separate branch and create PR
-    Note over PR: Human review and merge
-    Run->>Git: Later run fetches merged guide
-```

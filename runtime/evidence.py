@@ -25,7 +25,6 @@ class RunJournal:
         self.budget = budget
         self.lock = threading.RLock()
         self.results = []
-        self.app_knowledge_publication = None
 
     def journal_budget(self):
         with self.lock:
@@ -42,10 +41,10 @@ class RunJournal:
 
     def save(self):
         with self.lock:
-            data = {"runId": self.run_id, "devices": self.results, "budget": self.budget.snapshot()}
-            if self.app_knowledge_publication is not None:
-                data['appKnowledgePublication'] = self.redactor.records.knowledge_publication(self.app_knowledge_publication)
-            atomic(self.root / 'ui-results.json', data)
+            atomic(
+                self.root / "ui-results.json",
+                {"runId": self.run_id, "devices": self.results, "budget": self.budget.snapshot()},
+            )
 
 
 class ScenarioEvidence:
