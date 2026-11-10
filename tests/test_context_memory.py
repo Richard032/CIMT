@@ -163,6 +163,37 @@ class ContextCapacityTests(unittest.TestCase):
         self.assertNotIn('contextSelectionRequired', prepare_context(state, allowance=usage['selectedBytes']))
         self.assertIn('contextSelectionRequired', prepare_context(state, allowance=usage['selectedBytes'] - 1))
 
+    def test_capacity_feedback_distinguishes_bootstrap_from_an_explicit_selection(self):
+        state = self.state()
+        state['explorationMemory']['selection'] = None
+        self.assertFalse(prepare_context(state, allowance=1)['contextSelectionRequired']['selectionActive'])
+        state['explorationMemory']['selection'] = selection(include_all=['observations'])
+        self.assertTrue(prepare_context(state, allowance=1)['contextSelectionRequired']['selectionActive'])
+
+    def test_ai_can_use_the_feedback_example_to_end_bootstrap_deferral_without_losing_records(self):
+        state = self.state()
+        state['explorationMemory']['selection'] = None
+        rows = {name: [] for name in COLLECTIONS}
+        rows['observations'] = [dict(id='large', elements=['x' * 70000])]
+        state['explorationMemory']['selectedObservations'] = rows['observations']
+        feedback = prepare_context(state)['contextSelectionRequired']
+        agent, _, _ = api_agent([feedback['exampleReply']])
+        response = agent.choose('Explore', '', '', [BUTTON], b'masked', [], [], {})
+        self.assertEqual(response['action'], 'recall')
+        memory = ContextMemory()
+        memory.accept(response['context'])
+        state['explorationMemory']['selectedObservations'] = memory.project(rows)['observations']
+        state['explorationMemory']['selection'] = memory.saved()
+        state['explorationMemory']['summary'] = memory.saved()['summary']
+        state['batchFeedback'] = [dict(id=1, path=[dict(action='tap', status='executed')])]
+        prepared = prepare_context(state)
+        self.assertNotIn('contextSelectionRequired', prepared)
+        self.assertEqual(prepared['batchFeedback'], state['batchFeedback'])
+        self.assertEqual(prepared['elements'], state['elements'])
+        self.assertEqual(len(rows['observations']), 1)
+        memory.accept(selection(records=[dict(collection='observations', id='large')]))
+        self.assertEqual(memory.project(rows)['observations'], rows['observations'])
+
     def test_missing_context_resources_do_not_veto_the_ai_command(self):
         agent, _, _ = api_agent([action('tap', ref='@e1')])
         result = agent.choose('Explore', '', '', [BUTTON], b'masked',

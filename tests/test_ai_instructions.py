@@ -57,6 +57,17 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('do not re-enter credentials solely because their values are hidden', prompt)
         self.assertIn('text types into the focused field and may append', prompt)
 
+    def test_normal_action_example_includes_an_explicit_ai_context_selection(self):
+        example = state([])['commandResources']['contextExample']
+        self.assertEqual(example['action'], 'tap')
+        self.assertTrue(example['ref'])
+        self.assertEqual(example['context']['includeAll'], [])
+        self.assertEqual(example['context']['records'], [])
+        self.assertTrue(example['context']['summary'])
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        self.assertIn('Alongside your first normal action', body['input'][0]['content'])
+        self.assertIn('null keeps bootstrap history', body['input'][0]['content'])
+
     def test_prompt_explains_whole_collection_and_unchanged_selection(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
