@@ -123,7 +123,76 @@ class ContextCapacityTests(unittest.TestCase):
 
     def test_fitting_selection_reaches_the_model_unchanged(self):
         state = self.state()
-        self.assertEqual(prepare_context(state, allowance=10000), state)
+        prepared = prepare_context(state, allowance=10000)
+        usage = prepared.pop('contextUsage')
+        self.assertEqual(prepared, state)
+        self.assertLessEqual(usage['selectedBytes'], usage['allowanceBytes'])
+
+    def test_feedback_names_the_large_collection_without_echoing_record_contents(self):
+        state = self.state()
+        state['explorationMemory']['selectedObservations'] = [dict(id='large', text='private fixture' * 7000)]
+        feedback = prepare_context(state)['contextSelectionRequired']
+        self.assertEqual(feedback['collections']['observations']['records'], 1)
+        self.assertGreater(feedback['collections']['observations']['bytes'], 65536)
+        self.assertNotIn('private fixture', json.dumps(feedback))
+        self.assertEqual(feedback['exampleSelection']['includeAll'], [])
+        self.assertEqual(feedback['exampleSelection']['records'][0], dict(collection='observations', id='latest'))
+
+    def test_whole_collection_still_overflows_until_ai_explicitly_selects_only_latest(self):
+        memory = ContextMemory()
+        rows = {name: [] for name in COLLECTIONS}
+        rows['observations'] = [dict(id='old', elements=['x' * 70000]), dict(id='new', elements=['current'])]
+        chosen = [dict(collection='observations', id='latest')]
+        memory.accept(selection(include_all=['observations'], records=chosen))
+        state = self.state()
+        state['explorationMemory']['selectedObservations'] = memory.project(rows)['observations']
+        self.assertIn('contextSelectionRequired', prepare_context(state))
+        memory.accept(selection(records=chosen))
+        state['explorationMemory']['selectedObservations'] = memory.project(rows)['observations']
+        prepared = prepare_context(state)
+        self.assertNotIn('contextSelectionRequired', prepared)
+        self.assertEqual(prepared['explorationMemory']['selectedObservations'], [rows['observations'][-1]])
+        self.assertEqual(len(rows['observations']), 2)
+
+    def test_size_counts_utf8_bytes_and_exact_boundary_fits(self):
+        state = self.state()
+        state['recentActions'] = [dict(observation='漢字')]
+        usage = prepare_context(state, allowance=10000)['contextUsage']
+        expected = len(json.dumps(state['recentActions'], ensure_ascii=False).encode('utf-8'))
+        self.assertEqual(usage['collections']['actions']['bytes'], expected)
+        self.assertNotIn('contextSelectionRequired', prepare_context(state, allowance=usage['selectedBytes']))
+        self.assertIn('contextSelectionRequired', prepare_context(state, allowance=usage['selectedBytes'] - 1))
+
+    def test_capacity_feedback_distinguishes_bootstrap_from_an_explicit_selection(self):
+        state = self.state()
+        state['explorationMemory']['selection'] = None
+        self.assertFalse(prepare_context(state, allowance=1)['contextSelectionRequired']['selectionActive'])
+        state['explorationMemory']['selection'] = selection(include_all=['observations'])
+        self.assertTrue(prepare_context(state, allowance=1)['contextSelectionRequired']['selectionActive'])
+
+    def test_ai_can_use_the_feedback_example_to_end_bootstrap_deferral_without_losing_records(self):
+        state = self.state()
+        state['explorationMemory']['selection'] = None
+        rows = {name: [] for name in COLLECTIONS}
+        rows['observations'] = [dict(id='large', elements=['x' * 70000])]
+        state['explorationMemory']['selectedObservations'] = rows['observations']
+        feedback = prepare_context(state)['contextSelectionRequired']
+        agent, _, _ = api_agent([feedback['exampleReply']])
+        response = agent.choose('Explore', '', '', [BUTTON], b'masked', [], [], {})
+        self.assertEqual(response['action'], 'recall')
+        memory = ContextMemory()
+        memory.accept(response['context'])
+        state['explorationMemory']['selectedObservations'] = memory.project(rows)['observations']
+        state['explorationMemory']['selection'] = memory.saved()
+        state['explorationMemory']['summary'] = memory.saved()['summary']
+        state['batchFeedback'] = [dict(id=1, path=[dict(action='tap', status='executed')])]
+        prepared = prepare_context(state)
+        self.assertNotIn('contextSelectionRequired', prepared)
+        self.assertEqual(prepared['batchFeedback'], state['batchFeedback'])
+        self.assertEqual(prepared['elements'], state['elements'])
+        self.assertEqual(len(rows['observations']), 1)
+        memory.accept(selection(records=[dict(collection='observations', id='large')]))
+        self.assertEqual(memory.project(rows)['observations'], rows['observations'])
 
     def test_missing_context_resources_do_not_veto_the_ai_command(self):
         agent, _, _ = api_agent([action('tap', ref='@e1')])

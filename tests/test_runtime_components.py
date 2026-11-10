@@ -10,6 +10,7 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
@@ -37,6 +38,10 @@ from device_adapter.screen_capture import ScreenCapture
 MODEL = "gpt-5.4-mini-2026-03-17"
 BUTTON = {"ref": "@e1", "identifier": "ButtonA", "type": "Button", "label": "Open"}
 SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
+SWIPE_SCREEN = dict(type='CimtScreenInfo', screenWidth=402, screenHeight=874,
+                    imageWidth=1206, imageHeight=2622)
+SWIPE_WHEEL = dict(ref='@wheel', type='PickerWheel', value='DEVELOPER',
+                   coordinates=dict(x=9, y=620, width=384, height=291))
 
 
 def check(status="passed"):
@@ -162,6 +167,13 @@ class FakeMobile:
     def call(self, name, **arguments):
         self.calls.append((name, arguments))
 
+    def swipe_coordinates(self, **arguments):
+        self.calls.append(('native_swipe', arguments))
+
+    def replace_text(self, value):
+        self.calls.append(("replace_text", dict(text=value)))
+        self.text_contents = value
+
 
 class RejectedTargetMobile(FakeMobile):
     """A missing adapter target is an interaction result, not a lost connection."""
@@ -280,7 +292,7 @@ class ConfiguredModelTests(unittest.TestCase):
             execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
                                   agent_factory=lambda: agent)
             output = io.StringIO()
-            with redirect_stdout(output):
+            with patch("run_ui.shutil.which", return_value="/tools/executable"), redirect_stdout(output):
                 self.assertEqual(execution.run(preflight=True), 0)
             ledger = json.loads(pathlib.Path(folder, "ai-budget.json").read_text())
             self.assertEqual(ledger["model"], "gpt-5.6-luna")
@@ -288,6 +300,21 @@ class ConfiguredModelTests(unittest.TestCase):
             self.assertIn("passed for gpt-5.6-luna", output.getvalue())
             self.assertEqual(calls, ["models/gpt-5.6-luna"])
             self.assertFalse(pathlib.Path(folder, "devices").exists())
+
+
+    def test_preflight_rejects_missing_adapter_tools_before_model_access(self):
+        for missing in ("node", "mcp-server-mobile"):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as folder:
+                config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                          "ai-budget": {"amount": 1, "currency": "USD"}}
+                calls = []
+                execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                      agent_factory=lambda: calls.append("model access"))
+                with patch("run_ui.shutil.which", side_effect=lambda tool: None if tool == missing else "/tools/" + tool):
+                    with self.assertRaisesRegex(InfrastructureError, missing):
+                        execution.run(preflight=True)
+                self.assertEqual(calls, [])
+                self.assertFalse(pathlib.Path(folder, "devices").exists())
 
 
 class ScenarioTests(unittest.TestCase):
@@ -880,7 +907,34 @@ class ScenarioTests(unittest.TestCase):
         response = result['scenarios'][0]['decisions'][0]['response']
         self.assertEqual(response['modelResponse'], '{broken')
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
-        self.assertIn('Unreadable reply text', state['resourceFeedback'])
+        self.assertIn('Invalid JSON command reply', state['resourceFeedback'])
+        self.assertIn('Expected one JSON command object', state['resourceFeedback'])
+
+    def test_malformed_batch_has_no_device_effect_before_corrected_reply(self):
+        malformed = '{"action":"tap","ref":"@wrong"},{"action":"back"}'
+        corrected = json.dumps([action('tap', ref='@correct'), action('back')])
+        agent, _, transport = api_agent([malformed, corrected, action()])
+        mobile = FakeMobile(self.root, elements=[])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        calls = [(name, args) for name, args in mobile.calls if name != 'reset']
+        self.assertEqual(calls, [('mobile_click_on_screen_at_coordinates', dict(ref='@correct')),
+                                 ('mobile_press_button', dict(button='BACK'))])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Unexpected comma', state['resourceFeedback'])
+        self.assertIn('No commands from this reply were executed', state['resourceFeedback'])
+        self.assertIn('Expected one JSON command object', state['resourceFeedback'])
+        self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], malformed)
+        self.assertEqual(len(transport.bodies), 3)
+
+    def test_malformed_reply_is_redacted_in_saved_feedback_and_next_request(self):
+        self.redactor = Redactor({'credentials': {'test': {'password': 'synthetic-secret'}}})
+        runner = self.create_runner()
+        agent, _, transport = api_agent(['{"action":"wait"} synthetic-secret', action()])
+        result = {'scenarios': []}
+        runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertNotIn('synthetic-secret', json.dumps(result))
+        self.assertNotIn('synthetic-secret', json.dumps(transport.bodies))
 
     def test_notes_still_respect_the_shared_request_budget(self):
         budget = Budget(MODEL, 5, 'USD')
@@ -1136,12 +1190,95 @@ class ScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(LimitReached, 'User interrupted'):
             runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertTrue(any(name.startswith('mobile_click') for name, _ in mobile.calls))
-        self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
+        self.assertFalse(any(name in ['mobile_type_keys', 'replace_text'] for name, _ in mobile.calls))
         self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['stoppingReason'])
         self.assertIn('User interrupted', result['scenarios'][0]['steps'][-1]['observedOutcome'])
         self.assertNotIn('actionError', result['scenarios'][0]['steps'][-1])
         self.assertNotIn('synthetic-user', json.dumps(result))
 
+
+    def test_credential_replacement_feedback_reaches_the_next_ai_request_without_secrets(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        self.redactor = Redactor(config)
+        self.actions = ActionExecutor(config, self.redactor, self.control.deadline)
+        agent, _, transport = api_agent([action('credential', ref='@e1', credential='test', field='password'), action()])
+        mobile = FakeMobile(self.root)
+        result = {'scenarios': []}
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+        step = result['scenarios'][0]['steps'][1]
+        self.assertIn('contents replaced', step['actionFeedback'])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertEqual(state['batchFeedback'][0]['path'][0]['actionFeedback'], step['actionFeedback'])
+        self.assertNotIn('synthetic-secret', json.dumps(result))
+        self.assertNotIn('synthetic-secret', json.dumps(transport.bodies))
+
+    def test_failed_credential_replacement_cancels_login_without_append_fallback(self):
+        class FailedFillMobile(FakeMobile):
+            def replace_text(self, value):
+                raise DeviceActionError('Replacement was not confirmed')
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        self.redactor = Redactor(config)
+        self.actions = ActionExecutor(config, self.redactor, self.control.deadline)
+        batch = json.dumps([action('credential', ref='@e1', credential='test', field='username'),
+                            action('tap', ref='@login')])
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FailedFillMobile(self.root)
+        result = {'scenarios': []}
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+        self.assertFalse(any(name == 'mobile_type_keys' for name, _ in mobile.calls))
+        self.assertFalse(any(args.get('ref') == '@login' for _, args in mobile.calls))
+        rows = result['scenarios'][0]['commandQueue']['commands']
+        self.assertEqual([r['status'] for r in rows], ['failed', 'cancelled', 'handled'])
+        self.assertNotIn('actionFeedback', result['scenarios'][0]['steps'][1])
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('Replacement was not confirmed', state['resourceFeedback'])
+
+    def test_timed_swipe_call_and_duration_reach_next_ai_batch_feedback(self):
+        agent, _, transport = api_agent([action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000), action()])
+        mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        step = result['scenarios'][0]['steps'][1]
+        self.assertEqual(step['adapterCall']['tool'], 'mobilecli io swipe')
+        self.assertEqual(step['adapterCall']['arguments']['y2'], 801)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        event = state['batchFeedback'][0]['path'][0]
+        self.assertEqual(event['target']['durationMs'], 1000)
+        self.assertEqual(event['adapterCall'], step['adapterCall'])
+
+    def test_requested_and_dispatched_swipe_arguments_reach_step_and_next_ai_feedback(self):
+        agent,_,transport=api_agent([action('swipe',ref='@wheel',direction='up',distance=40),action()])
+        mobile=FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN])
+        result={'scenarios':[]}
+        self.runner.run(mobile,self.build,result,agent,lambda:None)
+        step=result['scenarios'][0]['steps'][1]
+        self.assertEqual(step['action']['ref'],'@wheel')
+        self.assertEqual(step['action']['distance'],40)
+        self.assertEqual(step['adapterCall']['arguments']['y'],765.5)
+        self.assertEqual(step['adapterCall']['status'],'completed')
+        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        command=state['batchFeedback'][0]['path'][0]
+        self.assertEqual(command['target']['distance'],40)
+        self.assertEqual(command['adapterCall']['arguments']['x'],201)
+
+    def test_unresolved_swipe_cancels_following_commands_and_reports_failure(self):
+        batch=json.dumps([action('swipe',ref='@missing',direction='up',distance=40),action('tap',ref='@wheel')])
+        agent,_,transport=api_agent([batch,action()])
+        mobile=FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN]);result={'scenarios':[]}
+        self.runner.run(mobile,self.build,result,agent,lambda:None)
+        self.assertEqual([name for name,_ in mobile.calls],['reset'])
+        scenario=result['scenarios'][0]
+        self.assertEqual([row['status'] for row in scenario['commandQueue']['commands']],['failed','cancelled','handled'])
+        self.assertNotIn('adapterCall',scenario['steps'][1])
+        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        self.assertIn('cannot be resolved',state['resourceFeedback'])
+
+    def test_nonfinite_argument_failure_still_produces_valid_json_reports(self):
+        agent,_,_=api_agent([action('swipe',ref='@wheel',direction='up',distance=float('inf')),action()])
+        result={'scenarios':[]}
+        self.runner.run(FakeMobile(self.root,elements=[SWIPE_WHEEL,SWIPE_SCREEN]),self.build,result,agent,lambda:None)
+        json.dumps(result,allow_nan=False)
+        self.assertIn('distance',result['scenarios'][0]['steps'][1]['actionError'])
 
 class StopThenReportFailure:
     """Simulate a limit reached while the model is returning a finding."""
@@ -1206,6 +1343,32 @@ class BoundaryTests(unittest.TestCase):
                 with self.assertRaises(DeviceActionError):
                     RpcMessages.tool_result(dict(isError=True, content=[dict(text='Target unavailable')]),
                         name, lambda text: text)
+
+    def test_repeating_credential_replaces_existing_contents_for_both_fields(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        for field in ['username', 'password']:
+            with self.subTest(field=field):
+                mobile = FakeMobile(pathlib.Path('/unused'))
+                mobile.text_contents = 'previous text'
+                redactor = Redactor(config)
+                executor = ActionExecutor(config, redactor, time.time() + 30)
+                for _ in range(2):
+                    feedback = executor.execute(mobile,
+                        action('credential', ref='@e1', credential='test', field=field), [BUTTON])
+                self.assertEqual(mobile.text_contents, config['credentials']['test'][field])
+                self.assertIn(BUTTON['identifier'], redactor.ids)
+                self.assertNotIn('mobile_type_keys', [name for name, _ in mobile.calls])
+                self.assertIn('adapter confirmed', feedback)
+                self.assertNotIn(config['credentials']['test'][field], feedback)
+
+    def test_disabled_credential_target_is_not_focused_or_replaced(self):
+        config = dict(credentials={'test': dict(username='synthetic-user', password='synthetic-secret')})
+        mobile = FakeMobile(pathlib.Path('/unused'))
+        executor = ActionExecutor(config, Redactor(config), time.time() + 30)
+        with self.assertRaisesRegex(ValueError, 'absent or disabled'):
+            executor.execute(mobile, action('credential', ref='@e1', credential='test', field='username'),
+                             [dict(BUTTON, enabled=False)])
+        self.assertFalse(mobile.calls)
 
     def test_unobserved_credential_target_never_receives_secret_text(self):
         mobile = FakeMobile(pathlib.Path('/unused'), elements=[SIZE])

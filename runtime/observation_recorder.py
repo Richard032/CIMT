@@ -19,6 +19,7 @@ class ObservationRecorder:
         # Recovery screens must also remain retrievable by their observation IDs.
         session.planner.observe(session.elements)
         timestamp = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
+        session.observed_at = timestamp
         warnings = self._warnings(session, step, timestamp)
         observation = dict(id=identity([session.elements, hashlib.sha256(session.image).hexdigest()]),
             screen=session.planner.memory.map.state_id(session.elements),

@@ -1,9 +1,11 @@
 # Default build scripts
 
-Date: 28 October 2026  
-Status: scripts implemented and contract-tested; real application artifact validation blocked
+Updated: 10 November 2026
+Status: scripts implemented and contract-tested; Apple Silicon application build evidence exists, full acceptance remains open. See [implementation status](implementation-status.md).
 
 ## Installed locations
+
+The paths below use the original shared installation as an example; replace `/Users/Shared/CIMT` with your actual `CIMT_INSTALL_ROOT`. Our Apple Silicon installation used `~/Development/CIMT/.local/install`. The launcher loads its environment automatically. The manual script invocation below sources it only because it bypasses the launcher.
 
 - /Users/Shared/CIMT/scripts/build/android.sh
 - /Users/Shared/CIMT/scripts/build/ios.sh
@@ -65,7 +67,9 @@ dotnet build tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release
 python3 tests/check-build-contract.py
 ```
 
-Real source validation used the supplied Subgit repository, main at commit 7443429841616783225238c92b3dc4699a65e9f3, with its declared submodules.
+### Historical application blockers — 28 October 2026
+
+These attempts predate the working Apple Silicon setup and are not current universal blockers. Real source validation used the supplied Subgit repository, main at commit 7443429841616783225238c92b3dc4699a65e9f3, with its declared submodules.
 
 - Android: the application pre-build invokes the Windows CuRMiTagger.exe directly and runs copy /Y. Execution stops at the .exe with code 126 on macOS.
 - iOS: no usable provisioning profile is available for ECON-M.
@@ -75,11 +79,11 @@ Real source validation used the supplied Subgit repository, main at commit 74434
 
 A test-only global OutputType override initially affected referenced projects and was removed. The reported real-build blockers above are from attempts using the application's own project settings.
 
-The original developer checkout was unchanged. The temporary clone is removed after recording results; diagnostic evidence remains outside it.
+The original developer checkout was unchanged. That historical check removed its temporary clone after recording results. Current CIMT work retention is described below; normal finalization does not delete its clone.
 
-## Remaining
+## Qualification after the historical attempts
 
-Resolve or explicitly configure the application's macOS pre-build compatibility and iOS signing, then rerun artifact/install checks. The scripts do not bypass these prerequisites, and their present status must not be described as successful end-to-end MAUI builds.
+For a new application, resolve or explicitly configure the application's macOS pre-build compatibility and iOS signing, then rerun artifact/install checks. The scripts do not bypass these prerequisites, and a build result must not be described as a successful end-to-end functional test. Later Apple Silicon builds succeeded; current acceptance gaps are tracked in [release readiness](release-1.0.md).
 
 ## Main-branch example integration
 
@@ -104,4 +108,4 @@ CIMT now retains work/publish folders after execution and removes older verified
 
 ## Explicit iOS Simulator builds
 
-With an explicit `RuntimeIdentifier: iossimulator-*`, the default worker uses `dotnet build` and packages one top-level `.app` as a simulator ZIP. It does not create or label this as a phone IPA. Both commands forward the supplied properties unchanged. See [virtual devices](virtual-devices.md) for Intel example settings and prerequisites. Existing physical publish behavior remains the default.
+With an explicit `RuntimeIdentifier: iossimulator-*`, the default worker uses `dotnet build` and packages one top-level `.app` as a simulator ZIP. It does not create or label this as a phone IPA. Both commands forward the supplied properties unchanged. See [virtual devices](virtual-devices.md) for architecture-specific example settings and prerequisites. Existing physical publish behavior remains the default.

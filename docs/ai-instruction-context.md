@@ -1,5 +1,7 @@
 # AI Instruction and Context
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Updated: 1 November 2026. Implements FR-97 and AC-67. The product owner confirmed that CIMT keeps Mobile MCP; this change does not introduce Appium.
 
 ## Responsibility
@@ -65,3 +67,11 @@ sequenceDiagram
 ```
 
 FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history deferral. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
+
+## Capacity feedback and observation freshness
+
+Selected-history capacity is measured from the same assembled state used by ActionPromptBuilder. Feedback contains selected bytes, allowance bytes, per-collection counts/sizes and an example using includeAll: [] with an individual/latest record. It explains that whole collections and individual records are combined, and null/absent context keeps the existing selection. No record relevance is chosen by the host.
+
+Instruction preparation may reuse timestamped, already masked evidence for repeated oversized context-only exchanges. It refreshes evidence before the next fitting normal decision request and after actions/recovery; currentEvidence identifies its capture time and reuse status. Provider timing belongs to Agent/execution, outside this layer; context preparation and screen acquisition have their own activity records. Credential resources describe alias, field and target together while values remain local.
+
+For bootstrap clarity, commandResources.contextExample demonstrates selecting working history alongside a normal action. The shorter system guidance asks for observed progress and the next unfinished step. contextSelectionRequired.selectionActive distinguishes an explicit selection from growing bootstrap history; exampleReply demonstrates a complete recall command with compact context. AI can choose its own records or attach context to a normal action. These examples do not automatically select history, block commands, remove stored evidence or add provider calls.

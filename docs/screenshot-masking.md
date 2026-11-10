@@ -1,5 +1,7 @@
 # Screenshot masking
 
+> Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
+
 Implemented correction: 28 October 2026, under FR-28 and FR-36. Commands and YAML stay unchanged. Masking rules still use element IDs only; users do not supply screen rectangles.
 
 ## Capture and release

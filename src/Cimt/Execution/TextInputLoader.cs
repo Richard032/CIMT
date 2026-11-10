@@ -25,6 +25,7 @@ public sealed class TextInputLoader(ITextInputReader reader) : IRunStep
 {
     public async Task Execute(RunState state)
     {
+        ExternalFileSettings.CheckSources(state.Configuration.Root);
         foreach (var (name, source) in state.Configuration.Root.Get("inputs")!.Map!)
             state.Inputs[name] = await ReadInput(state, source);
         var document = RequirementCatalogue.Parse(state.Inputs.GetValueOrDefault("requirements", ""));

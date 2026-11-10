@@ -1,6 +1,7 @@
 """Coordinates cost reservation, API access, and action parsing."""
 
 import json
+import time
 from ai_instructions.instructions import ActionPromptBuilder
 from command_reply import read_reply
 from openai_transport import OpenAiTransport
@@ -9,8 +10,10 @@ from openai_transport import OpenAiTransport
 class Agent:
     """Selects one action. It has no device or shell access."""
 
-    def __init__(self, config, budget, deadline, transport=None, prompts=None):
+    def __init__(self, config, budget, deadline, transport=None, prompts=None, clock=time.monotonic):
         self.model = config["ai-model"]["name"]
+        self.clock = clock
+        self.last_request_timing = None
         self.budget = budget
         self.transport = transport or OpenAiTransport(config["ai-model"]["api-key"], deadline)
         self.prompts = prompts or ActionPromptBuilder(self.model)
@@ -34,6 +37,7 @@ class Agent:
         exploration_memory=None,
     ):
         """Request one action after the shared budget has reserved its maximum cost."""
+        self.last_request_timing = None
         body = self.prompts.build(
             instructions,
             requirements,
@@ -61,9 +65,14 @@ class Agent:
         # Reserve before the request. Keep the full bound if usage is unknown.
         self.budget.reserve()
         response = None
+        status = 'failed'
+        started = self.clock()
         try:
             response = self.transport.request("responses", body)
+            status = 'completed'
             return response
         finally:
+            self.last_request_timing = dict(kind=kind, status=status,
+                seconds=max(0, self.clock() - started))
             usage = response.get("usage") if isinstance(response, dict) else None
             self.budget.finish(usage, kind=kind)

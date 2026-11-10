@@ -13,6 +13,7 @@ public sealed class ReadinessValidator(ICommandRunner processes, ITextInputReade
     /// <summary>Check inputs, scripts, tools, Git access, and device presence without testing the app.</summary>
     public async Task Validate(Configuration configuration, List<string> messages)
     {
+        ExternalFileSettings.CheckSources(configuration.Root);
         await CheckInputs(configuration.Root, messages);
         CheckScripts(configuration.Root);
         await CheckGit(configuration.Root, messages);

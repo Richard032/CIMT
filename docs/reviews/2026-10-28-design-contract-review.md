@@ -1,5 +1,8 @@
 # Requirements and implementation design review
 
+> Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
+
+
 Reviewed: 28 October 2026. Source baseline: main at d14f0854ec2bda74d50770e05a3c624d0be2ed76, including shared run identity.
 
 This review compares the current code with the approved requirements and architecture. It does not change implementation or approved requirements. Findings D1–D5 have small offline reproductions. D6 is a contract mismatch found by reading the requirements and outcome policies.

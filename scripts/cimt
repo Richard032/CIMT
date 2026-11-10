@@ -1,8 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 CIMT_SOURCE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CIMT_ENV_ROOT="${CIMT_INSTALL_ROOT:-/Users/Shared/CIMT}"
-if [ -f "$CIMT_ENV_ROOT/environment.sh" ]; then source "$CIMT_ENV_ROOT/environment.sh"; fi
+if [ -z "${CIMT_INSTALL_ROOT:-}" ]; then
+  if [ -f "$CIMT_SOURCE_ROOT/lib/cimt/cimt.dll" ]; then
+    export CIMT_INSTALL_ROOT="$CIMT_SOURCE_ROOT"
+  elif [ -f "$CIMT_SOURCE_ROOT/.local/install/environment.sh" ]; then
+    export CIMT_INSTALL_ROOT="$CIMT_SOURCE_ROOT/.local/install"
+  else
+    export CIMT_INSTALL_ROOT=/Users/Shared/CIMT
+  fi
+fi
+if [ -f "$CIMT_INSTALL_ROOT/environment.sh" ]; then source "$CIMT_INSTALL_ROOT/environment.sh"; fi
 if [ -f "$CIMT_SOURCE_ROOT/lib/cimt/cimt.dll" ]; then
   exec dotnet "$CIMT_SOURCE_ROOT/lib/cimt/cimt.dll" "$@"
 fi

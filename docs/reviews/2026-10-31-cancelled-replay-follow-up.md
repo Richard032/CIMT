@@ -1,5 +1,8 @@
 # Cancelled replay: focused follow-up review
 
+> Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
+
+
 Date: 31 October 2026
 
 Source: saved replay report_2026-10-31_06-48-22-356, its activity journal, redacted UI snapshots, and the current CIMT/installed adapter code. This review made no paid AI requests and started no new device test. Durations describe this run only.

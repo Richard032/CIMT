@@ -1,5 +1,8 @@
 # CIMT product and implementation review
 
+> Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
+
+
 Date: 28 October 2026, Europe/Zurich. Reviewed local source corresponding to commit 552506d65132eb3aa58012f42c7c4c5062520d0f. The original review below is followed by a defect-resolution record. It is not release approval.
 
 ## Assessment

@@ -68,6 +68,12 @@ public sealed class CommandRunner : ICommandRunner
         if (command.Environment is not null)
             foreach (var (key, value) in command.Environment)
                 info.Environment[key] = value;
+        // Every child receives the installation's tools, including pnpm's command shims.
+        var root = info.Environment.TryGetValue("CIMT_INSTALL_ROOT", out var installation)
+            && !string.IsNullOrEmpty(installation) ? installation : Configuration.InstallationRoot;
+        info.Environment["CIMT_INSTALL_ROOT"] = root;
+        info.Environment.TryGetValue("PATH", out var inheritedPath);
+        info.Environment["PATH"] = new RuntimePaths(root).ExecutablePath(inheritedPath);
         return info;
     }
 
