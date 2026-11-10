@@ -10,6 +10,7 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
         : json.Record(value, ["runId"], new()
         {
             ["devices"] = items => json.Items(items, DeviceResult),
+            ["appKnowledgePublication"] = item => json.Record(item, ["status", "baseBranch", "branch", "commit", "url"]),
             // The ledger contains validated counts, prices, and host pricing metadata only.
             ["budget"] = JsonTextRedactor.Keep
         });
@@ -24,6 +25,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
         ["target", "appId", "verdict", "completion"], new()
         {
             ["checks"] = items => json.Items(items, Check),
+            ["applicationKnowledge"] = AppKnowledge,
+            ["appKnowledgeProposal"] = AppKnowledge,
             ["requirements"] = items => json.Items(items, Requirement),
             ["steps"] = items => json.Items(items, Step),
             ["crashes"] = items => json.Items(items, Crash),
@@ -38,6 +41,12 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["warnings"] = rows => json.Items(rows, Warning),
             ["decisions"] = rows => json.Items(rows, row => json.Record(row, ["id", "step"], new() { ["response"] = Action })),
             ["screenshots"] = rows => json.Items(rows, row => json.Record(row, ["id", "path", "sha256"]))
+        });
+
+    private JsonNode AppKnowledge(JsonElement value) => json.Record(value,
+        ["enabled", "schemaVersion", "appId", "platform", "status", "artifact"], new()
+        {
+            ["source"] = item => json.Record(item, ["runId", "appCommit", "target", "observedStepCount"])
         });
 
     private JsonNode CommandQueue(JsonElement value) => json.Record(value, [], new()

@@ -23,7 +23,7 @@ public sealed class ModelAccessCheck(RunProcess processes, RuntimePaths paths, I
     {
         progress.Write(state, "Checking model access and the installed execution runtime");
         var result = await processes.Invoke(state, paths.Python, [paths.Worker, "--preflight"], 45,
-            JsonSerializer.Serialize(RuntimeRequest.Create(state)));
+            JsonSerializer.Serialize(RuntimeRequest.Create(state, paths.AppKnowledgeSettings)));
         if (result.Exit != 0)
             throw new ConfigurationException(state.Configuration.Scrub(result.Stderr.Trim()));
         state.Stages.Add(new
@@ -44,7 +44,7 @@ public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunPr
             throw new ConfigurationException("No installable build was produced; no application interactions were executed.");
         progress.Write(state, "Executing instructions on startup devices (maximum two at once)");
         var worker = processes.Invoke(state, paths.Python, [paths.Worker], int.MaxValue,
-            JsonSerializer.Serialize(RuntimeRequest.Create(state)), output: line => ShowActivity(state, line),
+            JsonSerializer.Serialize(RuntimeRequest.Create(state, paths.AppKnowledgeSettings)), output: line => ShowActivity(state, line),
             stopGraceSeconds: 5);
         while (!worker.IsCompleted)
         {

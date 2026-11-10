@@ -24,7 +24,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
             + new RequirementHtmlRenderer(configuration).Render(coverage, state.RequirementHeadings, scenarios, evidence) + "</section>"
             + "<section id=\"activity\" aria-labelledby=\"activity-title\"><h2 id=\"activity-title\">Activity</h2>"
             + diagnostics.Timeline(state.Report, activity ?? RunActivityLog.Read(state.Report, configuration.Scrub))
-            + Stages(state, evidence) + Inputs(state.Report) + Downloads(evidence) + "</section></main>" + ReportPage.End;
+            + Stages(state, evidence) + KnowledgePublication(safeExecution) + Inputs(state.Report) + Downloads(evidence) + "</section></main>" + ReportPage.End;
     }
 
     private string Header(RunState state, RunOutcome outcome, bool inProgress) =>
@@ -45,6 +45,20 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         if (Field(item, "log").Length > 0)
             body += " — " + evidence.Link(Field(item, "log"), "Build log");
         return body + "</li>";
+    }
+
+    private string KnowledgePublication(JsonElement? execution)
+    {
+        if (execution is not { } data || !data.TryGetProperty("appKnowledgePublication", out var publication))
+            return "";
+        var body = "<p>Status: " + Encode(Field(publication, "status")) + "</p>";
+        var url = Field(publication, "url");
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == "https" && uri.Host == "github.com"
+            && string.IsNullOrEmpty(uri.UserInfo))
+            body += "<p><a href=\"" + Encode(url) + "\">Knowledge pull request</a></p>";
+        if (Field(publication, "error").Length > 0)
+            body += "<p>" + Encode(configuration.Scrub(Field(publication, "error"))) + "</p>";
+        return Details("Application knowledge publication", body);
     }
 
     private string Inputs(string report)

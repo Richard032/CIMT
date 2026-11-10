@@ -72,7 +72,7 @@ def command(value):
     defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, durationMs=None, credential='',
         field='', observation='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
-        configuration=[], pathDecisions=[], planStepId=0, context=None,
+        configuration=[], pathDecisions=[], planStepId=0, context=None, learnedAppKnowledge=None,
         recovery=dict(id=-1, decision='none', reason=''))
     result = dict(defaults)
     for name, default in defaults.items():

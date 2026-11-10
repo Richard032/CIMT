@@ -18,7 +18,7 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
         body += Table("Source-linked testing tasks", ["Task", "Source", "Work status", "Test result", "Expected behavior", "Reason"],
             Rows(plan, "tasks").Select(task => new[] { Field(task, "subject"), Source(task), Field(task, "status"),
                 Field(task, "result"), Field(task, "expected"), Field(task, "reason") }));
-        body += Context(scenario, redactor) + Recoveries(scenario, redactor) + Commands(scenario) + Replies(scenario);
+        body += Knowledge(scenario) + Context(scenario, redactor) + Recoveries(scenario, redactor) + Commands(scenario) + Replies(scenario);
         if (!scenario.TryGetProperty("exploration", out var exploration))
             return body;
         exploration = JsonSerializer.SerializeToElement(redactor.Exploration(exploration));
@@ -39,6 +39,20 @@ public sealed class PlanningHtmlRenderer(Configuration configuration)
                 + Table("Observed transitions", ["From", "To", "Action", "Observation", "Observation completed"],
                     Rows(map, "transitions").Select(edge => new[] { Field(edge, "source"), Field(edge, "destination"),
                         Field(edge, "action"), Field(edge, "outcome"), Field(edge, "verified") })));
+        }
+        return body;
+    }
+
+    private string Knowledge(JsonElement scenario)
+    {
+        var body = "";
+        foreach (var (key, title) in new[] { ("applicationKnowledge", "Shared application knowledge"),
+                     ("appKnowledgeProposal", "AI-learned knowledge proposal") })
+        {
+            if (!scenario.TryGetProperty(key, out var knowledge))
+                continue;
+            body += Details(title, "<p>Application guidance is separate from this issue and its test results. "
+                + "Current testing instructions take priority.</p><pre>" + Encode(configuration.Scrub(Field(knowledge, "guide"))) + "</pre>");
         }
         return body;
     }

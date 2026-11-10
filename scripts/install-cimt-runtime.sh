@@ -39,4 +39,22 @@ done
 # Keep test-folder wrappers separate from the backend scripts they invoke.
 mkdir -p "$CIMT_INSTALL_ROOT/templates/test-run/build"
 cp "$SOURCE_ROOT/scripts/test-run/build/"*.sh "$CIMT_INSTALL_ROOT/templates/test-run/build/"
+# Keep reviewed knowledge in the CIMT Git repository, not in installation state.
+mkdir -p "$CIMT_INSTALL_ROOT/state"
+if [ ! -f "$CIMT_INSTALL_ROOT/state/app-knowledge-settings.json" ]; then
+    KNOWLEDGE_BRANCH="${CIMT_KNOWLEDGE_BASE_BRANCH:-}"
+    if [ -z "$KNOWLEDGE_BRANCH" ]; then
+        KNOWLEDGE_BRANCH="$(git -C "$SOURCE_ROOT" symbolic-ref --quiet --short HEAD)" || {
+            echo "Set CIMT_KNOWLEDGE_BASE_BRANCH when installing from a detached checkout." >&2
+            exit 3
+        }
+    fi
+    "$CIMT_INSTALL_ROOT/tools/python/bin/python" - "$SOURCE_ROOT" "$CIMT_INSTALL_ROOT/state/app-knowledge-settings.json" "$KNOWLEDGE_BRANCH" <<'PY'
+import json, pathlib, sys
+root, destination, branch = sys.argv[1:]
+path = pathlib.Path(destination)
+path.write_text(json.dumps(dict(repository=root, remote='origin', baseBranch=branch), indent=2) + '\n')
+path.chmod(0o600)
+PY
+fi
 echo "CIMT support runtime installed."

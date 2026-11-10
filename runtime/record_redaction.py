@@ -41,6 +41,13 @@ class RecordRedactor:
         return self._record(value, ['tool', 'status'], {
             'arguments': lambda row: self._record(row, ['device', 'direction'])})
 
+    def app_knowledge(self, value):
+        return self._record(value, ['enabled', 'schemaVersion', 'appId', 'platform', 'status', 'artifact'], {
+            'source': lambda row: self._record(row, ['runId', 'appCommit', 'target', 'observedStepCount'])})
+
+    def knowledge_publication(self, value):
+        return self._record(value, ['status', 'baseBranch', 'branch', 'commit', 'url'])
+
     def crash(self, value):
         return self._record(
             value,
@@ -54,6 +61,8 @@ class RecordRedactor:
             ["target", "appId", "verdict", "completion"],
             {
                 "steps": lambda items: self._items(items, self.step),
+                "applicationKnowledge": self.app_knowledge,
+                "appKnowledgeProposal": self.app_knowledge,
                 "checks": lambda items: self._items(items, self.check),
                 "requirements": lambda items: self._items(items, self.requirement),
                 "crashes": lambda items: self._items(items, self.crash),
@@ -130,6 +139,7 @@ class RecordRedactor:
     def request_context(self, value):
         path = lambda row: self._record(row, ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId', 'ref'])
         return self._record(value, ['currentScreen'], {
+            'applicationKnowledge': self.app_knowledge,
             'testPlan': self.plan,
             'selection': self.context,
             'currentControls': lambda rows: self._items(rows, path),

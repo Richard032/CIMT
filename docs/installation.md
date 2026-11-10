@@ -1,7 +1,7 @@
 # CIMT installation and setup guide
 
-Version: 0.41
-Last updated: 9 November 2026
+Version: 0.42
+Last updated: 10 November 2026
 Status: prerequisites, CLI, build workers, and initial run engine installed on the first Intel Mac; real application acceptance pending  
 Scope: Intel Mac baseline for local command-line and Jenkins execution; observed Apple Silicon development setup in section 52
 
@@ -1482,3 +1482,11 @@ Timed swipe control — 10 November 2026: install the matching report host and r
 The same one-row movement and restoration were also verified through the new CIMT ActionExecutor and Mobile.swipe_coordinates path: the actual native call recorded (201,766) to (201,801) with durationMs 1000. Original selection was restored without pressing Done or calling AI.
 
 Bootstrap context guidance — 10 November 2026: update runtime/request_context.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. No host rebuild, adapter, model, budget or application change is required. The installed examples and shorter guidance help AI make an explicit working-history selection; they do not change bootstrap defaults, choose records or guarantee a live reduction in requests. Private test-text cleanup is independent of the published runtime.
+
+## Git-shared app knowledge — 10 November 2026
+
+The source support-runtime installer creates state/app-knowledge-settings.json if missing, using the CIMT checkout path, origin and the checkout's current branch. It preserves an existing setting. For detached installs, supply CIMT_KNOWLEDGE_BASE_BRANCH. Select the intended shared branch explicitly when moving between development and production installations; CIMT never guesses main or changes an established setting during reinstall.
+
+The runtime requires that Git checkout to remain available, Git author name/email, and noninteractive GitHub authentication for guide push/PR creation. Configure GH_TOKEN/GITHUB_TOKEN privately or a Git HTTPS credential helper; the token needs Contents and Pull requests write. SSH remotes also need usable SSH authentication. Desktop connector authentication alone is insufficient for unattended runtime publication. Keep credentials outside Git. [Shared knowledge](../knowledge/README.md) documents the JSON setting, authentication, draft artifacts and recovery.
+
+Guides are loaded only from the configured shared branch after PR merge. The developer's working index/tree is preserved. An interrupted/expired run or publication failure retains local drafts and reports its publication state; no automatic merge occurs. This increment is qualified with offline tests. Live AI learning and authenticated publication are not yet acceptance-tested.

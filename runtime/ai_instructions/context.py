@@ -23,6 +23,9 @@ class InstructionContext:
             session.result.get('decisions', []), session.coverage.snapshot(), screenshots, session.commands.records, session.feedback.collection())
         if session.recovery.pending is not None:
             memory['recoveryRequest'] = self.redactor.records.recovery(session.recovery.pending)
+        memory['applicationKnowledge'] = dict(session.application_knowledge)
+        if session.learned_app_knowledge:
+            memory['applicationKnowledge']['currentProposal'] = session.learned_app_knowledge
         memory['batchFeedback'] = session.feedback.pending()
         memory['currentWarnings'] = [session.feedback.warnings[key] for key in session.feedback.current_warnings]
         memory = self.redactor.records.request_context(memory)

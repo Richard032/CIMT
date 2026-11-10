@@ -17,6 +17,13 @@ def reply(text):
 
 
 class CommandReplyTests(unittest.TestCase):
+    def test_optional_learned_guide_is_preserved_with_the_selected_command(self):
+        for value in ['Use Settings', None, ['invalid metadata']]:
+            with self.subTest(value=value):
+                result = read_reply(reply(json.dumps(dict(action='wait', learnedAppKnowledge=value))))
+                self.assertEqual(result['action'], 'wait')
+                self.assertEqual(result['learnedAppKnowledge'], value)
+
     def test_minimal_device_command_needs_no_plan_or_report_fields(self):
         result = read_reply(reply('{"action":"tap","ref":"@earlier"}'))
         self.assertEqual(result['action'], 'tap')
