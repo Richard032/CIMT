@@ -167,6 +167,9 @@ class FakeMobile:
     def call(self, name, **arguments):
         self.calls.append((name, arguments))
 
+    def swipe_coordinates(self, **arguments):
+        self.calls.append(('native_swipe', arguments))
+
     def replace_text(self, value):
         self.calls.append(("replace_text", dict(text=value)))
         self.text_contents = value
@@ -1229,6 +1232,19 @@ class ScenarioTests(unittest.TestCase):
         self.assertNotIn('actionFeedback', result['scenarios'][0]['steps'][1])
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
         self.assertIn('Replacement was not confirmed', state['resourceFeedback'])
+
+    def test_timed_swipe_call_and_duration_reach_next_ai_batch_feedback(self):
+        agent, _, transport = api_agent([action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000), action()])
+        mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])
+        result = {'scenarios': []}
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        step = result['scenarios'][0]['steps'][1]
+        self.assertEqual(step['adapterCall']['tool'], 'mobilecli io swipe')
+        self.assertEqual(step['adapterCall']['arguments']['y2'], 801)
+        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        event = state['batchFeedback'][0]['path'][0]
+        self.assertEqual(event['target']['durationMs'], 1000)
+        self.assertEqual(event['adapterCall'], step['adapterCall'])
 
     def test_requested_and_dispatched_swipe_arguments_reach_step_and_next_ai_feedback(self):
         agent,_,transport=api_agent([action('swipe',ref='@wheel',direction='up',distance=40),action()])

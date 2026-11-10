@@ -75,9 +75,18 @@ class InstructionTests(unittest.TestCase):
     def test_swipe_resources_expose_target_and_distance_together(self):
         resources = state([])['commandResources']
         self.assertEqual(resources['swipeExample'], dict(action='swipe', ref='<current target ref>',
-                                                       direction='up', distance=40))
+                                                       direction='up', distance=35, durationMs=1000))
         self.assertEqual(resources['arguments']['distance']['minimum'], 1)
         self.assertIn('null', resources['arguments']['distance']['type'])
+
+    def test_prompt_exposes_slow_drag_timing_without_a_host_selected_default(self):
+        resources = state([])['commandResources']
+        self.assertEqual(resources['swipeExample']['durationMs'], 1000)
+        self.assertIn('null', resources['arguments']['durationMs']['type'])
+        self.assertIn('explicit target and distance', resources['arguments']['durationMs']['description'])
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        self.assertIn('short swipe at default timing can still fling', body['input'][0]['content'])
+        self.assertIn('inspect the actual result and adjust', body['input'][0]['content'])
 
     def test_swipe_resources_explain_finger_direction_and_distance_units(self):
         arguments = state([])['commandResources']['arguments']

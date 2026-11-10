@@ -40,7 +40,7 @@ class BatchFeedback:
     def _command(row):
         action = row['response']
         # Secret text is never copied into the compact feedback target.
-        target = {key: action[key] for key in ('ref', 'x', 'y', 'direction', 'distance', 'credential', 'field') if key in action}
+        target = {key: action[key] for key in ('ref', 'x', 'y', 'direction', 'distance', 'durationMs', 'credential', 'field') if key in action}
         return dict(kind='command', commandId=row['id'], action=action['action'], target=target,
             status=row['status'], step=row.get('step'), observation=None,
             uiChange='observation unavailable', warnings=[], error='')

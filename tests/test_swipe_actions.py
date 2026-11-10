@@ -26,6 +26,55 @@ class SwipeActionsTests(unittest.TestCase):
         self.executor.execute(self.mobile, command, self.elements)
         return self.mobile.calls
 
+    def test_timed_swipe_records_exact_integer_native_points_and_duration(self):
+        records = []
+        self.executor.execute(self.mobile, action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000),
+                              self.elements, record_call=records.append)
+        arguments = dict(x1=201, y1=766, x2=201, y2=801, durationMs=1000)
+        self.assertEqual(self.mobile.calls, [('native_swipe', arguments)])
+        self.assertEqual(records, [dict(tool='mobilecli io swipe', status='completed',
+            arguments=dict(device='fixture', **arguments))])
+
+    def test_timed_swipe_uses_absolute_endpoints_in_all_four_directions(self):
+        for direction, endpoint in [('up', (20, 20)), ('down', (20, 40)),
+                                    ('left', (10, 30)), ('right', (30, 30))]:
+            with self.subTest(direction=direction):
+                self.mobile.calls.clear()
+                self.executor.execute(self.mobile, action('swipe', x=20, y=30,
+                    direction=direction, distance=10, durationMs=1200), self.elements)
+                self.assertEqual(self.mobile.calls, [('native_swipe',
+                    dict(x1=20, y1=30, x2=endpoint[0], y2=endpoint[1], durationMs=1200))])
+
+    def test_explicit_zero_duration_keeps_native_platform_timing(self):
+        self.assertEqual(self.execute(ref='@wheel', distance=35, durationMs=0)[0][1]['durationMs'], 0)
+
+    def test_invalid_durations_and_missing_distance_do_not_dispatch(self):
+        for duration in [-1, 0.5, True, '1000', [], {}, math.inf]:
+            with self.subTest(duration=duration), self.assertRaisesRegex(ValueError, 'durationMs'):
+                self.execute(ref='@wheel', distance=35, durationMs=duration)
+        with self.assertRaisesRegex(ValueError, 'explicit distance and target'):
+            self.execute(ref='@wheel', durationMs=1000)
+        with self.assertRaisesRegex(ValueError, 'requires a target'):
+            self.execute(distance=35, durationMs=1000)
+        self.assertEqual(self.mobile.calls, [])
+
+    def test_timed_swipe_rejects_an_offscreen_endpoint(self):
+        for x, y, distance in [(10, 10, 35), (0.8, 0.8, 1)]:
+            with self.subTest(x=x, y=y), self.assertRaisesRegex(ValueError, 'endpoint is outside'):
+                self.execute(x=x, y=y, distance=distance, durationMs=1000)
+        self.assertEqual(self.mobile.calls, [])
+
+    def test_native_swipe_failure_is_recorded_without_a_default_timing_fallback(self):
+        def failed(**arguments):
+            raise DeviceActionError('Timed gesture rejected')
+        self.mobile.swipe_coordinates = failed
+        records = []
+        with self.assertRaises(DeviceActionError):
+            self.executor.execute(self.mobile, action('swipe', ref='@wheel', direction='up', distance=35, durationMs=1000),
+                                  self.elements, record_call=records.append)
+        self.assertEqual(records[0]['status'], 'failed')
+        self.assertEqual(self.mobile.calls, [])
+
     def test_reference_swipe_uses_wheel_centre_in_device_coordinates(self):
         self.assertEqual(self.execute(ref='@wheel', distance=40), [
             ('mobile_swipe_on_screen', dict(direction='up', x=201, y=765.5, distance=40))])

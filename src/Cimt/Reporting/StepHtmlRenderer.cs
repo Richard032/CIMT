@@ -35,7 +35,7 @@ public sealed class StepHtmlRenderer(Configuration configuration, ReportEvidence
         if (ReportScenario.Action(step) == "swipe" && step.TryGetProperty("action", out var requested)
             && requested.ValueKind == JsonValueKind.Object)
         {
-            var fields = new[] { "action", "ref", "x", "y", "direction", "distance" };
+            var fields = new[] { "action", "ref", "x", "y", "direction", "distance", "durationMs" };
             var arguments = requested.EnumerateObject().Where(field => fields.Contains(field.Name))
                 .ToDictionary(field => field.Name, field => field.Value);
             body += Arguments(JsonSerializer.SerializeToElement(arguments), "Requested action");

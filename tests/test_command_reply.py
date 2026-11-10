@@ -103,6 +103,12 @@ class CommandReplyTests(unittest.TestCase):
         result = read_reply(reply('{"action":"swipe","x":12.5,"y":30.25,"direction":"up","distance":40.5}'))
         self.assertEqual((result['x'], result['y'], result['distance']), (12.5, 30.25, 40.5))
 
+    def test_swipe_duration_is_preserved_for_execution_and_explicit_failure(self):
+        for duration in [0, 1000, True, 'bad']:
+            with self.subTest(duration=duration):
+                result = read_reply(reply(json.dumps(dict(action='swipe', durationMs=duration))))
+                self.assertEqual(result['durationMs'], duration)
+
     def test_invalid_swipe_distance_is_retained_for_explicit_execution_failure(self):
         result = read_reply(reply('{"action":"swipe","ref":"@wheel","direction":"up","distance":"bad"}'))
         self.assertEqual(result['distance'], 'bad')

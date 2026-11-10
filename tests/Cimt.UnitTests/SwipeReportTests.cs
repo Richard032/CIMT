@@ -27,6 +27,25 @@ public sealed class SwipeReportTests
     }
 
     [Fact]
+    public async Task TimedSwipeReportShowsRequestedTimingAndActualNativeEndpoints()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"phone","platform":"ios"},"scenarios":[{"target":"Debug","steps":[
+              {"step":1,"action":{"action":"swipe","ref":"@wheel","direction":"down","distance":35,"durationMs":1000},
+               "adapterCall":{"tool":"mobilecli io swipe","status":"completed", "arguments":{
+                 "device":"phone","x1":201,"y1":766,"x2":201,"y2":801,"durationMs":1000}}}]}]}]}
+            """);
+        var html = new StepHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report))
+            .Render(Assert.Single(ReportScenario.Read(execution)));
+        Assert.Contains("durationMs", html);
+        Assert.Contains("1000", html);
+        Assert.Contains("mobilecli io swipe", html);
+        Assert.Contains("801", html);
+    }
+
+    [Fact]
     public async Task HistoricalStringSwipeActionDoesNotRequireStructuredArguments()
     {
         using var fixture = new DiagnosticFixture();

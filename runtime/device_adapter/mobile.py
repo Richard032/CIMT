@@ -73,6 +73,15 @@ class Mobile:
             if not isinstance(result, dict) or result.get('status') != 'ok':
                 raise DeviceActionError('Device adapter did not confirm replacing the focused field contents')
 
+    def swipe_coordinates(self, x1, y1, x2, y2, durationMs):
+        """Forward AI-selected integer points and timing through the native helper."""
+        self.check()
+        with self._operation("Swipe with explicit duration"):
+            result = self.commands.native(['io', 'swipe', f'{x1},{y1},{x2},{y2}',
+                                           '--duration', str(durationMs)])
+            if not isinstance(result, dict) or result.get('status') != 'ok':
+                raise DeviceActionError('Device adapter did not confirm the timed swipe')
+
     def reset(self, artifact, app_id, target):
         self.target = target
         with self._operation("Reset, install, and request app launch"):

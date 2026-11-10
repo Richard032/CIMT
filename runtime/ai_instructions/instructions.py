@@ -21,6 +21,8 @@ FIELDS = {
                   "description": "Finger movement from the screen start point: up decreases y, down increases y, left decreases x, right increases x."},
     "distance": {"type": ["number", "null"], "minimum": 1,
                  "description": "Swipe distance in device coordinates, not a number of picker rows. Use a ref or x/y target; omit or null for the adapter default."},
+    "durationMs": {"type": ["integer", "null"], "minimum": 0,
+                   "description": "Swipe duration in milliseconds. Requires an explicit target and distance. Null/omitted keeps Mobile MCP timing; 0 uses native platform timing."},
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
@@ -89,6 +91,10 @@ SYSTEM_PROMPT = (
     "Use CimtScreenInfo.screenWidth/screenHeight, not screenshot image pixels. "
     "Optional distance is forwarded unchanged; it must be a finite number at least 1 and needs a target. "
     "An untargeted swipe with x=y=-1 and no distance keeps the adapter's whole-screen gesture. "
+    "Optional durationMs controls swipe timing through the native adapter and requires an explicit target and distance. "
+    "A short swipe at default timing can still fling a wheel across many values. For fine control, consider a slow "
+    "drag, for example distance 35 with durationMs 1000, then inspect the actual result and adjust. "
+    "Duration is forwarded unchanged; native start/end points are rounded to integers and recorded in adapterCall. "
     "Screen coordinates start at the top left: x increases rightward and y downward. "
     "Swipe direction describes finger movement, not the desired item position. "
     "For a conventional vertical picker wheel, move the finger down to bring an item above the selection band "
@@ -260,7 +266,7 @@ class ActionPromptBuilder:
             'actions': ['tap', 'text', 'credential', 'swipe', 'back', 'wait', 'restart', 'recall', 'recover', 'done'],
             'arguments': FIELDS,
             'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
-            'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=40),
+            'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=35, durationMs=1000),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
         return state

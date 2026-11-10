@@ -69,7 +69,7 @@ def command_objects(text):
 
 def command(value):
     """Fill omitted resource arguments. Do not score or approve the AI's content."""
-    defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, credential='',
+    defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, durationMs=None, credential='',
         field='', observation='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
         configuration=[], pathDecisions=[], planStepId=0, context=None,
@@ -81,7 +81,7 @@ def command(value):
             result[name] = supplied
     if result['action'] == 'swipe':
         # Preserve numeric/invalid gesture arguments for execution feedback, never a centre fallback.
-        for name in ['x', 'y', 'distance']:
+        for name in ['x', 'y', 'distance', 'durationMs']:
             supplied = value.get(name, defaults[name])
             # Invalid numbers/containers must still produce valid JSON failure reports.
             if isinstance(supplied, (dict, list)):

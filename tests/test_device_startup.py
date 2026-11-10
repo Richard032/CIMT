@@ -212,6 +212,25 @@ class ConnectionTests(unittest.TestCase):
         return Mobile('helper', commands.device, Path(folder), {'deadline': 99999999999},
                       Redactor({}), commands=commands, client_factory=client, check=check)
 
+    def test_timed_swipe_forwards_native_points_and_duration(self):
+        with tempfile.TemporaryDirectory() as folder:
+            mobile = self.mobile(folder, [])
+            calls = []
+            def swipe(arguments):
+                calls.append(arguments)
+                return {'status': 'ok'}
+            mobile.commands.native = swipe
+            mobile.swipe_coordinates(201, 766, 201, 801, 1000)
+        self.assertEqual(calls, [['io', 'swipe', '201,766,201,801', '--duration', '1000']])
+
+    def test_unconfirmed_timed_swipe_does_not_expose_the_helper_response(self):
+        with tempfile.TemporaryDirectory() as folder:
+            mobile = self.mobile(folder, [])
+            mobile.commands.native = lambda arguments: {'status': 'error', 'error': 'synthetic-secret'}
+            with self.assertRaises(DeviceActionError) as raised:
+                mobile.swipe_coordinates(1, 2, 3, 4, 1000)
+        self.assertNotIn('synthetic-secret', str(raised.exception))
+
     def test_replacement_uses_native_fill_for_the_focused_field(self):
         with tempfile.TemporaryDirectory() as folder:
             mobile = self.mobile(folder, [])

@@ -103,6 +103,12 @@ class ActionExecutor:
             raise ValueError('Invalid swipe direction')
         ref, x, y = action.get('ref', ''), action.get('x', -1), action.get('y', -1)
         distance = action.get('distance')
+        duration = action.get('durationMs')
+        if duration is not None:
+            if type(duration) is not int or duration < 0:
+                raise ValueError('Swipe durationMs must be a nonnegative integer')
+            if distance is None:
+                raise ValueError('Swipe durationMs requires an explicit distance and target')
         if not isinstance(ref, str):
             raise ValueError('Swipe ref must be a string')
         if distance is not None and (not cls._number(distance) or distance < 1):
@@ -136,17 +142,43 @@ class ActionExecutor:
         arguments.update(x=x, y=y)
         if distance is not None:
             arguments['distance'] = distance
+        if duration is not None:
+            arguments['durationMs'] = duration
         return arguments
 
     @classmethod
     def _swipe(cls, mobile, action, elements, record_call=None):
         arguments = cls._swipe_arguments(action, elements)
-        call = dict(tool='mobile_swipe_on_screen', status='attempted',
+        duration = arguments.pop('durationMs', None)
+        tool = 'mobile_swipe_on_screen'
+        if duration is not None:
+            x, y = arguments['x'], arguments['y']
+            distance, direction = arguments['distance'], arguments['direction']
+            dx, dy = {'right': (distance, 0), 'left': (-distance, 0),
+                      'down': (0, distance), 'up': (0, -distance)}[direction]
+            end_x, end_y = x + dx, y + dy
+            if not cls._number(end_x) or not cls._number(end_y):
+                raise ValueError('Swipe endpoint must be finite')
+            # The native helper accepts integer points, as does Mobile MCP's native path.
+            points = [x, y, end_x, end_y]
+            screen = next(element for element in elements if element.get('type') == 'CimtScreenInfo')
+            sizes = [screen['screenWidth'], screen['screenHeight']] * 2
+            if any(not 0 <= point < size for point, size in zip(points, sizes)):
+                raise ValueError('Native swipe start or endpoint is outside the current device screen')
+            points = [math.floor(point + 0.5) for point in points]
+            if any(not 0 <= point < size for point, size in zip(points, sizes)):
+                raise ValueError('Rounded native swipe start or endpoint is outside the current device screen')
+            arguments = dict(zip(['x1', 'y1', 'x2', 'y2'], points), durationMs=duration)
+            tool = 'mobilecli io swipe'
+        call = dict(tool=tool, status='attempted',
                     arguments=dict(device=mobile.device['id'], **arguments))
         if record_call:
             record_call(call)
         try:
-            mobile.call('mobile_swipe_on_screen', **arguments)
+            if duration is None:
+                mobile.call('mobile_swipe_on_screen', **arguments)
+            else:
+                mobile.swipe_coordinates(**arguments)
         except LimitReached:
             call['status'] = 'stopped'
             raise
