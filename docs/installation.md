@@ -1466,3 +1466,7 @@ Install the matching published .NET report host and runtime/actions.py, command_
 ## Generic command syntax feedback — 10 November 2026
 
 Install matching runtime/command_reply.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. The host, mobile adapter, application and private configuration need no change. Malformed command replies now produce generic correction guidance in the next normal AI request, with no partial execution of a readable prefix. Installation does not start a paid run or replay.
+
+## Generic picker guidance — 10 November 2026
+
+Update runtime/ai_instructions/instructions.py under the existing run lock with backup and hash verification. The host, action execution, Mobile MCP, application and test configuration need no change. Normal decisions, context deferral and recovery receive the same generic finger-direction, fine-adjustment and value-confirmation guidance. Installation does not start a paid run or replay.

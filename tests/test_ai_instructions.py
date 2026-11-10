@@ -71,6 +71,29 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(resources['arguments']['distance']['minimum'], 1)
         self.assertIn('null', resources['arguments']['distance']['type'])
 
+    def test_swipe_resources_explain_finger_direction_and_distance_units(self):
+        arguments = state([])['commandResources']['arguments']
+        for meaning in ['up decreases y', 'down increases y', 'left decreases x', 'right increases x']:
+            self.assertIn(meaning, arguments['direction']['description'])
+        self.assertIn('not a number of picker rows', arguments['distance']['description'])
+
+    def test_picker_guidance_survives_context_deferral_and_recovery(self):
+        wheel = dict(ref='@wheel', type='PickerWheel', value='Tier C')
+        body = ActionPromptBuilder('fixture').build('Select the requested tier', '', '', [wheel],
+            b'masked', [dict(observation='x' * 70000)], [], {},
+            exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
+        inputs = json.loads(body['input'][1]['content'][0]['text'])
+        self.assertIn('contextSelectionRequired', inputs)
+        self.assertEqual(inputs['elements'], [wheel])
+        self.assertEqual(inputs['explorationMemory']['recoveryRequest']['id'], 1)
+        prompt = body['input'][0]['content']
+        self.assertIn('move the finger down to bring an item above the selection band', prompt)
+        self.assertIn('up for an item below', prompt)
+        self.assertIn('Use one gesture, then inspect the resulting wheel value and image', prompt)
+        self.assertIn('If you overshoot, reduce distance and reverse direction as needed', prompt)
+        self.assertIn('verify the displayed field value after the picker closes', prompt)
+        self.assertNotIn('OEM', prompt)
+
     def test_instruction_layer_does_not_import_reply_or_execution_services(self):
         forbidden = {'command_reply', 'actions', 'agent', 'openai_transport', 'scenario', 'mcp_client', 'device_adapter'}
         package = Path(__file__).resolve().parents[1] / 'runtime/ai_instructions'

@@ -581,3 +581,10 @@ New step reports show the requested action and exact attempted adapter call. The
 CIMT accepts one JSON command object, an array of command objects, or consecutive objects with optional whitespace. Prefer an array for multiple commands, such as `[{"action":"wait"},{"action":"wait"}]`. Commas between top-level objects without array brackets are invalid.
 
 If any part of a reply has invalid JSON syntax or a non-object command value, none of that reply executes. The next normal AI request includes resourceFeedback explaining why, the JSON error line/column when available, the accepted formats and an example. AI chooses the correction and resends the intended commands. The redacted original reply remains in the report; no automatic command repair, application-specific recovery or separate acknowledgement call is introduced. Existing provider failures and shared budget/time/cancellation limits still apply.
+
+
+## Picker gesture guidance
+
+CIMT tells AI that screen coordinates start at the top left and swipe direction describes finger movement. For a conventional vertical picker, moving the finger down brings an option above the selection band toward it; moving up brings an option below toward it. AI must verify how the actual control responds.
+
+Distance is not a row count. The guidance asks AI to make one gesture, inspect the resulting wheel value and image, reduce/reverse after overshooting, and revise ineffective gestures instead of repeating them. It may consider tapping a visible option at absolute screen coordinates. AI confirms the desired selection using the available confirmation control, then checks the displayed field value after the picker closes. The desired value comes from test instructions. This prompt guidance has offline coverage; successful live selection requires a separately started run/replay.

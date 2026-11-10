@@ -17,9 +17,10 @@ FIELDS = {
     "text": {"type": "string"},
     "x": {"type": "integer"},
     "y": {"type": "integer"},
-    "direction": {"type": "string", "enum": ["", "up", "down", "left", "right"]},
+    "direction": {"type": "string", "enum": ["", "up", "down", "left", "right"],
+                  "description": "Finger movement from the screen start point: up decreases y, down increases y, left decreases x, right increases x."},
     "distance": {"type": ["number", "null"], "minimum": 1,
-                 "description": "Swipe distance in device coordinates. Use a ref or x/y target; omit or null for the adapter default."},
+                 "description": "Swipe distance in device coordinates, not a number of picker rows. Use a ref or x/y target; omit or null for the adapter default."},
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
@@ -84,8 +85,18 @@ SYSTEM_PROMPT = (
     "Use CimtScreenInfo.screenWidth/screenHeight, not screenshot image pixels. "
     "Optional distance is forwarded unchanged; it must be a finite number at least 1 and needs a target. "
     "An untargeted swipe with x=y=-1 and no distance keeps the adapter's whole-screen gesture. "
-    "For small controls such as picker wheels, choose a start point inside the control and a suitable short distance; "
-    "inspect the actual result and select a revised action when needed. The AI chooses the desired value and confirms it. "
+    "Screen coordinates start at the top left: x increases rightward and y downward. "
+    "Swipe direction describes finger movement, not the desired item position. "
+    "For a conventional vertical picker wheel, move the finger down to bring an item above the selection band "
+    "into it, or up for an item below; verify this behavior from observed changes. "
+    "Choose a start point inside the control and a short distance. Distance is not a number of rows, "
+    "and one gesture can skip several values. Use one gesture, then inspect the resulting wheel value and image "
+    "before choosing the next action. If you overshoot, reduce distance and reverse direction as needed. "
+    "An unchanged value may mean you reached an end; do not keep repeating an ineffective gesture. "
+    "Choose a revised direction, distance or start point, or consider tapping a visible option at its absolute "
+    "screen coordinates and verify the result. When the desired value is selected, use Done or the visible "
+    "confirmation control if present, then verify the displayed field value after the picker closes. "
+    "The AI chooses the desired value from the testing instructions and decides each action. "
     "iOS has no system BACK button; choose a tap or swipe for back navigation. Record ambiguity and blocked "
     "paths in observation/remaining. Do not claim exhaustive coverage of unseen states. "
     "Choose done only when the objective is explored or blocked, with explicit remaining "
