@@ -8,6 +8,7 @@ import time
 import zipfile
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from coverage_tracker import CoverageTracker
 from crashes import CrashMonitor, CrashRecovery, StartupGuard
 from errors import DeviceActionError, InfrastructureError, NoProgressAction
@@ -185,7 +186,7 @@ class ScenarioRunner:
                 error = entry.get('actionError') or entry.get('evidenceError') or entry.get('crash', '')
                 self._finish_command(session, status, reason, entry['step'],
                     error=error, target_label=entry.get('controlLabel', ''), adapter_call=entry.get('adapterCall'),
-                    action_feedback=entry.get('actionFeedback', ''))
+                    action_feedback=entry.get('actionFeedback', ''), completed_at=entry.get('completedAt'))
                 self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
@@ -346,10 +347,11 @@ class ScenarioRunner:
         return action
 
     @staticmethod
-    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None, action_feedback=''):
+    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None,
+                        action_feedback='', completed_at=None):
         row = session.commands.finish(status, reason, step)
         if row is not None:
-            session.feedback.finish(row, error, target_label, adapter_call, action_feedback)
+            session.feedback.finish(row, error, target_label, adapter_call, action_feedback, completed_at)
 
     def _save_plan(self, session):
         session.feedback.sync(session.commands.records)
@@ -376,8 +378,12 @@ class ScenarioRunner:
                 if action['action'] == 'swipe':
                     feedback = self.actions.execute(mobile, action, session.elements,
                         record_call=lambda call: entry.update(adapterCall=call))
+                elif action['action'] == 'wait':
+                    feedback = self.actions.execute(mobile, action, session.elements,
+                        record_wait=lambda message: entry.update(actionFeedback=message))
                 else:
                     feedback = self.actions.execute(mobile, action, session.elements)
+                entry['completedAt'] = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
                 entry['actionDispatched'] = True
                 if feedback:
                     entry['actionFeedback'] = feedback

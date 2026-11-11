@@ -22,7 +22,7 @@ FIELDS = {
     "distance": {"type": ["number", "null"], "minimum": 1,
                  "description": "Swipe distance in device coordinates, not a number of picker rows. Use a ref or x/y target; omit or null for the adapter default."},
     "durationMs": {"type": ["integer", "null"], "minimum": 0,
-                   "description": "Swipe duration in milliseconds. Requires an explicit target and distance. Null/omitted keeps Mobile MCP timing; 0 uses native platform timing."},
+                   "description": "Duration in milliseconds. Wait defaults to 2000 if null or omitted. Swipe needs an explicit target and distance when durationMs is set; null or omitted keeps Mobile MCP timing and 0 uses native platform timing."},
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
@@ -53,6 +53,12 @@ SYSTEM_PROMPT = (
     "Every next normal request supplies batchFeedback: the complete ordered execution path, including unchanged "
     "commands, actual statuses, observation references, warnings, errors and cancelled commands. "
     "Read every step rather than assuming only the final screen matters. No separate acknowledgement call is added. "
+    "For wait, use durationMs as a nonnegative integer, or omit it for 2000 ms. Wait runs locally and can be "
+    "interrupted by cancellation or the run deadline. Read the actual elapsed wait in actionFeedback. "
+    "For a timed check, keep the triggering command's completedAt UTC timestamp in your context summary "
+    "or retain its batch. Compare it with observedAt on a later observation or in currentEvidence. "
+    "These observation times apply even when the screen has not changed. Preserve the original start time "
+    "until the check is decided, and only wait for the remaining time if the condition still needs observation. "
     "Each batch starts with one initial observation; every result supplies the next state, without duplicate before images. "
     "Independent observed changes are separate path events. Unavailable observations are unknown, not unchanged. "
     "Successful dispatch is not proof of correct application behavior. Android ANR is a warning, not alone a crash or stop. "
@@ -265,6 +271,7 @@ class ActionPromptBuilder:
                 context=dict(summary='Observed progress and next unfinished step', includeAll=[], records=[])),
             'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
             'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=35, durationMs=1000),
+            'waitExample': dict(action='wait', durationMs=30000),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
         return state

@@ -317,6 +317,70 @@ class ConfiguredModelTests(unittest.TestCase):
                 self.assertFalse(pathlib.Path(folder, "devices").exists())
 
 
+class WaitActionTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 10.0
+        self.control = RunControl(110, clock=lambda: self.now)
+        self.executor = ActionExecutor({}, Redactor({}), self.control.deadline,
+            sleep=self.advance, clock=lambda: self.now, check=self.control.check, monotonic=lambda: self.now)
+        self.mobile = SimpleNamespace(readiness=lambda: None)
+        self.feedback = []
+
+    def advance(self, seconds):
+        self.now += seconds
+
+    def execute(self, **arguments):
+        self.executor.execute(self.mobile, dict(action='wait', **arguments), [], record_wait=self.feedback.append)
+
+    def test_explicit_wait_honors_full_requested_duration(self):
+        self.execute(durationMs=60000)
+        self.assertEqual(self.now, 70)
+        self.assertEqual(self.feedback, ['Wait completed. Requested 60000 ms. Actual elapsed wait 60000 ms.'])
+
+    def test_omitted_and_null_duration_both_wait_two_seconds(self):
+        self.execute()
+        self.execute(durationMs=None)
+        self.assertEqual(self.now, 14)
+        self.assertEqual(self.feedback, ['Wait completed. Requested 2000 ms. Actual elapsed wait 2000 ms.'] * 2)
+
+    def test_zero_wait_skips_sleep(self):
+        self.execute(durationMs=0)
+        self.assertEqual(self.now, 10)
+        self.assertEqual(self.feedback, ['Wait completed. Requested 0 ms. Actual elapsed wait 0 ms.'])
+
+    def test_actual_elapsed_wait_includes_sleep_overshoot(self):
+        self.executor.sleep = lambda seconds: self.advance(seconds + 0.025)
+        self.execute(durationMs=50)
+        self.assertEqual(self.feedback, ['Wait completed. Requested 50 ms. Actual elapsed wait 75 ms.'])
+
+    def test_invalid_durations_fail_before_sleeping(self):
+        for duration in [-1, True, 1.5, '30000', [], {}, float('inf')]:
+            with self.subTest(duration=duration), self.assertRaisesRegex(ValueError, 'nonnegative integer'):
+                self.execute(durationMs=duration)
+        self.assertEqual(self.now, 10)
+
+    def test_deadline_interrupts_wait_and_reports_actual_elapsed_time(self):
+        self.now = 109.75
+        with self.assertRaisesRegex(LimitReached, 'Whole-run time limit'):
+            self.execute(durationMs=1000)
+        self.assertEqual(self.now, 110)
+        self.assertEqual(self.feedback, ['Wait interrupted. Requested 1000 ms. Actual elapsed wait 250 ms.'])
+
+    def test_user_or_shared_stop_interrupts_at_the_next_check(self):
+        for stop in ('interrupt', 'stop'):
+            with self.subTest(stop=stop):
+                self.setUp()
+
+                def sleep_and_stop(seconds):
+                    self.advance(seconds)
+                    getattr(self.control, stop)()
+
+                self.executor.sleep = sleep_and_stop
+                with self.assertRaises(LimitReached):
+                    self.execute(durationMs=30000)
+                self.assertEqual(self.feedback, ['Wait interrupted. Requested 30000 ms. Actual elapsed wait 100 ms.'])
+
+
 class ScenarioTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -1232,6 +1296,48 @@ class ScenarioTests(unittest.TestCase):
         self.assertNotIn('actionFeedback', result['scenarios'][0]['steps'][1])
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
         self.assertIn('Replacement was not confirmed', state['resourceFeedback'])
+
+    def test_wait_timing_and_original_tap_timestamp_reach_the_ai(self):
+        now = 0.0
+        self.control = RunControl(120, clock=lambda: now)
+
+        def sleep(seconds):
+            nonlocal now
+            now += seconds
+
+        self.actions = ActionExecutor({}, self.redactor, self.control.deadline,
+            sleep=sleep, clock=lambda: now, check=self.control.check, monotonic=lambda: now)
+        selection = dict(summary='Timed check', includeAll=[], records=[dict(collection='batches', id='@0')])
+        agent, _, transport = api_agent([
+            action('tap', ref='@e1'), action('wait', durationMs=30000, context=selection), action()])
+        result = {'scenarios': []}
+        self.create_runner().run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+
+        tap_request = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        tap = tap_request['batchFeedback'][0]['path'][0]
+        self.assertLessEqual(tap['completedAt'], tap['observedAt'])
+        request = json.loads(transport.bodies[2]['input'][1]['content'][0]['text'])
+        wait = request['batchFeedback'][0]['path'][0]
+        self.assertEqual(wait['target']['durationMs'], 30000)
+        self.assertEqual(wait['uiChange'], 'no observed change')
+        self.assertEqual(wait['actionFeedback'],
+                         'Wait completed. Requested 30000 ms. Actual elapsed wait 30000 ms.')
+        self.assertEqual(request['explorationMemory']['selectedBatches'][0]['path'][0]['completedAt'],
+                         tap['completedAt'])
+        self.assertLessEqual(wait['observedAt'], request['currentEvidence']['observedAt'])
+
+    def test_unsupported_wait_argument_cancels_the_queued_tail(self):
+        batch = json.dumps([action('wait', distance=40), action('tap', ref='@e1')])
+        agent, _, transport = api_agent([batch, action()])
+        result = {'scenarios': []}
+        mobile = FakeMobile(self.root)
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+
+        request = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        path = request['batchFeedback'][0]['path']
+        self.assertEqual([row['status'] for row in path], ['failed', 'cancelled'])
+        self.assertIn('Wait accepts only durationMs', request['resourceFeedback'])
+        self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
 
     def test_timed_swipe_call_and_duration_reach_next_ai_batch_feedback(self):
         agent, _, transport = api_agent([action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000), action()])

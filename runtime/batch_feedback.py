@@ -20,7 +20,7 @@ class BatchFeedback:
         self.warnings.update({row['id']: deepcopy(row) for row in warnings})
         warning_ids = [row['id'] for row in warnings]
         if action_result and self.current is not None:
-            self.current.update(observation=identifier, warnings=warning_ids,
+            self.current.update(observation=identifier, observedAt=observation['timestamp'], warnings=warning_ids,
                 uiChange='changed' if identifier != self.latest else 'no observed change')
         elif self.latest is not None and identifier != self.latest and self.batches:
             self.batches[-1]['path'].append(dict(kind='observation', observation=identifier,
@@ -45,9 +45,11 @@ class BatchFeedback:
             status=row['status'], step=row.get('step'), observation=None,
             uiChange='observation unavailable', warnings=[], error='')
 
-    def finish(self, row, error='', target_label='', adapter_call=None, action_feedback=''):
+    def finish(self, row, error='', target_label='', adapter_call=None, action_feedback='', completed_at=None):
         if self.current is not None:
             self.current.update(status=row['status'], step=row.get('step'), error=error, targetLabel=target_label)
+            if completed_at is not None:
+                self.current['completedAt'] = completed_at
             if action_feedback:
                 self.current['actionFeedback'] = action_feedback
             if adapter_call is not None:

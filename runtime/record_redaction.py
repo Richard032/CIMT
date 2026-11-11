@@ -35,7 +35,7 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], {"action": self.action, "adapterCall": self.adapter_call})
+        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation", "completedAt"], {"action": self.action, "adapterCall": self.adapter_call})
 
     def adapter_call(self, value):
         return self._record(value, ['tool', 'status'], {
@@ -88,7 +88,7 @@ class RecordRedactor:
             'warnings': lambda rows: self._items(rows, self.warning)})
 
     def batch_event(self, value):
-        return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp'], {
+        return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp', 'completedAt', 'observedAt'], {
             'warnings': lambda rows: list(rows),
             'adapterCall': self.adapter_call,
             'target': lambda row: self._record(row, ['ref', 'direction', 'credential', 'field'])})

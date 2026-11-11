@@ -60,6 +60,18 @@ class BatchFeedbackTests(unittest.TestCase):
         self.assertEqual(path[0]['uiChange'], 'no observed change')
         self.assertEqual(path[0]['observation'], 'A')
 
+    def test_reused_observation_keeps_the_new_capture_time_on_the_command(self):
+        self.start([dict(action='wait')])
+        self.queue.take()
+        self.feedback.take(self.queue.current)
+        later = dict(observation('A'), timestamp='2026-01-01T00:00:30Z')
+        self.feedback.observe(later, [], action_result=True)
+        self.feedback.finish(self.queue.finish('executed', step=1))
+
+        batch = self.feedback.pending()[0]
+        self.assertEqual(batch['path'][0]['observedAt'], later['timestamp'])
+        self.assertEqual(batch['observations'], [observation('A')])
+
     def test_missing_observation_is_not_replaced_with_the_previous_state(self):
         self.start([dict(action='tap')])
         self.perform(error='Observation failed')
