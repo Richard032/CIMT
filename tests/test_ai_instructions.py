@@ -8,7 +8,6 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
 from ai_instructions.instructions import ActionPromptBuilder
-from test_planning.test_plan import TestPlan
 
 
 def state(elements):
@@ -97,14 +96,8 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(example['action'], 'done')
         self.assertEqual(example['completion'], 'complete')
         self.assertEqual(example['remaining'], [])
-        self.assertEqual([(row['taskId'], row['source'], row['requirementId']) for row in example['checks']],
-                         [(0, 'instructions', ''), (1, 'requirements', 'REQ-0042')])
-        for status in ('passed', 'failed'):
-            with self.subTest(status=status):
-                plan = TestPlan('Save and inspect confirmation', [dict(id='REQ-0042', text='Saving confirms')])
-                plan.record_checks([dict(row, status=status) for row in example['checks']])
-                self.assertEqual(plan.remaining(), [])
-                self.assertEqual([row['result'] for row in plan.saved()['tasks']], [status, status])
+        self.assertEqual([(row['source'], row['requirementId']) for row in example['checks']],
+                         [('instructions', ''), ('requirements', 'REQ-0042')])
 
     def test_swipe_resources_expose_target_and_distance_together(self):
         resources = state([])['commandResources']

@@ -149,12 +149,9 @@ SYSTEM_PROMPT = (
     "Assess your own source links, interpretation and plan correctness. "
     "Navigation is not a passed test. A done response needs an instructions check for taskId 0. "
     "If the same new evidence decides both the objective and a requirement, include separate checks in done. "
-    "Use source instructions and taskId 0 for the objective. For a requirement, use source requirements, "
-    "its exact requirementId from the catalogue, and the matching taskId from testPlan.tasks. "
+    "Use source instructions for the objective and source requirements with the exact catalogue ID for the requirement. "
     "An instruction check leaves the requirement's status unchanged. "
-    "A decisive pass or failure can finish with completion complete and remaining empty. "
-    "Record evidence in checks or observation. Reserve remaining for work that still needs testing. "
-    "See commandResources.doneExample and use your run's IDs and evidence. "
+    "See commandResources.doneExample and replace its example ID and observations with your run's evidence. "
     "Use discoveredControls to identify additional current refs that are actual user inputs, including generic WebView controls. "
     "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
     "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
@@ -290,7 +287,7 @@ class ActionPromptBuilder:
             'waitExample': dict(action='wait', durationMs=30000),
             'doneExample': dict(action='done', completion='complete', remaining=[], checks=[
                 dict(example_check, source='instructions', requirementId=''),
-                dict(example_check, taskId=1, source='requirements', requirementId='REQ-0042'),
+                dict(example_check, source='requirements', requirementId='REQ-0042'),
             ]),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
