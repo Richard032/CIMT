@@ -25,6 +25,7 @@ class CompletionCritic:
                     'Check all required repetitions and whether a decisive failure permits early termination. '
                     'For timing, consider the earliest observation that supports the stated outcome; do not treat a later observation as the first without evidence. '
                     'decisionObservedAt is the screen time for an AI explanation, while observedAt is the screen time after that action; explanations are interpretations, not direct proof. '
+                    'Use recentScreens as masked UI evidence where available; it is a limited subset, and missing screens or elements are unknown. '
                     'The evidence ledger may omit earlier records and AI observations may be mistaken; say when '
                     'evidence is insufficient. Return only a JSON object with decision equal to agree or revise '
                     'and a nonempty feedback string explaining the evidence and any missing work.')},

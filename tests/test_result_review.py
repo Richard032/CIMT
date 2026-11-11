@@ -39,6 +39,27 @@ class EvidenceLedgerTests(unittest.TestCase):
         ledger = EvidenceLedger().snapshot(result)
         self.assertEqual(ledger['steps'][0]['observedAt'], '2026-01-01T00:00:03Z')
 
+    def test_recent_screen_uses_recorded_masked_ui_and_observation_time(self):
+        result = dict(steps=[], checks=[],
+            batchFeedback=dict(batches=[dict(
+                observations=[dict(id='screen-1', uiObservation='ui-1')],
+                path=[dict(kind='command', status='executed', step=2, observation='screen-1', observedAt='2026-01-01T00:00:03Z')])]),
+            exploration=dict(applicationMap=dict(observations=[dict(id='ui-1',
+                elements=[dict(type='Text', label='Ready', value='ignored')])])) )
+        screen = EvidenceLedger().snapshot(result)['recentScreens'][0]
+        self.assertEqual(screen['observedAt'], '2026-01-01T00:00:03Z')
+        self.assertEqual(screen['elements'], [dict(type='Text', label='Ready')])
+
+    def test_recent_screen_discloses_omitted_elements(self):
+        result = dict(steps=[], checks=[],
+            batchFeedback=dict(batches=[dict(observations=[dict(id='s', uiObservation='u')],
+                path=[dict(kind='command', status='executed', step=1, observation='s', observedAt='2026-01-01T00:00:03Z')])]),
+            exploration=dict(applicationMap=dict(observations=[dict(id='u',
+                elements=[dict(label=str(i)) for i in range(43)])])))
+        screen = EvidenceLedger().snapshot(result)['recentScreens'][0]
+        self.assertEqual(screen['omittedElements'], 3)
+        self.assertEqual(len(screen['elements']), 40)
+
     def test_keeps_distinct_check_evidence(self):
         result = dict(steps=[], checks=[dict(id=3, status='failed', expected='Ready', observed='Still loading')])
         ledger = EvidenceLedger().snapshot(result)

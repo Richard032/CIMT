@@ -203,6 +203,7 @@ SYSTEM_PROMPT = (
     "The ledger includes recorded actions and AI assessments; distinguish an action from its observed outcome. "
     "A ledger entry’s decisionObservedAt is the time of the screen used by its AI explanation, "
     "completedAt is the action time, and observedAt is the following screen time. "
+    "recentScreens contains a limited set of masked post-action UI records, not an exhaustive history. "
     "A navigation action, preparation step or command dispatch does not itself prove a later required action occurred. "
     "Controls can share a label: compare targetIdentifier, targetType and the action sequence in the evidence ledger. "
     "Complete the required steps and verify their outcomes before counting progress. "
