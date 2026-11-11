@@ -6,6 +6,7 @@ from budget import MAX_OUTPUT
 from check_results import CHECK_SCHEMA
 from test_planning.planning_contract import FIELDS as PLAN_FIELDS
 from .controls import human_interface
+from chat.conversation import Conversation
 
 FIELDS = {
     "action": {
@@ -192,6 +193,9 @@ SYSTEM_PROMPT = (
     "The conversation contains previous masked screen observations, your replies, and action feedback "
     "in order. Use that history to distinguish completed actions from planned ones and verify progress. "
     "Earlier conversation screenshots are omitted; use the current screenshot for the current screen. "
+    "Source instructions and command descriptions are provided in the first turn. "
+    "Later lists of prior records include only new or changed records; earlier values remain in the conversation. "
+    "An empty incremental list does not mean earlier records were removed. "
     "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
@@ -208,16 +212,23 @@ SYSTEM_PROMPT = (
 )
 
 
-def without_historical_images(message):
-    """Preserve conversation text while omitting image payloads from earlier turns."""
-    if message.get('role') != 'user' or not isinstance(message.get('content'), list):
-        return message
-    content = [
-        dict(type='input_text', text='[Screenshot omitted from conversation history.]')
-        if item.get('type') == 'input_image' else item
-        for item in message['content']
-    ]
-    return dict(message, content=content)
+
+STABLE_FIELDS = ('instructions', 'requirements', 'setup', 'credentialAliases', 'commandResources')
+RECORD_PATHS = (
+    ('recentActions',),
+    ('requirementResults',),
+    ('explorationMemory', 'paths'),
+    ('explorationMemory', 'testPlan', 'tasks'),
+    ('explorationMemory', 'applicationMap', 'states'),
+    ('explorationMemory', 'applicationMap', 'transitions'),
+    ('explorationMemory', 'applicationMap', 'configuration'),
+    ('explorationMemory', 'selectedBatches'),
+    ('explorationMemory', 'selectedCommands'),
+    ('explorationMemory', 'selectedChecks'),
+    ('explorationMemory', 'selectedDecisions'),
+    ('explorationMemory', 'selectedObservations'),
+    ('explorationMemory', 'routes'),
+)
 
 
 class ActionPromptBuilder:
@@ -242,9 +253,12 @@ class ActionPromptBuilder:
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
         historical_images = (exploration_memory or {}).get('historicalImages', [])
-        conversation = (exploration_memory or {}).get('conversation', [])
+        conversation = (exploration_memory or {}).get('conversation')
+        if not isinstance(conversation, Conversation):
+            conversation = Conversation(conversation)
         state = self.state(instructions, requirements, setup, elements, screenshot, history,
             aliases, coverage, requirement_results, resource_feedback, exploration_memory)
+        state = conversation.prepare(state, STABLE_FIELDS, RECORD_PATHS)
         body = {
             "model": self.model,
             "store": False,
@@ -252,11 +266,9 @@ class ActionPromptBuilder:
             "max_output_tokens": MAX_OUTPUT,
             "truncation": "disabled",
             "reasoning": {"effort": "low"},
-            "input": [
+            "input": conversation.build_messages(
                 {"role": "system", "content": SYSTEM_PROMPT},
-                *(without_historical_images(message) for message in conversation),
-                self._screen_message(state, screenshot, historical_images),
-            ],
+                self._screen_message(state, screenshot, historical_images)),
         }
         return body
 

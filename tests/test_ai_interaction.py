@@ -99,7 +99,25 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual(next_request[3]['content'][1]['type'], 'input_image')
         self.assertFalse(any(part['type'] == 'input_image' for part in next_request[1]['content']))
         self.assertFalse(any(part['type'] == 'input_image'
-                             for part in self.session.conversation[0]['content']))
+                             for part in self.session.conversation.messages[0]['content']))
+
+    def test_later_request_sends_new_records_without_repeating_original_inputs(self):
+        self.session.history.append(dict(action='tap', observation='First step'))
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.session.history.append(dict(action='wait', observation='Second step'))
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        messages = transport.bodies[1]['input']
+        first = json.loads(messages[1]['content'][0]['text'])
+        current = json.loads(messages[-1]['content'][0]['text'])
+        self.assertEqual(first['instructions'], 'Explore')
+        self.assertNotIn('instructions', current)
+        self.assertNotIn('commandResources', current)
+        self.assertEqual([row['observation'] for row in first['recentActions']], ['First step'])
+        self.assertEqual([row['observation'] for row in current['recentActions']], ['Second step'])
+        self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(messages[-1]['content'][1]['type'], 'input_image')
 
     def test_conversation_is_scoped_to_the_scenario(self):
         agent, _, transport = api_agent([action(), action()])

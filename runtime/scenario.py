@@ -18,6 +18,7 @@ from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from ai_interaction import AiInteraction
 from command_queue import CommandQueue
+from chat.conversation import Conversation
 from batch_feedback import BatchFeedback
 from observation_recorder import ObservationRecorder
 from test_planning.planner import TestPlanner
@@ -37,7 +38,7 @@ class ScenarioSession:
     image: bytes
     active: str = ""
     history: list = field(default_factory=list)
-    conversation: list = field(default_factory=list)
+    conversation: Conversation = field(default_factory=Conversation)
     coverage: CoverageTracker = field(default_factory=CoverageTracker)
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
@@ -135,6 +136,8 @@ class ScenarioRunner:
                 return
             action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
+                if action['action'] == 'recall':
+                    session.conversation.request_records()
                 self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
                 publish()
