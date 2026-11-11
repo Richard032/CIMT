@@ -768,6 +768,28 @@ class ScenarioTests(unittest.TestCase):
             executor.execute(mobile, action('restart'), mobile.elements)
         self.assertEqual([name for name, _ in mobile.calls], ['mobile_terminate_app'])
 
+    def test_unidentifiable_credential_target_is_rejected_without_typing(self):
+        config = {'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}}
+        redactor = Redactor(config)
+        executor = ActionExecutor(config, redactor, time.time() + 30)
+        mobile = FakeMobile(self.root, elements=[dict(ref='@e1', type='TextInput')])
+        request = action('credential', ref='@e1', credential='test', field='username')
+        with self.assertRaisesRegex(ValueError, 'no secret was entered'):
+            executor.execute(mobile, request, mobile.elements)
+        self.assertFalse(mobile.calls)
+        self.assertFalse(redactor.ids)
+
+    def test_rejected_unidentifiable_credential_returns_feedback_to_ai(self):
+        self.actions.config = {'credentials': {'test': {'username': 'synthetic-user', 'password': 'synthetic-password'}}}
+        mobile = FakeMobile(self.root, elements=[dict(ref='@e1', type='TextInput')])
+        result, agent = self.run_scenario(mobile, [
+            action('credential', ref='@e1', credential='test', field='username'),
+            action(completion='blocked', checks=[]),
+        ])
+        self.assertIn('no secret was entered', agent.calls[1][-2])
+        self.assertFalse(any(name == 'replace_text' for name, _ in mobile.calls))
+        self.assertEqual(result['completion'], 'incomplete')
+
     def test_action_ledger_retains_the_observed_target_identity(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action('tap', ref='@e1'), action()])
         row = next(item for item in result['evidenceLedger']['steps']

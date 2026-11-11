@@ -238,7 +238,7 @@ class RuntimeChecks(unittest.TestCase):
         )
         execution = ActionExecutor(config, Redactor(config), time.time() + 30)
         action = {"action": "credential", "ref": "@e1", "credential": "test", "field": "password"}
-        with self.assertRaises(InfrastructureError):
+        with self.assertRaises(ValueError):
             execution.execute(mobile, action, [{"ref": "@e1"}])
         self.assertFalse(calls)
 

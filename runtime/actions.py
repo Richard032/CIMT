@@ -63,8 +63,9 @@ class ActionExecutor:
         element = self._credential_element(action["ref"], elements)
         identifier = element.get("identifier")
         if not identifier:
-            raise InfrastructureError(
-                "Credential entry requires a stable element ID for reliable masking"
+            raise ValueError(
+                "Credential target has no stable element ID for reliable masking; no secret was entered. "
+                "Choose a current enabled input with a stable identifier."
             )
         # Register the mask before typing. The next screenshot must hide this field.
         self.redactor.ids.add(identifier)
