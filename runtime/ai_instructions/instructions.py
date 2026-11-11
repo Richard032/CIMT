@@ -80,6 +80,8 @@ SYSTEM_PROMPT = (
     "for a fresh decision; it cannot complete the objective using predicted outcomes. "
     "To end the objective, return done first in a new reply after reviewing the actual feedback. "
     "You see batch results only in the next request, not between commands in your reply. "
+    "Do not duplicate a command unless the repeated action is intentional and justified. "
+    "A screen change can make a previous ref point to a different control; request a fresh decision before using a target on the changed screen. "
     "Do not append a blocked finish merely because results of your proposed commands have not arrived. "
     "Use one command when you need new evidence before deciding the following action. "
     "Other unreadable text is retained as your note; CIMT does not infer commands from prose. "

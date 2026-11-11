@@ -74,6 +74,12 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('A step from an earlier iteration cannot satisfy a new one', prompt)
         self.assertIn('prefilled or masked value does not prove', prompt)
 
+    def test_prompt_warns_about_duplicate_commands_and_stale_refs(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Do not duplicate a command', prompt)
+        self.assertIn('previous ref point to a different control', prompt)
+
     def test_prompt_requests_a_prefixed_explanation_for_each_command(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
