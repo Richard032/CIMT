@@ -16,6 +16,7 @@ class Agent:
         self.model = config["ai-model"]["name"]
         self.clock = clock
         self.last_request_timing = None
+        self.last_user_message = None
         self.budget = budget
         self.transport = transport or OpenAiTransport(config["ai-model"]["api-key"], deadline)
         self.prompts = prompts or ActionPromptBuilder(self.model)
@@ -53,10 +54,11 @@ class Agent:
             resource_feedback,
             exploration_memory,
         )
+        self.last_user_message = body['input'][-1]
         return read_reply(self._request_action(body))
 
     def _request_action(self, body):
-        state = json.loads(body['input'][1]['content'][0]['text'])
+        state = json.loads(body['input'][-1]['content'][0]['text'])
         kind = ('context selection' if 'contextSelectionRequired' in state else
             'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision')
         return self._request(body, kind)

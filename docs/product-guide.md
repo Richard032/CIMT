@@ -156,7 +156,9 @@ Set `execution.interactive-pauses: true` for local acknowledgement before model 
 
 ## AI interaction, limits and outcomes
 
-AI chooses actions, targets, exploration and recovery. CIMT supplies original instructions, current masked evidence, available resources and AI-selected context. It checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. It does not choose another button because a requested menu is absent. Mobile MCP is a tool adapter, not another agent.
+AI chooses actions, targets, exploration and recovery. CIMT supplies original instructions, current masked evidence, available resources and the complete prior conversation for the current device and target, including earlier masked screenshots and AI replies. It checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. It does not choose another button because a requested menu is absent. Mobile MCP is a tool adapter, not another agent.
+
+The conversation is sent again with each request. Longer runs and historical screenshots increase input usage and can reach the provider context limit or the configured budget. CIMT keeps each scenario’s conversation separate.
 
 Commands execute FIFO. Failure cancels the pending tail; complete ordered results are supplied to the next normal decision request, subject to stopping rules. Targeted swipes preserve the requested target/distance; refs resolve from current bounds, coordinates are absolute device coordinates. Invalid arguments return generic corrective feedback. Picker guidance explains gesture direction and observation, but the AI must identify the desired picker/value from test instructions and verify it. See [command resources](ai-resource-exchange.md), [command queue](command-queue.md), [batch feedback](batch-feedback.md), and [instruction context](ai-instruction-context.md).
 

@@ -5,7 +5,6 @@ import json
 from budget import MAX_OUTPUT
 from check_results import CHECK_SCHEMA
 from test_planning.planning_contract import FIELDS as PLAN_FIELDS
-from request_context import prepare_context
 from .controls import human_interface
 
 FIELDS = {
@@ -190,33 +189,14 @@ SYSTEM_PROMPT = (
     "For overridden, instructionQuote must be an exact nonempty quote from testing instructions "
     "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
     "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive. "
-    "You choose context relevance. Alongside your first normal action, supply an explicit context selection "
-    "with a short summary of observed progress and the next unfinished step; commandResources.contextExample shows how. "
-    "Before your first selection, bootstrap supplies all available history and that payload grows after actions. "
-    "Use includeAll: [] and records: [] for only your summary, current evidence and mandatory batch feedback; "
-    "choose specific historical records when needed. Keep verified progress distinct from planned actions. "
-    "Return context null to keep the previous selection/summary; before any selection, null keeps bootstrap history. "
-    "recall with no context or context null keeps the existing selection; it does not reduce history. "
-    "All original records remain stored and retrievable; CIMT does not rank or trim them. "
-    "catalogue gives collection counts. Tasks/requirements/states/paths use IDs; actions/checks/transitions/decisions "
-    "use zero-based addresses; configuration uses its control ID. Any collection supports @0, exact half-open ranges "
-    "such as @0:10, and latest. Select screenshots for verified historical pixels, labelled separately from the current image. "
-    "batches retains complete ordered outcomes and evidence references; commands retains IDs, order, status and "
-    "unexecuted requests. Routes link observed edges to your selected task targetState. "
-    "batchFeedback always supplies newly completed ordered paths independently of selected history. "
-    "includeAll loads the ENTIRE named collections; adding an individual record does not narrow it. "
-    "For just the latest observation, use includeAll: [] and records: [{collection: observations, id: latest}]. "
+    "The conversation contains previous masked screen observations, your replies, and action feedback "
+    "in order. Use that history to distinguish completed actions from planned ones and verify progress. "
+    "Historical screenshots show the screen at the earlier turn; use the latest screenshot for the current screen. "
+    "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The elements and screenshot also contain observations such as status text and loading indicators. "
-    "contextUsage reports exact selected UTF-8 bytes "
-    "and per-collection sizes, not relevance scores. currentEvidence identifies capture time and evidence reuse. "
-    "Update context with normal actions as progress changes; recall retrieves chosen records without a device action. "
-    "If contextSelectionRequired appears, selected history was too large and was not supplied. selectionActive tells "
-    "whether you have made an explicit selection. Its exampleReply shows a complete recall command choosing compact "
-    "context; you may instead attach that context to your next normal action. Choose the summary and records yourself. "
-    "You may continue from supplied evidence or explain a blocker. Original instructions, requirements and evidence "
-    "remain authoritative; your summary is working memory. "
+    "The original instructions and requirements remain authoritative. "
     "A repetition signal is a request for assessment, not proof of an app defect. When recoveryRequest is present, "
     "acknowledge its id in recovery and explain your revised approach, intentional repetition, or blocker. "
     "Use recall to retrieve omitted history before deciding if necessary. Choose recovery decision replan to try your "
@@ -250,9 +230,9 @@ class ActionPromptBuilder:
     ):
         """Build model input from masked evidence, instructions, and credential aliases."""
         historical_images = (exploration_memory or {}).get('historicalImages', [])
+        conversation = (exploration_memory or {}).get('conversation', [])
         state = self.state(instructions, requirements, setup, elements, screenshot, history,
             aliases, coverage, requirement_results, resource_feedback, exploration_memory)
-        state = prepare_context(state)
         body = {
             "model": self.model,
             "store": False,
@@ -262,7 +242,8 @@ class ActionPromptBuilder:
             "reasoning": {"effort": "low"},
             "input": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                self._screen_message(state, screenshot, [] if 'contextSelectionRequired' in state else historical_images),
+                *conversation,
+                self._screen_message(state, screenshot, historical_images),
             ],
         }
         return body
@@ -273,6 +254,7 @@ class ActionPromptBuilder:
         """Assemble the same state for capacity checks and provider requests."""
         memory = dict(exploration_memory or {})
         memory.pop('historicalImages', None)
+        memory.pop('conversation', None)
         batch_feedback = memory.pop('batchFeedback', [])
         current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory

@@ -2,8 +2,6 @@
 
 import json
 from datetime import datetime, timezone
-from request_context import context_usage
-from .instructions import ActionPromptBuilder
 
 
 class InstructionContext:
@@ -14,8 +12,8 @@ class InstructionContext:
         self.credential_aliases = list(credential_aliases)
         self.redactor = redactor
 
-    def prepare(self, session, device, evidence, reused=False):
-        """Use the AI's context selection without choosing relevant history for it."""
+    def prepare(self, session, device, evidence):
+        """Prepare the current screen and scenario conversation for the AI."""
         screenshots = list(evidence.images.values())
         session.result['screenshots'] = screenshots
         memory = session.planner.context(session.elements, session.history,
@@ -26,19 +24,15 @@ class InstructionContext:
         memory['batchFeedback'] = session.feedback.pending()
         memory['currentWarnings'] = [session.feedback.warnings[key] for key in session.feedback.current_warnings]
         memory = self.redactor.records.request_context(memory)
-        memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=reused)
+        memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
         # Historical pixels are supplied only when the AI selected them.
+        memory['conversation'] = session.conversation
         memory['historicalImages'] = (evidence.load_images(memory['selectedScreenshots'])
             if session.planner.context_memory.selection is not None else [])
         return [self.inputs['instructions'], self.inputs.get('requirements', ''),
             self._setup(session, device), session.elements, session.image, session.history,
             self.credential_aliases, session.coverage.snapshot(), session.result['requirements'],
             session.resource_feedback, memory]
-
-    @staticmethod
-    def selection_required(arguments):
-        usage = context_usage(ActionPromptBuilder.state(*arguments))
-        return usage['selectedBytes'] > usage['allowanceBytes']
 
     def observe(self, mobile, session, evidence=None):
         """Ask the device adapter for fresh masked UI information and keep it."""

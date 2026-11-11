@@ -91,14 +91,13 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(example['context']['records'], [])
         self.assertTrue(example['context']['summary'])
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
-        self.assertIn('Alongside your first normal action', body['input'][0]['content'])
-        self.assertIn('null keeps bootstrap history', body['input'][0]['content'])
+        self.assertIn('conversation contains previous masked screen observations', body['input'][0]['content'])
 
-    def test_prompt_explains_whole_collection_and_unchanged_selection(self):
+    def test_prompt_explains_conversation_history(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
-        self.assertIn('ENTIRE named collections', prompt)
-        self.assertIn('keeps the existing selection', prompt)
+        self.assertIn('your replies, and action feedback', prompt)
+        self.assertIn('Historical screenshots show the screen at the earlier turn', prompt)
         self.assertIn('explicit target', prompt)
 
     def test_prompt_explains_whole_reply_syntax_feedback(self):
@@ -152,13 +151,13 @@ class InstructionTests(unittest.TestCase):
             self.assertIn(meaning, arguments['direction']['description'])
         self.assertIn('not a number of picker rows', arguments['distance']['description'])
 
-    def test_picker_guidance_survives_context_deferral_and_recovery(self):
+    def test_picker_guidance_survives_large_history_and_recovery(self):
         wheel = dict(ref='@wheel', type='PickerWheel', value='Tier C')
         body = ActionPromptBuilder('fixture').build('Select the requested tier', '', '', [wheel],
             b'masked', [dict(observation='x' * 70000)], [], {},
             exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
         inputs = json.loads(body['input'][1]['content'][0]['text'])
-        self.assertIn('contextSelectionRequired', inputs)
+        self.assertNotIn('contextSelectionRequired', inputs)
         self.assertEqual(inputs['elements'], [wheel])
         self.assertEqual(inputs['explorationMemory']['recoveryRequest']['id'], 1)
         prompt = body['input'][0]['content']

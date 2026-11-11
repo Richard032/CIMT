@@ -454,7 +454,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(len(transport.bodies), 2)
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
             ['executed', 'executed', 'deferred', 'handled'])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual([row['action'] for row in state['batchFeedback'][0]['path']], ['tap', 'back', 'done'])
 
     def test_excluding_all_history_does_not_remove_actual_batch_results(self):
@@ -462,7 +462,7 @@ class ScenarioTests(unittest.TestCase):
         batch = json.dumps([action('tap', ref='@one', context=selection), action('back', context=selection)])
         agent, _, transport = api_agent([batch, action()])
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['recentActions'], [])
         self.assertEqual([row['action'] for row in state['batchFeedback'][0]['path']], ['tap', 'back'])
         self.assertEqual(state['batchFeedback'][0]['path'][0]['uiChange'], 'no observed change')
@@ -477,7 +477,7 @@ class ScenarioTests(unittest.TestCase):
         agent, _, transport = api_agent([batch, action()])
         self.runner.run(CycleMobile(self.root, elements=[dict(type='Button', identifier='A')]),
             self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         feedback = state['batchFeedback'][0]
         self.assertEqual(len(feedback['path']), 3)
         self.assertEqual(feedback['path'][-1]['observation'], feedback['initialObservation'])
@@ -489,7 +489,7 @@ class ScenarioTests(unittest.TestCase):
             def snapshot(self):
                 return [dict(type='Button', identifier='B' if transport.bodies else 'A')], b'masked'
         self.runner.run(AsyncMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual([row['kind'] for row in state['batchFeedback'][0]['path']], ['command', 'observation'])
 
     def test_queued_finish_cannot_apply_predictions_before_results_are_delivered(self):
@@ -512,7 +512,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(scenario['crashes'], [])
         self.assertEqual(scenario['verdict'], 'inconclusive')
         self.assertIn('Android ANR', output.getvalue())
-        state = json.loads(transport.bodies[0]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[0]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['currentWarnings'][0]['code'], 'android-anr')
 
     def test_system_anr_foreground_does_not_trigger_an_automatic_relaunch(self):
@@ -528,7 +528,7 @@ class ScenarioTests(unittest.TestCase):
         scenario = result['scenarios'][0]
         self.assertNotIn('mobile_launch_app', [name for name, _ in mobile.calls])
         self.assertEqual(scenario['crashes'], [])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['batchFeedback'][0]['path'][0]['warnings'], [0])
 
     def test_android_permission_dialog_reaches_ai_without_relaunching_app(self):
@@ -551,7 +551,7 @@ class ScenarioTests(unittest.TestCase):
 
                 self.assertNotIn('mobile_launch_app', [name for name, _ in mobile.calls])
                 self.assertEqual(result['scenarios'][0]['crashes'], [])
-                next_input = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+                next_input = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
                 self.assertIn(permission, next_input['elements'])
 
     def test_done_keeps_later_commands_visible_without_executing_them(self):
@@ -568,7 +568,7 @@ class ScenarioTests(unittest.TestCase):
         select = action('recall', context=dict(summary='Keep the actual outcome', includeAll=[], records=[]))
         agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), select]), action()])
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['explorationMemory']['summary'], 'Keep the actual outcome')
         self.assertNotIn('contextSelectionRequired', state)
 
@@ -583,7 +583,7 @@ class ScenarioTests(unittest.TestCase):
         rows = result['scenarios'][0]['commandQueue']['commands']
         self.assertEqual([row['status'] for row in rows], ['failed', 'cancelled', 'handled'])
         self.assertEqual(len(transport.bodies), 2)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Batch 0, command 0 (tap, position 0)', state['resourceFeedback'])
         self.assertIn('Adapter could not resolve the requested target', state['resourceFeedback'])
         self.assertIn('Cancelled 1 remaining command(s)', state['resourceFeedback'])
@@ -594,7 +594,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root, elements=[])
         self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
         self.assertEqual(len(transport.bodies), 2)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Invalid swipe direction', state['resourceFeedback'])
         self.assertIn('Cancelled 0 remaining command(s)', state['resourceFeedback'])
 
@@ -604,7 +604,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root, elements=[])
         self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
         self.assertEqual(len(transport.bodies), 2)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertFalse(state.get('resourceFeedback'))
         self.assertEqual(len(state['recentActions']), 2)
 
@@ -623,7 +623,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertIn(['started', 'cancelled', 'cancelled'], published_states)
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']],
             ['failed', 'cancelled', 'cancelled', 'handled'])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Invalid swipe direction', state['resourceFeedback'])
         self.assertIn('Cancelled 2 remaining command(s)', state['resourceFeedback'])
 
@@ -690,7 +690,7 @@ class ScenarioTests(unittest.TestCase):
         self.runner.run(mobile, self.build, result, agent, lambda: None)
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
         self.assertEqual(len(transport.bodies), 2)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('recoveryRequest', state['explorationMemory'])
         self.assertEqual([row['status'] for row in result['scenarios'][0]['commandQueue']['commands']][-3:],
             ['not executed', 'not executed', 'handled'])
@@ -1018,7 +1018,7 @@ class ScenarioTests(unittest.TestCase):
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
         response = result['scenarios'][0]['decisions'][0]['response']
         self.assertEqual(response['modelResponse'], '{broken')
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Invalid JSON command reply', state['resourceFeedback'])
         self.assertIn('Expected one JSON command object', state['resourceFeedback'])
 
@@ -1032,7 +1032,7 @@ class ScenarioTests(unittest.TestCase):
         calls = [(name, args) for name, args in mobile.calls if name != 'reset']
         self.assertEqual(calls, [('mobile_click_on_screen_at_coordinates', dict(ref='@correct')),
                                  ('mobile_press_button', dict(button='BACK'))])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Unexpected comma', state['resourceFeedback'])
         self.assertIn('No commands from this reply were executed', state['resourceFeedback'])
         self.assertIn('Expected one JSON command object', state['resourceFeedback'])
@@ -1076,7 +1076,7 @@ class ScenarioTests(unittest.TestCase):
         agent, _, transport = api_agent([first, action('tap', ref='@e2'), action(completion='blocked')])
         mobile = ChangingScreenMobile(self.root)
         self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['elements'][0]['ref'], '@e2')
         self.assertEqual([args['ref'] for name, args in mobile.calls if name.startswith('mobile_click')], ['@e1', '@e2'])
 
@@ -1113,7 +1113,7 @@ class ScenarioTests(unittest.TestCase):
                 _, image = super().snapshot()
                 return [dict(BUTTON, label=label)], image
         self.runner.run(ChangedScreenMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
-        next_input = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        next_input = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(next_input['humanInterface'][0]['label'], 'New screen')
 
 
@@ -1142,6 +1142,18 @@ class ScenarioTests(unittest.TestCase):
         with self.assertRaises(InfrastructureError) as raised:
             parse_action({"status": "incomplete", "output": []})
 
+
+    def test_unchanged_waits_send_recovery_information_to_the_ai(self):
+        wait = action('wait', durationMs=0)
+        finish = action(recovery=dict(id=0, decision='replan', reason='Review the current form'))
+        agent, _, transport = api_agent([wait, wait, wait, finish])
+        result = {'scenarios': []}
+
+        self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+
+        state = json.loads(transport.bodies[3]['input'][-1]['content'][0]['text'])
+        self.assertEqual(state['explorationMemory']['recoveryRequest']['kind'], 'repetition')
+        self.assertEqual(result['scenarios'][0]['recoveries'][0]['decision'], 'replan')
 
     def test_repetition_information_does_not_veto_the_fourth_ai_selected_tap(self):
         tap = action('tap', ref='@e1')
@@ -1172,7 +1184,7 @@ class ScenarioTests(unittest.TestCase):
     def test_model_receives_memory_with_observed_previous_outcome(self):
         agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
         self.runner.run(FakeMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['explorationMemory']['currentControls'][0]['attempts'], 1)
         self.assertEqual(state['recentActions'][0]['result'], 'No observed UI change after the action')
         self.assertEqual(state['recentActions'][0]['controlLabel'], 'Open')
@@ -1224,7 +1236,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
-        state = json.loads(transport.bodies[-1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[-1]['input'][-1]['content'][0]['text'])
         self.assertEqual(len(state['recentActions']), 3)
         self.assertEqual(state['explorationMemory']['recoveryRequest']['id'], 0)
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 3)
@@ -1254,8 +1266,8 @@ class ScenarioTests(unittest.TestCase):
         chosen = dict(summary='Compare the old screen', includeAll=[], records=[dict(collection='screenshots', id='0')])
         agent, _, transport = api_agent([action('tap', ref='@e1', context=chosen), action()])
         self.runner.run(FramesMobile(self.root), self.build, {'scenarios': []}, agent, lambda: None)
-        first = transport.bodies[0]['input'][1]['content']
-        second = transport.bodies[1]['input'][1]['content']
+        first = transport.bodies[0]['input'][-1]['content']
+        second = transport.bodies[1]['input'][-1]['content']
         self.assertEqual(sum(item['type'] == 'input_image' for item in first), 1)
         self.assertEqual(sum(item['type'] == 'input_image' for item in second), 2)
         self.assertTrue(any('Selected historical screenshot 0' in item.get('text', '') for item in second))
@@ -1319,7 +1331,7 @@ class ScenarioTests(unittest.TestCase):
         self.create_runner().run(mobile, self.build, result, agent, lambda: None)
         step = result['scenarios'][0]['steps'][1]
         self.assertIn('contents replaced', step['actionFeedback'])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertEqual(state['batchFeedback'][0]['path'][0]['actionFeedback'], step['actionFeedback'])
         self.assertNotIn('synthetic-secret', json.dumps(result))
         self.assertNotIn('synthetic-secret', json.dumps(transport.bodies))
@@ -1342,7 +1354,7 @@ class ScenarioTests(unittest.TestCase):
         rows = result['scenarios'][0]['commandQueue']['commands']
         self.assertEqual([r['status'] for r in rows], ['failed', 'cancelled', 'handled'])
         self.assertNotIn('actionFeedback', result['scenarios'][0]['steps'][1])
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('Replacement was not confirmed', state['resourceFeedback'])
 
     def test_wait_timing_and_original_tap_timestamp_reach_the_ai(self):
@@ -1361,10 +1373,10 @@ class ScenarioTests(unittest.TestCase):
         result = {'scenarios': []}
         self.create_runner().run(FakeMobile(self.root), self.build, result, agent, lambda: None)
 
-        tap_request = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        tap_request = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         tap = tap_request['batchFeedback'][0]['path'][0]
         self.assertLessEqual(tap['completedAt'], tap['observedAt'])
-        request = json.loads(transport.bodies[2]['input'][1]['content'][0]['text'])
+        request = json.loads(transport.bodies[2]['input'][-1]['content'][0]['text'])
         wait = request['batchFeedback'][0]['path'][0]
         self.assertEqual(wait['target']['durationMs'], 30000)
         self.assertEqual(wait['uiChange'], 'no observed change')
@@ -1401,7 +1413,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root)
         self.runner.run(mobile, self.build, result, agent, lambda: None)
 
-        request = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        request = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         path = request['batchFeedback'][0]['path']
         self.assertEqual([row['status'] for row in path], ['failed', 'cancelled'])
         self.assertIn('Wait accepts only durationMs', request['resourceFeedback'])
@@ -1415,7 +1427,7 @@ class ScenarioTests(unittest.TestCase):
         step = result['scenarios'][0]['steps'][1]
         self.assertEqual(step['adapterCall']['tool'], 'mobilecli io swipe')
         self.assertEqual(step['adapterCall']['arguments']['y2'], 801)
-        state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         event = state['batchFeedback'][0]['path'][0]
         self.assertEqual(event['target']['durationMs'], 1000)
         self.assertEqual(event['adapterCall'], step['adapterCall'])
@@ -1430,7 +1442,7 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(step['action']['distance'],40)
         self.assertEqual(step['adapterCall']['arguments']['y'],765.5)
         self.assertEqual(step['adapterCall']['status'],'completed')
-        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state=json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         command=state['batchFeedback'][0]['path'][0]
         self.assertEqual(command['target']['distance'],40)
         self.assertEqual(command['adapterCall']['arguments']['x'],201)
@@ -1444,7 +1456,7 @@ class ScenarioTests(unittest.TestCase):
         scenario=result['scenarios'][0]
         self.assertEqual([row['status'] for row in scenario['commandQueue']['commands']],['failed','cancelled','handled'])
         self.assertNotIn('adapterCall',scenario['steps'][1])
-        state=json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+        state=json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
         self.assertIn('cannot be resolved',state['resourceFeedback'])
 
     def test_nonfinite_argument_failure_still_produces_valid_json_reports(self):

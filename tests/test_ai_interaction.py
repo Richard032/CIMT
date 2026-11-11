@@ -47,19 +47,19 @@ class AiInteractionTests(unittest.TestCase):
     def select_large_history(self):
         self.session.planner.observe([dict(type='Text', text='x' * 70000)])
         self.session.planner.context_memory.accept(selection(include_all=['observations']))
-        self.session.context_only = True
         self.session.observed_at = '2026-11-09T22:55:00.000+00:00'
 
-    def test_repeated_context_only_requests_reuse_timestamped_evidence(self):
+    def test_context_requests_refresh_evidence_in_conversation(self):
         self.select_large_history()
         agent = FakeAgent([action('recall'), action('recall')])
         for _ in range(2):
             self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-        self.assertEqual(self.mobile.captures, 0)
-        self.assertEqual(len(self.evidence.images), 0)
+        self.assertEqual(self.mobile.captures, 2)
+        self.assertEqual(len(self.evidence.images), 1)
         for arguments in agent.calls:
-            self.assertEqual(arguments[-1]['currentEvidence'], dict(
-                observedAt='2026-11-09T22:55:00.000+00:00', reusedForContextSelection=True))
+            self.assertFalse(arguments[-1]['currentEvidence']['reusedForContextSelection'])
+            self.assertNotEqual(arguments[-1]['currentEvidence']['observedAt'],
+                                '2026-11-09T22:55:00.000+00:00')
 
     def test_reduced_selection_refreshes_changed_screen_before_normal_decision(self):
         self.select_large_history()
@@ -74,7 +74,6 @@ class AiInteractionTests(unittest.TestCase):
 
     def test_device_action_invalidates_reuse_even_when_history_remains_large(self):
         self.select_large_history()
-        self.session.context_only = False
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
 
@@ -83,6 +82,45 @@ class AiInteractionTests(unittest.TestCase):
         self.session.observed_at = None
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
+
+    def test_next_request_contains_prior_screen_and_ai_reply_in_order(self):
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        first_request = transport.bodies[0]['input']
+        next_request = transport.bodies[1]['input']
+        self.assertEqual([message['role'] for message in next_request],
+                         ['system', 'user', 'assistant', 'user'])
+        self.assertEqual(next_request[1], first_request[1])
+        self.assertEqual(json.loads(next_request[2]['content'])['action'], 'tap')
+        self.assertEqual(next_request[3]['content'][1]['type'], 'input_image')
+        self.assertEqual(next_request[1]['content'][1]['type'], 'input_image')
+
+    def test_conversation_is_scoped_to_the_scenario(self):
+        agent, _, transport = api_agent([action(), action()])
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        other = ScenarioSession(dict(target='Release', steps=[], requirements=[]),
+            'com.example.app', 'fixture', [BUTTON], b'other masked image')
+        self.interaction.choose(self.mobile, other, agent, self.evidence, lambda: None)
+
+        self.assertEqual([message['role'] for message in transport.bodies[1]['input']],
+                         ['system', 'user'])
+
+    def test_credential_values_in_ai_replies_are_redacted_from_later_requests(self):
+        redactor = Redactor({'credentials': {'login': {'password': 'fixture-private-password'}}})
+        interaction = AiInteraction(dict(instructions='Explore'), {}, redactor,
+                                    self.control, self.activity)
+        agent, _, transport = api_agent([
+            action('tap', ref='@e1', observation='fixture-private-password'),
+            action(),
+        ])
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        previous_reply = transport.bodies[1]['input'][2]['content']
+        self.assertNotIn('fixture-private-password', previous_reply)
+        self.assertIn('<redacted>', previous_reply)
 
     def test_provider_time_is_separate_from_context_and_capture_operations(self):
         agent, _, _ = api_agent([action()])
