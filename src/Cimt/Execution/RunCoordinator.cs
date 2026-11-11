@@ -49,7 +49,22 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         }
         if (state.Exit == 0 && state.UiExit == 2)
             state.Exit = 2;
+        EnsureProposalStatus(state);
         return reports.Write(state);
+    }
+
+    private static void EnsureProposalStatus(RunState state)
+    {
+        var path = Path.Combine(state.Report, "instruction-setup-proposal.md");
+        try
+        {
+            if (!File.Exists(path))
+                File.WriteAllText(path, "# Instruction and setup proposal\n\nNo AI proposal was generated because device testing did not complete. See the run report for the stopping reason.\n");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine("Could not save the instruction proposal status: " + error.GetType().Name);
+        }
     }
 
     private async Task ExecuteSteps(RunState state)
