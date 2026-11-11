@@ -381,9 +381,9 @@ class ScenarioRunner:
             session.feedback.finish(row, error, target_label, adapter_call, action_feedback, completed_at)
 
     def _save_plan(self, session):
-        session.result['evidenceLedger'] = EvidenceLedger().snapshot(session.result)
         session.feedback.sync(session.commands.records)
         session.result['batchFeedback'] = self.redactor.records.batch_feedback(session.feedback.saved())
+        session.result['evidenceLedger'] = EvidenceLedger().snapshot(session.result)
         session.result['commandQueue'] = self.redactor.records.command_queue(session.commands.saved())
         session.result.update(self.redactor.records.planning(session.planner.saved()))
         session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]

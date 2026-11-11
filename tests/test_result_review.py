@@ -29,6 +29,12 @@ class EvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(ledger['omittedEarlierSteps'], 5)
         self.assertEqual(ledger['steps'][0]['step'], 5)
 
+    def test_observation_time_is_linked_to_the_recorded_step(self):
+        result = dict(steps=[dict(step=2, action='wait')], checks=[],
+            batchFeedback=dict(batches=[dict(path=[dict(kind='command', step=2, observedAt='2026-01-01T00:00:03Z')])]))
+        ledger = EvidenceLedger().snapshot(result)
+        self.assertEqual(ledger['steps'][0]['observedAt'], '2026-01-01T00:00:03Z')
+
     def test_keeps_distinct_check_evidence(self):
         result = dict(steps=[], checks=[dict(id=3, status='failed', expected='Ready', observed='Still loading')])
         ledger = EvidenceLedger().snapshot(result)

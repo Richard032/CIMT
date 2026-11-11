@@ -12,21 +12,26 @@ class EvidenceLedger:
     def snapshot(self, result):
         steps = result.get('steps', [])
         checks = result.get('checks', [])
+        events = {event.get('step'): event for batch in result.get('batchFeedback', {}).get('batches', [])
+                  for event in batch.get('path', []) if event.get('kind') == 'command'}
         return {
-            'steps': [self._step(row) for row in steps[-self.MAX_STEPS:]],
+            'steps': [self._step(row, events.get(row.get('step'), {})) for row in steps[-self.MAX_STEPS:]],
             'omittedEarlierSteps': max(0, len(steps) - self.MAX_STEPS),
             'checks': [self._check(row) for row in checks[-self.MAX_CHECKS:]],
             'omittedEarlierChecks': max(0, len(checks) - self.MAX_CHECKS),
         }
 
     @staticmethod
-    def _step(row):
+    def _step(row, event):
         action = row.get('action', {})
         if isinstance(action, dict):
             action = {key: action[key] for key in ('action', 'commandId', 'field', 'ref') if key in action}
         fields = ('step', 'controlLabel', 'targetIdentifier', 'targetType', 'completedAt', 'actionDispatched',
                   'observedOutcome', 'actionError', 'resultObservation', 'observation')
-        return dict(action=deepcopy(action), **{key: deepcopy(row[key]) for key in fields if key in row})
+        entry = dict(action=deepcopy(action), **{key: deepcopy(row[key]) for key in fields if key in row})
+        if event.get('observedAt'):
+            entry['observedAt'] = event['observedAt']
+        return entry
 
     @staticmethod
     def _check(row):
