@@ -55,6 +55,18 @@ public sealed class ExecutionTests : IDisposable
         Assert.Equal(3, await coordinator.Execute(state));
         Assert.Equal(["first", "cleanup", "report"], calls);
         Assert.Contains("failed", state.Errors);
+        Assert.Contains("No AI proposal was generated", File.ReadAllText(Path.Combine(state.Report, "instruction-setup-proposal.md")));
+    }
+
+    [Fact]
+    public async Task ExistingProposalIsNotOverwrittenDuringFinalization()
+    {
+        var calls = new List<string>();
+        var state = State();
+        var path = Path.Combine(state.Report, "instruction-setup-proposal.md");
+        File.WriteAllText(path, "reviewed draft");
+        await new RunCoordinator([], new FakeCleanup(calls), new FakeReport(calls)).Execute(state);
+        Assert.Equal("reviewed draft", File.ReadAllText(path));
     }
 
     [Fact]

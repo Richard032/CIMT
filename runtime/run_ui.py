@@ -17,6 +17,7 @@ from run_control import RunControl
 from scenario import ScenarioRunner
 from device_scheduler import DeviceScheduler
 from activity import ActivityLog
+from instruction_proposal import InstructionProposal
 from run_signals import RunSignals
 
 
@@ -62,6 +63,9 @@ class Execution:
         pathlib.Path(self.context["report"], "devices").mkdir(exist_ok=True)
         worker = self._device_runner()
         self.scheduler.run(self.context["devices"], worker)
+        self.journal.save()
+        InstructionProposal(self.context["report"], self.context["inputs"], self.journal.results,
+                            self.redactor, self.control, self.agent_factory(), self.activity).create()
         self.journal.save()
         self.activity.write("Device test summary", "finished",
             "Exit " + str(result_exit_code(self.journal.results))

@@ -173,6 +173,12 @@ The deadline starts at invocation and includes preparation/builds. Budget is sha
 
 Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Navigation, successful builds, tool-call completion and screenshot capture do not prove a requirement passed.
 
+## Review the proposed instructions and setup
+
+After device testing, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It contains separate draft instructions, reusable app setup and supporting evidence/uncertainty. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
+
+The proposal uses an additional inference request charged to the same run budget and deadline. If the budget, deadline, interruption, missing evidence or provider failure prevents generation, the file explains that no proposal was generated. This does not change the recorded test verdict. If execution ends before the device worker starts, the host writes a status file instead. Proposal text and evidence may be private; review before sharing.
+
 ## Open a run or replay report
 
 Use the exact `index.html` path printed by that invocation, under `CIMT output/reports/report_<timestamp>/`. Each invocation gets a new folder. Inspect the summary, source commit, selected devices, build results, scoped checks, findings, chronological activity and stopping reasons. Evidence links are relative to that report.
