@@ -15,6 +15,7 @@ class EvidenceLedger:
         events = {event.get('step'): event for batch in result.get('batchFeedback', {}).get('batches', [])
                   for event in batch.get('path', []) if event.get('kind') == 'command'}
         return {
+            'progressNote': result.get('evidenceProgress', ''),
             'steps': [self._step(row, events.get(row.get('step'), {})) for row in steps[-self.MAX_STEPS:]],
             'omittedEarlierSteps': max(0, len(steps) - self.MAX_STEPS),
             'checks': [self._check(row) for row in checks[-self.MAX_CHECKS:]],

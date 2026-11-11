@@ -23,6 +23,10 @@ class EvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(ledger['steps'][0]['observedOutcome'], 'Login form appeared')
         self.assertEqual(ledger['checks'], [])
 
+    def test_retains_actor_progress_as_a_claim_with_recorded_evidence(self):
+        ledger = EvidenceLedger().snapshot(dict(steps=[], checks=[], evidenceProgress='One completed; command 2.'))
+        self.assertEqual(ledger['progressNote'], 'One completed; command 2.')
+
     def test_discloses_earlier_omitted_steps(self):
         result = dict(steps=[dict(step=i, action='wait') for i in range(205)], checks=[])
         ledger = EvidenceLedger().snapshot(result)

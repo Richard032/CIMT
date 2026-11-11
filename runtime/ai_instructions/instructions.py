@@ -25,6 +25,7 @@ FIELDS = {
     "credential": {"type": "string"},
     "field": {"type": "string", "enum": ["", "username", "password"]},
     "observation": {"type": "string"},
+    "progressNote": {"type": "string", "description": "Concise current objective progress based only on recorded results, including evidence IDs and unfinished work."},
     "repeatInstruction": {"type": "string"},
     "repeatReason": {"type": "string"},
     "remaining": {"type": "array", "items": {"type": "string"}},
@@ -191,6 +192,10 @@ SYSTEM_PROMPT = (
     "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
     "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive. "
     "Use the evidenceLedger, recent actions, selected history and action feedback to verify progress. "
+    "For each decision, provide progressNote: a concise updated account of completed and remaining work, "
+    "including counts when requested and command IDs or observation times supporting those counts. "
+    "Only count outcomes already observed, not the command you are proposing. "
+    "If an earlier assessment was wrong, correct it; distinguish uncertainty from a verified result. "
     "Keep selected context focused: request individual records needed for the next decision instead of every historical observation or command. "
     "Complete original replies remain available in decisions; command records omit their duplicate reply text. "
     "The ledger includes recorded actions and AI assessments; distinguish an action from its observed outcome. "

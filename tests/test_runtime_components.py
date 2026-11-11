@@ -790,6 +790,13 @@ class ScenarioTests(unittest.TestCase):
         self.assertFalse(any(name == 'replace_text' for name, _ in mobile.calls))
         self.assertEqual(result['completion'], 'incomplete')
 
+    def test_actor_progress_is_available_on_the_next_decision(self):
+        agent = FakeAgent([action('tap', ref='@e1', progressNote='Nothing completed yet.'),
+                           action(completion='blocked', checks=[])])
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
+        self.assertEqual(agent.calls[1][-1]['evidenceLedger']['progressNote'], 'Nothing completed yet.')
+
     def test_action_ledger_retains_the_observed_target_identity(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action('tap', ref='@e1'), action()])
         row = next(item for item in result['evidenceLedger']['steps']

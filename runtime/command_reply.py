@@ -70,7 +70,7 @@ def command_objects(text):
 def command(value):
     """Fill omitted resource arguments. Do not score or approve the AI's content."""
     defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, durationMs=None, credential='',
-        field='', observation='', repeatInstruction='', repeatReason='', remaining=[],
+        field='', observation='', progressNote='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
         configuration=[], pathDecisions=[], planStepId=0, context=None,
         recovery=dict(id=-1, decision='none', reason=''))

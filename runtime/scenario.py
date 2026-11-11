@@ -314,6 +314,8 @@ class ScenarioRunner:
         # A finish behind commands predates their results. Do not apply its predicted checks.
         if action['action'] == 'done' and action['batchPosition'] > 0:
             return action
+        if action['batchPosition'] == 0 and action.get('progressNote'):
+            session.result['evidenceProgress'] = self.redactor.text(action['progressNote'])
         review_limit = None
         # Review a proposed final result before recording its proposed checks.
         if (action['action'] == 'done' and action['batchPosition'] == 0
