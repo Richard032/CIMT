@@ -191,7 +191,7 @@ SYSTEM_PROMPT = (
     "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive. "
     "The conversation contains previous masked screen observations, your replies, and action feedback "
     "in order. Use that history to distinguish completed actions from planned ones and verify progress. "
-    "Historical screenshots show the screen at the earlier turn; use the latest screenshot for the current screen. "
+    "Earlier conversation screenshots are omitted; use the current screenshot for the current screen. "
     "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
@@ -206,6 +206,18 @@ SYSTEM_PROMPT = (
     "decision replan and your explanation to pause actions and request fresh evidence. "
     "Do not blindly start over; inspect fresh evidence and remembered outcomes."
 )
+
+
+def without_historical_images(message):
+    """Preserve conversation text while omitting image payloads from earlier turns."""
+    if message.get('role') != 'user' or not isinstance(message.get('content'), list):
+        return message
+    content = [
+        dict(type='input_text', text='[Screenshot omitted from conversation history.]')
+        if item.get('type') == 'input_image' else item
+        for item in message['content']
+    ]
+    return dict(message, content=content)
 
 
 class ActionPromptBuilder:
@@ -242,7 +254,7 @@ class ActionPromptBuilder:
             "reasoning": {"effort": "low"},
             "input": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                *conversation,
+                *(without_historical_images(message) for message in conversation),
                 self._screen_message(state, screenshot, historical_images),
             ],
         }

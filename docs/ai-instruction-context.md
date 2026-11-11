@@ -1,6 +1,6 @@
 # AI Instruction and Context
 
-**Current conversation behavior:** Each AI decision receives all prior masked user messages, including screenshots, and redacted AI replies for its device and target, followed by fresh evidence. Earlier sections describing AI-selected or capacity-deferred conversation history are superseded. Full history is subject to provider context and configured budget limits.
+**Current conversation behavior:** Each AI decision receives all prior user-message text and redacted AI replies for its device and target, followed by fresh masked evidence. Earlier image payloads are omitted from conversation turns. The AI may explicitly select registered historical screenshots. Earlier sections describing AI-selected or capacity-deferred conversation history are superseded. Full history is subject to provider context and configured budget limits.
 
 > Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
 

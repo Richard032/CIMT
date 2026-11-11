@@ -83,7 +83,7 @@ class AiInteractionTests(unittest.TestCase):
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
 
-    def test_next_request_contains_prior_screen_and_ai_reply_in_order(self):
+    def test_next_request_keeps_prior_text_and_reply_but_omits_prior_image(self):
         agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
         self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
         self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
@@ -92,10 +92,14 @@ class AiInteractionTests(unittest.TestCase):
         next_request = transport.bodies[1]['input']
         self.assertEqual([message['role'] for message in next_request],
                          ['system', 'user', 'assistant', 'user'])
-        self.assertEqual(next_request[1], first_request[1])
+        self.assertEqual(next_request[1]['content'][0], first_request[1]['content'][0])
+        self.assertEqual(next_request[1]['content'][1]['text'],
+                         '[Screenshot omitted from conversation history.]')
         self.assertEqual(json.loads(next_request[2]['content'])['action'], 'tap')
         self.assertEqual(next_request[3]['content'][1]['type'], 'input_image')
-        self.assertEqual(next_request[1]['content'][1]['type'], 'input_image')
+        self.assertFalse(any(part['type'] == 'input_image' for part in next_request[1]['content']))
+        self.assertFalse(any(part['type'] == 'input_image'
+                             for part in self.session.conversation[0]['content']))
 
     def test_conversation_is_scoped_to_the_scenario(self):
         agent, _, transport = api_agent([action(), action()])

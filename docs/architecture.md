@@ -1,6 +1,6 @@
 # CIMT architecture
 
-**Current conversation behavior:** Each AI decision receives all prior masked user messages, including screenshots, and redacted AI replies for its device and target, followed by fresh evidence. Earlier sections describing AI-selected or capacity-deferred conversation history are superseded. Full history is subject to provider context and configured budget limits.
+**Current conversation behavior:** Each AI decision receives all prior user-message text and redacted AI replies for its device and target, followed by fresh masked evidence. Earlier image payloads are omitted from conversation turns. The AI may explicitly select registered historical screenshots. Earlier sections describing AI-selected or capacity-deferred conversation history are superseded. Full history is subject to provider context and configured budget limits.
 
 Documentation baseline: 1.0
 Updated: 10 November 2026

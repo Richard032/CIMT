@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from ai_instructions.context import InstructionContext
+from ai_instructions.instructions import without_historical_images
 
 
 class AiInteraction:
@@ -31,7 +32,7 @@ class AiInteraction:
                 self.activity.write('AI provider response', status, timing['kind'],
                     mobile.device, session.result['target'], seconds=timing['seconds'])
         if getattr(agent, 'last_user_message', None) is not None:
-            session.conversation.append(agent.last_user_message)
+            session.conversation.append(without_historical_images(agent.last_user_message))
             session.conversation.append(dict(role='assistant',
                 content=self.redactor.text(reply.get('modelResponse', ''))))
         session.feedback.delivered()

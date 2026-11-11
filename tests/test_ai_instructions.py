@@ -93,11 +93,26 @@ class InstructionTests(unittest.TestCase):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         self.assertIn('conversation contains previous masked screen observations', body['input'][0]['content'])
 
+    def test_builder_removes_images_from_existing_conversation_messages(self):
+        conversation = [dict(role='user', content=[
+            dict(type='input_text', text='Earlier evidence'),
+            dict(type='input_image', image_url='data:image/png;base64,old'),
+        ]), dict(role='assistant', content='Earlier response')]
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'current', [], [], {},
+            exploration_memory=dict(conversation=conversation))
+
+        self.assertEqual(body['input'][1]['content'][0]['text'], 'Earlier evidence')
+        self.assertEqual(body['input'][1]['content'][1]['text'],
+                         '[Screenshot omitted from conversation history.]')
+        self.assertEqual(body['input'][2]['content'], 'Earlier response')
+        self.assertEqual(body['input'][-1]['content'][1]['type'], 'input_image')
+        self.assertEqual(conversation[0]['content'][1]['type'], 'input_image')
+
     def test_prompt_explains_conversation_history(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
         self.assertIn('your replies, and action feedback', prompt)
-        self.assertIn('Historical screenshots show the screen at the earlier turn', prompt)
+        self.assertIn('Earlier conversation screenshots are omitted', prompt)
         self.assertIn('explicit target', prompt)
 
     def test_prompt_explains_whole_reply_syntax_feedback(self):
