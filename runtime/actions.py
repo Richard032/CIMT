@@ -18,7 +18,7 @@ class ActionExecutor:
         self.clock = clock
         self.monotonic = monotonic
 
-    def execute(self, mobile, action, elements, record_call=None, record_wait=None):
+    def execute(self, mobile, action, elements, record_call=None, record_wait=None, wait_countdown=None):
         """Check technical constraints and execute the AI's selected action."""
         if action.get('durationMs') is not None and action['action'] not in ('wait', 'swipe'):
             raise ValueError('durationMs is only supported by wait and swipe commands')
@@ -26,7 +26,7 @@ class ActionExecutor:
         mobile.readiness()
         self.check()
         if action['action'] == 'wait':
-            return self._wait(action, record_wait)
+            return self._wait(action, record_wait, wait_countdown)
         handlers = {
             "tap": self._tap,
             "credential": self._credential,
@@ -199,7 +199,7 @@ class ActionExecutor:
             raise ValueError("iOS has no system BACK button; choose a tap or swipe action")
         mobile.call("mobile_press_button", button="BACK")
 
-    def _wait(self, action, record_wait):
+    def _wait(self, action, record_wait, countdown):
         if action.get('argumentError'):
             raise ValueError(action['argumentError'])
         duration = action.get('durationMs')
@@ -212,20 +212,26 @@ class ActionExecutor:
         available_ms = max(0, self.deadline - self.clock()) * 1000
         until = started + min(duration, available_ms) / 1000
         completed = False
+        last_seconds = None
         try:
             while True:
                 self.check()
                 time_left = self.deadline - self.clock()
                 if time_left <= 0:
                     raise LimitReached('Whole-run time limit reached')
-                remaining = until - self.monotonic()
+                remaining = min(until - self.monotonic(), time_left)
                 if remaining <= 0:
                     if duration > available_ms:
                         raise LimitReached('Whole-run time limit reached')
                     completed = True
                     break
+                if countdown is not None:
+                    seconds = math.ceil(remaining)
+                    if seconds != last_seconds:
+                        countdown(seconds)
+                        last_seconds = seconds
                 # A local wait must remain responsive to cancellation and shared stop.
-                self.sleep(min(0.1, remaining, time_left))
+                self.sleep(min(0.1, remaining))
         finally:
             if record_wait is not None:
                 elapsed_ms = round((self.monotonic() - started) * 1000)

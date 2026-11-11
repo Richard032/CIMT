@@ -325,17 +325,23 @@ class WaitActionTests(unittest.TestCase):
             sleep=self.advance, clock=lambda: self.now, check=self.control.check, monotonic=lambda: self.now)
         self.mobile = SimpleNamespace(readiness=lambda: None)
         self.feedback = []
+        self.countdown = []
 
     def advance(self, seconds):
         self.now += seconds
 
     def execute(self, **arguments):
-        self.executor.execute(self.mobile, dict(action='wait', **arguments), [], record_wait=self.feedback.append)
+        self.executor.execute(self.mobile, dict(action='wait', **arguments), [],
+                              record_wait=self.feedback.append, wait_countdown=self.countdown.append)
 
     def test_explicit_wait_honors_full_requested_duration(self):
         self.execute(durationMs=60000)
         self.assertEqual(self.now, 70)
         self.assertEqual(self.feedback, ['Wait completed. Requested 60000 ms. Actual elapsed wait 60000 ms.'])
+
+    def test_countdown_reports_each_remaining_second_once(self):
+        self.execute(durationMs=3200)
+        self.assertEqual(self.countdown, [4, 3, 2, 1])
 
     def test_omitted_and_null_duration_both_wait_two_seconds(self):
         self.execute()
@@ -347,6 +353,7 @@ class WaitActionTests(unittest.TestCase):
         self.execute(durationMs=0)
         self.assertEqual(self.now, 10)
         self.assertEqual(self.feedback, ['Wait completed. Requested 0 ms. Actual elapsed wait 0 ms.'])
+        self.assertEqual(self.countdown, [])
 
     def test_actual_elapsed_wait_includes_sleep_overshoot(self):
         self.executor.sleep = lambda seconds: self.advance(seconds + 0.025)
@@ -366,6 +373,12 @@ class WaitActionTests(unittest.TestCase):
         self.assertEqual(self.now, 110)
         self.assertEqual(self.feedback, ['Wait interrupted. Requested 1000 ms. Actual elapsed wait 250 ms.'])
 
+    def test_countdown_uses_time_available_before_the_deadline(self):
+        self.now = 108.5
+        with self.assertRaisesRegex(LimitReached, 'Whole-run time limit'):
+            self.execute(durationMs=30000)
+        self.assertEqual(self.countdown, [2, 1])
+
     def test_user_or_shared_stop_interrupts_at_the_next_check(self):
         for stop in ('interrupt', 'stop'):
             with self.subTest(stop=stop):
@@ -379,6 +392,7 @@ class WaitActionTests(unittest.TestCase):
                 with self.assertRaises(LimitReached):
                     self.execute(durationMs=30000)
                 self.assertEqual(self.feedback, ['Wait interrupted. Requested 30000 ms. Actual elapsed wait 100 ms.'])
+                self.assertEqual(self.countdown, [30])
 
 
 class ScenarioTests(unittest.TestCase):
@@ -1325,6 +1339,26 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(request['explorationMemory']['selectedBatches'][0]['path'][0]['completedAt'],
                          tap['completedAt'])
         self.assertLessEqual(wait['observedAt'], request['currentEvidence']['observedAt'])
+
+    def test_wait_countdown_is_live_terminal_output_without_extra_activity_records(self):
+        now = 0.0
+
+        def sleep(seconds):
+            nonlocal now
+            now += seconds
+
+        self.actions = ActionExecutor({}, self.redactor, self.control.deadline, sleep=sleep, monotonic=lambda: now)
+        output = io.StringIO()
+        activity = ActivityLog(self.root, self.redactor, output=output)
+        self.run_scenario(FakeMobile(self.root), [action('wait', durationMs=2000), action()],
+                          runner=self.create_runner(activity=activity))
+
+        countdown = [line for line in output.getvalue().splitlines() if 'AI wait — countdown' in line]
+        self.assertEqual([line.rsplit(': ', 1)[-1] for line in countdown], ['2 s remaining', '1 s remaining'])
+        self.assertTrue(all(line.startswith('CIMT activity: ') and '/Release]' in line for line in countdown))
+        journal = (self.root / 'activity.jsonl').read_text()
+        self.assertNotIn('countdown', journal)
+        self.assertIn('Execute device action: wait', journal)
 
     def test_unsupported_wait_argument_cancels_the_queued_tail(self):
         batch = json.dumps([action('wait', distance=40), action('tap', ref='@e1')])

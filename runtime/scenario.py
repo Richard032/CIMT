@@ -379,8 +379,12 @@ class ScenarioRunner:
                     feedback = self.actions.execute(mobile, action, session.elements,
                         record_call=lambda call: entry.update(adapterCall=call))
                 elif action['action'] == 'wait':
+                    countdown = None
+                    if self.activity:
+                        countdown = lambda seconds: self.activity.write('AI wait', 'countdown',
+                            f'{seconds} s remaining', mobile.device, session.result['target'], terminal_only=True)
                     feedback = self.actions.execute(mobile, action, session.elements,
-                        record_wait=lambda message: entry.update(actionFeedback=message))
+                        record_wait=lambda message: entry.update(actionFeedback=message), wait_countdown=countdown)
                 else:
                     feedback = self.actions.execute(mobile, action, session.elements)
                 entry['completedAt'] = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
