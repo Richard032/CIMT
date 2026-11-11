@@ -67,6 +67,13 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('try a corrected action when supported by the evidence and test goal', prompt)
         self.assertIn('record it according to the test instructions', prompt)
 
+    def test_prompt_requires_evidence_for_each_repeated_workflow_iteration(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('track each iteration separately', prompt)
+        self.assertIn('A step from an earlier iteration cannot satisfy a new one', prompt)
+        self.assertIn('prefilled or masked value does not prove', prompt)
+
     def test_prompt_requests_a_prefixed_explanation_for_each_command(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
