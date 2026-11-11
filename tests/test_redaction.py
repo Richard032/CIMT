@@ -130,6 +130,28 @@ class ScreenSecretTests(unittest.TestCase):
                 [{"text": "páss"}], image.getvalue(), dict(width=30, height=30)
             )
 
+    def test_hidden_protected_field_masks_entire_screenshot(self):
+        scrub = Redactor({'masking': {'rules': [{'element-id': 'protected-field'}]}})
+        image = io.BytesIO()
+        Image.new('RGB', (30, 30), 'white').save(image, format='PNG')
+        safe, encoded = ScreenMasker(scrub).capture(
+            [dict(identifier='dialog', type='Dialog')], image.getvalue(), dict(width=30, height=30))
+        with Image.open(io.BytesIO(encoded)) as picture:
+            self.assertEqual(picture.getpixel((0, 0)), (0, 0, 0))
+            self.assertEqual(picture.getpixel((29, 29)), (0, 0, 0))
+        self.assertTrue(safe[-1]['screenshotFullyMasked'])
+
+    def test_visible_protected_field_masks_only_its_region(self):
+        scrub = Redactor({'masking': {'rules': [{'element-id': 'protected-field'}]}})
+        image = io.BytesIO()
+        Image.new('RGB', (30, 30), 'white').save(image, format='PNG')
+        item = dict(identifier='protected-field', coordinates=dict(x=5, y=5, width=10, height=10))
+        safe, encoded = ScreenMasker(scrub).capture([item], image.getvalue(), dict(width=30, height=30))
+        with Image.open(io.BytesIO(encoded)) as picture:
+            self.assertEqual(picture.getpixel((10, 10)), (0, 0, 0))
+            self.assertEqual(picture.getpixel((29, 29)), (255, 255, 255))
+        self.assertFalse(any(row.get('screenshotFullyMasked') for row in safe))
+
     def test_non_sensitive_label_needs_no_mask(self):
         self.assertFalse(redactor("páss").sensitive({"text": "Public value"}))
 

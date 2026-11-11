@@ -137,6 +137,8 @@ class CaptureRaceTests(unittest.TestCase):
 
     def test_retry_returns_the_fresh_image_instead_of_the_rejected_frame(self):
         fixture = CaptureFixture([], [SECRET_FIELD])
+        # Password is detected by its name; no configured ID remains hidden on the fresh frame.
+        fixture.redactor.ids.clear()
         fixture.reads = iter([[], [SECRET_FIELD], [], []])
         stream = io.BytesIO()
         Image.new("RGB", (100, 100), "red").save(stream, format="PNG")
