@@ -166,6 +166,16 @@ class BudgetFixture:
 
 
 class ResultRedactionTests(unittest.TestCase):
+    def test_selected_command_omits_duplicate_reply_but_saved_record_keeps_it(self):
+        records = redactor('private').records
+        command = dict(id=1, batchId=2, position=0, status='executed', step=4,
+            response=dict(action='tap', ref='@e1', modelResponse='original reply', observation='result'))
+        selected = records.request_context(dict(selectedCommands=[command]))['selectedCommands'][0]
+        self.assertEqual(selected['response']['action'], 'tap')
+        self.assertEqual(selected['response']['observation'], 'result')
+        self.assertNotIn('modelResponse', selected['response'])
+        self.assertEqual(records.queued_command(command)['response']['modelResponse'], 'original reply')
+
     def session(self, definitions=None):
         return SimpleNamespace(
             image=b"masked",

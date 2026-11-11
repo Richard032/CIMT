@@ -127,6 +127,14 @@ class RecordRedactor:
             'includeAll': lambda rows: list(rows),
             'records': lambda rows: self._items(rows, lambda row: self._record(row, ['collection', 'id']))})
 
+    def request_command(self, value):
+        """Omit the duplicate full reply; it remains available in decisions."""
+        row = self.queued_command(value)
+        response = row.get('response')
+        if isinstance(response, dict):
+            response.pop('modelResponse', None)
+        return row
+
     def request_context(self, value):
         path = lambda row: self._record(row, ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId', 'ref'])
         return self._record(value, ['currentScreen'], {
@@ -144,7 +152,7 @@ class RecordRedactor:
             'batchFeedback': lambda rows: self._items(rows, self.batch),
             'currentWarnings': lambda rows: self._items(rows, self.warning),
             'selectedBatches': lambda rows: self._items(rows, self.batch),
-            'selectedCommands': lambda rows: self._items(rows, self.queued_command),
+            'selectedCommands': lambda rows: self._items(rows, self.request_command),
             'selectedActions': lambda rows: self._items(rows, self.action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),
             'selectedChecks': lambda rows: self._items(rows, self.check),

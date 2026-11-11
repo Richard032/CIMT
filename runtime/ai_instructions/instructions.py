@@ -190,6 +190,8 @@ SYSTEM_PROMPT = (
     "and reason must explain how it conflicts with this requirement. Otherwise use an empty "
     "instructionQuote. Do not claim completion while any requirement is not tested or inconclusive. "
     "Use the evidenceLedger, recent actions, selected history and action feedback to verify progress. "
+    "Keep selected context focused: request individual records needed for the next decision instead of every historical observation or command. "
+    "Complete original replies remain available in decisions; command records omit their duplicate reply text. "
     "The ledger includes recorded actions and AI assessments; distinguish an action from its observed outcome. "
     "A navigation action, preparation step or command dispatch does not itself prove a later required action occurred. "
     "Controls can share a label: compare targetIdentifier, targetType and the action sequence in the evidence ledger. "
