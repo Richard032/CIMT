@@ -520,6 +520,29 @@ class ScenarioTests(unittest.TestCase):
         state = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
         self.assertEqual(state['batchFeedback'][0]['path'][0]['warnings'], [0])
 
+    def test_android_permission_dialog_reaches_ai_without_relaunching_app(self):
+        class PermissionMobile(FakeMobile):
+            def running(self, app_id, executable):
+                return True
+
+        permission = dict(ref='@allow', type='android.widget.Button', text='Allow',
+            identifier='com.android.permissioncontroller:id/permission_allow_button')
+        for controller in ['com.android.permissioncontroller',
+                           'com.google.android.permissioncontroller',
+                           'com.android.packageinstaller']:
+            with self.subTest(controller=controller):
+                mobile = PermissionMobile(self.root, elements=[permission],
+                    foreground=['com.example.app', controller, controller])
+                agent, _, transport = api_agent([action('tap', ref='@settings'), action()])
+                result = {'scenarios': []}
+
+                self.runner.run(mobile, self.build, result, agent, lambda: None)
+
+                self.assertNotIn('mobile_launch_app', [name for name, _ in mobile.calls])
+                self.assertEqual(result['scenarios'][0]['crashes'], [])
+                next_input = json.loads(transport.bodies[1]['input'][1]['content'][0]['text'])
+                self.assertIn(permission, next_input['elements'])
+
     def test_done_keeps_later_commands_visible_without_executing_them(self):
         agent, _, transport = api_agent([json.dumps([action(), action('tap', ref='@later')])])
         mobile = FakeMobile(self.root, elements=[])

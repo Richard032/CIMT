@@ -10,7 +10,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from coverage_tracker import CoverageTracker
-from crashes import CrashMonitor, CrashRecovery, StartupGuard
+from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery, StartupGuard
 from errors import DeviceActionError, InfrastructureError, NoProgressAction
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
@@ -284,13 +284,10 @@ class ScenarioRunner:
 
     @staticmethod
     def _within_app(session):
-        allowed = [
+        allowed = ANDROID_PERMISSION_CONTROLLERS | {
             session.app_id,
             "com.apple.springboard",
-            "com.android.permissioncontroller",
-            "com.google.android.permissioncontroller",
-            "com.android.packageinstaller",
-        ]
+        }
         if session.active in allowed:
             return True
         if session.active in ('android', 'com.android.systemui') and session.observer and session.observer.active_anr:

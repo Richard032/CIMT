@@ -59,6 +59,14 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('do not re-enter credentials solely because their values are hidden', prompt)
         self.assertIn('text types into the focused field and may append', prompt)
 
+    def test_prompt_explains_foreground_modals_for_any_app(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('blocks interaction with controls behind it', prompt)
+        self.assertIn('use a current target within it', prompt)
+        self.assertIn('do not assume a dialog is modal solely', prompt)
+        self.assertIn('treat that as unknown', prompt)
+
     def test_normal_action_example_includes_an_explicit_ai_context_selection(self):
         example = state([])['commandResources']['contextExample']
         self.assertEqual(example['action'], 'tap')
