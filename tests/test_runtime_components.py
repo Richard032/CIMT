@@ -412,6 +412,37 @@ class IncompleteResponseTests(unittest.TestCase):
         with self.assertRaisesRegex(InfrastructureError, 'max_output_tokens'):
             read_reply(dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens')))
 
+    def test_output_limit_retries_once_without_executing_partial_output(self):
+        responses = iter([
+            dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens'), usage=dict(input_tokens=10, output_tokens=2048)),
+            dict(status='completed', usage=dict(input_tokens=10, output_tokens=10),
+                 output=[dict(type='message', content=[dict(type='output_text', text='{"action":"wait"}')])]),
+        ])
+        bodies = []
+        def request(path, body):
+            bodies.append(body)
+            return next(responses)
+        budget = Budget(MODEL, 5, 'USD')
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic'}}, budget,
+                      time.time() + 30, transport=SimpleNamespace(request=request))
+        reply = agent.choose('Explore', '', '', [], b'masked', [], [], {})
+        self.assertEqual(reply['action'], 'wait')
+        self.assertEqual(budget.requests, 2)
+        self.assertIn('none of its commands ran', bodies[1]['input'][-1]['content'][-1]['text'])
+
+    def test_output_limit_retry_is_bounded(self):
+        incomplete = dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens'),
+                          usage=dict(input_tokens=10, output_tokens=2048))
+        calls = []
+        def request(path, body):
+            calls.append(body)
+            return incomplete
+        agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic'}}, Budget(MODEL, 5, 'USD'),
+                      time.time() + 30, transport=SimpleNamespace(request=request))
+        with self.assertRaisesRegex(InfrastructureError, 'max_output_tokens'):
+            agent.choose('Explore', '', '', [], b'masked', [], [], {})
+        self.assertEqual(len(calls), 2)
+
     def test_unknown_incomplete_reason_is_not_echoed(self):
         from command_reply import read_reply
         with self.assertRaises(InfrastructureError) as raised:

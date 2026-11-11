@@ -2,6 +2,7 @@
 
 import json
 import time
+from copy import deepcopy
 from ai_instructions.instructions import ActionPromptBuilder
 from command_reply import read_reply
 from budget import MAX_OUTPUT
@@ -56,7 +57,15 @@ class Agent:
             exploration_memory,
         )
         self.last_user_message = body['input'][-1]
-        return read_reply(self._request_action(body))
+        retry_body = deepcopy(body)
+        response = self._request_action(body)
+        details = response.get('incomplete_details')
+        if response.get('status') == 'incomplete' and isinstance(details, dict) and details.get('reason') == 'max_output_tokens':
+            retry_body['input'][-1]['content'].append(dict(type='input_text', text=(
+                'The previous response reached the output limit; none of its commands ran. '
+                'Return a shorter response with only the next necessary commands and concise progress.')))
+            response = self._request(retry_body, 'decision retry')
+        return read_reply(response)
 
     def _request_action(self, body):
         state = json.loads(body['input'][-1]['content'][0]['text'])
