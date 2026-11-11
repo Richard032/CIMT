@@ -768,6 +768,13 @@ class ScenarioTests(unittest.TestCase):
             executor.execute(mobile, action('restart'), mobile.elements)
         self.assertEqual([name for name, _ in mobile.calls], ['mobile_terminate_app'])
 
+    def test_action_ledger_retains_the_observed_target_identity(self):
+        result, _ = self.run_scenario(FakeMobile(self.root), [action('tap', ref='@e1'), action()])
+        row = next(item for item in result['evidenceLedger']['steps']
+                   if isinstance(item['action'], dict) and item['action'].get('action') == 'tap')
+        self.assertEqual(row['targetIdentifier'], 'ButtonA')
+        self.assertEqual(row['targetType'], 'Button')
+
     def test_critic_can_request_reconsideration_only_once(self):
         class RevisingAgent(FakeAgent):
             def __init__(self):
@@ -787,6 +794,23 @@ class ScenarioTests(unittest.TestCase):
         self.assertIn('Only one submission', agent.calls[1][-2])
         self.assertEqual(scenario['completionReview']['decision'], 'revise')
         self.assertEqual(len(scenario['checks']), 1)
+
+    def test_critic_also_reviews_a_proposed_blocked_stop(self):
+        class ReviewingAgent(FakeAgent):
+            def __init__(self):
+                super().__init__([action(completion='blocked', checks=[])])
+                self.reviews = []
+
+            def review_completion(self, evidence):
+                self.reviews.append(evidence)
+                return dict(decision='agree', feedback='The remaining work is blocked.')
+
+        agent = ReviewingAgent()
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.assertEqual(len(agent.reviews), 1)
+        self.assertEqual(agent.reviews[0]['proposed']['completion'], 'blocked')
+        self.assertEqual(result['scenarios'][0]['completion'], 'incomplete')
 
     def test_critic_unavailable_accepts_the_actor_stop(self):
         class UnavailableAgent(FakeAgent):

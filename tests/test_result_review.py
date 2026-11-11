@@ -14,9 +14,12 @@ import json
 class EvidenceLedgerTests(unittest.TestCase):
     def test_records_action_and_outcome_without_inventing_success(self):
         result = dict(steps=[dict(step=1, action=dict(action='tap', commandId=7, text='private'),
-            controlLabel='Login', actionDispatched=True, observedOutcome='Login form appeared')], checks=[])
+            controlLabel='Login', targetIdentifier='menu_login', targetType='TextView',
+            actionDispatched=True, observedOutcome='Login form appeared')], checks=[])
         ledger = EvidenceLedger().snapshot(result)
         self.assertEqual(ledger['steps'][0]['action'], dict(action='tap', commandId=7))
+        self.assertEqual(ledger['steps'][0]['targetIdentifier'], 'menu_login')
+        self.assertEqual(ledger['steps'][0]['targetType'], 'TextView')
         self.assertEqual(ledger['steps'][0]['observedOutcome'], 'Login form appeared')
         self.assertEqual(ledger['checks'], [])
 

@@ -24,7 +24,7 @@ class EvidenceLedger:
         action = row.get('action', {})
         if isinstance(action, dict):
             action = {key: action[key] for key in ('action', 'commandId', 'field', 'ref') if key in action}
-        fields = ('step', 'controlLabel', 'completedAt', 'actionDispatched',
+        fields = ('step', 'controlLabel', 'targetIdentifier', 'targetType', 'completedAt', 'actionDispatched',
                   'observedOutcome', 'actionError', 'resultObservation', 'observation')
         return dict(action=deepcopy(action), **{key: deepcopy(row[key]) for key in fields if key in row})
 

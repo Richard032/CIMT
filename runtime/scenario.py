@@ -317,7 +317,7 @@ class ScenarioRunner:
         review_limit = None
         # Review a proposed final result before recording its proposed checks.
         if (action['action'] == 'done' and action['batchPosition'] == 0
-                and action['completion'] == 'complete' and 'completionReview' not in session.result):
+                and 'completionReview' not in session.result):
             proposed = self.redactor.records.action({key: action[key] for key in
                 ('action', 'completion', 'observation', 'checks', 'remaining', 'planUpdates') if key in action})
             review_input = self.redactor.object(dict(
@@ -397,6 +397,8 @@ class ScenarioRunner:
             "step": len(session.result["steps"]),
             "action": self.redactor.records.action(action),
             "observation": action["observation"],
+            "targetIdentifier": self.redactor.text(element.get("identifier", "")),
+            "targetType": self.redactor.text(element.get("type", "")),
         }
         return entry, element, point
 
