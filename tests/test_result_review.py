@@ -77,6 +77,7 @@ class CompletionCriticTests(unittest.TestCase):
         result = CompletionCritic('fixture', request, 100).review(dict(ledger={'steps': [1]}))
         self.assertEqual(result['decision'], 'revise')
         self.assertEqual(calls[0][1], 'completion critic')
+        self.assertIn('blocked completion can correctly have an inconclusive check', calls[0][0]['input'][0]['content'])
         self.assertEqual(json.loads(calls[0][0]['input'][1]['content'][0]['text'])['ledger']['steps'], [1])
 
     def test_invalid_response_is_not_accepted_as_a_review(self):
