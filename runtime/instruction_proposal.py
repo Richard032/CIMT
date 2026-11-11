@@ -6,32 +6,33 @@ from pathlib import Path
 class InstructionProposal:
     """Use recorded, redacted run evidence to draft setup and instructions."""
 
-    def __init__(self, report, inputs, results, redactor, control, agent, activity):
+    def __init__(self, report, inputs, redactor, activity):
         self.path = Path(report) / "instruction-setup-proposal.md"
-        self.inputs = inputs
-        self.results = results
+        self.inputs = redactor.object(inputs)
         self.redactor = redactor
-        self.control = control
-        self.agent = agent
         self.activity = activity
 
-    def create(self):
-        """Save either a proposal or an explicit reason it could not be generated."""
-        try:
-            self.control.check()
-            if not self.results:
-                raise ValueError("No device results are available")
-            evidence = self.redactor.object({"inputs": self.inputs, "devices": self.results})
-            proposal = self.redactor.object(self.agent.propose(evidence))
-            text = ("# Instruction and setup proposal\n\n"
-                    "Draft for review. Original inputs remain unchanged.\n\n"
-                    "## Proposed instructions\n\n" + proposal["instructions"] +
-                    "\n\n## Proposed setup\n\n" + proposal["setup"] +
-                    "\n\n## Supporting evidence and uncertainty\n\n" + proposal["evidence"] + "\n")
-            self.path.write_text(text, encoding="utf-8")
-            self.activity.write("Instruction proposal", "completed", "Review instruction-setup-proposal.md before using it.")
-        except Exception as error:
-            # A proposal failure must not change the already recorded test result.
-            self.path.write_text("# Instruction and setup proposal\n\n"
-                "No AI proposal was generated. Reason: " + self.redactor.text(str(error)) + "\n", encoding="utf-8")
-            self.activity.write("Instruction proposal", "failed", "Proposal unavailable; see instruction-setup-proposal.md.")
+    def create(self, agent, results, outcome):
+        evidence = self.redactor.object({"inputs": self.inputs, "runOutcome": outcome, "devices": results})
+        proposal = self.redactor.object(agent.propose(evidence))
+        self._write("AI draft for review.", proposal)
+        self.activity.write("Instruction proposal", "completed", "Review instruction-setup-proposal.md before using it.")
+
+    def unavailable(self, reason):
+        self._write("No AI proposal was generated. Reason: " + self.redactor.text(reason), {
+            "interpretation": "AI interpretation is unavailable. The original test instructions are included below.",
+            "instructions": self.inputs.get("instructions") or "No testing instructions were loaded.",
+            "setup": self.inputs.get("setup") or "No setup was supplied.",
+            "evidence": "See the run report for any recorded results and stopping reasons.",
+        })
+        self.activity.write("Instruction proposal", "failed", "Proposal unavailable; see instruction-setup-proposal.md.")
+
+    def _write(self, status, proposal):
+        text = ("# Instruction and setup proposal\n\n" + status +
+                "\n\n## Interpretation of the testing task\n\n" + proposal["interpretation"] +
+                "\n\n## Proposed instructions\n\n" + proposal["instructions"] +
+                "\n\n## Proposed setup\n\n" + proposal["setup"] +
+                "\n\n## Supporting evidence and uncertainty\n\n" + proposal["evidence"] + "\n")
+        temporary = self.path.with_suffix(".md.partial")
+        temporary.write_text(text, encoding="utf-8")
+        temporary.replace(self.path)

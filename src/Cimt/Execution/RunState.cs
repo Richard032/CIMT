@@ -15,6 +15,7 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
     public RunActivityLog Activity { get; } = new(folders.Report, configuration.Scrub);
     public RunDeadline Deadline { get; } = deadline;
     public CancellationToken Cancellation { get; init; }
+    public bool AiTestingApproved { get; set; }
     public string Work { get; set; } = "";
     public string Commit { get; set; } = "";
     public string? NativeBinary

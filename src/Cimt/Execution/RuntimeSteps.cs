@@ -34,6 +34,39 @@ public sealed class ModelAccessCheck(RunProcess processes, RuntimePaths paths, I
     }
 }
 
+/// <summary>Reviews the saved test inputs and any partial device results after cleanup.</summary>
+public sealed class ProposalFinalization(ICommandRunner runner, RuntimePaths paths) : IRunStep
+{
+    public async Task Execute(RunState state)
+    {
+        if (state.Inputs.Count == 0)
+            throw new ConfigurationException("No testing inputs were loaded.");
+        if (ExecutionCheckpoint.IsEnabled(state) && !state.AiTestingApproved)
+            throw new ConfigurationException("The interactive AI testing checkpoint was not acknowledged.");
+
+        var timeout = state.Deadline.RemainingSeconds(60);
+        state.Activity.Record("Instruction proposal", "started", "Reviewing the test goals and recorded results.");
+        // Device cancellation has already been handled. This review uses only the remaining run time.
+        var result = await runner.Run(new(paths.Python, [paths.Worker, "--proposal"], timeout, state.Environment,
+            Input: JsonSerializer.Serialize(new
+            {
+                config = RuntimeRequest.ConvertNode(state.Configuration.Root),
+                report = state.Report,
+                deadline = Math.Min(state.Deadline.End.ToUnixTimeMilliseconds(),
+                    DateTimeOffset.UtcNow.AddSeconds(timeout).ToUnixTimeMilliseconds()) / 1000.0,
+                inputs = state.Inputs,
+                outcome = new
+                {
+                    command = state.Command, exitCode = state.Exit, deviceExitCode = state.UiExit,
+                    cancelled = state.Cancellation.IsCancellationRequested,
+                    errors = state.Errors, stoppingReasons = state.StopReasons
+                }
+            })));
+        if (result.Exit != 0)
+            throw new ConfigurationException("The proposal worker exited before saving its review.");
+    }
+}
+
 /// <summary>Runs the device worker after successful builds are available.</summary>
 public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunProgress progress,
     IRunReportWriter? reports = null) : IRunStep

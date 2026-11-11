@@ -10,7 +10,7 @@ from budget import Budget
 from device_runner import DeviceRunner
 from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError, LimitReached
-from evidence import RunJournal
+from evidence import RunJournal, atomic
 from device_adapter.mobile import Mobile
 from redaction import Redactor
 from run_control import RunControl
@@ -64,9 +64,6 @@ class Execution:
         worker = self._device_runner()
         self.scheduler.run(self.context["devices"], worker)
         self.journal.save()
-        InstructionProposal(self.context["report"], self.context["inputs"], self.journal.results,
-                            self.redactor, self.control, self.agent_factory(), self.activity).create()
-        self.journal.save()
         self.activity.write("Device test summary", "finished",
             "Exit " + str(result_exit_code(self.journal.results))
             + "; AI inference requests: " + str(self.budget.snapshot()["requests"]))
@@ -103,10 +100,34 @@ class Execution:
         return Agent(self.config, self.budget, self.context["deadline"])
 
 
+def finalize_proposal(context):
+    """Review the saved run after device execution and its cancellation have ended."""
+    config = context["config"]
+    report = pathlib.Path(context["report"])
+    redactor = Redactor(config)
+    activity = ActivityLog(report, redactor)
+    proposal = InstructionProposal(report, context["inputs"], redactor, activity)
+    try:
+        ledger = report / "ai-budget.json"
+        budget = Budget(config["ai-model"]["name"], config["ai-budget"]["amount"], config["ai-budget"]["currency"])
+        if ledger.exists():
+            budget.restore(json.loads(ledger.read_text(encoding="utf-8")))
+        budget.journal = lambda: atomic(ledger, budget.snapshot())
+        saved = report / "ui-results.json"
+        results = json.loads(saved.read_text(encoding="utf-8"))["devices"] if saved.exists() else []
+        proposal.create(Agent(config, budget, context["deadline"]), results, context["outcome"])
+    except Exception as error:
+        # Proposal failures cannot change the verdict or exit code of device testing.
+        proposal.unavailable(str(error))
+    return 0
+
+
 def main(stream, arguments):
     """Read the private request from stdin and return a documented exit code."""
     try:
         context = json.load(stream)
+        if "--proposal" in arguments:
+            return finalize_proposal(context)
         execution = Execution(context)
         with RunSignals(execution.control):
             return execution.run(preflight="--preflight" in arguments)

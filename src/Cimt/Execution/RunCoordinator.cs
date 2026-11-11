@@ -18,7 +18,8 @@ public interface IRunReportWriter
 }
 
 /// <summary>Runs the steps in order and always performs cleanup and reporting.</summary>
-public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup cleanup, IRunReportWriter reports)
+public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup cleanup, IRunReportWriter reports,
+    IRunStep? proposal = null)
 {
     /// <summary>Run each step, then clean up and write the result even after a failure.</summary>
     public async Task<int> Execute(RunState state)
@@ -49,17 +50,38 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         }
         if (state.Exit == 0 && state.UiExit == 2)
             state.Exit = 2;
-        EnsureProposalStatus(state);
+        await FinalizeProposal(state);
         return reports.Write(state);
     }
 
-    private static void EnsureProposalStatus(RunState state)
+    private async Task FinalizeProposal(RunState state)
     {
         var path = Path.Combine(state.Report, "instruction-setup-proposal.md");
+        if (File.Exists(path))
+            return;
+        var reason = "The proposal worker did not save a review.";
         try
         {
-            if (!File.Exists(path))
-                File.WriteAllText(path, "# Instruction and setup proposal\n\nNo AI proposal was generated because device testing did not complete. See the run report for the stopping reason.\n");
+            if (proposal is not null)
+                await proposal.Execute(state);
+        }
+        catch (Exception error)
+        {
+            reason = error is ConfigurationException or RunLimitException
+                ? state.Configuration.Scrub(error.Message) : error.GetType().Name;
+            state.Activity.Record("Instruction proposal", "unavailable", reason);
+        }
+        try
+        {
+            if (File.Exists(path))
+                return;
+            var instructions = state.Inputs.GetValueOrDefault("instructions", "No testing instructions were loaded.");
+            var setup = state.Inputs.GetValueOrDefault("setup", "No setup was supplied.");
+            File.WriteAllText(path, "# Instruction and setup proposal\n\nNo AI proposal was generated. Reason: " + reason
+                + "\n\n## Interpretation of the testing task\n\nAI interpretation is unavailable. The original inputs follow.\n\n"
+                + "## Proposed instructions\n\n" + state.Configuration.Scrub(instructions)
+                + "\n\n## Proposed setup\n\n" + state.Configuration.Scrub(setup)
+                + "\n\n## Supporting evidence and uncertainty\n\nSee the run report for results and stopping reasons.\n");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {

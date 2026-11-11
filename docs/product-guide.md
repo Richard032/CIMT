@@ -175,9 +175,9 @@ Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Na
 
 ## Review the proposed instructions and setup
 
-After device testing, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It contains separate draft instructions, reusable app setup and supporting evidence/uncertainty. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
+After a run or replay, including one stopped with Ctrl+C, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It explains how the AI interpreted the goals, details, timing and stopping conditions, then gives draft instructions, reusable app setup and supporting evidence. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
 
-The proposal uses an additional inference request charged to the same run budget and deadline. If the budget, deadline, interruption, missing evidence or provider failure prevents generation, the file explains that no proposal was generated. This does not change the recorded test verdict. If execution ends before the device worker starts, the host writes a status file instead. Proposal text and evidence may be private; review before sharing.
+The proposal uses one inference request within the run's remaining budget and deadline. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a limit, checkpoint or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
 
 ## Open a run or replay report
 

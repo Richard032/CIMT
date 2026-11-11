@@ -19,9 +19,10 @@ def state(elements):
 class InstructionTests(unittest.TestCase):
     def test_controls_keep_enabled_state_for_the_ai_to_interpret(self):
         disabled = dict(ref='@disabled', type='Button', label='Save', enabled=False)
-        inputs = state([disabled])
-        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap')])
-        self.assertEqual(inputs['elements'], [disabled])
+        hidden = dict(ref='@hidden', type='Button', label='Continue', visible=False)
+        inputs = state([disabled, hidden])
+        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap'), dict(hidden, inputKind='tap')])
+        self.assertEqual(inputs['elements'], [disabled, hidden])
 
     def test_static_text_is_evidence_without_becoming_a_control(self):
         text = dict(ref='@caption', type='Text', text='Current selection')

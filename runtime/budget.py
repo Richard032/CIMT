@@ -1,7 +1,7 @@
 """Shared AI cost accounting. This module does not call the provider."""
 
 import threading
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from errors import InfrastructureError, LimitReached
 
 # Standard, global endpoint pricing verified against the official model page on
@@ -55,6 +55,38 @@ class Budget:
         # Reserve the ENTIRE model context, including image input, plus the
         # enforced output cap. This avoids estimates of screenshot/BPE tokens.
         self.bound = self._cost(self.price["context"], MAX_OUTPUT)
+
+    def restore(self, snapshot):
+        """Resume the same run's ledger after the device worker has exited."""
+        try:
+            if (snapshot["model"] != self.model or snapshot["currency"] != "USD"
+                    or Decimal(snapshot["limit"]) != self.limit
+                    or Decimal(snapshot["maximumRequestReservation"]) != self.bound):
+                raise ValueError("The saved ledger uses different budget settings")
+            costs = [Decimal(snapshot[key]) for key in
+                     ("accountedUpperCost", "uncertainUpperCost", "pendingUpperCost")]
+            if any(not cost.is_finite() or cost < 0 for cost in costs):
+                raise ValueError("The saved ledger contains invalid costs")
+            accounted, uncertain, pending = costs
+            requests, inputs, outputs = [snapshot[key] for key in ("requests", "inputTokens", "outputTokens")]
+            cached = snapshot["cachedInputTokens"]
+            cache_requests = snapshot["cacheUsageRequests"]
+            usage = snapshot["requestUsage"]
+            if (any(type(value) is not int or value < 0 for value in (requests, inputs, outputs, cache_requests))
+                    or (cached is not None and (type(cached) is not int or not 0 <= cached <= inputs))
+                    or not isinstance(usage, list) or not all(isinstance(row, dict) for row in usage)
+                    or pending % self.bound != 0 or len(usage) + pending / self.bound != requests):
+                raise ValueError("The saved ledger contains invalid usage")
+        except (KeyError, TypeError, ValueError, InvalidOperation):
+            raise InfrastructureError("The saved AI budget could not be restored safely") from None
+
+        self.accounted = accounted
+        # The device worker can exit while a request is in flight. Keep its full reserved cost.
+        self.uncertain = uncertain + pending
+        self.requests, self.input_tokens, self.output_tokens = requests, inputs, outputs
+        self.cached_tokens = cached or 0
+        self.cache_usage_requests = cache_requests
+        self.usage_records = usage + [dict(kind='device request', status='uncertain')] * int(pending / self.bound)
 
     def reserve(self):
         """Hold the maximum request cost before any paid call starts."""

@@ -24,7 +24,8 @@ public static class RunEngine
         interruption.Listen();
         var reports = new RunReportWriter();
         var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http), terminalInput, runner, replay, reports);
-        var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), reports);
+        var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), reports,
+            new ProposalFinalization(runner, paths));
         return await coordinator.Execute(CreateState(config, runFolders, replay, interruption.Token));
     }
 
