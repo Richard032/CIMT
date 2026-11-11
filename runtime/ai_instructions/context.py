@@ -13,7 +13,7 @@ class InstructionContext:
         self.redactor = redactor
 
     def prepare(self, session, device, evidence):
-        """Prepare the current screen and scenario conversation for the AI."""
+        """Prepare the current screen and selected scenario context for the AI."""
         screenshots = list(evidence.images.values())
         session.result['screenshots'] = screenshots
         memory = session.planner.context(session.elements, session.history,
@@ -26,7 +26,6 @@ class InstructionContext:
         memory = self.redactor.records.request_context(memory)
         memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
         # Historical pixels are supplied only when the AI selected them.
-        memory['conversation'] = session.conversation
         memory['historicalImages'] = (evidence.load_images(memory['selectedScreenshots'])
             if session.planner.context_memory.selection is not None else [])
         return [self.inputs['instructions'], self.inputs.get('requirements', ''),

@@ -30,9 +30,6 @@ class AiInteraction:
                 status = 'stopped' if self.control.interrupted else timing['status']
                 self.activity.write('AI provider response', status, timing['kind'],
                     mobile.device, session.result['target'], seconds=timing['seconds'])
-        if getattr(agent, 'last_user_message', None) is not None:
-            session.conversation.record(agent.last_user_message,
-                self.redactor.text(reply.get('modelResponse', '')))
         session.feedback.delivered()
         return reply
 

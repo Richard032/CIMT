@@ -83,25 +83,7 @@ class AiInteractionTests(unittest.TestCase):
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
 
-    def test_next_request_keeps_prior_text_and_reply_but_omits_prior_image(self):
-        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
-        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-
-        first_request = transport.bodies[0]['input']
-        next_request = transport.bodies[1]['input']
-        self.assertEqual([message['role'] for message in next_request],
-                         ['system', 'user', 'assistant', 'user'])
-        self.assertEqual(next_request[1]['content'][0], first_request[1]['content'][0])
-        self.assertEqual(next_request[1]['content'][1]['text'],
-                         '[Screenshot omitted from conversation history.]')
-        self.assertEqual(json.loads(next_request[2]['content'])['action'], 'tap')
-        self.assertEqual(next_request[3]['content'][1]['type'], 'input_image')
-        self.assertFalse(any(part['type'] == 'input_image' for part in next_request[1]['content']))
-        self.assertFalse(any(part['type'] == 'input_image'
-                             for part in self.session.conversation.messages[0]['content']))
-
-    def test_later_request_sends_new_records_without_repeating_original_inputs(self):
+    def test_later_request_has_current_context_without_conversation_history(self):
         self.session.history.append(dict(action='tap', observation='First step'))
         agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
         self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
@@ -109,40 +91,14 @@ class AiInteractionTests(unittest.TestCase):
         self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
 
         messages = transport.bodies[1]['input']
-        first = json.loads(messages[1]['content'][0]['text'])
-        current = json.loads(messages[-1]['content'][0]['text'])
-        self.assertEqual(first['instructions'], 'Explore')
-        self.assertNotIn('instructions', current)
-        self.assertNotIn('commandResources', current)
-        self.assertEqual([row['observation'] for row in first['recentActions']], ['First step'])
-        self.assertEqual([row['observation'] for row in current['recentActions']], ['Second step'])
+        self.assertEqual([message['role'] for message in messages], ['system', 'user'])
+        current = json.loads(messages[1]['content'][0]['text'])
+        self.assertEqual(current['instructions'], 'Explore')
+        self.assertIn('commandResources', current)
+        self.assertEqual([row['observation'] for row in current['recentActions']],
+                         ['First step', 'Second step'])
         self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
-        self.assertEqual(messages[-1]['content'][1]['type'], 'input_image')
-
-    def test_conversation_is_scoped_to_the_scenario(self):
-        agent, _, transport = api_agent([action(), action()])
-        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-        other = ScenarioSession(dict(target='Release', steps=[], requirements=[]),
-            'com.example.app', 'fixture', [BUTTON], b'other masked image')
-        self.interaction.choose(self.mobile, other, agent, self.evidence, lambda: None)
-
-        self.assertEqual([message['role'] for message in transport.bodies[1]['input']],
-                         ['system', 'user'])
-
-    def test_credential_values_in_ai_replies_are_redacted_from_later_requests(self):
-        redactor = Redactor({'credentials': {'login': {'password': 'fixture-private-password'}}})
-        interaction = AiInteraction(dict(instructions='Explore'), {}, redactor,
-                                    self.control, self.activity)
-        agent, _, transport = api_agent([
-            action('tap', ref='@e1', observation='fixture-private-password'),
-            action(),
-        ])
-        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-
-        previous_reply = transport.bodies[1]['input'][2]['content']
-        self.assertNotIn('fixture-private-password', previous_reply)
-        self.assertIn('<redacted>', previous_reply)
+        self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
 
     def test_provider_time_is_separate_from_context_and_capture_operations(self):
         agent, _, _ = api_agent([action()])
