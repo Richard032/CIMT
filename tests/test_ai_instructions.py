@@ -84,6 +84,21 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('CIMT executes none of that reply', prompt)
         self.assertIn('reason and expected format', prompt)
 
+    def test_timed_check_example_keeps_the_triggering_command_as_the_start(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('identify the triggering event in batchFeedback by commandId and action', prompt)
+        self.assertIn('Elapsed time from tap command 7 is 30 seconds', prompt)
+        self.assertIn('The wait completion does not reset the start time', prompt)
+
+    def test_done_example_reports_objective_and_requirement_checks_separately(self):
+        example = state([])['commandResources']['doneExample']
+        self.assertEqual(example['action'], 'done')
+        self.assertEqual(example['completion'], 'complete')
+        self.assertEqual(example['remaining'], [])
+        self.assertEqual([(row['source'], row['requirementId']) for row in example['checks']],
+                         [('instructions', ''), ('requirements', 'REQ-0042')])
+
     def test_swipe_resources_expose_target_and_distance_together(self):
         resources = state([])['commandResources']
         self.assertEqual(resources['swipeExample'], dict(action='swipe', ref='<current target ref>',

@@ -55,10 +55,13 @@ SYSTEM_PROMPT = (
     "Read every step rather than assuming only the final screen matters. No separate acknowledgement call is added. "
     "For wait, use durationMs as a nonnegative integer, or omit it for 2000 ms. Wait runs locally and can be "
     "interrupted by cancellation or the run deadline. Read the actual elapsed wait in actionFeedback. "
-    "For a timed check, keep the triggering command's completedAt UTC timestamp in your context summary "
-    "or retain its batch. Compare it with observedAt on a later observation or in currentEvidence. "
-    "These observation times apply even when the screen has not changed. Preserve the original start time "
-    "until the check is decided, and only wait for the remaining time if the condition still needs observation. "
+    "For a timed check, identify the triggering event in batchFeedback by commandId and action. "
+    "Keep both fields and its completedAt UTC timestamp in your context summary until the check is decided. "
+    "If the start event is missing, retrieve its batch before calculating elapsed time. "
+    "Compare the start with the latest observedAt in currentEvidence or batchFeedback, even when the screen has not changed. "
+    "Timing example: tap command 7 completed at 10:00:00 UTC, wait command 8 completed at 10:00:20 UTC, "
+    "and the next observation was at 10:00:30 UTC. Elapsed time from tap command 7 is 30 seconds. "
+    "The wait completion does not reset the start time. Request another wait only for time still remaining. "
     "Each batch starts with one initial observation; every result supplies the next state, without duplicate before images. "
     "Independent observed changes are separate path events. Unavailable observations are unknown, not unchanged. "
     "Successful dispatch is not proof of correct application behavior. Android ANR is a warning, not alone a crash or stop. "
@@ -145,6 +148,10 @@ SYSTEM_PROMPT = (
     "An unknown reference remains an unbound AI record; it does not prevent an action. "
     "Assess your own source links, interpretation and plan correctness. "
     "Navigation is not a passed test. A done response needs an instructions check for taskId 0. "
+    "If the same new evidence decides both the objective and a requirement, include separate checks in done. "
+    "Use source instructions for the objective and source requirements with the exact catalogue ID for the requirement. "
+    "An instruction check leaves the requirement's status unchanged. "
+    "See commandResources.doneExample and replace its example ID and observations with your run's evidence. "
     "Use discoveredControls to identify additional current refs that are actual user inputs, including generic WebView controls. "
     "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
     "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
@@ -267,6 +274,9 @@ class ActionPromptBuilder:
         state['currentWarnings'] = current_warnings
         if resource_feedback:
             state['resourceFeedback'] = resource_feedback
+        example_check = dict(taskId=0, subject='Save confirmation', status='passed',
+            expected='Saving shows a confirmation', observed='The confirmation appeared after saving',
+            reason='', instructionQuote='')
         state['commandResources'] = {
             'actions': ['tap', 'text', 'credential', 'swipe', 'back', 'wait', 'restart', 'recall', 'recover', 'done'],
             'arguments': FIELDS,
@@ -275,6 +285,10 @@ class ActionPromptBuilder:
             'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
             'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=35, durationMs=1000),
             'waitExample': dict(action='wait', durationMs=30000),
+            'doneExample': dict(action='done', completion='complete', remaining=[], checks=[
+                dict(example_check, source='instructions', requirementId=''),
+                dict(example_check, source='requirements', requirementId='REQ-0042'),
+            ]),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
         return state
