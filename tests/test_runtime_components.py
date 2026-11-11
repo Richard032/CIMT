@@ -406,6 +406,19 @@ class WaitActionTests(unittest.TestCase):
                 self.assertEqual(self.countdown, [30])
 
 
+class IncompleteResponseTests(unittest.TestCase):
+    def test_known_incomplete_reason_is_reported_without_executing_a_command(self):
+        from command_reply import read_reply
+        with self.assertRaisesRegex(InfrastructureError, 'max_output_tokens'):
+            read_reply(dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens')))
+
+    def test_unknown_incomplete_reason_is_not_echoed(self):
+        from command_reply import read_reply
+        with self.assertRaises(InfrastructureError) as raised:
+            read_reply(dict(status='incomplete', incomplete_details=dict(reason='private details')))
+        self.assertNotIn('private details', str(raised.exception))
+
+
 class ScenarioTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

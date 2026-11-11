@@ -8,7 +8,11 @@ from errors import InfrastructureError
 def read_reply(response):
     """Decode ordered commands; keep unreadable text as a note for the next turn."""
     if response.get('status') != 'completed':
-        raise InfrastructureError('OpenAI response was incomplete; no action executed')
+        details = response.get('incomplete_details')
+        reason = details.get('reason') if isinstance(details, dict) else None
+        allowed = ('max_output_tokens', 'max_messages', 'content_filter', 'steered')
+        suffix = ': ' + reason if reason in allowed else ''
+        raise InfrastructureError('OpenAI response was incomplete' + suffix + '; no action executed')
     parts = [part for item in response.get('output', []) if item.get('type') == 'message'
              for part in item.get('content', [])]
     if any(part.get('type') == 'refusal' for part in parts):
