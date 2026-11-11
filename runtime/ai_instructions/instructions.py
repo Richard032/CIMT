@@ -199,6 +199,8 @@ SYSTEM_PROMPT = (
     "Keep selected context focused: request individual records needed for the next decision instead of every historical observation or command. "
     "Complete original replies remain available in decisions; command records omit their duplicate reply text. "
     "The ledger includes recorded actions and AI assessments; distinguish an action from its observed outcome. "
+    "A ledger entry’s decisionObservedAt is the time of the screen used by its AI explanation, "
+    "completedAt is the action time, and observedAt is the following screen time. "
     "A navigation action, preparation step or command dispatch does not itself prove a later required action occurred. "
     "Controls can share a label: compare targetIdentifier, targetType and the action sequence in the evidence ledger. "
     "Complete the required steps and verify their outcomes before counting progress. "

@@ -847,6 +847,7 @@ class ScenarioTests(unittest.TestCase):
                    if isinstance(item['action'], dict) and item['action'].get('action') == 'tap')
         self.assertEqual(row['targetIdentifier'], 'ButtonA')
         self.assertEqual(row['targetType'], 'Button')
+        self.assertIsNotNone(row['decisionObservedAt'])
 
     def test_critic_can_request_reconsideration_only_once(self):
         class RevisingAgent(FakeAgent):

@@ -43,6 +43,7 @@ class ScenarioSession:
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
     observed_at: str | None = None
+    decision_observed_at: str | None = None
     commands: CommandQueue = field(default_factory=CommandQueue)
     feedback: BatchFeedback = field(default_factory=BatchFeedback)
     observer: ObservationRecorder | None = None
@@ -305,6 +306,7 @@ class ScenarioRunner:
         if not session.commands.pending:
             with self._operation("AI decision cycle", mobile, session.result["target"]):
                 reply = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
+            session.decision_observed_at = session.observed_at
             session.commands.add(reply)
             session.feedback.start(session.commands.next_batch - 1)
             self._save_plan(session)
@@ -401,6 +403,7 @@ class ScenarioRunner:
             "observation": action["observation"],
             "targetIdentifier": self.redactor.text(element.get("identifier", "")),
             "targetType": self.redactor.text(element.get("type", "")),
+            "decisionObservedAt": session.decision_observed_at,
         }
         return entry, element, point
 
