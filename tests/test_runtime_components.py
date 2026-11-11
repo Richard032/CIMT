@@ -432,6 +432,17 @@ class ScenarioTests(unittest.TestCase):
         (runner or self.runner).run(mobile, self.build, result, agent, lambda: None)
         return result["scenarios"][0], agent
 
+    def test_step_keeps_ai_decision_explanation(self):
+        explanation = 'ai decission explanation: Open settings to reach login.'
+        mobile = FakeMobile(self.root)
+
+        result, _ = self.run_scenario(mobile, [
+            action('tap', ref='@e1', observation=explanation),
+            action(completion='blocked'),
+        ])
+
+        self.assertEqual(result['steps'][1]['observation'], explanation)
+
     def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
         batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])
         agent, _, transport = api_agent([batch, action()])

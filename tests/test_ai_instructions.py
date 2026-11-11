@@ -59,6 +59,22 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('do not re-enter credentials solely because their values are hidden', prompt)
         self.assertIn('text types into the focused field and may append', prompt)
 
+    def test_prompt_requests_review_and_correction_after_unexpected_result(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Compare each observed app response with what you expected', prompt)
+        self.assertIn('review the preceding steps and actual feedback', prompt)
+        self.assertIn('try a corrected action when supported by the evidence and test goal', prompt)
+        self.assertIn('record it according to the test instructions', prompt)
+
+    def test_prompt_requests_a_prefixed_explanation_for_each_command(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn("'ai decission explanation: '", prompt)
+        self.assertIn('For every command, include an observation field', prompt)
+        self.assertIn('Explain each command separately, including commands in a batch', prompt)
+        self.assertIn('do not include credential values', prompt)
+
     def test_prompt_explains_foreground_modals_for_any_app(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         prompt = body['input'][0]['content']
