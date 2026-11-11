@@ -178,13 +178,13 @@ class MappingPromptTests(unittest.TestCase):
         body = ActionPromptBuilder("fixture").build("Explore", "", "", [], b"masked", [], [], {})
         self.assertIn("Do not repeat unchanged not-tested", body["input"][0]["content"])
 
-    def test_permission_decisions_require_authorization_in_test_instructions(self):
+    def test_prompt_instructs_ai_to_allow_os_permissions(self):
         body = ActionPromptBuilder("fixture").build(
             "Explore buttons", "", "", [], b"masked", [], [], {}
         )
         policy = body["input"][0]["content"]
-        self.assertIn("Do not accept or deny a permission request unless", policy)
-        self.assertIn("completion blocked", policy)
+        self.assertIn("always select Allow or the equivalent positive option", policy)
+        self.assertIn("do not tap app controls behind it", policy)
 
     def test_per_run_permission_instruction_reaches_the_model_unchanged(self):
         instructions = "For this run, allow Bluetooth permission for the tested app."

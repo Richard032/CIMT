@@ -101,7 +101,7 @@ The AI selects ordinary actions and targets from current evidence, prior observa
 
 The RPC result boundary distinguishes an answered interaction rejection as DeviceActionError. ScenarioRunner records that feedback, gathers normal post-action evidence and lets the next AI decision choose how to proceed. It does not retry or substitute an action itself. MCP connection/protocol/timeouts and masking/storage failures retain their existing infrastructure behavior. Failed requests do not become verified routes or observed-control coverage. Requested refs lacking current observations have separate path/crash identities and are labelled as requests.
 
-Credential entry retains current field/ID verification because masking must be registered before secret text is typed. Supported action shape, platform capabilities, coordinate bounds, shared limits, tested-app identity and permission authorization remain mechanical constraints. FR-96 removes plan/check/source approval: optional AI records do not gate target selection or command dispatch. See [AI context and recovery](ai-context-and-recovery.md).
+Credential entry retains current field/ID verification because masking must be registered before secret text is typed. Supported action shape, platform capabilities, coordinate bounds, shared limits, and tested-app identity remain mechanical constraints. FR-96 removes plan/check/source approval: optional AI records do not gate target selection or command dispatch. See [AI context and recovery](ai-context-and-recovery.md).
 
 ## 4. Configuration and filesystem proposal
 
@@ -368,7 +368,7 @@ CaptureGuard raises CaptureChanged only for valid screen-size or required-region
 
 Mobile supplies the run deadline and a callback that records each retry in the existing activity journal. No raw UI text, pixels, credentials, extra inference request, app action, or screenshot-bypass option is introduced. The existing masked-evidence path saves the accepted image and the HTML step renderer displays it. Scenarios with no accepted screenshot now show an explicit unavailable-evidence message. Existing report folders remain unchanged. This supersedes the immediate-stop policy for a transient valid geometry change; all candidate rejection checks remain in force.
 
-Permission decisions are controlled by testing instructions. The AI guidance requires explicit authorization to accept or deny an OS request; otherwise a blocking prompt is reported as blocked/incomplete, not a permission-only app failure. Capture retries only collect images and never click dialog buttons. For the local TestRun_SingleDevice_SingleTarget inputs only, instructions now authorize Allow (or its equivalent) for the tested ECON-M application. FirstRun and public example instructions were not given that authorization.
+The AI guidance directs the AI to accept OS permission requests raised by the tested app and interact with the foreground dialog before continuing. A prompt that cannot be granted is reported as blocked/incomplete. Capture retries only collect images and never click dialog buttons.
 
 ## 23. AI replies and resource execution
 
