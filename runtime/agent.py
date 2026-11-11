@@ -7,6 +7,7 @@ from command_reply import read_reply
 from budget import MAX_OUTPUT
 from errors import InfrastructureError
 from openai_transport import OpenAiTransport
+from result_review.critic import CompletionCritic
 
 
 class Agent:
@@ -62,6 +63,11 @@ class Agent:
         kind = ('context selection' if 'contextSelectionRequired' in state else
             'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision')
         return self._request(body, kind)
+
+    def review_completion(self, evidence):
+        """Request an advisory completion review under the shared run budget."""
+        self.last_request_timing = None
+        return CompletionCritic(self.model, self._request, MAX_OUTPUT).review(evidence)
 
     def propose(self, evidence):
         """Interpret the test task and propose improvements based on the recorded results."""

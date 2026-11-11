@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from coverage_tracker import CoverageTracker
 from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery, StartupGuard
-from errors import DeviceActionError, InfrastructureError, NoProgressAction
+from errors import DeviceActionError, InfrastructureError, LimitReached, NoProgressAction
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
@@ -20,6 +20,7 @@ from ai_interaction import AiInteraction
 from command_queue import CommandQueue
 from batch_feedback import BatchFeedback
 from observation_recorder import ObservationRecorder
+from result_review.ledger import EvidenceLedger
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -313,6 +314,36 @@ class ScenarioRunner:
         # A finish behind commands predates their results. Do not apply its predicted checks.
         if action['action'] == 'done' and action['batchPosition'] > 0:
             return action
+        review_limit = None
+        # Review a proposed final result before recording its proposed checks.
+        if (action['action'] == 'done' and action['batchPosition'] == 0
+                and action['completion'] == 'complete' and 'completionReview' not in session.result):
+            proposed = self.redactor.records.action({key: action[key] for key in
+                ('action', 'completion', 'observation', 'checks', 'remaining', 'planUpdates') if key in action})
+            review_input = self.redactor.object(dict(
+                instructions=self.inputs.get('instructions', ''),
+                requirements=self.inputs.get('requirements', ''),
+                setup=self.inputs.get('setup', ''),
+                ledger=EvidenceLedger().snapshot(session.result),
+                currentElements=session.elements, proposed=proposed))
+            try:
+                self.control.check()
+                with self._operation('Review proposed completion', mobile, session.result['target']):
+                    review = self.redactor.object(agent.review_completion(review_input))
+            except (InfrastructureError, LimitReached) as error:
+                if isinstance(error, LimitReached):
+                    review_limit = error
+                review = dict(decision='unavailable', feedback=self.redactor.text(str(error)))
+            session.result['completionReview'] = dict(review, proposed=proposed)
+            if review['decision'] == 'revise':
+                session.resource_feedback = ('Completion critic review: ' + review['feedback'] +
+                    ' Reconsider the proposed result. You may continue or stop; your next stop will be accepted.')
+                action['action'] = 'note'
+                action['observation'] = session.resource_feedback
+                session.commands.cancel_pending('Completion review requested reconsideration')
+                self._save_plan(session)
+                publish()
+                return action
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
@@ -336,6 +367,8 @@ class ScenarioRunner:
             session.result['screenshots'] = list(evidence.images.values())
             self._save_plan(session)
             publish()
+        if review_limit is not None:
+            raise review_limit
         self.control.check()
         publish()
         return action
@@ -348,6 +381,7 @@ class ScenarioRunner:
             session.feedback.finish(row, error, target_label, adapter_call, action_feedback, completed_at)
 
     def _save_plan(self, session):
+        session.result['evidenceLedger'] = EvidenceLedger().snapshot(session.result)
         session.feedback.sync(session.commands.records)
         session.result['batchFeedback'] = self.redactor.records.batch_feedback(session.feedback.saved())
         session.result['commandQueue'] = self.redactor.records.command_queue(session.commands.saved())

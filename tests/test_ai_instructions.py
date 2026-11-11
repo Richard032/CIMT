@@ -91,7 +91,7 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(example['context']['records'], [])
         self.assertTrue(example['context']['summary'])
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
-        self.assertIn('supplied recent actions, selected history and action feedback', body['input'][0]['content'])
+        self.assertIn('evidenceLedger, recent actions, selected history and action feedback', body['input'][0]['content'])
 
     def test_prompt_explains_whole_reply_syntax_feedback(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})

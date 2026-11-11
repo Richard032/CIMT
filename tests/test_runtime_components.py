@@ -93,10 +93,18 @@ class ScriptedTransport:
     def __init__(self, responses):
         self.responses = iter(responses)
         self.bodies = []
+        self.review_bodies = []
 
     def request(self, path, body):
-        self.bodies.append(body)
-        value = next(self.responses)
+        system = body['input'][0]['content']
+        if isinstance(system, list):
+            system = system[0]['text']
+        if 'Independently review the proposed test result' in system:
+            self.review_bodies.append(body)
+            value = {'decision': 'agree', 'feedback': 'Evidence supports the proposed result.'}
+        else:
+            self.bodies.append(body)
+            value = next(self.responses)
         if isinstance(value, Exception):
             raise value
         return {
@@ -124,6 +132,9 @@ class FakeAgent:
     def choose(self, *arguments):
         self.calls.append(arguments)
         return next(self.actions)
+
+    def review_completion(self, evidence):
+        return {'decision': 'agree', 'feedback': 'Evidence supports the proposed result.'}
 
 
 class FakeMobile:
@@ -757,6 +768,37 @@ class ScenarioTests(unittest.TestCase):
             executor.execute(mobile, action('restart'), mobile.elements)
         self.assertEqual([name for name, _ in mobile.calls], ['mobile_terminate_app'])
 
+    def test_critic_can_request_reconsideration_only_once(self):
+        class RevisingAgent(FakeAgent):
+            def __init__(self):
+                super().__init__([action(), action()])
+                self.reviews = []
+
+            def review_completion(self, evidence):
+                self.reviews.append(evidence)
+                return dict(decision='revise', feedback='Only one submission has evidence.')
+
+        agent = RevisingAgent()
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(len(agent.reviews), 1)
+        self.assertEqual(len(agent.calls), 2)
+        self.assertIn('Only one submission', agent.calls[1][-2])
+        self.assertEqual(scenario['completionReview']['decision'], 'revise')
+        self.assertEqual(len(scenario['checks']), 1)
+
+    def test_critic_unavailable_accepts_the_actor_stop(self):
+        class UnavailableAgent(FakeAgent):
+            def review_completion(self, evidence):
+                raise InfrastructureError('Critic unavailable')
+
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result,
+                        UnavailableAgent([action()]), lambda: None)
+        self.assertEqual(result['scenarios'][0]['completionReview']['decision'], 'unavailable')
+        self.assertEqual(result['scenarios'][0]['completion'], 'complete')
+
     def test_scoped_completion_does_not_require_unrelated_observed_controls(self):
         def choose(*arguments):
             path = arguments[-1]['currentControls'][0]['id']
@@ -764,7 +806,7 @@ class ScenarioTests(unittest.TestCase):
                 reason='This control is unrelated to the configured testing objective', planStepId=0)])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose), lambda: None)
+        self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose, review_completion=lambda evidence: dict(decision="agree", feedback="Supported")), lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['completion'], 'complete')
         self.assertEqual(scenario['coverage']['outstandingObservedControls'], 1)
@@ -971,7 +1013,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         self.runner.run(mobile, self.build, result, agent, lambda: None)
-        self.assertEqual(budget.requests, 6)
+        self.assertEqual(budget.requests, 7)
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 1)
         self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], 'AI working note')
 
