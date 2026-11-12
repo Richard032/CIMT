@@ -18,7 +18,6 @@ class Agent:
         self.model = config["ai-model"]["name"]
         self.clock = clock
         self.last_request_timing = None
-        self.last_user_message = None
         self.request_observer = None
         self.budget = budget
         self.transport = transport or OpenAiTransport(config["ai-model"]["api-key"], deadline)
@@ -57,7 +56,6 @@ class Agent:
             resource_feedback,
             exploration_memory,
         )
-        self.last_user_message = body['input'][-1]
         retry_body = deepcopy(body)
         response = self._request_action(body)
         details = response.get('incomplete_details')
@@ -70,8 +68,7 @@ class Agent:
 
     def _request_action(self, body):
         state = json.loads(body['input'][-1]['content'][0]['text'])
-        kind = ('context selection' if 'contextSelectionRequired' in state else
-            'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision')
+        kind = 'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision'
         return self._request(body, kind)
 
     def review_completion(self, evidence):
@@ -142,6 +139,8 @@ class Agent:
             self.last_request_timing = dict(kind=kind, status=status,
                 seconds=max(0, self.clock() - started))
             usage = response.get("usage") if isinstance(response, dict) else None
-            self.budget.finish(usage, kind=kind)
-            if record is not None:
-                self.request_observer.finish(record, status, usage)
+            try:
+                self.budget.finish(usage, kind=kind)
+            finally:
+                if record is not None:
+                    self.request_observer.finish(record, status, usage)

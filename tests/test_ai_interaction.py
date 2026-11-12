@@ -138,6 +138,15 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual(record['status'], 'failed')
         self.assertTrue((self.root / record['requestPath']).is_file())
 
+    def test_invalid_usage_still_records_the_provider_request_outcome(self):
+        agent, budget, _ = api_agent([])
+        agent.transport.request = lambda path, body: dict(status='completed',
+            usage=dict(input_tokens=10, output_tokens=999999))
+        with self.assertRaises(InfrastructureError):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.assertEqual(self.session.result['aiRequests'][0]['status'], 'completed')
+        self.assertEqual(budget.uncertain, budget.bound)
+
     def test_output_limit_retry_has_its_own_request_record(self):
         agent, _, _ = api_agent([])
         responses = iter([

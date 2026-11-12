@@ -34,16 +34,20 @@ class DeviceRunner:
             "stoppingReason": None,
         }
         self.journal.publish(result)
-        with self._operation("Prepare device adapter", device):
-            mobile = self.mobile_factory(device, folder)
+        mobile = None
         try:
+            with self._operation("Prepare device adapter", device):
+                mobile = self.mobile_factory(device, folder)
             with self._operation("Connect device", device):
                 mobile.connect()
             self._run_targets(mobile, result)
         except Exception as error:
             self._record_exception(result, error)
         finally:
-            self._close(mobile, result)
+            if mobile is None:
+                self.journal.publish(result)
+            else:
+                self._close(mobile, result)
 
     def _close(self, mobile, result):
         """Save the latest observations even when the adapter cannot close cleanly."""

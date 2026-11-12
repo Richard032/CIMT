@@ -13,7 +13,6 @@ class TestPlanner:
         self.plan = TestPlan(instructions, requirements)
         self.memory = ExplorationMemory()
         self.context_memory = ContextMemory()
-        self.available = None
 
 
     def observe(self, elements):
@@ -50,11 +49,11 @@ class TestPlanner:
         context = dict(currentScreen=self.memory.map.state_id(elements),
             currentControls=self.memory.current_controls(elements), knownPaths=len(self.memory.paths))
         plan = self.plan.saved()
-        self.available = self.collections(history, requirements, checks, decisions, coverage, screenshots, commands, batches)
-        self.available['routes'] = [dict(id=row['id'], destination=row['targetState'],
+        available = self.collections(history, requirements, checks, decisions, coverage, screenshots, commands, batches)
+        available['routes'] = [dict(id=row['id'], destination=row['targetState'],
             edges=self.memory.map.route(self.memory.map.state_id(elements), row['targetState']))
             for row in self.plan.tasks if row['targetState']]
-        selected = self.context_memory.project(self.available)
+        selected = self.context_memory.project(available)
         plan['tasks'] = selected['tasks']
         plan['taskCount'] = len(self.plan.tasks)
         context['testPlan'] = plan
@@ -75,7 +74,7 @@ class TestPlanner:
         context['selectedScreenshots'] = selected['screenshots']
         context['summary'] = (self.context_memory.selection or {}).get('summary', '')
         context['selection'] = self.context_memory.saved()
-        context['catalogue'] = {name: len(rows) for name, rows in self.available.items()}
+        context['catalogue'] = {name: len(rows) for name, rows in available.items()}
         context['resourceFeedback'] = list(self.context_memory.unavailable)
         return context
 

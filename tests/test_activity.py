@@ -34,6 +34,21 @@ class ActivityTests(unittest.TestCase):
     def records(self):
         return [json.loads(line) for line in (self.root / "activity.jsonl").read_text().splitlines()]
 
+    def test_adapter_preparation_failure_is_reported_and_stops_other_workers(self):
+        control = RunControl(100, clock=lambda: 0)
+        journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
+
+        def fail_preparation(device, folder):
+            raise InfrastructureError('Adapter setup failed')
+
+        runner = DeviceRunner({'report': str(self.root), 'builds': []}, self.redactor,
+            control, journal, None, fail_preparation, lambda: None, activity=self.activity)
+        runner.run(self.device, 1)
+        saved = json.loads((self.root / 'ui-results.json').read_text())['devices'][0]
+        self.assertEqual(saved['error'], 'Adapter setup failed')
+        self.assertTrue(control.stopped.is_set())
+        self.assertEqual(result_exit_code([saved]), 3)
+
     def test_stop_marker_is_a_user_interruption(self):
         marker = self.root / 'stop-requested'
         control = RunControl(100, clock=lambda: 0, stop_file=marker)
@@ -264,9 +279,9 @@ class ActivityTests(unittest.TestCase):
 
         runner = DeviceRunner({"report": str(self.root), "builds": []}, self.redactor,
             RunControl(100, clock=lambda: 0), journal, None, fail, lambda: object(), activity=self.activity)
-        with self.assertRaises(InfrastructureError):
-            runner.run(self.device, 1)
-        failed = self.records()[-1]
+        runner.run(self.device, 1)
+        failed = next(row for row in self.records()
+                      if row["operation"] == "Prepare device adapter" and row["status"] == "failed")
         self.assertEqual(failed["operation"], "Prepare device adapter")
         self.assertEqual(failed["status"], "failed")
         self.assertIn("Adapter setup failed", failed["message"])

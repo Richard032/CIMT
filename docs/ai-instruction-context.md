@@ -12,7 +12,7 @@ The layer only prepares AI instructions and keeps information available for futu
 
 The layer lives in runtime/ai_instructions/. InstructionContext assembles the sources and retained scenario information. ActionPromptBuilder constructs the request. controls.py describes the human-interface controls declared by the device adapter. The layer has no reply decoder, response validator, device-action dispatcher or OpenAI transport.
 
-Complete records remain in the existing scenario evidence and Test Planning and Exploration stores. The input layer uses those stores instead of keeping another copy of the plan. It applies the AI's exact context selection without deciding relevance, reducing history itself or replacing requirements with a summary. A selection that cannot fit returns capacity information for the AI to handle; records are retained.
+Complete records remain in the existing scenario evidence and Test Planning and Exploration stores. The input layer uses those stores instead of keeping another copy of the plan. It applies the AI's exact context selection without deciding relevance, reducing history itself or replacing requirements with a summary. Selected records remain available for the AI to retrieve; provider limits still apply to the complete request.
 
 ## Current screen information
 
@@ -76,4 +76,4 @@ Selected-history capacity is measured from the same assembled state used by Acti
 
 Instruction preparation may reuse timestamped, already masked evidence for repeated oversized context-only exchanges. It refreshes evidence before the next fitting normal decision request and after actions/recovery; currentEvidence identifies its capture time and reuse status. Provider timing belongs to Agent/execution, outside this layer; context preparation and screen acquisition have their own activity records. Credential resources describe alias, field and target together while values remain local.
 
-For bootstrap clarity, commandResources.contextExample demonstrates selecting working history alongside a normal action. The shorter system guidance asks for observed progress and the next unfinished step. contextSelectionRequired.selectionActive distinguishes an explicit selection from growing bootstrap history; exampleReply demonstrates a complete recall command with compact context. AI can choose its own records or attach context to a normal action. These examples do not automatically select history, block commands, remove stored evidence or add provider calls.
+For bootstrap clarity, commandResources.contextExample demonstrates selecting working history alongside a normal action. The system guidance asks for observed progress and the next unfinished step. AI can choose its own records or attach context to a normal action. These examples do not automatically select history, block commands, remove stored evidence or add provider calls.
