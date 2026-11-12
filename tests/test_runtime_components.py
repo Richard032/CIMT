@@ -607,7 +607,7 @@ class ScenarioTests(unittest.TestCase):
                 self.assertNotIn('mobile_launch_app', [name for name, _ in mobile.calls])
                 self.assertEqual(result['scenarios'][0]['crashes'], [])
                 next_input = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
-                self.assertIn(permission, next_input['elements'])
+                self.assertIn(permission['ref'], [item['ref'] for item in next_input['humanInterface']])
 
     def test_done_keeps_later_commands_visible_without_executing_them(self):
         agent, _, transport = api_agent([json.dumps([action(), action('tap', ref='@later')])])
@@ -1230,7 +1230,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = ChangingScreenMobile(self.root)
         self.runner.run(mobile, self.build, {'scenarios': []}, agent, lambda: None)
         state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
-        self.assertEqual(state['elements'][0]['ref'], '@e2')
+        self.assertEqual(state['humanInterface'][0]['ref'], '@e2')
         self.assertEqual([args['ref'] for name, args in mobile.calls if name.startswith('mobile_click')], ['@e1', '@e2'])
 
     def test_expired_deadline_prevents_another_turn_after_a_note(self):

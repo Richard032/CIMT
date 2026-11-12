@@ -97,7 +97,7 @@ class AiInteractionTests(unittest.TestCase):
         self.assertIn('commandResources', current)
         self.assertEqual([row['observation'] for row in current['recentActions']],
                          ['First step', 'Second step'])
-        self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(current['humanInterface'][0]['label'], 'Fresh screen')
         self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
 
     def test_each_decision_records_redacted_request_and_screenshot_reference(self):

@@ -18,18 +18,29 @@ def state(elements):
 
 
 class InstructionTests(unittest.TestCase):
+    def test_request_retains_screen_dimensions_without_the_full_ui_element_list(self):
+        dimensions = dict(type='CimtScreenInfo', screenWidth=1080, screenHeight=2400)
+        text = dict(ref='@status', type='Text', text='Loading')
+        inputs = state([dimensions, text])
+        self.assertEqual(inputs['elements'], [dimensions])
+        self.assertNotIn('Loading', json.dumps(inputs))
+
     def test_controls_keep_enabled_state_for_the_ai_to_interpret(self):
         disabled = dict(ref='@disabled', type='Button', label='Save', enabled=False)
         hidden = dict(ref='@hidden', type='Button', label='Continue', visible=False)
         inputs = state([disabled, hidden])
         self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap'), dict(hidden, inputKind='tap')])
-        self.assertEqual(inputs['elements'], [disabled, hidden])
+        self.assertEqual(inputs['elements'], [])
 
     def test_static_text_is_evidence_without_becoming_a_control(self):
         text = dict(ref='@caption', type='Text', text='Current selection')
         inputs = state([text])
-        self.assertEqual(inputs['elements'], [text])
+        self.assertEqual(inputs['elements'], [])
         self.assertEqual(inputs['humanInterface'], [])
+
+    def test_generic_control_uses_adapter_clickable_metadata(self):
+        control = dict(ref='@web-control', type='android.view.View', clickable=True)
+        self.assertEqual(state([control])['humanInterface'][0]['inputKind'], 'tap')
 
     def test_text_element_with_identifier_is_included_as_tap_target(self):
         login = dict(ref='@e65', type='android.widget.TextView', text='Login',
@@ -39,10 +50,6 @@ class InstructionTests(unittest.TestCase):
     def test_empty_identifier_does_not_make_static_text_a_control(self):
         caption = dict(type='android.widget.TextView', text='Caption', identifier='')
         self.assertEqual(state([caption])['humanInterface'], [])
-
-    def test_generic_control_uses_adapter_clickable_metadata(self):
-        control = dict(ref='@web-control', type='android.view.View', clickable=True)
-        self.assertEqual(state([control])['humanInterface'][0]['inputKind'], 'tap')
 
     def test_sources_setup_and_credential_aliases_remain_available(self):
         inputs = state([])
@@ -175,7 +182,7 @@ class InstructionTests(unittest.TestCase):
             exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
         inputs = json.loads(body['input'][1]['content'][0]['text'])
         self.assertNotIn('contextSelectionRequired', inputs)
-        self.assertEqual(inputs['elements'], [wheel])
+        self.assertEqual(inputs['humanInterface'][0]['ref'], '@wheel')
         self.assertEqual(inputs['explorationMemory']['recoveryRequest']['id'], 1)
         prompt = body['input'][0]['content']
         self.assertIn('move the finger down to bring an item above the selection band', prompt)
