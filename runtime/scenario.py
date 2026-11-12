@@ -8,9 +8,10 @@ import time
 import zipfile
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from coverage_tracker import CoverageTracker
-from crashes import CrashMonitor, CrashRecovery, StartupGuard
-from errors import DeviceActionError, InfrastructureError, NoProgressAction
+from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery, StartupGuard
+from errors import DeviceActionError, InfrastructureError, LimitReached, NoProgressAction
 from evidence import ScenarioEvidence
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
@@ -19,6 +20,7 @@ from ai_interaction import AiInteraction
 from command_queue import CommandQueue
 from batch_feedback import BatchFeedback
 from observation_recorder import ObservationRecorder
+from result_review.ledger import EvidenceLedger
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -41,7 +43,7 @@ class ScenarioSession:
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
     observed_at: str | None = None
-    context_only: bool = False
+    decision_observed_at: str | None = None
     commands: CommandQueue = field(default_factory=CommandQueue)
     feedback: BatchFeedback = field(default_factory=BatchFeedback)
     observer: ObservationRecorder | None = None
@@ -134,12 +136,10 @@ class ScenarioRunner:
                 return
             action = self._choose(mobile, session, agent, evidence, publish)
             if action['action'] in ['recall', 'note']:
-                session.context_only = action['action'] == 'recall'
                 self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
                 publish()
                 continue
-            session.context_only = False
             if action['action'] == 'recover':
                 self._finish_command(session, 'handled', 'AI requested recovery')
                 session.commands.stop('AI requested fresh evidence and a recovery decision')
@@ -185,7 +185,7 @@ class ScenarioRunner:
                 error = entry.get('actionError') or entry.get('evidenceError') or entry.get('crash', '')
                 self._finish_command(session, status, reason, entry['step'],
                     error=error, target_label=entry.get('controlLabel', ''), adapter_call=entry.get('adapterCall'),
-                    action_feedback=entry.get('actionFeedback', ''))
+                    action_feedback=entry.get('actionFeedback', ''), completed_at=entry.get('completedAt'))
                 self._save_plan(session)
                 self._save_action(session, entry, action)
                 publish()
@@ -283,13 +283,10 @@ class ScenarioRunner:
 
     @staticmethod
     def _within_app(session):
-        allowed = [
+        allowed = ANDROID_PERMISSION_CONTROLLERS | {
             session.app_id,
             "com.apple.springboard",
-            "com.android.permissioncontroller",
-            "com.google.android.permissioncontroller",
-            "com.android.packageinstaller",
-        ]
+        }
         if session.active in allowed:
             return True
         if session.active in ('android', 'com.android.systemui') and session.observer and session.observer.active_anr:
@@ -309,6 +306,7 @@ class ScenarioRunner:
         if not session.commands.pending:
             with self._operation("AI decision cycle", mobile, session.result["target"]):
                 reply = self.ai_interaction.choose(mobile, session, agent, evidence, publish)
+            session.decision_observed_at = session.observed_at
             session.commands.add(reply)
             session.feedback.start(session.commands.next_batch - 1)
             self._save_plan(session)
@@ -318,6 +316,38 @@ class ScenarioRunner:
         # A finish behind commands predates their results. Do not apply its predicted checks.
         if action['action'] == 'done' and action['batchPosition'] > 0:
             return action
+        if action['batchPosition'] == 0 and action.get('progressNote'):
+            session.result['evidenceProgress'] = self.redactor.text(action['progressNote'])
+        review_limit = None
+        # Review a proposed final result before recording its proposed checks.
+        if (action['action'] == 'done' and action['batchPosition'] == 0
+                and 'completionReview' not in session.result):
+            proposed = self.redactor.records.action({key: action[key] for key in
+                ('action', 'completion', 'observation', 'checks', 'remaining', 'planUpdates') if key in action})
+            review_input = self.redactor.object(dict(
+                instructions=self.inputs.get('instructions', ''),
+                requirements=self.inputs.get('requirements', ''),
+                setup=self.inputs.get('setup', ''),
+                ledger=EvidenceLedger().snapshot(session.result),
+                currentElements=session.elements, proposed=proposed))
+            try:
+                self.control.check()
+                with self._operation('Review proposed completion', mobile, session.result['target']):
+                    review = self.redactor.object(agent.review_completion(review_input))
+            except (InfrastructureError, LimitReached) as error:
+                if isinstance(error, LimitReached):
+                    review_limit = error
+                review = dict(decision='unavailable', feedback=self.redactor.text(str(error)))
+            session.result['completionReview'] = dict(review, proposed=proposed)
+            if review['decision'] == 'revise':
+                session.resource_feedback = ('Completion critic review: ' + review['feedback'] +
+                    ' Reconsider the proposed result. You may continue or stop; your next stop will be accepted.')
+                action['action'] = 'note'
+                action['observation'] = session.resource_feedback
+                session.commands.cancel_pending('Completion review requested reconsideration')
+                self._save_plan(session)
+                publish()
+                return action
         # Save the latest plan before checks or limits can stop this scenario.
         action = dict(action, remaining=self.redactor.object(list(action["remaining"])))
         session.resource_feedback = action.get('resourceFeedback', '')
@@ -341,21 +371,25 @@ class ScenarioRunner:
             session.result['screenshots'] = list(evidence.images.values())
             self._save_plan(session)
             publish()
+        if review_limit is not None:
+            raise review_limit
         self.control.check()
         publish()
         return action
 
     @staticmethod
-    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None, action_feedback=''):
+    def _finish_command(session, status, reason='', step=None, error='', target_label='', adapter_call=None,
+                        action_feedback='', completed_at=None):
         row = session.commands.finish(status, reason, step)
         if row is not None:
-            session.feedback.finish(row, error, target_label, adapter_call, action_feedback)
+            session.feedback.finish(row, error, target_label, adapter_call, action_feedback, completed_at)
 
     def _save_plan(self, session):
         session.feedback.sync(session.commands.records)
         session.result['batchFeedback'] = self.redactor.records.batch_feedback(session.feedback.saved())
         session.result['commandQueue'] = self.redactor.records.command_queue(session.commands.saved())
         session.result.update(self.redactor.records.planning(session.planner.saved()))
+        session.result['evidenceLedger'] = EvidenceLedger().snapshot(session.result)
         session.result['recoveries'] = [self.redactor.records.recovery(row) for row in session.recovery.records]
 
     def _action_context(self, session, action):
@@ -367,6 +401,9 @@ class ScenarioRunner:
             "step": len(session.result["steps"]),
             "action": self.redactor.records.action(action),
             "observation": action["observation"],
+            "targetIdentifier": self.redactor.text(element.get("identifier", "")),
+            "targetType": self.redactor.text(element.get("type", "")),
+            "decisionObservedAt": session.decision_observed_at,
         }
         return entry, element, point
 
@@ -376,8 +413,16 @@ class ScenarioRunner:
                 if action['action'] == 'swipe':
                     feedback = self.actions.execute(mobile, action, session.elements,
                         record_call=lambda call: entry.update(adapterCall=call))
+                elif action['action'] == 'wait':
+                    countdown = None
+                    if self.activity:
+                        countdown = lambda seconds: self.activity.write('AI wait', 'countdown',
+                            f'{seconds} s remaining', mobile.device, session.result['target'], terminal_only=True)
+                    feedback = self.actions.execute(mobile, action, session.elements,
+                        record_wait=lambda message: entry.update(actionFeedback=message), wait_countdown=countdown)
                 else:
                     feedback = self.actions.execute(mobile, action, session.elements)
+                entry['completedAt'] = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
                 entry['actionDispatched'] = True
                 if feedback:
                     entry['actionFeedback'] = feedback

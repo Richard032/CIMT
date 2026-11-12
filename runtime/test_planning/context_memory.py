@@ -3,7 +3,7 @@
 from copy import deepcopy
 import re
 
-COLLECTIONS = ['batches', 'commands', 'actions', 'decisions', 'observations', 'screenshots', 'tasks', 'paths', 'states', 'transitions', 'requirements', 'checks', 'configuration', 'coverage', 'routes']
+COLLECTIONS = ['batches', 'commands', 'actions', 'decisions', 'observations', 'screenshots', 'tasks', 'paths', 'states', 'transitions', 'requirements', 'checks', 'configuration', 'coverage', 'routes', 'originalReplies']
 SELECTION_SCHEMA = {
     'type': ['object', 'null'],
     'properties': {
@@ -37,9 +37,14 @@ class ContextMemory:
         """Return all records at bootstrap, then only the records requested by AI."""
         self.unavailable = []
         if self.selection is None:
-            return deepcopy(collections)
+            selected = deepcopy(collections)
+            selected['originalReplies'] = []
+            return selected
         selected = {name: [] for name in COLLECTIONS}
         for name in self.selection['includeAll']:
+            if name == 'originalReplies':
+                self.unavailable.append('Request originalReplies individually by decision ID')
+                continue
             if name not in collections:
                 self.unavailable.append('Collection not available: ' + name)
                 continue
@@ -53,6 +58,9 @@ class ContextMemory:
             index = self.index(rows)
             identifier = address['id']
             span = self.span(identifier)
+            if name == 'originalReplies' and span is not None:
+                self.unavailable.append('Request originalReplies individually by decision ID')
+                continue
             if span is not None:
                 requested = rows[span[0]:span[1]] if 0 <= span[0] <= span[1] <= len(rows) else []
             else:

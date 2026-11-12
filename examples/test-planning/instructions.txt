@@ -4,5 +4,5 @@ Discover the available language choices. Test the first two different available 
 After each change, return to the main screen and observe the visible language behavior. Then return to settings and check the selected value.
 Restart the app once and check whether the last selected language remains selected.
 Do not explore unrelated features. Explain which discovered paths are outside this task.
-Do not accept or deny OS permission requests. If a permission request blocks this task, report the block and remaining work.
+Accept OS permission requests for the tested app. If a permission cannot be granted, report the block and remaining work.
 If the app has fewer than two choices or no language selector, describe what is available and what could not be tested.

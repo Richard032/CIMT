@@ -18,6 +18,10 @@ Each result becomes the previous observation for the next event. A batch has one
 
 Command results include the action and requested target, actual execution status, resulting observation reference, UI change classification, warnings and errors. The observed target label is included when known. No credential value or typed text is copied into the compact target. Complete original commands remain in the existing redacted command records.
 
+For a timed observation, record the triggering command's UTC time from `completedAt` and compare it with the later command's `observedAt` or the current evidence's capture time. Each command result has its own capture time even when its observation ID is reused. Preserve the original time in the AI's context summary or retain that batch for later decisions.
+
+The wait command accepts a nonnegative integer `durationMs`. Omitting it or using null waits for two seconds. The wait counts toward the run deadline and can be interrupted. Its action feedback reports the requested duration, the elapsed wait measured by CIMT, and whether the wait completed.
+
 The classifications are changed, no observed change and observation unavailable. Comparing complete masked UI/image identities records an observed difference; it does not prove the command caused it, that it is relevant, or that behavior is correct. Structural screen identities and existing repetition signals remain separate. Controls such as recall or deferred finish are marked not applicable for UI change. Cancelled/unexecuted commands have no manufactured after-observation. A successful dispatch does not pass a requirement.
 
 An independent change found during a fresh observation or existing recovery capture is a separate path event in its actual position. CIMT does not add a new polling loop to guess unseen transitions. Every registered intermediate UI remains available through its full observation ID in the existing catalogue.

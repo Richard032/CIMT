@@ -22,7 +22,8 @@ class ActivityLog:
         self.interrupted = interrupted
         self.lock = threading.Lock()
 
-    def write(self, operation, status, message="", device=None, target="", seconds=None, error=None, log=""):
+    def write(self, operation, status, message="", device=None, target="", seconds=None, error=None, log="",
+              *, terminal_only=False):
         device = device or {}
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -38,8 +39,9 @@ class ActivityLog:
             "log": log,
         }
         with self.lock:
-            with self.path.open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            if not terminal_only:
+                with self.path.open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
             context = "/".join(filter(None, [entry["platform"], entry["device"], target]))
             print("CIMT activity: " + entry["timestamp"] + " [" + context + "] "
                   + operation + " — " + status

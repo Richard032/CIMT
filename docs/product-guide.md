@@ -156,7 +156,7 @@ Set `execution.interactive-pauses: true` for local acknowledgement before model 
 
 ## AI interaction, limits and outcomes
 
-AI chooses actions, targets, exploration and recovery. CIMT supplies original instructions, current masked evidence, available resources and AI-selected context. It checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. It does not choose another button because a requested menu is absent. Mobile MCP is a tool adapter, not another agent.
+AI chooses actions, targets, exploration and recovery. Each request includes the original instructions, current screen evidence, feedback, and selected scenario records. CIMT does not automatically cover credential fields in screenshots; visible credentials may be saved in reports and sent to the AI. Structured text still redacts known credential values, and explicit masking rules remain active. Earlier chat messages are not sent. The AI may request earlier records or select a registered screenshot. CIMT checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. Mobile MCP is a tool adapter, not another agent.
 
 Commands execute FIFO. Failure cancels the pending tail; complete ordered results are supplied to the next normal decision request, subject to stopping rules. Targeted swipes preserve the requested target/distance; refs resolve from current bounds, coordinates are absolute device coordinates. Invalid arguments return generic corrective feedback. Picker guidance explains gesture direction and observation, but the AI must identify the desired picker/value from test instructions and verify it. See [command resources](ai-resource-exchange.md), [command queue](command-queue.md), [batch feedback](batch-feedback.md), and [instruction context](ai-instruction-context.md).
 
@@ -172,6 +172,16 @@ The deadline starts at invocation and includes preparation/builds. Budget is sha
 | 3 | Configuration, build or infrastructure error. |
 
 Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Navigation, successful builds, tool-call completion and screenshot capture do not prove a requirement passed.
+
+## Review the proposed instructions and setup
+
+Each new device scenario includes an **AI request overview** in its report. Expand a request to open its redacted JSON input, review its section sizes and reported token usage, and open the saved screenshots supplied with it. Field-level masking depends on protected fields being present in the device UI tree. Text section sizes are UTF-8 bytes, not token counts. A single AI request can produce several queued commands; later commands in that batch have no separate request. Completion reviews appear in the same overview. The separate end-of-run proposal request is linked under Technical records. Older reports cannot reconstruct request contents that were not saved.
+
+CIMT maintains a compact evidence ledger for each scenario. Its recorded evidence contains actions, outcomes and a limited set of post-action UI observations with timestamps. A separate AI interpretations section contains its progress note, context summary, explanations and checks; these can be stale or wrong. The ledger marks omitted older records and truncated elements. Dispatch and UI changes do not by themselves prove success. Before the first proposed stop, a separate critic reviews the test inputs and available evidence using the same model and shared limits. If the critic requests reconsideration, CIMT sends its feedback to the acting AI without saving that proposed result's checks. The AI may continue or stop, and its next stop is accepted without another critic request. A failed or unavailable review is recorded. The review is advisory and does not guarantee correctness.
+
+After a run or replay, including one stopped with Ctrl+C, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It explains how the AI interpreted the goals, details, timing and stopping conditions, then gives draft instructions, reusable app setup and supporting evidence. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
+
+The proposal uses one inference request within the run's remaining budget and deadline. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a limit, checkpoint or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
 
 ## Open a run or replay report
 

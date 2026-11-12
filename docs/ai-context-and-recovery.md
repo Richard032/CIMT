@@ -1,5 +1,7 @@
 # AI-owned context and recovery
 
+**Current decision context:** Each request contains original instructions, fresh masked evidence, feedback, and selected scenario records. Previous chat messages are not sent. The AI may explicitly select registered historical screenshots.
+
 > Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
 
 Date: 31 October 2026. Requirements: FR-88–FR-97. Source implementation and offline validation; installation and live acceptance are separate.

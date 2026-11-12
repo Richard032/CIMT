@@ -29,9 +29,11 @@ public sealed class ExecutionCheckpoint(ExecutionPhase phase, TextReader input, 
         // A late acknowledgement must not start the next stage after the deadline.
         state.Deadline.RemainingSeconds(int.MaxValue);
         Record(state, "continued");
+        if (phase == ExecutionPhase.OpenAiTesting)
+            state.AiTestingApproved = true;
     }
 
-    private static bool IsEnabled(RunState state) =>
+    internal static bool IsEnabled(RunState state) =>
         bool.TryParse(state.Configuration.Root.Get("execution")?.Value("interactive-pauses"), out var enabled)
         && enabled;
 

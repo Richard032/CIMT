@@ -10,13 +10,15 @@ from budget import Budget
 from device_runner import DeviceRunner
 from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError, LimitReached
-from evidence import RunJournal
+from evidence import RunJournal, ScenarioEvidence, atomic
+from request_journal import RequestJournal
 from device_adapter.mobile import Mobile
 from redaction import Redactor
 from run_control import RunControl
 from scenario import ScenarioRunner
 from device_scheduler import DeviceScheduler
 from activity import ActivityLog
+from instruction_proposal import InstructionProposal
 from run_signals import RunSignals
 
 
@@ -99,10 +101,40 @@ class Execution:
         return Agent(self.config, self.budget, self.context["deadline"])
 
 
+def finalize_proposal(context):
+    """Review the saved run after device execution and its cancellation have ended."""
+    config = context["config"]
+    report = pathlib.Path(context["report"])
+    redactor = Redactor(config)
+    activity = ActivityLog(report, redactor)
+    proposal = InstructionProposal(report, context["inputs"], redactor, activity)
+    try:
+        ledger = report / "ai-budget.json"
+        budget = Budget(config["ai-model"]["name"], config["ai-budget"]["amount"], config["ai-budget"]["currency"])
+        if ledger.exists():
+            budget.restore(json.loads(ledger.read_text(encoding="utf-8")))
+        budget.journal = lambda: atomic(ledger, budget.snapshot())
+        saved = report / "ui-results.json"
+        results = json.loads(saved.read_text(encoding="utf-8"))["devices"] if saved.exists() else []
+        request_folder = report / "proposal-requests"
+        request_folder.mkdir(parents=True, exist_ok=True)
+        request_result = {"steps": []}
+        agent = Agent(config, budget, context["deadline"])
+        agent.request_observer = RequestJournal(request_result, ScenarioEvidence(request_folder, report), redactor,
+            lambda: atomic(report / "proposal-requests.json", redactor.object(request_result)))
+        proposal.create(agent, results, context["outcome"])
+    except Exception as error:
+        # Proposal failures cannot change the verdict or exit code of device testing.
+        proposal.unavailable(str(error))
+    return 0
+
+
 def main(stream, arguments):
     """Read the private request from stdin and return a documented exit code."""
     try:
         context = json.load(stream)
+        if "--proposal" in arguments:
+            return finalize_proposal(context)
         execution = Execution(context)
         with RunSignals(execution.control):
             return execution.run(preflight="--preflight" in arguments)

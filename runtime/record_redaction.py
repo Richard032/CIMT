@@ -35,7 +35,7 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation"], {"action": self.action, "adapterCall": self.adapter_call})
+        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation", "completedAt"], {"action": self.action, "adapterCall": self.adapter_call})
 
     def adapter_call(self, value):
         return self._record(value, ['tool', 'status'], {
@@ -66,9 +66,14 @@ class RecordRedactor:
                 'batchFeedback': self.batch_feedback,
                 'warnings': lambda rows: self._items(rows, self.warning),
                 'decisions': lambda rows: self._items(rows, self.decision),
+                'aiRequests': lambda rows: self._items(rows, self.ai_request),
                 'screenshots': lambda rows: self._items(rows, self.screenshot),
             },
         )
+
+    def ai_request(self, value):
+        return self._record(value, ['id', 'step', 'kind', 'status', 'requestPath', 'timestamp',
+                                    'inputTokens', 'outputTokens', 'cachedInputTokens'], {'images': lambda rows: list(rows)})
 
     def command_queue(self, value):
         return self._record(value, [], {'commands': lambda rows: self._items(rows, self.queued_command)})
@@ -88,7 +93,7 @@ class RecordRedactor:
             'warnings': lambda rows: self._items(rows, self.warning)})
 
     def batch_event(self, value):
-        return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp'], {
+        return self._record(value, ['kind', 'commandId', 'action', 'status', 'step', 'observation', 'uiChange', 'timestamp', 'completedAt', 'observedAt'], {
             'warnings': lambda rows: list(rows),
             'adapterCall': self.adapter_call,
             'target': lambda row: self._record(row, ['ref', 'direction', 'credential', 'field'])})
@@ -127,6 +132,23 @@ class RecordRedactor:
             'includeAll': lambda rows: list(rows),
             'records': lambda rows: self._items(rows, lambda row: self._record(row, ['collection', 'id']))})
 
+    def request_command(self, value):
+        """Omit the duplicate full reply; it remains available in decisions."""
+        row = self.queued_command(value)
+        response = row.get('response')
+        if isinstance(response, dict):
+            response.pop('modelResponse', None)
+        return row
+
+    def request_action(self, value):
+        row = self.action(value)
+        if isinstance(row, dict):
+            row.pop('modelResponse', None)
+        return row
+
+    def request_decision(self, value):
+        return self._record(value, ['id', 'step'], {'response': self.request_action})
+
     def request_context(self, value):
         path = lambda row: self._record(row, ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId', 'ref'])
         return self._record(value, ['currentScreen'], {
@@ -144,11 +166,12 @@ class RecordRedactor:
             'batchFeedback': lambda rows: self._items(rows, self.batch),
             'currentWarnings': lambda rows: self._items(rows, self.warning),
             'selectedBatches': lambda rows: self._items(rows, self.batch),
-            'selectedCommands': lambda rows: self._items(rows, self.queued_command),
-            'selectedActions': lambda rows: self._items(rows, self.action),
+            'selectedCommands': lambda rows: self._items(rows, self.request_command),
+            'selectedActions': lambda rows: self._items(rows, self.request_action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),
             'selectedChecks': lambda rows: self._items(rows, self.check),
-            'selectedDecisions': lambda rows: self._items(rows, self.decision),
+            'selectedDecisions': lambda rows: self._items(rows, self.request_decision),
+            'selectedOriginalReplies': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'step'])),
             'selectedObservations': lambda rows: self._items(rows, self.observation),
             'selectedScreenshots': lambda rows: self._items(rows, self.screenshot),
             'routes': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'destination'], {

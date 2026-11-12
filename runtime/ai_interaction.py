@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from ai_instructions.context import InstructionContext
+from request_journal import RequestJournal
 
 
 class AiInteraction:
@@ -15,20 +16,13 @@ class AiInteraction:
 
     def choose(self, mobile, session, agent, evidence, publish):
         self.control.check()
-        arguments, selection = self._prepare(mobile, session, evidence)
-        reuse = session.context_only and session.observed_at is not None and selection
-        if reuse:
-            arguments[-1]['currentEvidence']['reusedForContextSelection'] = True
-            if self.activity:
-                self.activity.write('Reuse AI screen evidence', 'info',
-                    'Context-only exchange; captured at ' + session.observed_at,
-                    mobile.device, session.result['target'])
-        else:
-            with self._operation('Refresh AI screen evidence', mobile, session):
-                self.instructions.observe(mobile, session, evidence)
-            publish()
-            arguments, selection = self._prepare(mobile, session, evidence)
-        operation = 'AI context selection' if selection else 'AI action decision'
+        with self._operation('Refresh AI screen evidence', mobile, session):
+            self.instructions.observe(mobile, session, evidence)
+        publish()
+        with self._operation('Prepare AI context', mobile, session):
+            arguments = self.instructions.prepare(session, mobile.device, evidence)
+        agent.request_observer = RequestJournal(session.result, evidence, self.redactor, publish)
+        operation = 'AI action decision'
         try:
             with self._operation(operation, mobile, session):
                 reply = agent.choose(*arguments)
@@ -40,11 +34,6 @@ class AiInteraction:
                     mobile.device, session.result['target'], seconds=timing['seconds'])
         session.feedback.delivered()
         return reply
-
-    def _prepare(self, mobile, session, evidence):
-        with self._operation('Prepare AI context', mobile, session):
-            arguments = self.instructions.prepare(session, mobile.device, evidence)
-            return arguments, self.instructions.selection_required(arguments)
 
     def _operation(self, name, mobile, session):
         return (self.activity.operation(name, mobile.device, session.result['target'])

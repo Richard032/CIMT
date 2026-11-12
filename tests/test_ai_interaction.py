@@ -47,19 +47,19 @@ class AiInteractionTests(unittest.TestCase):
     def select_large_history(self):
         self.session.planner.observe([dict(type='Text', text='x' * 70000)])
         self.session.planner.context_memory.accept(selection(include_all=['observations']))
-        self.session.context_only = True
         self.session.observed_at = '2026-11-09T22:55:00.000+00:00'
 
-    def test_repeated_context_only_requests_reuse_timestamped_evidence(self):
+    def test_context_requests_refresh_evidence_in_conversation(self):
         self.select_large_history()
         agent = FakeAgent([action('recall'), action('recall')])
         for _ in range(2):
             self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
-        self.assertEqual(self.mobile.captures, 0)
-        self.assertEqual(len(self.evidence.images), 0)
+        self.assertEqual(self.mobile.captures, 2)
+        self.assertEqual(len(self.evidence.images), 1)
         for arguments in agent.calls:
-            self.assertEqual(arguments[-1]['currentEvidence'], dict(
-                observedAt='2026-11-09T22:55:00.000+00:00', reusedForContextSelection=True))
+            self.assertFalse(arguments[-1]['currentEvidence']['reusedForContextSelection'])
+            self.assertNotEqual(arguments[-1]['currentEvidence']['observedAt'],
+                                '2026-11-09T22:55:00.000+00:00')
 
     def test_reduced_selection_refreshes_changed_screen_before_normal_decision(self):
         self.select_large_history()
@@ -74,7 +74,6 @@ class AiInteractionTests(unittest.TestCase):
 
     def test_device_action_invalidates_reuse_even_when_history_remains_large(self):
         self.select_large_history()
-        self.session.context_only = False
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
 
@@ -83,6 +82,77 @@ class AiInteractionTests(unittest.TestCase):
         self.session.observed_at = None
         self.interaction.choose(self.mobile, self.session, FakeAgent([action()]), self.evidence, lambda: None)
         self.assertEqual(self.mobile.captures, 1)
+
+    def test_later_request_has_current_context_without_conversation_history(self):
+        self.session.history.append(dict(action='tap', observation='First step'))
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.session.history.append(dict(action='wait', observation='Second step'))
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        messages = transport.bodies[1]['input']
+        self.assertEqual([message['role'] for message in messages], ['system', 'user'])
+        current = json.loads(messages[1]['content'][0]['text'])
+        self.assertEqual(current['instructions'], 'Explore')
+        self.assertIn('commandResources', current)
+        self.assertEqual([row['observation'] for row in current['recentActions']],
+                         ['First step', 'Second step'])
+        self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
+
+    def test_each_decision_records_redacted_request_and_screenshot_reference(self):
+        secret = 'fixture-private-password'
+        redactor = Redactor({'credentials': {'login': {'password': secret}}})
+        interaction = AiInteraction(dict(instructions='Use ' + secret), {}, redactor,
+                                    self.control, self.activity)
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.session.history.append(dict(action='tap', observation='First step'))
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        records = self.session.result['aiRequests']
+        self.assertEqual(len(records), 2)
+        self.assertTrue(all(row['status'] == 'completed' for row in records))
+        self.assertTrue(all(row['inputTokens'] == 10 for row in records))
+        self.assertGreater(records[1]['sectionBytes']['recentActions'], 0)
+        path = self.root / records[1]['requestPath']
+        text = path.read_text()
+        self.assertNotIn(secret, text)
+        self.assertNotIn('data:image/png;base64,', text)
+        payload = json.loads(text)
+        user = payload['input'][-1]['content']
+        self.assertEqual(user[0]['text']['instructions'], 'Use <redacted>')
+        self.assertEqual(user[0]['text']['recentActions'][0]['observation'], 'First step')
+        self.assertEqual(user[1]['imageEvidence'], records[1]['images'][0])
+        self.assertEqual((self.root / records[1]['images'][0]).read_bytes(), b'fresh masked image')
+        self.assertEqual(transport.bodies[1]['input'][-1]['content'][1]['type'], 'input_image')
+
+    def test_failed_provider_request_is_still_recorded(self):
+        agent, _, _ = api_agent([])
+        def failed(path, body):
+            raise InfrastructureError('Synthetic failure')
+        agent.transport.request = failed
+        with self.assertRaises(InfrastructureError):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        record = self.session.result['aiRequests'][0]
+        self.assertEqual(record['status'], 'failed')
+        self.assertTrue((self.root / record['requestPath']).is_file())
+
+    def test_output_limit_retry_has_its_own_request_record(self):
+        agent, _, _ = api_agent([])
+        responses = iter([
+            dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens'),
+                 usage=dict(input_tokens=10, output_tokens=2048)),
+            dict(status='completed', usage=dict(input_tokens=11, output_tokens=12),
+                 output=[dict(type='message', content=[dict(type='output_text', text='{"action":"wait"}')])]),
+        ])
+        agent.transport.request = lambda path, body: next(responses)
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        rows = self.session.result['aiRequests']
+        self.assertEqual([row['kind'] for row in rows], ['decision', 'decision retry'])
+        self.assertEqual([row['status'] for row in rows], ['incomplete', 'completed'])
+        retry = json.loads((self.root / rows[1]['requestPath']).read_text())
+        self.assertIn('none of its commands ran', retry['input'][-1]['content'][-1]['text'])
 
     def test_provider_time_is_separate_from_context_and_capture_operations(self):
         agent, _, _ = api_agent([action()])

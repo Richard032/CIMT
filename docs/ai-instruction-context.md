@@ -1,5 +1,7 @@
 # AI Instruction and Context
 
+**Current decision context:** Each request contains original instructions, fresh masked evidence, feedback, and selected scenario records. Previous chat messages are not sent. The AI may explicitly select registered historical screenshots.
+
 > Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
 
 Updated: 1 November 2026. Implements FR-97 and AC-67. The product owner confirmed that CIMT keeps Mobile MCP; this change does not introduce Appium.

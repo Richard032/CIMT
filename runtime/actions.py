@@ -8,26 +8,31 @@ from errors import InfrastructureError, LimitReached
 class ActionExecutor:
     """Maps allowed actions to device calls. It cannot run shell commands."""
 
-    def __init__(self, config, redactor, deadline, sleep=time.sleep, clock=time.time, check=lambda: None):
+    def __init__(self, config, redactor, deadline, sleep=time.sleep, clock=time.time,
+                 check=lambda: None, monotonic=time.monotonic):
         self.config = config
         self.redactor = redactor
         self.deadline = deadline
         self.sleep = sleep
         self.check = check
         self.clock = clock
+        self.monotonic = monotonic
 
-    def execute(self, mobile, action, elements, record_call=None):
+    def execute(self, mobile, action, elements, record_call=None, record_wait=None, wait_countdown=None):
         """Check technical constraints and execute the AI's selected action."""
+        if action.get('durationMs') is not None and action['action'] not in ('wait', 'swipe'):
+            raise ValueError('durationMs is only supported by wait and swipe commands')
         self.check()
         mobile.readiness()
         self.check()
+        if action['action'] == 'wait':
+            return self._wait(action, record_wait, wait_countdown)
         handlers = {
             "tap": self._tap,
             "credential": self._credential,
             "text": self._text,
             "swipe": self._swipe,
             "back": self._back,
-            "wait": self._wait,
             "restart": self._restart,
         }
         handler = handlers.get(action["action"])
@@ -56,18 +61,14 @@ class ActionExecutor:
     def _credential(self, mobile, action, elements):
         value = self._credential_value(action)
         element = self._credential_element(action["ref"], elements)
-        identifier = element.get("identifier")
-        if not identifier:
-            raise InfrastructureError(
-                "Credential entry requires a stable element ID for reliable masking"
-            )
-        # Register the mask before typing. The next screenshot must hide this field.
-        self.redactor.ids.add(identifier)
+        if not element.get("identifier"):
+            raise ValueError("Credential target has no stable element ID; no secret was entered. "
+                             "Choose a current enabled input with a stable identifier.")
         mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
         self.check()
         mobile.replace_text(value)
         return ('Credential field contents replaced using the configured value; adapter confirmed completion. '
-                'The value is hidden. This does not confirm authentication; inspect the app after submitting.')
+                'This does not confirm authentication; inspect the app after submitting.')
 
     def _credential_value(self, action):
         aliases = self.config.get("credentials", {})
@@ -194,8 +195,44 @@ class ActionExecutor:
             raise ValueError("iOS has no system BACK button; choose a tap or swipe action")
         mobile.call("mobile_press_button", button="BACK")
 
-    def _wait(self, mobile, action, elements):
-        self.sleep(min(2, max(0, self.deadline - self.clock())))
+    def _wait(self, action, record_wait, countdown):
+        if action.get('argumentError'):
+            raise ValueError(action['argumentError'])
+        duration = action.get('durationMs')
+        if duration is None:
+            duration = 2000
+        if type(duration) is not int or duration < 0:
+            raise ValueError('Wait durationMs must be a nonnegative integer in milliseconds, or null for the 2000 ms default')
+
+        started = self.monotonic()
+        available_ms = max(0, self.deadline - self.clock()) * 1000
+        until = started + min(duration, available_ms) / 1000
+        completed = False
+        last_seconds = None
+        try:
+            while True:
+                self.check()
+                time_left = self.deadline - self.clock()
+                if time_left <= 0:
+                    raise LimitReached('Whole-run time limit reached')
+                remaining = min(until - self.monotonic(), time_left)
+                if remaining <= 0:
+                    if duration > available_ms:
+                        raise LimitReached('Whole-run time limit reached')
+                    completed = True
+                    break
+                if countdown is not None:
+                    seconds = math.ceil(remaining)
+                    if seconds != last_seconds:
+                        countdown(seconds)
+                        last_seconds = seconds
+                # A local wait must remain responsive to cancellation and shared stop.
+                self.sleep(min(0.1, remaining))
+        finally:
+            if record_wait is not None:
+                elapsed_ms = round((self.monotonic() - started) * 1000)
+                status = 'completed' if completed else 'interrupted'
+                record_wait(f'Wait {status}. Requested {duration} ms. Actual elapsed wait {elapsed_ms} ms.')
 
     def _restart(self, mobile, action, elements):
         app_id = getattr(mobile, 'app_id', '')

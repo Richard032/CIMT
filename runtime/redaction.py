@@ -13,8 +13,9 @@ class Redactor:
 
     def __init__(self, config):
         self.secrets = set()
+        self.screen_secrets = set()
 
-        def visit(value, sensitive=False):
+        def visit(value, sensitive=False, screen=True):
             if isinstance(value, dict):
                 for key, item in value.items():
                     visit(
@@ -22,12 +23,15 @@ class Redactor:
                         sensitive
                         or key == "credentials"
                         or any(x in key.lower() for x in ["pass", "secret", "token", "key"]),
+                        screen and key != "credentials",
                     )
             elif isinstance(value, list):
                 for item in value:
-                    visit(item, sensitive)
+                    visit(item, sensitive, screen)
             elif sensitive and str(value):
                 self.secrets.add(str(value))
+                if screen:
+                    self.screen_secrets.add(str(value))
 
         visit(config)
         self.ids = {rule["element-id"] for rule in config.get("masking", {}).get("rules", [])}
@@ -70,7 +74,7 @@ class Redactor:
             return True
         if any(
             x in (element.get("identifier", "") + element.get("type", "")).lower()
-            for x in ["password", "securetext", "token", "secret"]
+            for x in ["token", "secret"]
         ):
             return True
         return self.contains_secret(element)
@@ -81,7 +85,7 @@ class Redactor:
             return any(self.contains_secret(item) for item in value.values())
         if isinstance(value, list):
             return any(self.contains_secret(item) for item in value)
-        return isinstance(value, str) and any(secret in value for secret in self.secrets)
+        return isinstance(value, str) and any(secret in value for secret in self.screen_secrets)
 
 
 class ScreenMasker:

@@ -90,7 +90,7 @@ class TextRedactionTests(unittest.TestCase):
 
 class ScreenSecretTests(unittest.TestCase):
     def assert_masked(self, secret):
-        scrub = redactor(secret)
+        scrub = Redactor({"ai-model": {"api-key": secret}})
         item = dict(
             identifier="ordinary-label",
             type="Label",
@@ -120,15 +120,27 @@ class ScreenSecretTests(unittest.TestCase):
         self.assert_masked("a\nb")
 
     def test_nested_original_string_is_detected(self):
-        self.assertTrue(redactor("páss").sensitive({"attributes": [{"value": "páss"}]}))
+        self.assertTrue(Redactor({"ai-model": {"api-key": "páss"}}).sensitive({"attributes": [{"value": "páss"}]}))
 
     def test_sensitive_label_without_bounds_stops(self):
         image = io.BytesIO()
         Image.new("RGB", (30, 30), "white").save(image, format="PNG")
         with self.assertRaises(InfrastructureError):
-            ScreenMasker(redactor("páss")).capture(
+            ScreenMasker(Redactor({"ai-model": {"api-key": "páss"}})).capture(
                 [{"text": "páss"}], image.getvalue(), dict(width=30, height=30)
             )
+
+    def test_credential_fields_are_not_automatically_masked_in_screenshots(self):
+        scrub = Redactor({"credentials": {"test": {"username": "synthetic-user", "password": "synthetic-password"}}})
+        items = [dict(identifier="Email", type="Entry", text="synthetic-user", coordinates=dict(x=2, y=2, width=10, height=8)),
+                 dict(identifier="Password", type="SecureText", text="synthetic-password", coordinates=dict(x=2, y=12, width=10, height=8))]
+        source = io.BytesIO()
+        Image.new("RGB", (30, 30), "white").save(source, format="PNG")
+        safe, encoded = ScreenMasker(scrub).capture(items, source.getvalue(), dict(width=30, height=30))
+        with Image.open(io.BytesIO(encoded)) as picture:
+            self.assertEqual(picture.getpixel((5, 5)), (255, 255, 255))
+            self.assertEqual(picture.getpixel((5, 15)), (255, 255, 255))
+        self.assertEqual([item['text'] for item in safe], ['<redacted>', '<redacted>'])
 
     def test_non_sensitive_label_needs_no_mask(self):
         self.assertFalse(redactor("páss").sensitive({"text": "Public value"}))
@@ -166,6 +178,16 @@ class BudgetFixture:
 
 
 class ResultRedactionTests(unittest.TestCase):
+    def test_selected_command_omits_duplicate_reply_but_saved_record_keeps_it(self):
+        records = redactor('private').records
+        command = dict(id=1, batchId=2, position=0, status='executed', step=4,
+            response=dict(action='tap', ref='@e1', modelResponse='original reply', observation='result'))
+        selected = records.request_context(dict(selectedCommands=[command]))['selectedCommands'][0]
+        self.assertEqual(selected['response']['action'], 'tap')
+        self.assertEqual(selected['response']['observation'], 'result')
+        self.assertNotIn('modelResponse', selected['response'])
+        self.assertEqual(records.queued_command(command)['response']['modelResponse'], 'original reply')
+
     def session(self, definitions=None):
         return SimpleNamespace(
             image=b"masked",

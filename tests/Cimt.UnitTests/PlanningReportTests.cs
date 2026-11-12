@@ -24,6 +24,49 @@ public sealed class PlanningReportTests
     }
 
     [Fact]
+    public async Task RequestOverviewLinksTheRedactedRequestAndScreenshots()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        File.WriteAllText(Path.Combine(fixture.State.Report, "ai-request-0000.json"), "{}");
+        File.WriteAllBytes(Path.Combine(fixture.State.Report, "screen.png"), [0]);
+        var context = Context() with { Result = JsonSerializer.SerializeToElement(new
+        {
+            target = "fixture", verdict = "inconclusive", completion = "incomplete",
+            aiRequests = new[] { new { id = 0, step = 2, kind = "decision", status = "completed",
+                requestPath = "ai-request-0000.json", images = new[] { "screen.png" },
+                inputTokens = 1234, outputTokens = 23, sectionBytes = new { instructions = 50 } } }
+        }) };
+        var html = new ScenarioHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report)).Render([context]);
+        Assert.Contains("AI request overview", html);
+        Assert.Contains("ai-request-0000.json", html);
+        Assert.Contains("screen.png", html);
+        Assert.Contains("1234", html);
+        Assert.Contains("instructions: 50 bytes", html);
+        Assert.Contains("not token counts", html);
+    }
+
+    [Fact]
+    public async Task RequestOverviewShowsItsPositionAmongRecordedSteps()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var context = Context() with { Result = JsonSerializer.Deserialize<JsonElement>("""
+            {"steps":[{"step":0,"action":"reset/install/launch"},
+                      {"step":1,"action":"check"},{"step":2,"action":"tap"},
+                      {"step":3,"action":"tap"}],
+             "aiRequests":[{"id":0,"step":1,"kind":"decision","status":"completed"},
+                           {"id":1,"step":1,"kind":"retry","status":"completed"},
+                           {"id":2,"step":4,"kind":"decision","status":"not sent"}]}
+            """) };
+        var html = new ScenarioHtmlRenderer(fixture.State.Configuration, new ReportEvidence(fixture.State.Report)).Render([context]);
+        Assert.Contains("Request 1 — decision — before step 1 — completed", html);
+        Assert.Contains("Request 2 — retry — before step 1 — completed", html);
+        Assert.Contains("Request 3 — decision — after step 3 — not sent", html);
+        Assert.Contains("Request numbers and step numbers are independent", html);
+    }
+
+    [Fact]
     public async Task AiRepliesAreVisibleEscapedAndRedactedWithoutFormatJudgments()
     {
         using var fixture = new DiagnosticFixture();

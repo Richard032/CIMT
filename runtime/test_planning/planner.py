@@ -35,7 +35,10 @@ class TestPlanner:
         self.context_memory.accept(action['context'])
 
     def collections(self, history=None, requirements=None, checks=None, decisions=None, coverage=None, screenshots=None, commands=None, batches=None):
-        return dict(batches=batches or [], commands=commands or [], actions=history or [], decisions=decisions or [], tasks=self.plan.saved()['tasks'], paths=list(self.memory.paths.values()),
+        return dict(batches=batches or [], commands=commands or [], actions=history or [], decisions=decisions or [],
+            originalReplies=[dict(id=row['id'], step=row.get('step'), text=row['response']['modelResponse'])
+                for row in (decisions or []) if isinstance(row.get('response'), dict)
+                and 'id' in row and 'modelResponse' in row['response']], tasks=self.plan.saved()['tasks'], paths=list(self.memory.paths.values()),
             observations=list(self.memory.map.observations.values()),
             screenshots=screenshots or [],
             states=list(self.memory.map.states.values()), transitions=self.memory.map.transitions,
@@ -65,6 +68,7 @@ class TestPlanner:
         context['selectedRequirements'] = selected['requirements']
         context['selectedChecks'] = selected['checks']
         context['selectedDecisions'] = selected['decisions']
+        context['selectedOriginalReplies'] = selected['originalReplies']
         context['selectedCoverage'] = selected['coverage']
         context['routes'] = selected['routes']
         context['selectedObservations'] = selected['observations']

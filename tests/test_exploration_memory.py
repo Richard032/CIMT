@@ -61,15 +61,17 @@ class ExplorationMemoryTests(unittest.TestCase):
         with self.assertRaises(NoProgressAction):
             self.memory.check_repetition(self.screen, TAP)
 
-    def test_explicit_repeat_instruction_and_reason_allow_repeat(self):
+    def test_explicit_repeat_instruction_still_triggers_review(self):
         self.record(3)
-        self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='Tap Settings five times',
-            repeatReason='Fourth tap of the requested five'))
+        with self.assertRaises(NoProgressAction):
+            self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='Tap Settings five times',
+                repeatReason='Fourth tap of the requested five'))
 
-    def test_ai_repeat_explanation_is_not_subject_to_host_quote_evaluation(self):
+    def test_ai_repeat_explanation_still_triggers_review(self):
         self.record(3)
-        self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='My interpretation',
-            repeatReason='Reproduce the requested behavior'))
+        with self.assertRaises(NoProgressAction):
+            self.memory.check_repetition(self.screen, dict(TAP, repeatInstruction='My interpretation',
+                repeatReason='Reproduce the requested behavior'))
 
     def test_quote_without_reason_cannot_disable_guard(self):
         self.record(3)

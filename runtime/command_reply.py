@@ -8,7 +8,11 @@ from errors import InfrastructureError
 def read_reply(response):
     """Decode ordered commands; keep unreadable text as a note for the next turn."""
     if response.get('status') != 'completed':
-        raise InfrastructureError('OpenAI response was incomplete; no action executed')
+        details = response.get('incomplete_details')
+        reason = details.get('reason') if isinstance(details, dict) else None
+        allowed = ('max_output_tokens', 'max_messages', 'content_filter', 'steered')
+        suffix = ': ' + reason if reason in allowed else ''
+        raise InfrastructureError('OpenAI response was incomplete' + suffix + '; no action executed')
     parts = [part for item in response.get('output', []) if item.get('type') == 'message'
              for part in item.get('content', [])]
     if any(part.get('type') == 'refusal' for part in parts):
@@ -70,7 +74,7 @@ def command_objects(text):
 def command(value):
     """Fill omitted resource arguments. Do not score or approve the AI's content."""
     defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, durationMs=None, credential='',
-        field='', observation='', repeatInstruction='', repeatReason='', remaining=[],
+        field='', observation='', progressNote='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
         configuration=[], pathDecisions=[], planStepId=0, context=None,
         recovery=dict(id=-1, decision='none', reason=''))
@@ -79,9 +83,10 @@ def command(value):
         supplied = value.get(name, default)
         if default is None or type(supplied) is type(default):
             result[name] = supplied
-    if result['action'] == 'swipe':
-        # Preserve numeric/invalid gesture arguments for execution feedback, never a centre fallback.
-        for name in ['x', 'y', 'distance', 'durationMs']:
+    if result['action'] in ('swipe', 'wait'):
+        # Preserve invalid arguments for explicit execution feedback.
+        names = ['x', 'y', 'distance', 'durationMs'] if result['action'] == 'swipe' else ['durationMs']
+        for name in names:
             supplied = value.get(name, defaults[name])
             # Invalid numbers/containers must still produce valid JSON failure reports.
             if isinstance(supplied, (dict, list)):
@@ -89,8 +94,14 @@ def command(value):
             elif type(supplied) is float and not math.isfinite(supplied):
                 supplied = str(supplied)
             result[name] = supplied
-        if 'ref' in value and not isinstance(value['ref'], str):
-            result['argumentError'] = 'Swipe ref must be a string'
+    if result['action'] == 'swipe' and 'ref' in value and not isinstance(value['ref'], str):
+        result['argumentError'] = 'Swipe ref must be a string'
+    if result['action'] == 'wait':
+        unsupported = [name for name in ('ref', 'text', 'x', 'y', 'direction', 'distance', 'credential', 'field')
+                       if value.get(name, defaults[name]) != defaults[name]]
+        if unsupported:
+            result['argumentError'] = ('Wait accepts only durationMs as a device argument. Unsupported: '
+                                       + ', '.join(unsupported))
     result['remaining'] = [str(row) for row in result['remaining']]
     result['recovery'] = records([result['recovery']], defaults['recovery'])[0]
     result['checks'] = records(result['checks'], dict(taskId=-1, subject='', source='',

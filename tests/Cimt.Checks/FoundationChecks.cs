@@ -122,6 +122,9 @@ build:
             {
                 Assert(child.ExitCode == 2, "SIGINT did not preserve incomplete outcome");
                 Assert(File.ReadAllText(html).Contains("User interruption"), "missing user stop reason");
+                var proposal = File.ReadAllText(Path.Combine(report, "instruction-setup-proposal.md"));
+                Assert(proposal.Contains("Interpretation of the testing task") && proposal.Contains("Synthetic progress"),
+                    "the proposal worker did not review the partial run after cancellation");
             }
         }
         finally
@@ -426,6 +429,17 @@ build:
 #!/usr/bin/env python3
 import sys,json,pathlib,os,time
 c=json.load(sys.stdin)
+if '--proposal' in sys.argv:
+ report=pathlib.Path(c['report'])
+ if os.environ.get('CIMT_FIXTURE_WAIT_FOR_INTERRUPT'):
+  assert c['outcome']['cancelled'], 'proposal did not receive cancellation status'
+  saved=json.loads((report/'ui-results.json').read_text())
+  assert saved['devices'][0]['stoppingReason']=='User interrupted execution', 'proposal ran before results were saved'
+  evidence=saved['devices'][0]['scenarios'][0]['steps'][0]['observation']
+ else:
+  evidence='Fixture run'
+ (report/'instruction-setup-proposal.md').write_text('## Interpretation of the testing task\n\n'+evidence)
+ sys.exit(0)
 if '--preflight' in sys.argv and os.environ.get('CIMT_FIXTURE_RETAINED_MARKER'):
  assert pathlib.Path(os.environ['CIMT_FIXTURE_RETAINED_MARKER']).exists(), 'retained work was deleted before cloning'
 if '--preflight' not in sys.argv:

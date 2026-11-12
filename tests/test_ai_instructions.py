@@ -8,6 +8,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
 from ai_instructions.instructions import ActionPromptBuilder
+from test_planning.test_plan import TestPlan
 
 
 def state(elements):
@@ -19,9 +20,10 @@ def state(elements):
 class InstructionTests(unittest.TestCase):
     def test_controls_keep_enabled_state_for_the_ai_to_interpret(self):
         disabled = dict(ref='@disabled', type='Button', label='Save', enabled=False)
-        inputs = state([disabled])
-        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap')])
-        self.assertEqual(inputs['elements'], [disabled])
+        hidden = dict(ref='@hidden', type='Button', label='Continue', visible=False)
+        inputs = state([disabled, hidden])
+        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap'), dict(hidden, inputKind='tap')])
+        self.assertEqual(inputs['elements'], [disabled, hidden])
 
     def test_static_text_is_evidence_without_becoming_a_control(self):
         text = dict(ref='@caption', type='Text', text='Current selection')
@@ -57,6 +59,43 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('do not re-enter credentials solely because their values are hidden', prompt)
         self.assertIn('text types into the focused field and may append', prompt)
 
+    def test_prompt_requests_review_and_correction_after_unexpected_result(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Compare each observed app response with what you expected', prompt)
+        self.assertIn('review the preceding steps and actual feedback', prompt)
+        self.assertIn('try a corrected action when supported by the evidence and test goal', prompt)
+        self.assertIn('record it according to the test instructions', prompt)
+
+    def test_prompt_requires_evidence_for_each_repeated_workflow_iteration(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('track each iteration separately', prompt)
+        self.assertIn('A step from an earlier iteration cannot satisfy a new one', prompt)
+        self.assertIn('prefilled or masked value does not prove', prompt)
+
+    def test_prompt_warns_about_duplicate_commands_and_stale_refs(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Do not duplicate a command', prompt)
+        self.assertIn('previous ref point to a different control', prompt)
+
+    def test_prompt_requests_a_prefixed_explanation_for_each_command(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn("'ai decission explanation: '", prompt)
+        self.assertIn('For every command, include an observation field', prompt)
+        self.assertIn('Explain each command separately, including commands in a batch', prompt)
+        self.assertIn('do not include credential values', prompt)
+
+    def test_prompt_explains_foreground_modals_for_any_app(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('blocks interaction with controls behind it', prompt)
+        self.assertIn('use a current target within it', prompt)
+        self.assertIn('do not assume a dialog is modal solely', prompt)
+        self.assertIn('treat that as unknown', prompt)
+
     def test_normal_action_example_includes_an_explicit_ai_context_selection(self):
         example = state([])['commandResources']['contextExample']
         self.assertEqual(example['action'], 'tap')
@@ -65,15 +104,9 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(example['context']['records'], [])
         self.assertTrue(example['context']['summary'])
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
-        self.assertIn('Alongside your first normal action', body['input'][0]['content'])
-        self.assertIn('null keeps bootstrap history', body['input'][0]['content'])
-
-    def test_prompt_explains_whole_collection_and_unchanged_selection(self):
-        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
-        prompt = body['input'][0]['content']
-        self.assertIn('ENTIRE named collections', prompt)
-        self.assertIn('keeps the existing selection', prompt)
-        self.assertIn('explicit target', prompt)
+        self.assertIn('evidenceLedger, recent actions, selected history and action feedback', body['input'][0]['content'])
+        self.assertIn('aiInterpretations contains AI-authored progress', body['input'][0]['content'])
+        self.assertIn('these may be outdated or wrong', body['input'][0]['content'])
 
     def test_prompt_explains_whole_reply_syntax_feedback(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
@@ -82,6 +115,27 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('Commas between commands require enclosing array brackets', prompt)
         self.assertIn('CIMT executes none of that reply', prompt)
         self.assertIn('reason and expected format', prompt)
+
+    def test_timed_check_example_keeps_the_triggering_command_as_the_start(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('identify the triggering event in batchFeedback by commandId and action', prompt)
+        self.assertIn('Elapsed time from tap command 7 is 30 seconds', prompt)
+        self.assertIn('The wait completion does not reset the start time', prompt)
+
+    def test_done_example_reports_objective_and_requirement_checks_separately(self):
+        example = state([])['commandResources']['doneExample']
+        self.assertEqual(example['action'], 'done')
+        self.assertEqual(example['completion'], 'complete')
+        self.assertEqual(example['remaining'], [])
+        self.assertEqual([(row['taskId'], row['source'], row['requirementId']) for row in example['checks']],
+                         [(0, 'instructions', ''), (1, 'requirements', 'REQ-0042')])
+        for status in ('passed', 'failed'):
+            with self.subTest(status=status):
+                plan = TestPlan('Save and inspect confirmation', [dict(id='REQ-0042', text='Saving confirms')])
+                plan.record_checks([dict(row, status=status) for row in example['checks']])
+                self.assertEqual(plan.remaining(), [])
+                self.assertEqual([row['result'] for row in plan.saved()['tasks']], [status, status])
 
     def test_swipe_resources_expose_target_and_distance_together(self):
         resources = state([])['commandResources']
@@ -105,13 +159,13 @@ class InstructionTests(unittest.TestCase):
             self.assertIn(meaning, arguments['direction']['description'])
         self.assertIn('not a number of picker rows', arguments['distance']['description'])
 
-    def test_picker_guidance_survives_context_deferral_and_recovery(self):
+    def test_picker_guidance_survives_large_history_and_recovery(self):
         wheel = dict(ref='@wheel', type='PickerWheel', value='Tier C')
         body = ActionPromptBuilder('fixture').build('Select the requested tier', '', '', [wheel],
             b'masked', [dict(observation='x' * 70000)], [], {},
             exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
         inputs = json.loads(body['input'][1]['content'][0]['text'])
-        self.assertIn('contextSelectionRequired', inputs)
+        self.assertNotIn('contextSelectionRequired', inputs)
         self.assertEqual(inputs['elements'], [wheel])
         self.assertEqual(inputs['explorationMemory']['recoveryRequest']['id'], 1)
         prompt = body['input'][0]['content']

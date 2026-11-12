@@ -167,6 +167,30 @@ class TestPlanningTests(unittest.TestCase):
         second = [dict(BUTTON, value='German')]
         self.assertNotEqual(self.planner.memory.map.state_id(first), self.planner.memory.map.state_id(second))
 
+    def test_three_unchanged_waits_request_review(self):
+        wait = decision(action='wait', ref='', durationMs=0)
+        for _ in range(3):
+            self.planner.record(self.screen, self.screen, wait, {})
+
+        with self.assertRaises(NoProgressAction):
+            self.planner.memory.check_repetition(self.screen, wait)
+
+    def test_wait_with_a_reason_still_requests_review(self):
+        wait = decision(action='wait', ref='', durationMs=1000)
+        for _ in range(3):
+            self.planner.record(self.screen, self.screen, wait, {})
+
+        with self.assertRaises(NoProgressAction):
+            self.planner.memory.check_repetition(self.screen, dict(wait, repeatReason='Waiting for loading to finish'))
+
+    def test_changed_screen_does_not_report_three_unchanged_waits(self):
+        wait = decision(action='wait', ref='', durationMs=0)
+        changed = self.screen + [dict(type='Text', identifier='message', text='Completed')]
+        self.planner.record(self.screen, self.screen, wait, {})
+        self.planner.record(self.screen, changed, wait, {})
+
+        self.planner.memory.check_repetition(self.screen, wait)
+
     def test_clock_updates_do_not_reset_the_three_attempt_guard(self):
         clock = dict(type='Text', identifier='com.android.systemui:id/clock', text='09:00')
         before = self.screen + [clock]

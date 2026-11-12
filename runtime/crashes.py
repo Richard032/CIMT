@@ -6,6 +6,12 @@ from dataclasses import dataclass
 from errors import InfrastructureError
 from stopping_policy.policy import matching_crash_limit_reached
 
+ANDROID_PERMISSION_CONTROLLERS = {
+    "com.android.permissioncontroller",
+    "com.google.android.permissioncontroller",
+    "com.android.packageinstaller",
+}
+
 
 class CrashCounter:
     def __init__(self):
@@ -163,9 +169,9 @@ class CrashRecovery:
             self._relaunch(session)
             entry["recovery"] = "relaunch succeeded"
         # A system ANR dialog stays open for the AI to handle.
-        elif observation.foreground != session.app_id and not (
-            session.observer and session.observer.active_anr
-        ):
+        elif observation.foreground != session.app_id and (
+            observation.foreground not in ANDROID_PERMISSION_CONTROLLERS
+        ) and not (session.observer and session.observer.active_anr):
             entry["navigation"] = (
                 "Explicit exit or background/external navigation; no matching crash diagnostic"
             )

@@ -78,15 +78,10 @@ class ExplorationMemory:
         self.observe(elements)
 
     def check_repetition(self, elements, action):
-        if action['action'] not in ['tap', 'swipe', 'back', 'text', 'credential', 'restart']:
-            return
         path = self.paths.get(self._path(elements, action), {})
         repeated_cycle = (path.get('repeatedWithoutNewPath', 0) >= 3
                           and path.get('progressVersion') == self.progress_version)
         if path.get('unchangedAttempts', 0) < 3 and not repeated_cycle:
-            return
-        # Intentional repetition is an AI decision, not an exact-quotation test.
-        if action.get('repeatReason', '').strip():
             return
         raise NoProgressAction('Repetition signal: this path repeated without a new discovered path. '
             'Assess whether it is an unproductive loop or intentional work using fresh evidence. '
