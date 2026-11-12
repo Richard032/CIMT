@@ -10,4 +10,6 @@ def human_interface(elements):
         kind = declared_control_kind(element)
         if kind:
             controls.append(dict(element, inputKind=kind))
+        elif element.get('identifier'):
+            controls.append(dict(element, inputKind='tap'))
     return controls

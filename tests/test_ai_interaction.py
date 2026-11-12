@@ -97,7 +97,7 @@ class AiInteractionTests(unittest.TestCase):
         self.assertIn('commandResources', current)
         self.assertEqual([row['observation'] for row in current['recentActions']],
                          ['First step', 'Second step'])
-        self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(current['humanInterface'][0]['label'], 'Fresh screen')
         self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
 
     def test_each_decision_records_redacted_request_and_screenshot_reference(self):
@@ -146,6 +146,19 @@ class AiInteractionTests(unittest.TestCase):
             self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
         self.assertEqual(self.session.result['aiRequests'][0]['status'], 'completed')
         self.assertEqual(budget.uncertain, budget.bound)
+
+    def test_sdk_refusal_stops_without_exposing_provider_text_or_retrying(self):
+        agent, budget, transport = api_agent([])
+        response = dict(status="completed", usage=dict(input_tokens=10, output_tokens=3),
+                        output=[dict(type="message", content=[
+                            dict(type="refusal", refusal="private provider refusal")])])
+        transport.request = lambda path, body: response
+
+        with self.assertRaisesRegex(InfrastructureError, "^OpenAI refused the request; no action executed$"):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        self.assertEqual(budget.snapshot()["requests"], 1)
+        self.assertEqual(len(self.session.result["aiRequests"]), 1)
 
     def test_output_limit_retry_has_its_own_request_record(self):
         agent, _, _ = api_agent([])

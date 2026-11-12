@@ -219,8 +219,9 @@ SYSTEM_PROMPT = (
     "Omitted earlier records are unknown; use recall if needed. "
     "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
+    "Elements with automation identifiers are included as interactive targets. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
-    "The elements and screenshot also contain observations such as status text and loading indicators. "
+    "The screenshot also contains observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "
     "A repetition signal is a request for assessment, not proof of an app defect. When recoveryRequest is present, "
     "acknowledge its id in recovery and explain your revised approach, intentional repetition, or blocker. "
@@ -288,7 +289,7 @@ class ActionPromptBuilder:
             "requirements": "" if requirement_results else requirements,
             "requirementResults": memory.pop('selectedRequirements') if selected else requirement_results or [],
             "setup": setup,
-            "elements": elements,
+            "elements": [element for element in elements if element.get("type") == "CimtScreenInfo"],
             "humanInterface": human_interface(elements),
             "recentActions": memory.pop('selectedActions') if selected else history,
             "credentialAliases": aliases,

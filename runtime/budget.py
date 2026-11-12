@@ -46,14 +46,15 @@ class Budget:
         self.accounted = Decimal(0)
         self.uncertain = Decimal(0)
         self.pending = Decimal(0)
+        self.pending_reservations = []
         self.input_tokens = self.output_tokens = self.requests = 0
         self.cached_tokens = 0
         self.cache_usage_requests = 0
         self.usage_records = []
         self.lock = threading.Lock()
         self.journal = lambda: None
-        # Reserve the ENTIRE model context, including image input, plus the
-        # enforced output cap. This avoids estimates of screenshot/BPE tokens.
+        # Keep the model-wide ceiling for validation and legacy callers.
+        # Provider-counted requests reserve their own smaller amount.
         self.bound = self._cost(self.price["context"], MAX_OUTPUT)
 
     def restore(self, snapshot):
@@ -69,13 +70,18 @@ class Budget:
                 raise ValueError("The saved ledger contains invalid costs")
             accounted, uncertain, pending = costs
             requests, inputs, outputs = [snapshot[key] for key in ("requests", "inputTokens", "outputTokens")]
+            reservations = [Decimal(value) for value in snapshot.get("pendingReservations",
+                [str(self.bound)] * int(pending / self.bound))]
+            if (any(not value.is_finite() or not 0 < value <= self.bound for value in reservations)
+                    or sum(reservations, Decimal(0)) != pending):
+                raise ValueError("Invalid pending reservations")
             cached = snapshot["cachedInputTokens"]
             cache_requests = snapshot["cacheUsageRequests"]
             usage = snapshot["requestUsage"]
             if (any(type(value) is not int or value < 0 for value in (requests, inputs, outputs, cache_requests))
                     or (cached is not None and (type(cached) is not int or not 0 <= cached <= inputs))
                     or not isinstance(usage, list) or not all(isinstance(row, dict) for row in usage)
-                    or pending % self.bound != 0 or len(usage) + pending / self.bound != requests):
+                    or len(usage) + len(reservations) != requests):
                 raise ValueError("The saved ledger contains invalid usage")
         except (KeyError, TypeError, ValueError, InvalidOperation):
             raise InfrastructureError("The saved AI budget could not be restored safely") from None
@@ -86,22 +92,31 @@ class Budget:
         self.requests, self.input_tokens, self.output_tokens = requests, inputs, outputs
         self.cached_tokens = cached or 0
         self.cache_usage_requests = cache_requests
-        self.usage_records = usage + [dict(kind='device request', status='uncertain')] * int(pending / self.bound)
+        self.usage_records = usage + [dict(kind='device request', status='uncertain')] * len(reservations)
 
-    def reserve(self):
+    def reserve(self, input_tokens=None, output_tokens=MAX_OUTPUT):
         """Hold the maximum request cost before any paid call starts."""
+        if input_tokens is None:
+            input_tokens = self.price["context"]
+        if not self._valid_usage(input_tokens, output_tokens) or output_tokens == 0:
+            raise InfrastructureError("Invalid request token count or output limit")
+        reservation = self._cost(input_tokens, output_tokens)
         with self.lock:
-            if self.accounted + self.uncertain + self.pending + self.bound > self.limit:
+            if self.accounted + self.uncertain + self.pending + reservation > self.limit:
                 raise LimitReached("Remaining shared AI budget cannot fund a worst-case request")
-            self.pending += self.bound
+            self.pending += reservation
+            self.pending_reservations.append(reservation)
             self.requests += 1
         self.journal()
+        return reservation
 
-    def finish(self, usage=None, kind='decision'):
+    def finish(self, usage=None, kind='decision', reservation=None):
         """Settle one reservation, keeping its full cost when usage is uncertain."""
+        reservation = self.bound if reservation is None else reservation
         with self.lock:
-            self.pending -= self.bound
-            invalid = self._settle_usage(usage)
+            self.pending_reservations.remove(reservation)
+            self.pending -= reservation
+            invalid = self._settle_usage(usage, reservation)
             self._record_usage(usage, kind, invalid)
         self.journal()
         if invalid:
@@ -121,18 +136,18 @@ class Budget:
         self.usage_records.append(dict(kind=kind, status='recorded', inputTokens=usage['input_tokens'],
             outputTokens=usage['output_tokens'], cachedInputTokens=cached))
 
-    def _settle_usage(self, usage):
+    def _settle_usage(self, usage, reservation):
         if not isinstance(usage, dict):
-            self.uncertain += self.bound
+            self.uncertain += reservation
             return False
         inp, out = usage.get("input_tokens"), usage.get("output_tokens")
         if not self._valid_usage(inp, out):
-            self.uncertain += self.bound
+            self.uncertain += reservation
             return True
         self.accounted += self._cost(inp, out)
         self.input_tokens += inp
         self.output_tokens += out
-        return False
+        return self._cost(inp, out) > reservation
 
     def _cost(self, input_tokens, output_tokens):
         """Bound usage charges, including cache writes and long-context rates."""
@@ -147,8 +162,8 @@ class Budget:
 
     def _valid_usage(self, inp, out):
         return (
-            isinstance(inp, int)
-            and isinstance(out, int)
+            type(inp) is int
+            and type(out) is int
             and 0 <= inp <= self.price["context"]
             and 0 <= out <= MAX_OUTPUT
         )
@@ -163,6 +178,7 @@ class Budget:
                 "accountedUpperCost": str(self.accounted),
                 "uncertainUpperCost": str(self.uncertain),
                 "pendingUpperCost": str(self.pending),
+                "pendingReservations": [str(value) for value in self.pending_reservations],
                 "requests": self.requests,
                 "inputTokens": self.input_tokens,
                 "outputTokens": self.output_tokens,

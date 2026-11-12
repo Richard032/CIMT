@@ -49,6 +49,17 @@ class OpenAiTransport:
                 "OpenAI API transport/response failed: " + type(error).__name__
             ) from None
 
+    def count_input_tokens(self, body):
+        """Count the same text and image input before reserving generation costs."""
+        fields = ('model', 'input', 'instructions', 'tools', 'tool_choice', 'text',
+                  'reasoning', 'truncation')
+        result = self.request('responses/input_tokens',
+                              {key: body[key] for key in fields if key in body})
+        count = result.get('input_tokens') if isinstance(result, dict) else None
+        if type(count) is not int or count < 0:
+            raise InfrastructureError('OpenAI returned an invalid input token count')
+        return count
+
     def _create_request(self, path, body):
         data = None if body is None else json.dumps(body).encode()
         return urllib.request.Request(
