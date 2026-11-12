@@ -96,16 +96,9 @@ class ScreenMasker:
         geometry = MaskGeometry(size, image.size)
         draw = ImageDraw.Draw(image)
         masks = self._regions(raw_elements, geometry)
-        visible_ids = {element.get('identifier') for element in raw_elements}
-        missing_ids = self.redactor.ids - visible_ids
         for mask in masks:
             draw.rectangle(mask, fill="black")
         safe = [self._element(element, geometry, masks) for element in raw_elements]
-        if missing_ids:
-            # A modal can hide fields from the UI tree while their pixels remain visible.
-            draw.rectangle((0, 0, image.width, image.height), fill="black")
-            safe.append(dict(type='CimtPrivacyNotice', screenshotFullyMasked=True,
-                message='Screenshot fully masked because a protected field is not visible in the UI tree.'))
         return safe, ScreenshotImage.encode(image)
 
     def _regions(self, elements, geometry):

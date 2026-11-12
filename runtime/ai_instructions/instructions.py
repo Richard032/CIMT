@@ -216,7 +216,6 @@ SYSTEM_PROMPT = (
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The elements and screenshot also contain observations such as status text and loading indicators. "
-    "If CimtPrivacyNotice reports screenshotFullyMasked, the image is unavailable; use only the supplied masked UI evidence and report visual uncertainty. "
     "The original instructions and requirements remain authoritative. "
     "A repetition signal is a request for assessment, not proof of an app defect. When recoveryRequest is present, "
     "acknowledge its id in recovery and explain your revised approach, intentional repetition, or blocker. "
