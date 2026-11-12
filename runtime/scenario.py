@@ -1,7 +1,6 @@
 """Execution of one exploration objective on one target and device."""
 
 import hashlib
-import pathlib
 import plistlib
 import re
 import time

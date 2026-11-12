@@ -2,7 +2,7 @@
 
 from collections import deque
 from copy import deepcopy
-from .screen_model import app_elements, control_identity, identity, input_state, progress_identity, screen_label, view_identity
+from .screen_model import control_identity, identity, input_state, progress_identity, screen_label, view_identity
 
 
 class ApplicationMap:

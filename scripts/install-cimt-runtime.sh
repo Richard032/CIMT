@@ -29,6 +29,7 @@ done
 # Remove source modules replaced by the named packages and execution components.
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/exploration_memory.py"
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/decision_recovery.py"
+rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/request_context.py"
 # Reply decoding belongs to execution, outside the instruction layer.
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/ai_exchange/replies.py"
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/ai_exchange/__init__.py"

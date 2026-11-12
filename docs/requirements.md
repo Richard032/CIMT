@@ -440,6 +440,9 @@ Before model access and before any repository clone or application build, run an
 
 Capacity feedback shall report the exact selected UTF-8 byte count, the allowance, and counts/sizes for each selected collection without echoing record contents. Explain that includeAll loads the entire named collection, that specifying an individual record does not narrow includeAll, and that recall with absent/null context retains the prior selection. Supply an example with includeAll empty and a latest record address. AI remains free to choose smaller history, continue from supplied evidence, or explain a blocker; the host shall not rank or truncate records for it.
 
+Implementation status: the former capacity-feedback code is not connected to current decision requests. Selected history is currently sent without this deferral; provider and budget limits still apply. The capacity-feedback requirement remains unimplemented.
+
+
 Credential command guidance shall show alias, field and an explicit target ref or coordinates together. It shall preserve local credential resolution, masking and the existing failure when a credential target is missing or disabled.
 
 Activity shall distinguish context preparation, evidence refresh/reuse, action/context-selection cycles, and provider-response elapsed time. Provider timing shall cover only the transport call, including failures, with the device/target and request kind. Existing budget reservation and uncertain-usage accounting shall remain unchanged. Combined decision-cycle times contain nested operations and shall not be added to those components. Existing historical reports shall remain unchanged.

@@ -1,6 +1,5 @@
 """Installation and reset of the application under test."""
 
-import subprocess
 import time
 from errors import InfrastructureError
 from .target import DeviceTarget
