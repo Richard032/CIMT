@@ -27,7 +27,10 @@ class CompletionCritic:
                     'A blocked completion can correctly have an inconclusive check. Do not invent a blocked check status. '
                     'For timing, consider the earliest observation that supports the stated outcome; do not treat a later observation as the first without evidence. '
                     'decisionObservedAt is the screen time for an AI explanation, while observedAt is the screen time after that action; explanations are interpretations, not direct proof. '
-                    'Use recentScreens as masked UI evidence where available; it is a limited subset, and missing screens or elements are unknown. '
+                    'The ledger recordedEvidence contains execution and UI records, not proof that app behavior succeeded. '
+                    'The ledger aiInterpretations contains AI-authored progress, explanations and checks; these can be stale or wrong. '
+                    'Compare interpretations with the recorded sequence and current screen independently. '
+                    'Use recordedEvidence.recentScreens where available; it is a limited subset, and missing screens or elements are unknown. '
                     'The evidence ledger may omit earlier records and AI observations may be mistaken; say when '
                     'evidence is insufficient. Return only a JSON object with decision equal to agree or revise '
                     'and a nonempty feedback string explaining the evidence and any missing work.')},

@@ -26,6 +26,11 @@ class InstructionContext:
         memory = self.redactor.records.request_context(memory)
         memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
         memory['evidenceLedger'] = self.redactor.object(session.result.get('evidenceLedger', {}))
+        summary = memory.pop('summary', '')
+        selection = memory.get('selection')
+        if isinstance(selection, dict):
+            selection.pop('summary', None)
+        memory['evidenceLedger'].setdefault('aiInterpretations', {})['contextSummary'] = summary
         # Historical pixels are supplied only when the AI selected them.
         memory['historicalImages'] = (evidence.load_images(memory['selectedScreenshots'])
             if session.planner.context_memory.selection is not None else [])

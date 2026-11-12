@@ -16,13 +16,20 @@ class EvidenceLedger:
         checks = result.get('checks', [])
         events = {event.get('step'): event for batch in result.get('batchFeedback', {}).get('batches', [])
                   for event in batch.get('path', []) if event.get('kind') == 'command'}
+        recent_steps = steps[-self.MAX_STEPS:]
         return {
-            'progressNote': result.get('evidenceProgress', ''),
-            'steps': [self._step(row, events.get(row.get('step'), {})) for row in steps[-self.MAX_STEPS:]],
-            'omittedEarlierSteps': max(0, len(steps) - self.MAX_STEPS),
-            'checks': [self._check(row) for row in checks[-self.MAX_CHECKS:]],
-            'omittedEarlierChecks': max(0, len(checks) - self.MAX_CHECKS),
-            'recentScreens': self._screens(result),
+            'recordedEvidence': {
+                'steps': [self._step(row, events.get(row.get('step'), {})) for row in recent_steps],
+                'omittedEarlierSteps': max(0, len(steps) - self.MAX_STEPS),
+                'recentScreens': self._screens(result),
+            },
+            'aiInterpretations': {
+                'progressNote': result.get('evidenceProgress', ''),
+                'stepExplanations': [dict(step=row.get('step'), text=row['observation'])
+                    for row in recent_steps if isinstance(row.get('action'), dict) and row.get('observation')],
+                'checks': [self._check(row) for row in checks[-self.MAX_CHECKS:]],
+                'omittedEarlierChecks': max(0, len(checks) - self.MAX_CHECKS),
+            },
         }
 
     def _screens(self, result):
@@ -53,7 +60,7 @@ class EvidenceLedger:
         if isinstance(action, dict):
             action = {key: action[key] for key in ('action', 'commandId', 'field', 'ref') if key in action}
         fields = ('step', 'controlLabel', 'targetIdentifier', 'targetType', 'decisionObservedAt', 'completedAt', 'actionDispatched',
-                  'observedOutcome', 'actionError', 'resultObservation', 'observation')
+                  'observedOutcome', 'actionError', 'resultObservation')
         entry = dict(action=deepcopy(action), **{key: deepcopy(row[key]) for key in fields if key in row})
         if event.get('observedAt'):
             entry['observedAt'] = event['observedAt']

@@ -190,14 +190,15 @@ class RuntimeChecks(unittest.TestCase):
             {
                 "credentials": {
                     "test": {"username": "synthetic-user", "password": "synthetic-password"}
-                }
+                },
+                "masking": {"rules": [{"element-id": "PasswordEntry"}]},
             }
         )
         source = io.BytesIO()
         Image.new("RGB", (100, 100), "white").save(source, format="PNG")
         with self.assertRaises(InfrastructureError):
             ScreenMasker(redactor).capture(
-                [{"value": "synthetic-password"}], source.getvalue(), {"width": 100, "height": 100}
+                [{"identifier": "PasswordEntry", "value": "synthetic-password"}], source.getvalue(), {"width": 100, "height": 100}
             )
         self.assertNotIn("synthetic-password", redactor.text("error synthetic-password"))
 
@@ -226,7 +227,7 @@ class RuntimeChecks(unittest.TestCase):
         execution.execute(mobile, action, elements)
         self.assertEqual(calls[0][1], {"x": 20, "y": 2})
 
-    def test_credentials_require_maskable_element_identifier(self):
+    def test_credentials_require_stable_element_identifier(self):
         calls = []
         config = {
             "credentials": {

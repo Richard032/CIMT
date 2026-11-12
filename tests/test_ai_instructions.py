@@ -105,6 +105,8 @@ class InstructionTests(unittest.TestCase):
         self.assertTrue(example['context']['summary'])
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
         self.assertIn('evidenceLedger, recent actions, selected history and action feedback', body['input'][0]['content'])
+        self.assertIn('aiInterpretations contains AI-authored progress', body['input'][0]['content'])
+        self.assertIn('these may be outdated or wrong', body['input'][0]['content'])
 
     def test_prompt_explains_whole_reply_syntax_feedback(self):
         body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})

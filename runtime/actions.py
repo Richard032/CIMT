@@ -61,19 +61,14 @@ class ActionExecutor:
     def _credential(self, mobile, action, elements):
         value = self._credential_value(action)
         element = self._credential_element(action["ref"], elements)
-        identifier = element.get("identifier")
-        if not identifier:
-            raise ValueError(
-                "Credential target has no stable element ID for reliable masking; no secret was entered. "
-                "Choose a current enabled input with a stable identifier."
-            )
-        # Register the mask before typing. The next screenshot must hide this field.
-        self.redactor.ids.add(identifier)
+        if not element.get("identifier"):
+            raise ValueError("Credential target has no stable element ID; no secret was entered. "
+                             "Choose a current enabled input with a stable identifier.")
         mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
         self.check()
         mobile.replace_text(value)
         return ('Credential field contents replaced using the configured value; adapter confirmed completion. '
-                'The value is hidden. This does not confirm authentication; inspect the app after submitting.')
+                'This does not confirm authentication; inspect the app after submitting.')
 
     def _credential_value(self, action):
         aliases = self.config.get("credentials", {})

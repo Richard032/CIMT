@@ -624,7 +624,10 @@ class ScenarioTests(unittest.TestCase):
         agent, _, transport = api_agent([json.dumps([action('tap', ref='@one'), select]), action()])
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, {'scenarios': []}, agent, lambda: None)
         state = json.loads(transport.bodies[1]['input'][-1]['content'][0]['text'])
-        self.assertEqual(state['explorationMemory']['summary'], 'Keep the actual outcome')
+        self.assertEqual(state['explorationMemory']['evidenceLedger']['aiInterpretations']['contextSummary'], 'Keep the actual outcome')
+        self.assertNotIn('summary', state['explorationMemory'])
+        self.assertNotIn('summary', state['explorationMemory']['selection'])
+        self.assertIn('recordedEvidence', state['explorationMemory']['evidenceLedger'])
         self.assertNotIn('contextSelectionRequired', state)
 
     def test_failed_command_cancels_the_tail_and_reports_the_actual_issue_once(self):
@@ -839,11 +842,11 @@ class ScenarioTests(unittest.TestCase):
                            action(completion='blocked', checks=[])])
         result = {'scenarios': []}
         self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
-        self.assertEqual(agent.calls[1][-1]['evidenceLedger']['progressNote'], 'Nothing completed yet.')
+        self.assertEqual(agent.calls[1][-1]['evidenceLedger']['aiInterpretations']['progressNote'], 'Nothing completed yet.')
 
     def test_action_ledger_retains_the_observed_target_identity(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action('tap', ref='@e1'), action()])
-        row = next(item for item in result['evidenceLedger']['steps']
+        row = next(item for item in result['evidenceLedger']['recordedEvidence']['steps']
                    if isinstance(item['action'], dict) and item['action'].get('action') == 'tap')
         self.assertEqual(row['targetIdentifier'], 'ButtonA')
         self.assertEqual(row['targetType'], 'Button')
@@ -1343,7 +1346,7 @@ class ScenarioTests(unittest.TestCase):
         recall = action('recall', context=dict(summary='Remember the first observation', includeAll=['tasks'], records=[]))
         result, agent = self.run_scenario(FakeMobile(self.root, elements=[]), [recall, action()])
         self.assertEqual(len(agent.calls), 2)
-        self.assertEqual(agent.calls[1][-1]['summary'], 'Remember the first observation')
+        self.assertEqual(agent.calls[1][-1]['evidenceLedger']['aiInterpretations']['contextSummary'], 'Remember the first observation')
         self.assertEqual(agent.calls[1][-1]['selectedActions'], [])
         self.assertEqual(len(result['decisions']), 2)
         self.assertEqual(len(result['steps']), 2)  # Reset evidence and the final check only.
@@ -1692,7 +1695,7 @@ class BoundaryTests(unittest.TestCase):
                     feedback = executor.execute(mobile,
                         action('credential', ref='@e1', credential='test', field=field), [BUTTON])
                 self.assertEqual(mobile.text_contents, config['credentials']['test'][field])
-                self.assertIn(BUTTON['identifier'], redactor.ids)
+                self.assertNotIn(BUTTON['identifier'], redactor.ids)
                 self.assertNotIn('mobile_type_keys', [name for name, _ in mobile.calls])
                 self.assertIn('adapter confirmed', feedback)
                 self.assertNotIn(config['credentials']['test'][field], feedback)
