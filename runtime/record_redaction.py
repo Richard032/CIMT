@@ -140,6 +140,15 @@ class RecordRedactor:
             response.pop('modelResponse', None)
         return row
 
+    def request_action(self, value):
+        row = self.action(value)
+        if isinstance(row, dict):
+            row.pop('modelResponse', None)
+        return row
+
+    def request_decision(self, value):
+        return self._record(value, ['id', 'step'], {'response': self.request_action})
+
     def request_context(self, value):
         path = lambda row: self._record(row, ['id', 'screen', 'control', 'action', 'kind', 'scope', 'planStepId', 'ref'])
         return self._record(value, ['currentScreen'], {
@@ -158,10 +167,11 @@ class RecordRedactor:
             'currentWarnings': lambda rows: self._items(rows, self.warning),
             'selectedBatches': lambda rows: self._items(rows, self.batch),
             'selectedCommands': lambda rows: self._items(rows, self.request_command),
-            'selectedActions': lambda rows: self._items(rows, self.action),
+            'selectedActions': lambda rows: self._items(rows, self.request_action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),
             'selectedChecks': lambda rows: self._items(rows, self.check),
-            'selectedDecisions': lambda rows: self._items(rows, self.decision),
+            'selectedDecisions': lambda rows: self._items(rows, self.request_decision),
+            'selectedOriginalReplies': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'step'])),
             'selectedObservations': lambda rows: self._items(rows, self.observation),
             'selectedScreenshots': lambda rows: self._items(rows, self.screenshot),
             'routes': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'destination'], {

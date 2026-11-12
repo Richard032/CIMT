@@ -35,6 +35,60 @@ class ContextSelectionTests(unittest.TestCase):
     def test_bootstrap_supplies_all_history_without_a_fixed_window(self):
         self.assertEqual(self.memory.project(self.records)['actions'], self.records['actions'])
 
+    def test_original_reply_requires_an_individual_selection(self):
+        self.records['originalReplies'] = [dict(id=7, step=3, text='first reply'),
+                                           dict(id=9, step=4, text='second reply')]
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [])
+        self.memory.accept(selection(include_all=['originalReplies']))
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [])
+        self.assertIn('individually', self.memory.unavailable[0])
+        self.memory.accept(selection(records=[dict(collection='originalReplies', id='7')]))
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [self.records['originalReplies'][0]])
+        self.memory.accept(selection(records=[dict(collection='originalReplies', id='latest')]))
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [self.records['originalReplies'][1]])
+
+    def test_missing_original_reply_is_reported(self):
+        self.memory.accept(selection(records=[dict(collection='originalReplies', id='999')]))
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [])
+        self.assertIn('originalReplies/999', self.memory.unavailable[0])
+
+    def test_original_reply_range_is_not_loaded(self):
+        self.records['originalReplies'] = [dict(id=1, text='reply')]
+        self.memory.accept(selection(records=[dict(collection='originalReplies', id='@0:1')]))
+        self.assertEqual(self.memory.project(self.records)['originalReplies'], [])
+        self.assertIn('individually', self.memory.unavailable[0])
+
+    def test_context_omits_replies_by_default_and_retrieves_one_redacted_reply(self):
+        planner = TestPlanner()
+        first = dict(id=7, step=2, response=dict(action='tap', ref='@a', modelResponse='reply private-value'))
+        second = dict(id=8, step=3, response=dict(action='wait', modelResponse='other reply'))
+        history = [dict(action='tap', result='opened', modelResponse='reply private-value')]
+        scrub = Redactor({'credentials': {'test': {'password': 'private-value'}}})
+        context = planner.context([], history, decisions=[first, second])
+        safe = scrub.records.request_context(context)
+        self.assertNotIn('modelResponse', safe['selectedActions'][0])
+        self.assertEqual(safe['selectedActions'][0]['result'], 'opened')
+        self.assertNotIn('modelResponse', safe['selectedDecisions'][0]['response'])
+        self.assertEqual(safe['selectedOriginalReplies'], [])
+        self.assertEqual(first['response']['modelResponse'], 'reply private-value')
+        planner.context_memory.accept(selection(records=[dict(collection='originalReplies', id='7')]))
+        safe = scrub.records.request_context(planner.context([], history, decisions=[first, second]))
+        self.assertEqual(safe['selectedOriginalReplies'], [dict(id=7, step=2, text='reply <redacted>')])
+        self.assertEqual(first['response']['modelResponse'], 'reply private-value')
+
+    def test_selected_original_reply_reaches_the_actual_ai_request(self):
+        planner = TestPlanner()
+        original = dict(id=7, step=2, response=dict(action='tap', modelResponse='original reply'))
+        planner.context_memory.accept(selection(records=[dict(collection='originalReplies', id='7')]))
+        scrub = Redactor({})
+        memory = scrub.records.request_context(planner.context([], decisions=[original]))
+        body = ActionPromptBuilder('fixture').build('goal', '', 'setup', [], b'image', [], [], {},
+                                                    exploration_memory=memory)
+        payload = json.loads(body['input'][-1]['content'][0]['text'])
+        self.assertEqual(payload['explorationMemory']['selectedOriginalReplies'],
+                         [dict(id=7, step=2, text='original reply')])
+        self.assertIn('collection originalReplies', body['input'][0]['content'])
+
     def test_ai_can_keep_an_old_action_and_omit_everything_else(self):
         chosen = selection('Keep the first failure', records=[dict(collection='actions', id='0')])
         self.memory.accept(chosen)

@@ -23,7 +23,7 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
             + " " + Badge(Field(scenario, "completion", "incomplete")) + "</p>";
         body += "<p>Device actions: " + context.ActionCount + "; recorded steps: " + context.Steps.Length
             + "; confirmed crashes: " + context.ConfirmedCrashes + "; suspected terminations: " + context.SuspectedTerminations + ".</p>";
-        body += Remaining(scenario) + AiRequests(scenario, context.Anchor) + new BatchFeedbackHtmlRenderer(configuration, evidence).Render(context)
+        body += Remaining(scenario) + AiRequests(context) + new BatchFeedbackHtmlRenderer(configuration, evidence).Render(context)
             + new PlanningHtmlRenderer(configuration).Render(context)
             + Coverage(scenario) + Checks(context) + Exploration(scenario);
         if (Detail("interpretations") && Field(scenario, "interpretation").Length > 0)
@@ -36,19 +36,20 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
         return body + "</article>";
     }
 
-    private string AiRequests(JsonElement scenario, string anchor)
+    private string AiRequests(ReportScenario context)
     {
-        var requests = Rows(scenario, "aiRequests");
+        var requests = Rows(context.Result, "aiRequests");
         if (requests.Length == 0)
             return "";
         var body = "<p>Each request record contains a redacted representation of the input sent to the AI. "
             + "JSON text is parsed for readability; image payloads link to saved screenshots. "
-            + "One request can produce several queued commands, which do not each cause a new request. "
+            + "Request numbers and step numbers are independent. Each request is placed before the next recorded step, if any. One request can produce checks or several queued commands, which do not each cause a new request. "
             + "Section sizes are UTF-8 bytes, not token counts.</p>";
-        foreach (var request in requests)
+        foreach (var (request, index) in requests.Select((request, index) => (request, index)))
         {
-            var label = "Request " + Field(request, "id") + " — " + Field(request, "kind")
-                + " — step " + Field(request, "step") + " — " + Field(request, "status");
+            var position = RequestPosition(context, request);
+            var label = "Request " + (index + 1) + " — " + Field(request, "kind")
+                + " — " + position + " — " + Field(request, "status");
             var detail = "<p>" + evidence.Link(Field(request, "requestPath"), "Open request JSON") + "</p>"
                 + "<p>Input tokens: " + Encode(Field(request, "inputTokens", "not reported"))
                 + "; output tokens: " + Encode(Field(request, "outputTokens", "not reported"))
@@ -59,11 +60,26 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
                         + Encode(section.Value.ToString()) + " bytes</li>")) + "</ul>");
             var images = Rows(request, "images");
             if (images.Length > 0)
-                detail += "<p>" + string.Join("<br>", images.Select((image, index) =>
-                    evidence.ImageLink(image.ToString(), "Request " + Field(request, "id") + " image " + (index + 1), anchor + "-requests"))) + "</p>";
+                detail += "<p>" + string.Join("<br>", images.Select((image, imageIndex) =>
+                    evidence.ImageLink(image.ToString(), "Request " + (index + 1) + " image " + (imageIndex + 1), context.Anchor + "-requests"))) + "</p>";
             body += Details(label, detail);
         }
         return "<h4>AI request overview</h4>" + body;
+    }
+
+    private static string RequestPosition(ReportScenario context, JsonElement request)
+    {
+        if (!int.TryParse(Field(request, "step"), out var index) || index < 0 || index > context.Steps.Length)
+            return "step position unavailable";
+        if (index < context.Steps.Length)
+        {
+            var next = Field(context.Steps[index], "step");
+            return next.Length > 0 ? "before step " + next : "before an unnumbered step";
+        }
+        if (index == 0)
+            return "before any recorded step";
+        var previous = Field(context.Steps[index - 1], "step");
+        return previous.Length > 0 ? "after step " + previous : "after an unnumbered step";
     }
 
     private string Remaining(JsonElement scenario)
