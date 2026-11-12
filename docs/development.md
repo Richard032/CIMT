@@ -54,7 +54,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
-| action_prompt.py, agent.py, openai_transport.py | Build model input, reserve cost, parse actions, and send HTTPS requests. |
+| action_prompt.py, agent.py, agents_sdk.py, openai_transport.py | Build model input, run OpenAI Agents SDK turns, reserve cost, parse actions, and send HTTPS requests. |
 | device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
 | device_adapter/app_lifecycle.py, native.py, readiness.py, status.py, target.py | Keep app lifecycle, read-only native calls, readiness, status and platform identity separate. |
 | device_adapter/startup.py | Retry only the fixed read-only readiness probe before app setup; never select stopping scope. |
@@ -65,6 +65,8 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | device_adapter/mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
+
+CIMT runs each decision, completion review and instruction proposal as a single Agents SDK turn. The SDK uses CIMT's audited Responses model adapter. CIMT reserves budget and journals each provider request before transport, preserves provider status for response handling, and dispatches commands through its existing queue. SDK tracing and automatic retries are disabled. Reinstall the Python support runtime after upgrading to this revision to pick up the SDK dependency.
 
 ## Run the checks
 

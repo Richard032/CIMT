@@ -4,6 +4,7 @@ import json
 import time
 from copy import deepcopy
 from ai_instructions.instructions import ActionPromptBuilder
+from agents_sdk import run_turn
 from command_reply import read_reply
 from budget import MAX_OUTPUT
 from errors import InfrastructureError
@@ -63,18 +64,18 @@ class Agent:
             retry_body['input'][-1]['content'].append(dict(type='input_text', text=(
                 'The previous response reached the output limit; none of its commands ran. '
                 'Return a shorter response with only the next necessary commands and concise progress.')))
-            response = self._request(retry_body, 'decision retry')
+            response = self._run_turn(retry_body, 'decision retry')
         return read_reply(response)
 
     def _request_action(self, body):
         state = json.loads(body['input'][-1]['content'][0]['text'])
         kind = 'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision'
-        return self._request(body, kind)
+        return self._run_turn(body, kind)
 
     def review_completion(self, evidence):
         """Request an advisory completion review under the shared run budget."""
         self.last_request_timing = None
-        return CompletionCritic(self.model, self._request, MAX_OUTPUT).review(evidence)
+        return CompletionCritic(self.model, self._run_turn, MAX_OUTPUT).review(evidence)
 
     def propose(self, evidence):
         """Interpret the test task and propose improvements based on the recorded results."""
@@ -95,7 +96,7 @@ class Agent:
                         "with nonempty string fields interpretation, instructions, setup, and evidence.")},
                     {"role": "user", "content": [{"type": "input_text", "text": json.dumps(evidence, ensure_ascii=False)}]},
                 ]}
-        response = self._request(body, "instruction proposal")
+        response = self._run_turn(body, "instruction proposal")
         if response.get("status") != "completed":
             raise InfrastructureError("Proposal response was incomplete")
         parts = [part for item in response.get("output", []) if item.get("type") == "message"
@@ -110,6 +111,9 @@ class Agent:
         if not isinstance(value, dict) or any(not isinstance(value.get(k), str) or not value[k].strip() for k in sections):
             raise InfrastructureError("Proposal response is missing required sections")
         return value
+
+    def _run_turn(self, body, kind):
+        return run_turn(body, lambda request_body: self._request(request_body, kind))
 
     def _request(self, body, kind):
         # Keep cache-write charges within the rate used by this pricing profile.
