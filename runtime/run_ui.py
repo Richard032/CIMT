@@ -10,7 +10,8 @@ from budget import Budget
 from device_runner import DeviceRunner
 from stopping_policy.policy import result_exit_code
 from errors import InfrastructureError, LimitReached
-from evidence import RunJournal, atomic
+from evidence import RunJournal, ScenarioEvidence, atomic
+from request_journal import RequestJournal
 from device_adapter.mobile import Mobile
 from redaction import Redactor
 from run_control import RunControl
@@ -115,7 +116,13 @@ def finalize_proposal(context):
         budget.journal = lambda: atomic(ledger, budget.snapshot())
         saved = report / "ui-results.json"
         results = json.loads(saved.read_text(encoding="utf-8"))["devices"] if saved.exists() else []
-        proposal.create(Agent(config, budget, context["deadline"]), results, context["outcome"])
+        request_folder = report / "proposal-requests"
+        request_folder.mkdir(parents=True, exist_ok=True)
+        request_result = {"steps": []}
+        agent = Agent(config, budget, context["deadline"])
+        agent.request_observer = RequestJournal(request_result, ScenarioEvidence(request_folder, report), redactor,
+            lambda: atomic(report / "proposal-requests.json", redactor.object(request_result)))
+        proposal.create(agent, results, context["outcome"])
     except Exception as error:
         # Proposal failures cannot change the verdict or exit code of device testing.
         proposal.unavailable(str(error))

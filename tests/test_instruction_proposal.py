@@ -61,6 +61,11 @@ class InstructionProposalTests(unittest.TestCase):
         self.assertNotIn("secret-password", json.dumps(self.transport.calls))
         self.assertEqual(self.ledger()["requests"], 1)
         self.assertEqual(self.ledger()["requestUsage"][0]["kind"], "instruction proposal")
+        request_file = self.report / "proposal-requests" / "ai-request-0000.json"
+        recorded = request_file.read_text()
+        self.assertNotIn("secret-password", recorded)
+        self.assertIn("<redacted>", recorded)
+        self.assertEqual(json.loads((self.report / "proposal-requests.json").read_text())["aiRequests"][0]["status"], "completed")
 
     def test_exhausted_budget_records_reason_without_request(self):
         self.context["config"]["ai-budget"]["amount"] = 0

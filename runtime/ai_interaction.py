@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from ai_instructions.context import InstructionContext
+from request_journal import RequestJournal
 
 
 class AiInteraction:
@@ -20,6 +21,7 @@ class AiInteraction:
         publish()
         with self._operation('Prepare AI context', mobile, session):
             arguments = self.instructions.prepare(session, mobile.device, evidence)
+        agent.request_observer = RequestJournal(session.result, evidence, self.redactor, publish)
         operation = 'AI action decision'
         try:
             with self._operation(operation, mobile, session):

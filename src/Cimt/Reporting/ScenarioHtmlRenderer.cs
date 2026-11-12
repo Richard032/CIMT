@@ -23,7 +23,7 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
             + " " + Badge(Field(scenario, "completion", "incomplete")) + "</p>";
         body += "<p>Device actions: " + context.ActionCount + "; recorded steps: " + context.Steps.Length
             + "; confirmed crashes: " + context.ConfirmedCrashes + "; suspected terminations: " + context.SuspectedTerminations + ".</p>";
-        body += Remaining(scenario) + new BatchFeedbackHtmlRenderer(configuration, evidence).Render(context)
+        body += Remaining(scenario) + AiRequests(scenario, context.Anchor) + new BatchFeedbackHtmlRenderer(configuration, evidence).Render(context)
             + new PlanningHtmlRenderer(configuration).Render(context)
             + Coverage(scenario) + Checks(context) + Exploration(scenario);
         if (Detail("interpretations") && Field(scenario, "interpretation").Length > 0)
@@ -34,6 +34,36 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
         // Exact records remain reachable from mandatory failures even when optional detail is disabled.
         body += Details("Steps and observed behaviour", new StepHtmlRenderer(configuration, evidence).Render(context));
         return body + "</article>";
+    }
+
+    private string AiRequests(JsonElement scenario, string anchor)
+    {
+        var requests = Rows(scenario, "aiRequests");
+        if (requests.Length == 0)
+            return "";
+        var body = "<p>Each request record contains a redacted representation of the input sent to the AI. "
+            + "JSON text is parsed for readability; image payloads link to saved screenshots. "
+            + "One request can produce several queued commands, which do not each cause a new request. "
+            + "Section sizes are UTF-8 bytes, not token counts.</p>";
+        foreach (var request in requests)
+        {
+            var label = "Request " + Field(request, "id") + " — " + Field(request, "kind")
+                + " — step " + Field(request, "step") + " — " + Field(request, "status");
+            var detail = "<p>" + evidence.Link(Field(request, "requestPath"), "Open request JSON") + "</p>"
+                + "<p>Input tokens: " + Encode(Field(request, "inputTokens", "not reported"))
+                + "; output tokens: " + Encode(Field(request, "outputTokens", "not reported"))
+                + "; cached input tokens: " + Encode(Field(request, "cachedInputTokens", "not reported")) + ".</p>";
+            if (request.TryGetProperty("sectionBytes", out var sections) && sections.ValueKind == JsonValueKind.Object)
+                detail += Details("Text section sizes", "<ul>" + string.Join("", sections.EnumerateObject()
+                    .Select(section => "<li>" + Encode(configuration.Scrub(section.Name)) + ": "
+                        + Encode(section.Value.ToString()) + " bytes</li>")) + "</ul>");
+            var images = Rows(request, "images");
+            if (images.Length > 0)
+                detail += "<p>" + string.Join("<br>", images.Select((image, index) =>
+                    evidence.ImageLink(image.ToString(), "Request " + Field(request, "id") + " image " + (index + 1), anchor + "-requests"))) + "</p>";
+            body += Details(label, detail);
+        }
+        return "<h4>AI request overview</h4>" + body;
     }
 
     private string Remaining(JsonElement scenario)

@@ -100,6 +100,60 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
         self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
 
+    def test_each_decision_records_redacted_request_and_screenshot_reference(self):
+        secret = 'fixture-private-password'
+        redactor = Redactor({'credentials': {'login': {'password': secret}}})
+        interaction = AiInteraction(dict(instructions='Use ' + secret), {}, redactor,
+                                    self.control, self.activity)
+        agent, _, transport = api_agent([action('tap', ref='@e1'), action()])
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.session.history.append(dict(action='tap', observation='First step'))
+        interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        records = self.session.result['aiRequests']
+        self.assertEqual(len(records), 2)
+        self.assertTrue(all(row['status'] == 'completed' for row in records))
+        self.assertTrue(all(row['inputTokens'] == 10 for row in records))
+        self.assertGreater(records[1]['sectionBytes']['recentActions'], 0)
+        path = self.root / records[1]['requestPath']
+        text = path.read_text()
+        self.assertNotIn(secret, text)
+        self.assertNotIn('data:image/png;base64,', text)
+        payload = json.loads(text)
+        user = payload['input'][-1]['content']
+        self.assertEqual(user[0]['text']['instructions'], 'Use <redacted>')
+        self.assertEqual(user[0]['text']['recentActions'][0]['observation'], 'First step')
+        self.assertEqual(user[1]['imageEvidence'], records[1]['images'][0])
+        self.assertEqual((self.root / records[1]['images'][0]).read_bytes(), b'fresh masked image')
+        self.assertEqual(transport.bodies[1]['input'][-1]['content'][1]['type'], 'input_image')
+
+    def test_failed_provider_request_is_still_recorded(self):
+        agent, _, _ = api_agent([])
+        def failed(path, body):
+            raise InfrastructureError('Synthetic failure')
+        agent.transport.request = failed
+        with self.assertRaises(InfrastructureError):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        record = self.session.result['aiRequests'][0]
+        self.assertEqual(record['status'], 'failed')
+        self.assertTrue((self.root / record['requestPath']).is_file())
+
+    def test_output_limit_retry_has_its_own_request_record(self):
+        agent, _, _ = api_agent([])
+        responses = iter([
+            dict(status='incomplete', incomplete_details=dict(reason='max_output_tokens'),
+                 usage=dict(input_tokens=10, output_tokens=2048)),
+            dict(status='completed', usage=dict(input_tokens=11, output_tokens=12),
+                 output=[dict(type='message', content=[dict(type='output_text', text='{"action":"wait"}')])]),
+        ])
+        agent.transport.request = lambda path, body: next(responses)
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        rows = self.session.result['aiRequests']
+        self.assertEqual([row['kind'] for row in rows], ['decision', 'decision retry'])
+        self.assertEqual([row['status'] for row in rows], ['incomplete', 'completed'])
+        retry = json.loads((self.root / rows[1]['requestPath']).read_text())
+        self.assertIn('none of its commands ran', retry['input'][-1]['content'][-1]['text'])
+
     def test_provider_time_is_separate_from_context_and_capture_operations(self):
         agent, _, _ = api_agent([action()])
         ticks = iter([10, 13.25])

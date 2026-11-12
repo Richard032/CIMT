@@ -66,9 +66,14 @@ class RecordRedactor:
                 'batchFeedback': self.batch_feedback,
                 'warnings': lambda rows: self._items(rows, self.warning),
                 'decisions': lambda rows: self._items(rows, self.decision),
+                'aiRequests': lambda rows: self._items(rows, self.ai_request),
                 'screenshots': lambda rows: self._items(rows, self.screenshot),
             },
         )
+
+    def ai_request(self, value):
+        return self._record(value, ['id', 'step', 'kind', 'status', 'requestPath', 'timestamp',
+                                    'inputTokens', 'outputTokens', 'cachedInputTokens'], {'images': lambda rows: list(rows)})
 
     def command_queue(self, value):
         return self._record(value, [], {'commands': lambda rows: self._items(rows, self.queued_command)})

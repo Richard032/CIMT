@@ -849,6 +849,16 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(row['targetType'], 'Button')
         self.assertIsNotNone(row['decisionObservedAt'])
 
+    def test_critic_request_is_recorded_with_the_decision(self):
+        agent, _, transport = api_agent([action()])
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        records = result['scenarios'][0]['aiRequests']
+        self.assertEqual([row['kind'] for row in records], ['decision', 'completion critic'])
+        self.assertEqual([row['status'] for row in records], ['completed', 'completed'])
+        self.assertEqual(len(transport.review_bodies), 1)
+        self.assertTrue(all((self.root / row['requestPath']).is_file() for row in records))
+
     def test_critic_can_request_reconsideration_only_once(self):
         class RevisingAgent(FakeAgent):
             def __init__(self):

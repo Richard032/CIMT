@@ -19,6 +19,7 @@ class Agent:
         self.clock = clock
         self.last_request_timing = None
         self.last_user_message = None
+        self.request_observer = None
         self.budget = budget
         self.transport = transport or OpenAiTransport(config["ai-model"]["api-key"], deadline)
         self.prompts = prompts or ActionPromptBuilder(self.model)
@@ -119,17 +120,28 @@ class Agent:
             body["prompt_cache_options"] = {"ttl": self.budget.price["cache_ttl"], 'mode': 'explicit'}
             body['input'][0]['content'] = [dict(type='input_text', text=body['input'][0]['content'],
                 prompt_cache_breakpoint={'mode': 'explicit'})]
-        # Reserve before the request. Keep the full bound if usage is unknown.
-        self.budget.reserve()
+        # Record the exact input before sending; never execute an unrecorded request.
+        record = self.request_observer.begin(body, kind) if self.request_observer else None
+        try:
+            self.budget.reserve()
+        except Exception:
+            if record is not None:
+                self.request_observer.finish(record, 'not sent')
+            raise
         response = None
         status = 'failed'
         started = self.clock()
         try:
+            if record is not None:
+                self.request_observer.finish(record, 'sending')
             response = self.transport.request("responses", body)
-            status = 'completed'
+            provider_status = response.get('status') if isinstance(response, dict) else None
+            status = provider_status if provider_status in ('completed', 'incomplete', 'failed') else 'unknown response'
             return response
         finally:
             self.last_request_timing = dict(kind=kind, status=status,
                 seconds=max(0, self.clock() - started))
             usage = response.get("usage") if isinstance(response, dict) else None
             self.budget.finish(usage, kind=kind)
+            if record is not None:
+                self.request_observer.finish(record, status, usage)

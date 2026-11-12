@@ -62,6 +62,7 @@ public sealed class RunHtmlRenderer(Configuration configuration)
 
     private static string Downloads(ReportEvidence evidence) => "<h3>Technical records</h3><ul>"
         + string.Join("", new[] { ("result.json", "Machine-readable run result"), ("ai-budget.json", "Conservative budget ledger"),
-            ("instruction-setup-proposal.md", "Instruction and setup proposal"), ("logs/execution-worker.log", "Execution worker log"), ("logs/native-daemon.log", "Native helper log") }
+            ("instruction-setup-proposal.md", "Instruction and setup proposal"), ("proposal-requests/ai-request-0000.json", "Instruction proposal AI request"),
+            ("logs/execution-worker.log", "Execution worker log"), ("logs/native-daemon.log", "Native helper log") }
             .Select(file => "<li>" + evidence.Link(file.Item1, file.Item2) + "</li>")) + "</ul>";
 }
