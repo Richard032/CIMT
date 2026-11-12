@@ -31,6 +31,15 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(inputs['elements'], [text])
         self.assertEqual(inputs['humanInterface'], [])
 
+    def test_text_element_with_identifier_is_included_as_tap_target(self):
+        login = dict(ref='@e65', type='android.widget.TextView', text='Login',
+                     identifier='ch.curtis.econ_a:id/Login_Label', visible=False, enabled=False)
+        self.assertEqual(state([login])['humanInterface'], [dict(login, inputKind='tap')])
+
+    def test_empty_identifier_does_not_make_static_text_a_control(self):
+        caption = dict(type='android.widget.TextView', text='Caption', identifier='')
+        self.assertEqual(state([caption])['humanInterface'], [])
+
     def test_generic_control_uses_adapter_clickable_metadata(self):
         control = dict(ref='@web-control', type='android.view.View', clickable=True)
         self.assertEqual(state([control])['humanInterface'][0]['inputKind'], 'tap')

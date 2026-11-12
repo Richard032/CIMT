@@ -219,6 +219,7 @@ SYSTEM_PROMPT = (
     "Omitted earlier records are unknown; use recall if needed. "
     "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
+    "Elements with automation identifiers are included as interactive targets. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The elements and screenshot also contain observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "

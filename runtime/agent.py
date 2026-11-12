@@ -124,7 +124,9 @@ class Agent:
         # Record the exact input before sending; never execute an unrecorded request.
         record = self.request_observer.begin(body, kind) if self.request_observer else None
         try:
-            self.budget.reserve()
+            counter = getattr(self.transport, 'count_input_tokens', None)
+            input_tokens = counter(body) if counter else None
+            reservation = self.budget.reserve(input_tokens, body['max_output_tokens'])
         except Exception:
             if record is not None:
                 self.request_observer.finish(record, 'not sent')
@@ -144,7 +146,7 @@ class Agent:
                 seconds=max(0, self.clock() - started))
             usage = response.get("usage") if isinstance(response, dict) else None
             try:
-                self.budget.finish(usage, kind=kind)
+                self.budget.finish(usage, kind=kind, reservation=reservation)
             finally:
                 if record is not None:
                     self.request_observer.finish(record, status, usage)
