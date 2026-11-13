@@ -22,7 +22,7 @@ class InstructionTests(unittest.TestCase):
         disabled = dict(ref='@disabled', type='Button', label='Save', enabled=False)
         hidden = dict(ref='@hidden', type='Button', label='Continue', visible=False)
         inputs = state([disabled, hidden])
-        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap'), dict(hidden, inputKind='tap')])
+        self.assertEqual(inputs['humanInterface'], [disabled, hidden])
         self.assertEqual(inputs['elements'], [disabled, hidden])
 
     def test_static_text_is_evidence_without_becoming_a_control(self):
@@ -33,7 +33,15 @@ class InstructionTests(unittest.TestCase):
 
     def test_generic_control_uses_adapter_clickable_metadata(self):
         control = dict(ref='@web-control', type='android.view.View', clickable=True)
-        self.assertEqual(state([control])['humanInterface'][0]['inputKind'], 'tap')
+        self.assertEqual(state([control])['humanInterface'], [control])
+
+    def test_identified_text_field_is_a_possible_target_without_inferred_action(self):
+        field = dict(ref='@file', type='TextField', identifier='example.xpa', value='example.xpa')
+        self.assertEqual(state([field])['humanInterface'], [field])
+
+    def test_identified_generic_element_is_a_possible_target(self):
+        element = dict(ref='@item', type='Other', identifier='item', enabled=False)
+        self.assertEqual(state([element])['humanInterface'], [element])
 
     def test_sources_setup_and_credential_aliases_remain_available(self):
         inputs = state([])

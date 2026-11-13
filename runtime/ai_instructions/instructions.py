@@ -218,7 +218,7 @@ SYSTEM_PROMPT = (
     "Start timing only from the actual action specified by the test. Do not stop blocked while the next required action is available. "
     "Omitted earlier records are unknown; use recall if needed. "
     "Earlier refs can expire and must be verified on the current screen. "
-    "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
+    "humanInterface lists possible UI targets from the current UI tree, including hidden and disabled elements. Their type and identifier do not limit them to one action or prove they are interactive. Choose an action from the instructions and evidence, then check the result. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The elements and screenshot also contain observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "

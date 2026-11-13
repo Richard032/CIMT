@@ -1,13 +1,10 @@
-"""Describe adapter-declared human controls without choosing an action."""
+"""Describe possible UI targets without choosing an action."""
 
 from test_planning.screen_model import declared_control_kind
 
 
 def human_interface(elements):
-    """Keep availability flags as information. They do not approve AI targets."""
-    controls = []
-    for element in elements:
-        kind = declared_control_kind(element)
-        if kind:
-            controls.append(dict(element, inputKind=kind))
-    return controls
+    """Preserve adapter metadata without assuming how a target can be used."""
+    return [element for element in elements
+            if element.get('type') != 'CimtScreenInfo'
+            and (element.get('identifier') or declared_control_kind(element))]
