@@ -43,6 +43,11 @@ class InstructionTests(unittest.TestCase):
         element = dict(ref='@item', type='Other', identifier='item', enabled=False)
         self.assertEqual(state([element])['humanInterface'], [element])
 
+    def test_prompt_allows_tapping_items_that_do_not_look_like_buttons(self):
+        prompt = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})['input'][0]['content']
+        self.assertIn('you may tap a visible item even if it does not look like a button', prompt)
+        self.assertIn('Do not assume an item is selected merely because it is displayed', prompt)
+
     def test_sources_setup_and_credential_aliases_remain_available(self):
         inputs = state([])
         self.assertEqual(inputs['instructions'], 'Explore the supplied goal')

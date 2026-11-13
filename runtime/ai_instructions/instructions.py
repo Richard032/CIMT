@@ -219,6 +219,7 @@ SYSTEM_PROMPT = (
     "Omitted earlier records are unknown; use recall if needed. "
     "Earlier refs can expire and must be verified on the current screen. "
     "humanInterface lists possible UI targets from the current UI tree, including hidden and disabled elements. Their type and identifier do not limit them to one action or prove they are interactive. Choose an action from the instructions and evidence, then check the result. "
+    "When the task or screen evidence suggests selection, you may tap a visible item even if it does not look like a button, such as a label, text field, list item, or image. Do not assume an item is selected merely because it is displayed; tap it when required and verify the result before continuing. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The elements and screenshot also contain observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "
