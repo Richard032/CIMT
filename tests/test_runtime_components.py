@@ -368,6 +368,34 @@ class ConfiguredModelTests(unittest.TestCase):
                 self.assertFalse(pathlib.Path(folder, "devices").exists())
 
 
+class AndroidMemoryTests(unittest.TestCase):
+    def test_ai_memory_command_exposes_device_measurement_in_action_feedback(self):
+        mobile = SimpleNamespace(device={'platform': 'android'}, readiness=lambda: None,
+                                 sample_memory=lambda: (123, 512, 1024))
+        executor = ActionExecutor({}, Redactor({}), float('inf'))
+        self.assertEqual(executor.execute(mobile, action('sample_memory'), []),
+                         'Android app memory: PID 123, total PSS 512 KiB, total RSS 1024 KiB.')
+
+    def test_reads_only_the_tested_process_and_reports_pss_and_rss(self):
+        from device_adapter.status import DeviceStatus
+        calls = []
+
+        def run(arguments, **options):
+            calls.append(arguments)
+            return SimpleNamespace(returncode=0, stdout=(
+                "** MEMINFO in pid 12 [fixture.app:background] **\n"
+                "TOTAL PSS: 99 TOTAL RSS: 100 TOTAL SWAP PSS: 1\n"
+                "** MEMINFO in pid 34 [fixture.app] **\n"
+                "TOTAL PSS: 512 TOTAL RSS: 1024 TOTAL SWAP PSS: 10\n"))
+
+        commands = SimpleNamespace(device=dict(platform='android', id='emulator-5554', type='emulator'),
+                                   context={'deadline': float('inf')}, native=None, run_command=run)
+        status = DeviceStatus(commands, None)
+
+        self.assertEqual(status.sample_memory('fixture.app'), (34, 512, 1024))
+        self.assertEqual(calls, [['adb', '-s', 'emulator-5554', 'shell', 'dumpsys', 'meminfo', '-s', 'fixture.app']])
+
+
 class WaitActionTests(unittest.TestCase):
     def setUp(self):
         self.now = 10.0

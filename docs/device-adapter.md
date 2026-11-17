@@ -34,6 +34,10 @@ The device adapter is separate from AI decision making. The Python composition r
 
 A neutral action contract would make a second worker adapter easier to test. Replacing Mobile MCP throughout run, replay and validate additionally requires the host discovery, readiness and cleanup boundary. The build and AI decision interfaces can stay separate from both. Verify a replacement using the existing offline suites and qualify the actual device platforms separately.
 
+## Android app memory
+
+The AI can request the read-only `sample_memory` command at any point when the tested app is running on Android. CIMT uses ADB on the selected device and measures the main process of the installed app. Action feedback contains total PSS and RSS in KiB and the PID. Compare the samples at comparable checkpoints in the same process. Missing readings produce command feedback without fabricated metrics.
+
 ## Startup recovery
 
 Before app setup, Mobile.connect checks cancellation and the device lock. DeviceStartup then calls only native apps list, checking the returned inventory is structured. This is a read-only probe; an empty app list can be valid. After success, Mobile rechecks readiness and shared stop before connecting MCP. No install/reset or AI action starts while readiness is unresolved.

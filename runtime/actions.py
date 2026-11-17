@@ -34,6 +34,7 @@ class ActionExecutor:
             "swipe": self._swipe,
             "back": self._back,
             "restart": self._restart,
+            "sample_memory": self._sample_memory,
         }
         handler = handlers.get(action["action"])
         if handler is None:
@@ -233,6 +234,15 @@ class ActionExecutor:
                 elapsed_ms = round((self.monotonic() - started) * 1000)
                 status = 'completed' if completed else 'interrupted'
                 record_wait(f'Wait {status}. Requested {duration} ms. Actual elapsed wait {elapsed_ms} ms.')
+
+    @staticmethod
+    def _sample_memory(mobile, action, elements):
+        if mobile.device['platform'] != 'android':
+            raise ValueError('Memory sampling is available on Android only')
+        if action.get('argumentError'):
+            raise ValueError(action['argumentError'])
+        pid, pss, rss = mobile.sample_memory()
+        return f'Android app memory: PID {pid}, total PSS {pss} KiB, total RSS {rss} KiB.'
 
     def _restart(self, mobile, action, elements):
         app_id = getattr(mobile, 'app_id', '')

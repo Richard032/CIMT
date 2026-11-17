@@ -96,6 +96,10 @@ def command(value):
             result[name] = supplied
     if result['action'] == 'swipe' and 'ref' in value and not isinstance(value['ref'], str):
         result['argumentError'] = 'Swipe ref must be a string'
+    if result['action'] == 'sample_memory' and any(
+            value.get(name, defaults[name]) != defaults[name]
+            for name in ('ref', 'text', 'x', 'y', 'direction', 'distance', 'durationMs', 'credential', 'field')):
+        result['argumentError'] = 'sample_memory takes no device arguments and measures only the tested app'
     if result['action'] == 'wait':
         unsupported = [name for name in ('ref', 'text', 'x', 'y', 'direction', 'distance', 'credential', 'field')
                        if value.get(name, defaults[name]) != defaults[name]]

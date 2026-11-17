@@ -180,6 +180,9 @@ SYSTEM_PROMPT = (
     "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
     "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
     "Last-observed configuration is context, not proof it still applies or persists after restart. "
+    "Android only: use sample_memory for a read-only measurement of the tested app with no device arguments. "
+    "Read its PID, total PSS and total RSS in actionFeedback. Compare samples from the same PID at comparable "
+    "checkpoints. A failed sample supplies no memory result. "
     "Use restart to terminate and relaunch ONLY the tested app without clearing data when the testing task needs it. "
     "Use pathDecisions to classify known paths as in scope, out of scope, or blocked, with task ID and explanation "
     "based on instructions/requirements. Use the bounded map and return routes to inspect pending paths; "
@@ -286,6 +289,7 @@ class ActionPromptBuilder:
         memory = dict(exploration_memory or {})
         memory.pop('historicalImages', None)
         memory.pop('conversation', None)
+        platform = memory.pop('devicePlatform', None)
         batch_feedback = memory.pop('batchFeedback', [])
         current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory
@@ -326,6 +330,13 @@ class ActionPromptBuilder:
             ]),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
+        if platform == 'android':
+            resources = state['commandResources']
+            resources['actions'].append('sample_memory')
+            resources['arguments'] = dict(FIELDS, action=dict(FIELDS['action'],
+                enum=[*FIELDS['action']['enum'], 'sample_memory']))
+            resources['memorySampleExample'] = dict(
+                action='sample_memory', observation='Sample app memory at the checkpoint')
         return state
 
     @staticmethod

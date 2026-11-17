@@ -24,6 +24,7 @@ class InstructionContext:
         memory['batchFeedback'] = session.feedback.pending()
         memory['currentWarnings'] = [session.feedback.warnings[key] for key in session.feedback.current_warnings]
         memory = self.redactor.records.request_context(memory)
+        memory['devicePlatform'] = device.get('platform')
         memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
         memory['evidenceLedger'] = self.redactor.object(session.result.get('evidenceLedger', {}))
         summary = memory.pop('summary', '')

@@ -116,6 +116,12 @@ class Mobile:
     def running(self, app_id, executable):
         return self.status.running(app_id, executable)
 
+    def sample_memory(self):
+        self.check()
+        values = self.status.sample_memory(self.app_id)
+        self.check()
+        return values
+
     def crashes(self):
         return self.status.crashes()
 

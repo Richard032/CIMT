@@ -60,7 +60,7 @@ class EvidenceLedger:
         if isinstance(action, dict):
             action = {key: action[key] for key in ('action', 'commandId', 'field', 'ref') if key in action}
         fields = ('step', 'controlLabel', 'targetIdentifier', 'targetType', 'decisionObservedAt', 'completedAt', 'actionDispatched',
-                  'observedOutcome', 'actionError', 'resultObservation')
+                  'observedOutcome', 'actionError', 'resultObservation', 'actionFeedback')
         entry = dict(action=deepcopy(action), **{key: deepcopy(row[key]) for key in fields if key in row})
         if event.get('observedAt'):
             entry['observedAt'] = event['observedAt']
