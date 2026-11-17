@@ -1,21 +1,21 @@
 """Independently review a proposed final result using recorded evidence."""
 
 import json
+from budget import MAX_OUTPUT
 from errors import InfrastructureError
+from .contracts import CompletionReview, EvidenceRequest
 
 
 class CompletionCritic:
     """Request one advisory review; never operate a device or decide the verdict."""
 
-    def __init__(self, model, request, max_output):
-        self.model = model
-        self.request = request
-        self.max_output = max_output
+    def __init__(self, service):
+        self.service = service
 
-    def review(self, evidence):
+    def review(self, request: EvidenceRequest) -> CompletionReview:
         body = {
-            'model': self.model, 'store': False, 'service_tier': 'default',
-            'max_output_tokens': self.max_output, 'truncation': 'disabled',
+            'model': self.service.model, 'store': False, 'service_tier': 'default',
+            'max_output_tokens': MAX_OUTPUT, 'truncation': 'disabled',
             'reasoning': {'effort': 'low'},
             'input': [
                 {'role': 'system', 'content': (
@@ -35,10 +35,11 @@ class CompletionCritic:
                     'evidence is insufficient. Return only a JSON object with decision equal to agree or revise '
                     'and a nonempty feedback string explaining the evidence and any missing work.')},
                 {'role': 'user', 'content': [
-                    {'type': 'input_text', 'text': json.dumps(evidence, ensure_ascii=False)}]},
+                    {'type': 'input_text', 'text': json.dumps(request.evidence, ensure_ascii=False)}]},
             ],
         }
-        response = self.request(body, 'completion critic')
+        response = self.service.send(body, 'completion critic', request.request_observer,
+                                     check_cancelled=request.check_cancelled)
         if response.get('status') != 'completed':
             raise InfrastructureError('Completion critic response was incomplete')
         parts = [part for item in response.get('output', []) if item.get('type') == 'message'

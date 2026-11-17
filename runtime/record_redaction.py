@@ -73,7 +73,8 @@ class RecordRedactor:
 
     def ai_request(self, value):
         return self._record(value, ['id', 'step', 'kind', 'status', 'requestPath', 'timestamp',
-                                    'inputTokens', 'outputTokens', 'cachedInputTokens'], {'images': lambda rows: list(rows)})
+                                    'inputTokens', 'outputTokens', 'cachedInputTokens', 'countedInputTokens',
+                                    'reservedOutputTokens', 'estimatedReservation'], {'images': lambda rows: list(rows)})
 
     def command_queue(self, value):
         return self._record(value, [], {'commands': lambda rows: self._items(rows, self.queued_command)})

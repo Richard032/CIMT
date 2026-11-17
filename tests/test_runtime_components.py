@@ -21,6 +21,8 @@ from scenario import ScenarioSession
 from evidence import ScenarioEvidence
 from actions import ActionExecutor
 from agent import Agent
+from ai_services import AiServices
+from result_review.critic import CompletionCritic
 from device_adapter.app_lifecycle import AppLifecycle
 from budget import Budget
 from coverage_tracker import CoverageTracker
@@ -129,11 +131,11 @@ class FakeAgent:
         self.actions = iter(actions)
         self.calls = []
 
-    def choose(self, *arguments):
-        self.calls.append(arguments)
+    def decide(self, request):
+        self.calls.append(request.arguments())
         return next(self.actions)
 
-    def review_completion(self, evidence):
+    def review(self, request):
         return {'decision': 'agree', 'feedback': 'Evidence supports the proposed result.'}
 
 
@@ -255,7 +257,7 @@ class ConfiguredModelTests(unittest.TestCase):
                 agent = Agent({"ai-model": {"name": model, "api-key": "synthetic"}},
                               budget, time.time() + 30,
                               transport=SimpleNamespace(request=lambda path: calls.append(path)))
-                agent.check_access()
+                agent.services.check_access()
                 self.assertEqual(calls, ["models/" + model])
                 self.assertEqual(budget.requests, 0)
 
@@ -270,7 +272,7 @@ class ConfiguredModelTests(unittest.TestCase):
                       Budget("gpt-5.6-luna", 1, "USD"), time.time() + 30,
                       transport=SimpleNamespace(request=denied))
         with self.assertRaises(InfrastructureError):
-            agent.check_access()
+            agent.services.check_access()
         self.assertEqual(calls, ["models/gpt-5.6-luna"])
 
     def test_inference_uses_luna_with_the_priced_cache_lifetime(self):
@@ -292,6 +294,44 @@ class ConfiguredModelTests(unittest.TestCase):
         agent.choose("Explore", "", "", [], b"masked", [], [], {})
         self.assertEqual(transport.bodies[0]["model"], MODEL)
         self.assertNotIn("prompt_cache_options", transport.bodies[0])
+
+    def test_custom_budget_factory_is_shared_with_execution(self):
+        made = []
+
+        def make_budget(model, amount, currency):
+            budget = Budget(model, amount, currency)
+            made.append(budget)
+            return budget
+
+        with tempfile.TemporaryDirectory() as folder:
+            config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                      "ai-budget": {"amount": 1, "currency": "USD"}}
+            execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                  budget_factory=make_budget)
+            self.assertIs(execution.budget, made[0])
+            self.assertIs(execution._agent().services.budget, made[0])
+            self.assertIs(execution._reviewer().service.budget, made[0])
+
+    def test_preflight_checks_selected_agent_without_openai_methods(self):
+        calls = []
+
+        class IndependentAgent:
+            __slots__ = ()
+
+            def check_access(self):
+                calls.append('ready')
+
+            def decide(self, request):
+                return action()
+
+        with tempfile.TemporaryDirectory() as folder:
+            config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                      "ai-budget": {"amount": 1, "currency": "USD"}}
+            execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                  agent_factory=IndependentAgent)
+            with patch("run_ui.shutil.which", return_value="/tools/executable"), redirect_stdout(io.StringIO()):
+                self.assertEqual(execution.run(preflight=True), 0)
+        self.assertEqual(calls, ['ready'])
 
     def test_preflight_reports_and_journals_the_configured_model(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -852,10 +892,35 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(row['targetType'], 'Button')
         self.assertIsNotNone(row['decisionObservedAt'])
 
-    def test_critic_request_is_recorded_with_the_decision(self):
-        agent, _, transport = api_agent([action()])
+    def test_independent_agent_needs_only_decide_and_uses_separate_reviewer(self):
+        class OtherAgent:
+            __slots__ = ()
+
+            def decide(self, request):
+                self_request.append(request)
+                return action()
+
+        self_request = []
+        class IndependentReviewer:
+            __slots__ = ()
+
+            def review(self, request):
+                return dict(decision='agree', feedback=request.evidence['instructions'])
+
+        reviewer = IndependentReviewer()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result,
+                        OtherAgent(), lambda: None, reviewer=reviewer)
+        self.assertEqual(self_request[0].instructions, 'Explore buttons')
+        self.assertEqual(result['scenarios'][0]['completionReview']['decision'], 'agree')
+        self.assertEqual(result['scenarios'][0]['completion'], 'complete')
+
+    def test_critic_request_is_recorded_with_the_decision(self):
+        agent, budget, transport = api_agent([action()])
+        reviewer = CompletionCritic(AiServices({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
+                              budget, time.time() + 30, transport=transport))
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=reviewer)
         records = result['scenarios'][0]['aiRequests']
         self.assertEqual([row['kind'] for row in records], ['decision', 'completion critic'])
         self.assertEqual([row['status'] for row in records], ['completed', 'completed'])
@@ -868,13 +933,13 @@ class ScenarioTests(unittest.TestCase):
                 super().__init__([action(), action()])
                 self.reviews = []
 
-            def review_completion(self, evidence):
-                self.reviews.append(evidence)
+            def review(self, request):
+                self.reviews.append(request.evidence)
                 return dict(decision='revise', feedback='Only one submission has evidence.')
 
         agent = RevisingAgent()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=agent)
         scenario = result['scenarios'][0]
         self.assertEqual(len(agent.reviews), 1)
         self.assertEqual(len(agent.calls), 2)
@@ -888,25 +953,26 @@ class ScenarioTests(unittest.TestCase):
                 super().__init__([action(completion='blocked', checks=[])])
                 self.reviews = []
 
-            def review_completion(self, evidence):
-                self.reviews.append(evidence)
+            def review(self, request):
+                self.reviews.append(request.evidence)
                 return dict(decision='agree', feedback='The remaining work is blocked.')
 
         agent = ReviewingAgent()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=agent)
         self.assertEqual(len(agent.reviews), 1)
         self.assertEqual(agent.reviews[0]['proposed']['completion'], 'blocked')
         self.assertEqual(result['scenarios'][0]['completion'], 'incomplete')
 
     def test_critic_unavailable_accepts_the_actor_stop(self):
         class UnavailableAgent(FakeAgent):
-            def review_completion(self, evidence):
+            def review(self, request):
                 raise InfrastructureError('Critic unavailable')
 
         result = {'scenarios': []}
+        actor = FakeAgent([action()])
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result,
-                        UnavailableAgent([action()]), lambda: None)
+                        actor, lambda: None, reviewer=UnavailableAgent([]))
         self.assertEqual(result['scenarios'][0]['completionReview']['decision'], 'unavailable')
         self.assertEqual(result['scenarios'][0]['completion'], 'complete')
 
@@ -917,7 +983,7 @@ class ScenarioTests(unittest.TestCase):
                 reason='This control is unrelated to the configured testing objective', planStepId=0)])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose, review_completion=lambda evidence: dict(decision="agree", feedback="Supported")), lambda: None)
+        self.runner.run(mobile, self.build, result, SimpleNamespace(decide=lambda request: choose(*request.arguments())), lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['completion'], 'complete')
         self.assertEqual(scenario['coverage']['outstandingObservedControls'], 1)
@@ -1123,7 +1189,7 @@ class ScenarioTests(unittest.TestCase):
         agent, budget, _ = api_agent(['AI working note'] * 4 + [action('tap', ref='@e1'), action()])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.runner.run(mobile, self.build, result, agent, lambda: None, reviewer=CompletionCritic(agent.services))
         self.assertEqual(budget.requests, 7)
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 1)
         self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], 'AI working note')
@@ -1405,7 +1471,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         with self.assertRaisesRegex(LimitReached, 'User interrupted'):
-            self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose), lambda: None)
+            self.runner.run(mobile, self.build, result, SimpleNamespace(decide=lambda request: choose(*request.arguments())), lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['recoveries'][0]['status'], 'waiting')
         self.assertTrue(scenario['remaining'])
@@ -1625,7 +1691,7 @@ class StopThenReportFailure:
     def __init__(self, control):
         self.control = control
 
-    def choose(self, *arguments):
+    def decide(self, request):
         self.control.stop()
         return action(checks=[check("failed")], remaining=["Check other buttons"])
 

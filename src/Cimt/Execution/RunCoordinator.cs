@@ -13,8 +13,7 @@ public interface IRunCleanup
 
 public interface IRunReportWriter
 {
-    int Write(RunState state);
-    void Snapshot(RunState state) { }
+    void Write(RunState state, RunReportData data);
 }
 
 /// <summary>Runs the steps in order and always performs cleanup and reporting.</summary>
@@ -51,7 +50,7 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
         if (state.Exit == 0 && state.UiExit == 2)
             state.Exit = 2;
         await FinalizeProposal(state);
-        return reports.Write(state);
+        return RunFinalization.Finish(state, reports);
     }
 
     private async Task FinalizeProposal(RunState state)
@@ -91,13 +90,13 @@ public sealed class RunCoordinator(IEnumerable<IRunStep> steps, IRunCleanup clea
 
     private async Task ExecuteSteps(RunState state)
     {
-        reports.Snapshot(state);
+        RunFinalization.Snapshot(state, reports);
         state.Cancellation.ThrowIfCancellationRequested();
         foreach (var step in steps)
         {
             state.Cancellation.ThrowIfCancellationRequested();
             await state.Activity.Run(StepName(step), () => step.Execute(state), state.Cancellation);
-            reports.Snapshot(state);
+            RunFinalization.Snapshot(state, reports);
         }
     }
 

@@ -31,7 +31,7 @@ Report presentation is split by responsibility: RunHtmlRenderer composes section
 | src/Cimt/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
 | src/Cimt/Settings | Read YAML, validate sections, and redact secrets. | Validate in-memory nodes; replace the file reader when testing overrides. |
 | src/Cimt/Execution | Order run steps, enforce deadlines, discover devices, check out source, and build targets. | Replace ICommandRunner, IRunStep, cleanup, progress, or text input at their boundaries. |
-| src/Cimt/Reporting | Calculate outcomes and render local reports. | Supply saved JSON and configuration; no device or API is needed. |
+| src/Cimt/Reporting | Render the outcome and evidence supplied by execution finalization. | Supply saved JSON and configuration; no device or API is needed. |
 | src/Cimt/Infrastructure | Start processes and hold the Mac lock. | Use fake process runners for unit tests; keep actual lock/process checks in regression tests. |
 | tools/Cimt.BuildWorker | Read a build request, create arguments, publish, select artifacts, and write metadata. | Test command/outcome policies directly; replace IBuildProcess for workflow tests. |
 
@@ -54,7 +54,9 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
-| action_prompt.py, agent.py, openai_transport.py | Build model input, reserve cost, parse actions, and send HTTPS requests. |
+| decision_agent.py, agent.py | Define and implement the action decision boundary. |
+| ai_services.py, openai_transport.py | Account for, journal and send OpenAI requests. |
+| result_review/ | Build the evidence ledger and define independent review and proposal interfaces and implementations. |
 | device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
 | device_adapter/app_lifecycle.py, native.py, readiness.py, status.py, target.py | Keep app lifecycle, read-only native calls, readiness, status and platform identity separate. |
 | device_adapter/startup.py | Retry only the fixed read-only readiness probe before app setup; never select stopping scope. |

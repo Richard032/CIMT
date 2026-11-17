@@ -12,13 +12,14 @@ def encoded_size(value):
 def context_usage(state, allowance=MAX_SELECTED_CONTEXT_BYTES):
     memory = state['explorationMemory']
     selected = {key: state[key] for key in ['recentActions', 'requirementResults', 'coverage']}
-    selected['memory'] = memory
+    retained = ('summary', 'selection', 'catalogue', 'recoveryRequest', 'evidenceLedger', 'resourceFeedback')
+    selected['memory'] = {key: value for key, value in memory.items() if key not in retained}
     collections = dict(actions=state['recentActions'], requirements=state['requirementResults'],
         coverage=state['coverage'])
     for name, key in [('batches', 'selectedBatches'), ('commands', 'selectedCommands'),
                       ('checks', 'selectedChecks'), ('decisions', 'selectedDecisions'),
                       ('observations', 'selectedObservations'), ('screenshots', 'selectedScreenshots'),
-                      ('paths', 'paths'), ('routes', 'routes')]:
+                      ('paths', 'paths'), ('routes', 'routes'), ('originalReplies', 'selectedOriginalReplies')]:
         collections[name] = memory.get(key, [])
     collections['tasks'] = memory.get('testPlan', {}).get('tasks', [])
     for name in ['states', 'transitions', 'configuration']:
@@ -37,7 +38,10 @@ def prepare_context(state, allowance=MAX_SELECTED_CONTEXT_BYTES):
     # Defer the whole selected payload. The AI still owns the selection.
     state.update(recentActions=[], requirementResults=[], coverage=[])
     state['explorationMemory'] = {key: memory[key] for key in [
-        'summary', 'selection', 'catalogue', 'recoveryRequest'] if key in memory}
+        'summary', 'selection', 'catalogue', 'recoveryRequest', 'evidenceLedger', 'resourceFeedback'] if key in memory}
+    # Keep the plan's objective and metadata even when selected task records are deferred.
+    if 'testPlan' in memory:
+        state['explorationMemory']['testPlan'] = dict(memory['testPlan'], tasks=[])
     state['contextSelectionRequired'] = dict(usage,
         selectionActive=memory.get('selection') is not None,
         exampleReply=dict(action='recall', context=dict(

@@ -4,6 +4,7 @@ import base64
 import json
 from budget import MAX_OUTPUT
 from check_results import CHECK_SCHEMA
+from request_context import prepare_context
 from test_planning.planning_contract import FIELDS as PLAN_FIELDS
 from .controls import human_interface
 
@@ -259,6 +260,11 @@ class ActionPromptBuilder:
         historical_images = (exploration_memory or {}).get('historicalImages', [])
         state = self.state(instructions, requirements, setup, elements, screenshot, history,
             aliases, coverage, requirement_results, resource_feedback, exploration_memory)
+        state = prepare_context(state)
+        if 'contextSelectionRequired' in state:
+            # The selected catalogue normally carries the requirement text.
+            state['requirements'] = requirements
+            historical_images = []
         body = {
             "model": self.model,
             "store": False,
@@ -276,18 +282,20 @@ class ActionPromptBuilder:
     @staticmethod
     def state(instructions, requirements, setup, elements, screenshot, history, aliases, coverage,
               requirement_results=None, resource_feedback=None, exploration_memory=None):
-        """Assemble the same state for capacity checks and provider requests."""
+        """Assemble mandatory evidence and AI-selected context before checking capacity."""
         memory = dict(exploration_memory or {})
         memory.pop('historicalImages', None)
         memory.pop('conversation', None)
         batch_feedback = memory.pop('batchFeedback', [])
         current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory
+        catalogue = requirement_results or []
+        selected_requirements = memory.pop('selectedRequirements') if selected else catalogue
         state = {
             "instructions": instructions,
-            # Catalogue entries already contain all source text. Avoid sending it twice.
-            "requirements": "" if requirement_results else requirements,
-            "requirementResults": memory.pop('selectedRequirements') if selected else requirement_results or [],
+            # Only a complete catalogue can stand in for the source requirements.
+            "requirements": "" if catalogue and len(selected_requirements) == len(catalogue) else requirements,
+            "requirementResults": selected_requirements,
             "setup": setup,
             "elements": elements,
             "humanInterface": human_interface(elements),

@@ -21,6 +21,19 @@ The layer lives in runtime/device_adapter/. It provides device communication, pl
 
 The adapter depends on common errors, privacy helpers and operating-system/tool I/O. It receives a shared-stop check callback from execution. It does not import AI, scenario/planning, evidence publication or stopping-policy implementations. AI Instruction and Context receives masked observations through the supplied adapter and remains input-only. Execution Stopping Policy owns final failure scope.
 
+## Replacement boundaries
+
+The device adapter is separate from AI decision making. The Python composition root can inject a device factory for tests or another integration. Production startup and execution still expect Mobile MCP.
+
+| Boundary | Current dependency | What a replacement needs |
+| --- | --- | --- |
+| Host discovery and readiness | DeviceDiscovery and ReadinessValidator load the Mobile MCP Node module. WorkPreparation and RunCleanup own the helper home and daemon. | Supply inventory, owned startup and shutdown, and diagnostics through a host device service. Keep device selection and run ownership in the host. |
+| Worker preflight and construction | Execution checks for Node and mcp-server-mobile and gives Mobile the native binary and run context. | Let the selected backend check its own prerequisites and supply its own worker adapter. |
+| Actions and recovery | ActionExecutor and crash recovery call MCP tool names and assemble backend-specific arguments. Swipe evidence also names the provider tool. | Expose operations such as tap, type, swipe, back, launch and terminate through a device contract. Have the implementation translate calls and report the actual tool and parameters. |
+| Observations and lifecycle | Execution consumes verified masked screenshots, elements, app identity and crash records. It assumes the CIMT screen-size record, device-coordinate bounds and current target refs. | Standardize those data and behavior guarantees, including credential masking, typed errors, cancellation, reset and foreground checks. |
+
+A neutral action contract would make a second worker adapter easier to test. Replacing Mobile MCP throughout run, replay and validate additionally requires the host discovery, readiness and cleanup boundary. The build and AI decision interfaces can stay separate from both. Verify a replacement using the existing offline suites and qualify the actual device platforms separately.
+
 ## Startup recovery
 
 Before app setup, Mobile.connect checks cancellation and the device lock. DeviceStartup then calls only native apps list, checking the returned inventory is structured. This is a read-only probe; an empty app list can be valid. After success, Mobile rechecks readiness and shared stop before connecting MCP. No install/reset or AI action starts while readiness is unresolved.

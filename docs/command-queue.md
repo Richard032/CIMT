@@ -69,7 +69,7 @@ Existing unittest suites cover decoding, FIFO state, one-request batches, action
 
 ```mermaid
 sequenceDiagram
-    participant AI as Configured Model
+    participant Agent as DecisionAgent
     participant Inputs as AI Instruction and Context
     participant Decode as Command Decoder
     participant Queue as Scenario FIFO Queue
@@ -79,9 +79,11 @@ sequenceDiagram
 
     Run->>Inputs: Prepare sources, fresh masked UI and AI-selected context
     Inputs-->>Run: Instructions, resources and command descriptions
-    Run->>AI: One inference request under shared limits
-    AI-->>Decode: Ordered JSON command objects and optional records
-    Decode->>Queue: Append objects in received order
+    Run->>Agent: Request a decision under shared limits
+    Agent->>Decode: Default agent decodes provider reply
+    Decode-->>Agent: Normalized commands and optional records
+    Agent-->>Run: Return command batch
+    Run->>Queue: Append objects in received order
     Queue->>Store: Save all commands and redacted original reply
     loop Until queue empty, AI finish, recovery or execution stop
         Run->>Run: Check shared stop, startup and foreground
@@ -93,6 +95,9 @@ sequenceDiagram
             Device-->>Run: Actual outcome and post-action masked observation
             Run->>Store: Save action step, evidence and queue status
         else Note, recall, recover or done
+            opt First-command done with no prior review
+                Run->>Run: Ask independent reviewer for advisory feedback
+            end
             Run->>Store: Record handling without a device action
         end
         opt Failure, recovery, done or execution stop
@@ -103,7 +108,7 @@ sequenceDiagram
     opt Scenario continues and another AI decision is needed
         Run->>Inputs: Prepare fresh evidence and exact selected records, including commands
         Inputs-->>Run: Sources/context; issue feedback only when present, no success acknowledgement
-        Run->>AI: AI decides the next commands and context selection
+        Run->>Agent: Decide the next commands and context selection
     end
 ```
 

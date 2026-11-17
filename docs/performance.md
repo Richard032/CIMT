@@ -39,7 +39,7 @@ The measured capture and tap costs remain substantial. Device-query batching or 
 
 ## Optional configured Luna comparison
 
-The validated pricing profiles now include gpt-5.6-luna. Operators can select it through the existing ai-model.name; installation does not change private input files. Access checks and inference use the selected model without fallback. Standard service tier, low reasoning effort, and the 2,048-token output cap remain in place. The Luna request fixes the default 30-minute cache lifetime so accounting includes the correct cache-write bound. Strict shared budget enforcement includes long-context charges and uncertain usage.
+The validated pricing profiles now include gpt-5.6-luna. Operators can select it through the existing ai-model.name; installation does not change private input files. Access checks and inference use the selected model without fallback. Standard service tier, low reasoning effort, and the 2,048-token output cap remain in place. The Luna request fixes the default 30-minute cache lifetime so accounting includes the correct cache-write bound. Shared budget estimates account for long-context pricing and uncertain usage. See [the current budget policy](run-engine.md#budget-deadline-and-stopping).
 
 Luna support is an alternative for user-started evaluation, not a demonstrated speed or quality improvement. Compare total time, distinct paths, repeated navigation, rejected decisions, findings, and cost on equivalent app states. The earlier 89.5% reduction measures only compact history on a saved Mini run. No live Luna inference or device comparison was performed.
 

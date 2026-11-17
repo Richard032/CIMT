@@ -106,7 +106,7 @@ class ActivityTests(unittest.TestCase):
         self.activity.interrupted = lambda: control.interrupted
         journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
 
-        def observe_failure(mobile, build, result, agent, publish):
+        def observe_failure(mobile, build, result, agent, publish, reviewer=None):
             result['scenarios'].append({'target': 'fixture', 'crashes': [],
                 'verdict': 'failed', 'completion': 'incomplete', 'steps': [{'step': 0}]})
             control.interrupt()
@@ -211,7 +211,7 @@ class ActivityTests(unittest.TestCase):
         journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {"requests": 0}))
         mobile = SimpleNamespace(connect=lambda: None, close=lambda: None, device=self.device)
 
-        def fail(*args):
+        def fail(*args, **kwargs):
             raise InfrastructureError("Required mask geometry changed during screenshot capture")
 
         runner = DeviceRunner({"report": str(self.root), "builds": [{"target": "Debug_Generic", "platform": "android"}]},
@@ -230,7 +230,7 @@ class ActivityTests(unittest.TestCase):
                 control = RunControl(100, clock=lambda: 0)
                 journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
 
-                def test_target(mobile, build, result, agent, publish):
+                def test_target(mobile, build, result, agent, publish, reviewer=None):
                     control.check()
                     result['scenarios'].append(dict(target='fixture', crashes=[], steps=[],
                         verdict='inconclusive', completion='incomplete'))
@@ -259,7 +259,7 @@ class ActivityTests(unittest.TestCase):
     def test_adapter_setup_failure_is_logged_before_device_execution_starts(self):
         journal = RunJournal(self.root, self.redactor, SimpleNamespace(snapshot=lambda: {}))
 
-        def fail(*args):
+        def fail(*args, **kwargs):
             raise InfrastructureError("Adapter setup failed synthetic-secret")
 
         runner = DeviceRunner({"report": str(self.root), "builds": []}, self.redactor,

@@ -11,7 +11,7 @@ public sealed class RequirementHeadingReportTests
     {
         using var folder = new TestDirectory();
         var state = State(folder.Path);
-        new RunReportWriter().Write(state);
+        RunFinalization.Finish(state, new RunReportWriter());
         var html = File.ReadAllText(Path.Combine(folder.Path, "index.html"));
         Assert.Contains("Document headings (context)", html);
         Assert.Contains("# Requirements", html);
@@ -24,7 +24,7 @@ public sealed class RequirementHeadingReportTests
     {
         using var folder = new TestDirectory();
         var state = State(folder.Path);
-        new RunReportWriter().Write(state);
+        RunFinalization.Finish(state, new RunReportWriter());
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder.Path, "result.json")));
         var heading = Assert.Single(json.RootElement.GetProperty("requirementHeadings").EnumerateArray());
         Assert.Equal("# Requirements", heading.GetProperty("text").GetString());

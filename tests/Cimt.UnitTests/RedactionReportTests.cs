@@ -83,7 +83,7 @@ public sealed class RedactionReportTests
                 } }
             } } };
             File.WriteAllText(Path.Combine(folder.Path, "ui-results.json"), JsonSerializer.Serialize(execution));
-            return new RunReportWriter().Write(State);
+            return RunFinalization.Finish(State, new RunReportWriter());
         }
 
         public JsonElement Result() => JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(folder.Path, "result.json")));

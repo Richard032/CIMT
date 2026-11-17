@@ -5,6 +5,7 @@ import pathlib
 import threading
 import hashlib
 from errors import InfrastructureError
+from runtime_protocol import VERSION
 
 
 def atomic(path, value):
@@ -43,7 +44,8 @@ class RunJournal:
         with self.lock:
             atomic(
                 self.root / "ui-results.json",
-                {"runId": self.run_id, "devices": self.results, "budget": self.budget.snapshot()},
+                {"protocolVersion": VERSION, "runId": self.run_id, "devices": self.results,
+                 "budget": self.budget.snapshot()},
             )
 
 

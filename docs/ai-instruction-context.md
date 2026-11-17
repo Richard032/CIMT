@@ -24,7 +24,7 @@ Refreshing before a new request also covers note-only and recall turns, when the
 
 ## Replies and execution
 
-Agent and AiInteraction are execution-side coordinators outside this layer. Agent owns the provider request and shared accounting. runtime/command_reply.py reads the command protocol. ActionExecutor performs the AI-selected supported command. ScenarioRunner retains the reply and actual execution outcome for subsequent instructions and the report. These components do not ask the instruction layer to approve a reply, plan, quote or action target.
+Agent and AiInteraction are execution-side coordinators outside this layer. The default Agent requests a decision through AiServices, which owns request accounting and transport. runtime/command_reply.py reads the command protocol. ActionExecutor performs the AI-selected supported command. ScenarioRunner retains the reply and actual execution outcome for subsequent instructions and the report. These components do not ask the instruction layer to approve a reply, plan, quote or action target.
 
 The text-command transport remains. Under FR-99, execution decodes explicit JSON objects into a FIFO queue and performs each in received order. It returns actual resource errors and retains unreadable text as a note without guessing commands from prose. The queue belongs outside this layer. An unexecutable command cancels the remaining queue; execution supplies the actual issue on the next normal decision request. Successful batches add no separate acknowledgement call. Queue records are available as the commands context collection, selected only by AI. No semantic response evaluation or migration to function calling is introduced. See [command queue](command-queue.md).
 
@@ -48,7 +48,8 @@ sequenceDiagram
     participant Inputs as AI Instruction and Context
     participant Device as Mobile MCP and Masking
     participant Store as Retained Context and Evidence
-    participant AI as Configured Model
+    participant Agent as DecisionAgent
+    participant AI as Accounted provider request
     participant Commands as Command Execution
 
     loop Until AI finishes or an execution rule stops the run
@@ -58,8 +59,10 @@ sequenceDiagram
         Inputs->>Store: Retain observation and retrieve AI-selected context
         Store-->>Inputs: Requested information and resource feedback
         Inputs-->>Run: Sources, current controls, context and command descriptions
-        Run->>AI: Instruction request
-        AI-->>Run: Ordered command objects and optional records
+        Run->>Agent: Decide from copied context
+        Agent->>AI: Default implementation submits a journaled request
+        AI-->>Agent: Provider reply
+        Agent-->>Run: Normalized commands and optional records
         Run->>Commands: Queue objects; take each in FIFO order without input-layer approval
         Commands->>Device: Execute AI choice
         Device-->>Commands: Actual outcome
@@ -74,6 +77,6 @@ FR-101: InstructionContext supplies pending complete batch results and current w
 
 Selected-history capacity is measured from the same assembled state used by ActionPromptBuilder. Feedback contains selected bytes, allowance bytes, per-collection counts/sizes and an example using includeAll: [] with an individual/latest record. It explains that whole collections and individual records are combined, and null/absent context keeps the existing selection. No record relevance is chosen by the host.
 
-Instruction preparation may reuse timestamped, already masked evidence for repeated oversized context-only exchanges. It refreshes evidence before the next fitting normal decision request and after actions/recovery; currentEvidence identifies its capture time and reuse status. Provider timing belongs to Agent/execution, outside this layer; context preparation and screen acquisition have their own activity records. Credential resources describe alias, field and target together while values remain local.
+Every decision refreshes the masked screen, including when an oversized selection persists after recall. The default prompt builder defers the oversized selected history and its historical screenshots. It retains current evidence, original sources, the evidence ledger and mandatory batch feedback. When history selection omits requirement entries, the request includes the original requirement text. The request includes capacity and selection guidance. Provider timing belongs to AiServices. Context preparation and screen acquisition have separate activity records.
 
-For bootstrap clarity, commandResources.contextExample demonstrates selecting working history alongside a normal action. The shorter system guidance asks for observed progress and the next unfinished step. contextSelectionRequired.selectionActive distinguishes an explicit selection from growing bootstrap history; exampleReply demonstrates a complete recall command with compact context. AI can choose its own records or attach context to a normal action. These examples do not automatically select history, block commands, remove stored evidence or add provider calls.
+The command resources show how to attach an explicit selection to a normal action. The capacity notice distinguishes explicit selection from bootstrap history and includes a recall example. The AI chooses which records to retrieve or continues from current evidence.

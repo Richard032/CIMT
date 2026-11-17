@@ -25,6 +25,19 @@ class InstructionTests(unittest.TestCase):
         self.assertEqual(inputs['humanInterface'], [disabled, hidden])
         self.assertEqual(inputs['elements'], [disabled, hidden])
 
+    def test_source_requirements_survive_partial_history_selection(self):
+        source = 'The saved value persists. Save shows a confirmation.'
+        catalogue = [dict(id='REQ-1', text='The saved value persists.'),
+                     dict(id='REQ-2', text='Save shows a confirmation.')]
+        for chosen in ([], catalogue[:1], catalogue):
+            with self.subTest(chosen=chosen):
+                body = ActionPromptBuilder('fixture').build('Explore', source, '', [], b'masked',
+                    [], [], {}, requirement_results=catalogue,
+                    exploration_memory=dict(selectedActions=[], selectedCoverage={}, selectedRequirements=chosen))
+                inputs = json.loads(body['input'][1]['content'][0]['text'])
+                self.assertEqual(inputs['requirements'], '' if chosen == catalogue else source)
+                self.assertEqual(inputs['requirementResults'], chosen)
+
     def test_static_text_is_evidence_without_becoming_a_control(self):
         text = dict(ref='@caption', type='Text', text='Current selection')
         inputs = state([text])
@@ -174,12 +187,16 @@ class InstructionTests(unittest.TestCase):
 
     def test_picker_guidance_survives_large_history_and_recovery(self):
         wheel = dict(ref='@wheel', type='PickerWheel', value='Tier C')
-        body = ActionPromptBuilder('fixture').build('Select the requested tier', '', '', [wheel],
+        body = ActionPromptBuilder('fixture').build('Select the requested tier', 'Preserve the selection', '', [wheel],
             b'masked', [dict(observation='x' * 70000)], [], {},
-            exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
+            requirement_results=[dict(id='REQ-1')], exploration_memory=dict(
+                recoveryRequest=dict(id=1, kind='repetition'),
+                historicalImages=[dict(id='older', image=b'older')]))
         inputs = json.loads(body['input'][1]['content'][0]['text'])
-        self.assertNotIn('contextSelectionRequired', inputs)
+        self.assertIn('contextSelectionRequired', inputs)
         self.assertEqual(inputs['elements'], [wheel])
+        self.assertEqual(inputs['requirements'], 'Preserve the selection')
+        self.assertEqual(len(body['input'][1]['content']), 2)
         self.assertEqual(inputs['explorationMemory']['recoveryRequest']['id'], 1)
         prompt = body['input'][0]['content']
         self.assertIn('move the finger down to bring an item above the selection band', prompt)

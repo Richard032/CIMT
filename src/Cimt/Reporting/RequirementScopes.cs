@@ -6,7 +6,7 @@ public static class RequirementScopes
     public static IReadOnlyList<RequirementScope> Create(RunState state)
     {
         var scopes = new List<RequirementScope>();
-        foreach (var target in state.Configuration.Root.Get("build")!.Get("targets")!.List!)
+        foreach (var target in state.Configuration.Root.Get("build")?.Get("targets")?.List ?? [])
             foreach (var device in state.Devices)
                 if (target.Get(device["platform"]) is not null)
                     scopes.Add(Create(state, target.Value("name")!, device));

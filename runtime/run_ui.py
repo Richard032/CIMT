@@ -6,6 +6,7 @@ import shutil
 import sys
 from actions import ActionExecutor
 from agent import Agent
+from ai_services import AiServices
 from budget import Budget
 from device_runner import DeviceRunner
 from stopping_policy.policy import result_exit_code
@@ -20,16 +21,19 @@ from device_scheduler import DeviceScheduler
 from activity import ActivityLog
 from instruction_proposal import InstructionProposal
 from run_signals import RunSignals
+from runtime_protocol import read_request, read_results
+from result_review.critic import CompletionCritic
+from result_review.proposal import OpenAiProposal
 
 
 class Execution:
     """Connects runtime services and schedules at most two device workers."""
 
-    def __init__(self, context, mobile_factory=None, agent_factory=None, scheduler=None):
+    def __init__(self, context, mobile_factory=None, agent_factory=None, scheduler=None, review_factory=None, budget_factory=None):
         self.context = context
         self.config = context["config"]
         self.redactor = Redactor(self.config)
-        self.budget = Budget(
+        self.budget = (budget_factory or Budget)(
             self.config["ai-model"]["name"],
             self.config["ai-budget"]["amount"],
             self.config["ai-budget"]["currency"],
@@ -44,6 +48,7 @@ class Execution:
         self.journal.journal_budget()
         self.mobile_factory = mobile_factory or self._mobile
         self.agent_factory = agent_factory or self._agent
+        self.review_factory = review_factory or self._reviewer
         self.scheduler = scheduler or DeviceScheduler()
 
     def run(self, preflight=False):
@@ -80,7 +85,7 @@ class Execution:
             actions,
             self.context["report"],
             requirements=self.context.get("requirements", []),
-            activity=self.activity,
+            activity=self.activity, budget=self.budget,
         )
         return DeviceRunner(
             self.context,
@@ -90,7 +95,7 @@ class Execution:
             scenarios,
             self.mobile_factory,
             self.agent_factory,
-            activity=self.activity,
+            activity=self.activity, reviewer_factory=self.review_factory,
         )
 
     def _mobile(self, device, folder):
@@ -100,8 +105,11 @@ class Execution:
     def _agent(self):
         return Agent(self.config, self.budget, self.context["deadline"])
 
+    def _reviewer(self):
+        return CompletionCritic(AiServices(self.config, self.budget, self.context["deadline"]))
 
-def finalize_proposal(context):
+
+def finalize_proposal(context, proposal_factory=None, budget_factory=None):
     """Review the saved run after device execution and its cancellation have ended."""
     config = context["config"]
     report = pathlib.Path(context["report"])
@@ -110,19 +118,19 @@ def finalize_proposal(context):
     proposal = InstructionProposal(report, context["inputs"], redactor, activity)
     try:
         ledger = report / "ai-budget.json"
-        budget = Budget(config["ai-model"]["name"], config["ai-budget"]["amount"], config["ai-budget"]["currency"])
+        budget = (budget_factory or Budget)(config["ai-model"]["name"], config["ai-budget"]["amount"], config["ai-budget"]["currency"])
         if ledger.exists():
             budget.restore(json.loads(ledger.read_text(encoding="utf-8")))
         budget.journal = lambda: atomic(ledger, budget.snapshot())
-        saved = report / "ui-results.json"
-        results = json.loads(saved.read_text(encoding="utf-8"))["devices"] if saved.exists() else []
+        results = read_results(report / "ui-results.json")
         request_folder = report / "proposal-requests"
         request_folder.mkdir(parents=True, exist_ok=True)
         request_result = {"steps": []}
-        agent = Agent(config, budget, context["deadline"])
-        agent.request_observer = RequestJournal(request_result, ScenarioEvidence(request_folder, report), redactor,
+        generator = (proposal_factory(config, budget, context["deadline"]) if proposal_factory
+                     else OpenAiProposal(AiServices(config, budget, context["deadline"])))
+        observer = RequestJournal(request_result, ScenarioEvidence(request_folder, report), redactor,
             lambda: atomic(report / "proposal-requests.json", redactor.object(request_result)))
-        proposal.create(agent, results, context["outcome"])
+        proposal.create(generator, results, context["outcome"], observer)
     except Exception as error:
         # Proposal failures cannot change the verdict or exit code of device testing.
         proposal.unavailable(str(error))
@@ -132,12 +140,13 @@ def finalize_proposal(context):
 def main(stream, arguments):
     """Read the private request from stdin and return a documented exit code."""
     try:
-        context = json.load(stream)
+        context = read_request(stream, proposal="--proposal" in arguments)
         if "--proposal" in arguments:
             return finalize_proposal(context)
         execution = Execution(context)
+        preflight = "--preflight" in arguments
         with RunSignals(execution.control):
-            return execution.run(preflight="--preflight" in arguments)
+            return execution.run(preflight=preflight)
     except (InfrastructureError, LimitReached) as error:
         print("CIMT execution stopped: " + str(error), file=sys.stderr)
         return 3 if isinstance(error, InfrastructureError) else 2

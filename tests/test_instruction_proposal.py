@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
-from agent import Agent
+from ai_services import AiServices
 from budget import Budget
 from run_ui import finalize_proposal
 
@@ -41,8 +41,8 @@ class InstructionProposalTests(unittest.TestCase):
             outcome={"cancelled": False})
 
     def create(self):
-        with patch("run_ui.Agent", side_effect=lambda config, budget, deadline:
-                   Agent(config, budget, deadline, transport=self.transport)):
+        with patch("run_ui.AiServices", side_effect=lambda config, budget, deadline:
+                   AiServices(config, budget, deadline, transport=self.transport)):
             self.assertEqual(finalize_proposal(self.context), 0)
         return (self.report / "instruction-setup-proposal.md").read_text()
 
@@ -51,6 +51,29 @@ class InstructionProposalTests(unittest.TestCase):
 
     def evidence(self):
         return json.loads(self.transport.calls[0][1]["input"][1]["content"][0]["text"])
+
+    def test_proposal_accepts_independent_service_and_budget_factories(self):
+        created = []
+
+        def budget_factory(model, amount, currency):
+            budget = Budget(model, amount, currency)
+            created.append(budget)
+            return budget
+
+        class IndependentGenerator:
+            __slots__ = ()
+
+            def propose(self, request):
+                return dict(interpretation="Independent review", instructions="Check field",
+                            setup=request.evidence["inputs"]["setup"], evidence="Screen observed")
+
+        def proposal_factory(config, budget, deadline):
+            self.assertIs(budget, created[0])
+            return IndependentGenerator()
+
+        self.assertEqual(finalize_proposal(self.context, proposal_factory, budget_factory), 0)
+        self.assertIn('Screen observed', (self.report / 'instruction-setup-proposal.md').read_text())
+        self.assertFalse((self.report / 'ai-budget.json').exists())
 
     def test_saves_separate_sections_and_redacts_request(self):
         output = self.create()

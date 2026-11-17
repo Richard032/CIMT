@@ -20,7 +20,9 @@ from ai_interaction import AiInteraction
 from command_queue import CommandQueue
 from batch_feedback import BatchFeedback
 from observation_recorder import ObservationRecorder
+from result_review.contracts import CompletionReviewer, EvidenceRequest
 from result_review.ledger import EvidenceLedger
+from request_journal import RequestJournal
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -80,6 +82,7 @@ class ScenarioRunner:
         clock=time.time,
         requirements=None,
         activity=None,
+        budget=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -91,15 +94,15 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
-        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity)
+        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity, budget)
 
-    def run(self, mobile, build, result, agent, publish):
+    def run(self, mobile, build, result, agent, publish, reviewer: CompletionReviewer | None = None):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
         scenario = self._new_result(build)
         result["scenarios"].append(scenario)
         try:
             publish()
-            self._run(mobile, build, scenario, agent, publish)
+            self._run(mobile, build, scenario, agent, publish, reviewer)
         finally:
             # Errors and limits must not hide work that still needs testing.
             if scenario["completion"] != "complete":
@@ -108,19 +111,19 @@ class ScenarioRunner:
                     scenario["remaining"].append(UNFINISHED_OBJECTIVE)
             publish()
 
-    def _run(self, mobile, build, result, agent, publish):
+    def _run(self, mobile, build, result, agent, publish, reviewer):
         """Order device and AI operations for the current objective."""
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
         try:
-            self._execute(mobile, build, session, monitor, agent, evidence, publish)
+            self._execute(mobile, build, session, monitor, agent, evidence, publish, reviewer)
         finally:
             session.commands.stop('Scenario ended before these commands were performed')
             session.feedback.close()
             self._save_plan(session)
             publish()
 
-    def _execute(self, mobile, build, session, monitor, agent, evidence, publish):
+    def _execute(self, mobile, build, session, monitor, agent, evidence, publish, reviewer):
         startup = StartupGuard(mobile, evidence, publish)
         recovery = CrashRecovery(mobile, monitor, evidence, self.redactor, publish)
         while True:
@@ -134,7 +137,7 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action = self._choose(mobile, session, agent, evidence, publish)
+            action = self._choose(mobile, session, agent, evidence, publish, reviewer)
             if action['action'] in ['recall', 'note']:
                 self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
@@ -296,7 +299,7 @@ class ScenarioRunner:
         )
         return False
 
-    def _choose(self, mobile, session, agent, evidence, publish):
+    def _choose(self, mobile, session, agent, evidence, publish, reviewer):
         session.planner.observe(session.elements)
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
@@ -332,8 +335,11 @@ class ScenarioRunner:
                 currentElements=session.elements, proposed=proposed))
             try:
                 self.control.check()
+                if reviewer is None:
+                    raise InfrastructureError('Completion reviewer is unavailable')
+                observer = RequestJournal(session.result, evidence, self.redactor, publish)
                 with self._operation('Review proposed completion', mobile, session.result['target']):
-                    review = self.redactor.object(agent.review_completion(review_input))
+                    review = self.redactor.object(reviewer.review(EvidenceRequest(review_input, observer, self.control.check)))
             except (InfrastructureError, LimitReached) as error:
                 if isinstance(error, LimitReached):
                     review_limit = error

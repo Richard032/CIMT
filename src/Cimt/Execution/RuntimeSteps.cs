@@ -50,6 +50,7 @@ public sealed class ProposalFinalization(ICommandRunner runner, RuntimePaths pat
         var result = await runner.Run(new(paths.Python, [paths.Worker, "--proposal"], timeout, state.Environment,
             Input: JsonSerializer.Serialize(new
             {
+                protocolVersion = RuntimeResults.ProtocolVersion,
                 config = RuntimeRequest.ConvertNode(state.Configuration.Root),
                 report = state.Report,
                 deadline = Math.Min(state.Deadline.End.ToUnixTimeMilliseconds(),
@@ -82,16 +83,17 @@ public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunPr
         while (!worker.IsCompleted)
         {
             await Task.WhenAny(worker, Task.Delay(TimeSpan.FromSeconds(2)));
-            reports?.Snapshot(state);
+            if (reports is not null)
+                RunFinalization.Snapshot(state, reports);
         }
         var result = await worker;
         await SaveLog(state, result);
         state.UiExit = result.Exit is >= 0 and <= 3 ? result.Exit : 3;
+        state.Exit = ExitCodes.Combine(state.Exit, state.UiExit);
         if (state.UiExit == 3)
-            await ReportFailure(state, result);
+            ReportFailure(state, result);
         state.Activity.Record("Device worker result", state.UiExit == 3 ? "failed" : "completed",
             "Worker exit code: " + result.Exit, log: "logs/execution-worker.log");
-        state.Exit = ExitCodes.Combine(state.Exit, state.UiExit);
     }
 
     private static void ShowActivity(RunState state, string line)
@@ -109,11 +111,9 @@ public sealed class UiExecution(RunProcess processes, RuntimePaths paths, IRunPr
             state.Configuration.Scrub(result.Stdout + "\n" + result.Stderr));
     }
 
-    private static async Task ReportFailure(RunState state, ProcessResult result)
+    private static void ReportFailure(RunState state, ProcessResult result)
     {
-        var file = Path.Combine(state.Report, "ui-results.json");
-        JsonElement? execution = File.Exists(file)
-            ? JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(file)) : null;
+        var execution = RuntimeResults.Read(state.Report);
         var messages = RunDiagnostics.WorkerReasons(execution)
             .Where(reason => reason.Category == "Infrastructure failure")
             .Select(reason => reason.Description).ToArray();
