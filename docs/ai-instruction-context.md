@@ -80,3 +80,5 @@ Every decision refreshes the masked screen, including after a note or recall. Th
 The decision ledger lists recent post-action screens by step, observation time, and observation IDs. To retrieve a screen's retained UI elements, use `recall` with a `context.records` entry whose collection is `observations` and whose ID is the screen's `uiObservation`. The saved ledger and completion critic receive the existing recent screen element summaries.
 
 The command resources show how to attach a context selection and summary to a normal action. The AI chooses which earlier records to retrieve and can continue from the current screen. Provider context and shared budget limits apply to the complete request.
+
+Every decision includes a compact requirement catalogue with requirement IDs, linked task IDs, current statuses and source line ranges when available. The AI uses these IDs for requirement checks. Full result records remain selectable through context.

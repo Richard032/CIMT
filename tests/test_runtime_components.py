@@ -893,6 +893,38 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "passed")
         self.assertTrue(result["requirements"][0]["screenshot"])
 
+    def test_compact_context_keeps_requirement_check_ids_and_current_statuses(self):
+        definitions = [dict(id=f'REQ-000{number}', text=text, startLine=line, endLine=line)
+                       for number, text, line in [(1, 'Save works', 3), (2, 'The result persists', 5)]]
+
+        def state(index):
+            return json.loads(transport.bodies[index]['input'][-1]['content'][0]['text'])
+
+        def check_for(index, requirement):
+            entry = state(index)['requirementCatalogue'][requirement]
+            return dict(check(), source='requirements', requirementId=entry['id'], taskId=entry['taskId'])
+
+        def responses():
+            yield action('recall', context=dict(summary='Use current evidence', includeAll=[], records=[]))
+            yield action('note', context=None, checks=[check_for(1, 0)])
+            yield action(context=None, checks=[check(), check_for(2, 1)])
+
+        agent, _, transport = api_agent(responses())
+        result = {'scenarios': []}
+        self.create_runner(definitions).run(FakeMobile(self.root, elements=[]), self.build,
+                                            result, agent, lambda: None)
+
+        expected = [dict(id='REQ-0001', taskId=1, status='not tested', startLine=3, endLine=3),
+                    dict(id='REQ-0002', taskId=2, status='not tested', startLine=5, endLine=5)]
+        self.assertEqual(state(0)['requirementCatalogue'], expected)
+        self.assertEqual(state(1)['requirementResults'], [])
+        self.assertEqual(state(1)['explorationMemory']['testPlan']['tasks'], [])
+        self.assertEqual(state(1)['requirementCatalogue'], expected)
+        self.assertEqual(state(2)['requirementCatalogue'], [dict(expected[0], status='passed'), expected[1]])
+        scenario = result['scenarios'][0]
+        self.assertEqual([row['status'] for row in scenario['requirements']], ['passed', 'passed'])
+        self.assertEqual(scenario['verdict'], 'passed')
+
     def test_observed_button_must_be_activated_before_completion(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action(completion='blocked')])
         self.assertEqual(result["completion"], "incomplete")

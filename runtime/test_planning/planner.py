@@ -53,6 +53,15 @@ class TestPlanner:
         available['routes'] = [dict(id=row['id'], destination=row['targetState'],
             edges=self.memory.map.route(self.memory.map.state_id(elements), row['targetState']))
             for row in self.plan.tasks if row['targetState']]
+        task_ids = {}
+        for task in plan['tasks']:
+            if task['source'] == 'requirements':
+                task_ids.setdefault(task['requirementId'], task['id'])
+        context['requirementCatalogue'] = [
+            dict(id=row['id'], taskId=task_ids.get(row['id']), status=row.get('status', 'not tested'),
+                 **{key: row[key] for key in ('startLine', 'endLine') if key in row})
+            for row in available['requirements']
+        ]
         selected = self.context_memory.project(available)
         plan['tasks'] = selected['tasks']
         plan['taskCount'] = len(self.plan.tasks)

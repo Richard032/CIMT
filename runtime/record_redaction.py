@@ -170,6 +170,8 @@ class RecordRedactor:
             'selectedCommands': lambda rows: self._items(rows, self.request_command),
             'selectedActions': lambda rows: self._items(rows, self.request_action),
             'selectedRequirements': lambda rows: self._items(rows, self.requirement),
+            'requirementCatalogue': lambda rows: self._items(rows, lambda row: self._record(
+                row, ['id', 'taskId', 'status', 'startLine', 'endLine'])),
             'selectedChecks': lambda rows: self._items(rows, self.check),
             'selectedDecisions': lambda rows: self._items(rows, self.request_decision),
             'selectedOriginalReplies': lambda rows: self._items(rows, lambda row: self._record(row, ['id', 'step'])),
