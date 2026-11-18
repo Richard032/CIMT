@@ -268,6 +268,59 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual(reply['action'], 'note')
         self.assertIn('No device action was dispatched', reply['resourceFeedback'])
 
+    def test_sdk_rejects_invalid_tool_arguments_before_applying_defaults(self):
+        for name, arguments, reason in (
+            ('show_gesture', {'gestureCommandId': '4'}, 'gestureCommandId must be integer'),
+            ('text', {}, 'Missing required tool argument: text'),
+            ('wait', {'durationMs': True}, 'durationMs must be integer or null'),
+            ('tap', {'recovery': {'id': '4'}}, 'recovery is missing decision'),
+            ('tap', {'checks': [{'status': 'invented'}]}, 'checks item 0 does not match'),
+            ('tap', {'ref': '@e1', 'x': 500, 'y': 600}, 'either a target ref or both'),
+            ('tap', {}, 'either a target ref or both'),
+        ):
+            with self.subTest(tool=name):
+                agent, _, transport = api_agent([])
+                call = dict(type='function_call', name=name, call_id='call_bad',
+                            arguments=json.dumps(dict(arguments, observation='Continue the test.')))
+                transport.request = lambda path, body: dict(status='completed',
+                    usage=dict(input_tokens=10, output_tokens=10), output=[call])
+
+                reply = self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+                self.assertEqual(reply['action'], 'note')
+                self.assertIn(reason, reply['resourceFeedback'])
+                self.assertNotIn('toolCall', reply)
+
+    def test_sdk_device_tool_preserves_planning_checks_context_and_recovery(self):
+        agent, _, transport = api_agent([])
+        requests = []
+        check = dict(taskId=3, subject='Open settings', source='instructions', status='passed',
+                     expected='Settings opens', observed='Settings is visible', reason='Screen evidence',
+                     requirementId='', instructionQuote='')
+        recovery = dict(id=2, decision='replan', reason='Open the other menu.')
+        context = dict(summary='Settings is open.', includeAll=[], records=[])
+        arguments = dict(ref='@e1', observation='Continue from Settings.', planStepId=3,
+                         checks=[check], recovery=recovery, context=context)
+        native_call = dict(type='function_call', name='tap', call_id='call_plan',
+                           arguments=json.dumps(arguments))
+        def submit(path, body):
+            requests.append(body)
+            return dict(status='completed', usage=dict(input_tokens=10, output_tokens=10), output=[native_call])
+        transport.request = submit
+
+        reply = self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        self.assertEqual(reply['action'], 'tap')
+        for name, expected in arguments.items():
+            self.assertEqual(reply[name], expected)
+        state = json.loads(requests[0]['input'][-1]['content'][0]['text'])
+        tools = {tool['name']: tool['parameters'] for tool in requests[0]['tools']}
+        example = state['commandResources']['toolContextExample']
+        self.assertEqual(example['arguments']['context']['includeAll'], [])
+        self.assertEqual(example['arguments']['context']['records'], [])
+        self.assertEqual(tools['tap']['properties']['checks']['items']['properties'], {})
+        self.assertIn('anyOf', state['commandResources']['arguments']['checks']['items'])
+
     def test_sdk_omits_android_only_tools_on_ios(self):
         self.mobile.device['platform'] = 'ios'
         agent, _, transport = api_agent([action()])

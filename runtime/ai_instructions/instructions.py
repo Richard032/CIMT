@@ -46,6 +46,11 @@ SYSTEM_PROMPT = (
     "For a single device action, call its registered tool with the needed arguments. Call one tool at a time. "
     "CIMT dispatches the command and supplies its observed result with the next screen. "
     "Use a JSON command object with action for actions without a registered tool, such as done or recall. "
+    "Registered tools also accept command metadata such as planStepId, checks, context selection, and recovery. "
+    "On your first decision, include context in the same tool call or JSON command. "
+    "Set a concise summary and start with empty includeAll and records unless you need particular prior records. "
+    "Until you make an explicit selection, CIMT sends the growing bootstrap history in each request. "
+    "After selection, omit context or set it to null to keep your selection, or choose specific records as needed. "
     "For every command, include an observation field starting exactly with "
     "'ai decission explanation: ' followed by a short, evidence-based explanation of why you chose "
     "that action and target. Describe your decision using visible evidence and the test goal; "
@@ -337,6 +342,10 @@ class ActionPromptBuilder:
             'arguments': FIELDS,
             'contextExample': dict(action='tap', ref='<chosen current control ref>',
                 context=dict(summary='Observed progress and next unfinished step', includeAll=[], records=[])),
+            'toolContextExample': dict(name='tap', arguments=dict(
+                ref='<chosen current control ref>',
+                observation='ai decission explanation: The visible control is needed for the next test step.',
+                context=dict(summary='Observed progress and next unfinished step', includeAll=[], records=[]))),
             'credentialExample': dict(action='credential', credential='<alias>', field='username', ref='<current input ref>'),
             'swipeExample': dict(action='swipe', ref='<current target ref>', direction='up', distance=35, durationMs=1000),
             'waitExample': dict(action='wait', durationMs=30000),

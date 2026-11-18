@@ -590,6 +590,25 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(json.loads(tool_result['output'])['actionFeedback'],
                          'Android app memory: PID 123, total PSS 512 KiB, total RSS 1024 KiB.')
 
+    def test_rejected_tool_keeps_original_arguments_redacted_in_report(self):
+        secret = 'fixture "private" value'
+        self.redactor = Redactor(dict(credentials={'fixture': {'password': secret}}))
+        mobile = FakeMobile(self.root)
+        call = dict(type='function_call', name='show_gesture', call_id='call_bad',
+                    arguments=json.dumps(dict(gestureCommandId='4', observation=secret)))
+        response = dict(status='completed', usage=dict(input_tokens=10, output_tokens=10), output=[call])
+        agent, _, _ = api_agent([response, action(completion='blocked')])
+        result = {'scenarios': []}
+
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+
+        rejected = result['scenarios'][0]['decisions'][0]['response']
+        self.assertEqual(rejected['action'], 'note')
+        header, arguments = rejected['modelResponse'].splitlines()
+        self.assertEqual(json.loads(header)['call_id'], 'call_bad')
+        self.assertEqual(json.loads(arguments), dict(gestureCommandId='4', observation='<redacted>'))
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+
     def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
         batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])
         agent, _, transport = api_agent([batch, action()])
