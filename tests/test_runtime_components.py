@@ -1666,6 +1666,103 @@ class ScenarioTests(unittest.TestCase):
         self.assertIn('Wait accepts only durationMs', request['resourceFeedback'])
         self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
 
+    def test_demo_swipe_returns_marked_screen_without_executing_the_batch_tail(self):
+        from PIL import Image
+        from screenshot_image import ScreenshotImage
+
+        batch = [action('demo_swipe', ref='@wheel', direction='down', distance=35, durationMs=1000),
+                 action('tap', ref='@wheel')]
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (402, 874), 'white'))
+        mobile.snapshot = lambda: (mobile.elements, screenshot)
+        result = {'scenarios': []}
+
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+
+        scenario = result['scenarios'][0]
+        step = scenario['steps'][1]
+        self.assertFalse(step['actionDispatched'])
+        self.assertNotIn('adapterCall', step)
+        self.assertIn('(201, 766)', step['actionFeedback'])
+        self.assertIn('(201, 801)', step['actionFeedback'])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertEqual(scenario['commandQueue']['commands'][1]['status'], 'not executed')
+        content = transport.bodies[1]['input'][-1]['content']
+        images = [part['image_url'] for part in content if part['type'] == 'input_image']
+        self.assertEqual(len(images), 2)
+        self.assertNotEqual(images[0], images[1])
+        self.assertEqual(scenario['aiRequests'][1]['images'][1], step['screenshot'])
+
+    def test_show_gesture_returns_pre_action_tap_image_after_screen_changes(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        tap = action('tap', x=30, y=65)
+        before = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'white'))
+        after = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'blue'))
+        mobile = FakeMobile(self.root)
+        mobile.snapshot = lambda: (mobile.elements, after if any(
+            name.startswith('mobile_click') for name, _ in mobile.calls) else before)
+        result, agent = self.run_scenario(mobile, [tap, action('show_gesture'), action()])
+
+        preview = agent.calls[2][-1]['gesturePreview']
+        self.assertEqual(preview['image'], GesturePreview.render(
+            tap, mobile.elements, before, recorded=True)['image'])
+        self.assertEqual(agent.calls[2][4], after)
+        self.assertIn('Gesture command 0', preview['description'])
+        self.assertEqual(result['steps'][1]['gesturePreviewScreenshot'], result['steps'][2]['screenshot'])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset', 'mobile_click_on_screen_at_coordinates'])
+
+    def test_demo_tap_marks_the_requested_point_in_scaled_screenshot_pixels(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (200, 400), 'white'))
+        result = GesturePreview.render(action('demo_tap', x=20, y=65), [SIZE], screenshot)
+
+        self.assertIn('(20, 65)', result['description'])
+        image = ScreenshotImage.decode(result['image'])
+        marker = (255, 39, 91)
+        self.assertTrue(all(image.getpixel((50, y)) == marker for y in range(126, 136)))
+        self.assertEqual(image.getpixel((20, 65)), (0, 114, 186))
+
+    def test_demo_swipe_path_is_at_least_ten_pixels_thick(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        screen = dict(type='CimtScreenInfo', screenWidth=360, screenHeight=240)
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (360, 240), 'white'))
+        preview = GesturePreview.render(action('demo_swipe', x=80, y=100, direction='right',
+            distance=200), [screen], screenshot)
+
+        image = ScreenshotImage.decode(preview['image'])
+        self.assertTrue(all(image.getpixel((160, y)) == (255, 39, 91) for y in range(96, 106)))
+
+    def test_demo_reports_when_start_misses_expected_control_bounds(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        control = dict(ref='@slider', coordinates=dict(x=10, y=80, width=80, height=20))
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'white'))
+        preview = GesturePreview.render(action('demo_swipe', x=30, y=60, direction='right',
+            distance=20, expectedRef='@slider'), [SIZE, control], screenshot)
+
+        self.assertIn('OUTSIDE expectedRef @slider', preview['description'])
+        self.assertIn('y from 80 to 100', preview['description'])
+
+    def test_demo_swipe_reports_offscreen_endpoint_without_executing(self):
+        mobile = FakeMobile(self.root)
+        scenario, _ = self.run_scenario(mobile, [
+            action('demo_swipe', x=5, y=20, direction='left', distance=10), action()])
+
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertIn('endpoint is outside', scenario['commandQueue']['commands'][0]['reason'])
+
     def test_timed_swipe_call_and_duration_reach_next_ai_batch_feedback(self):
         agent, _, transport = api_agent([action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000), action()])
         mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])

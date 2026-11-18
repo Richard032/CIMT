@@ -38,6 +38,8 @@ class AiInteraction:
                                   check_cancelled=self.control.check)
         with self._operation('AI action decision', mobile, session):
             reply = agent.decide(request)
+        if reply.get('action') not in ('recall', 'note'):
+            session.gesture_preview = None
         session.feedback.delivered()
         return reply
 

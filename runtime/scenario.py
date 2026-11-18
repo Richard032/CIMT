@@ -13,6 +13,7 @@ from coverage_tracker import CoverageTracker
 from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery, StartupGuard
 from errors import DeviceActionError, InfrastructureError, LimitReached, NoProgressAction
 from evidence import ScenarioEvidence
+from gesture_preview import GesturePreview
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
@@ -44,6 +45,8 @@ class ScenarioSession:
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
+    gesture_preview: dict | None = None
+    gesture_previews: dict = field(default_factory=dict)
     observed_at: str | None = None
     decision_observed_at: str | None = None
     commands: CommandQueue = field(default_factory=CommandQueue)
@@ -143,6 +146,9 @@ class ScenarioRunner:
                 self._save_plan(session)
                 publish()
                 continue
+            if action['action'] in ('demo_tap', 'demo_swipe', 'show_gesture'):
+                self._preview_gesture(session, action, evidence, publish)
+                continue
             if action['action'] == 'recover':
                 self._finish_command(session, 'handled', 'AI requested recovery')
                 session.commands.stop('AI requested fresh evidence and a recovery decision')
@@ -166,6 +172,8 @@ class ScenarioRunner:
             before = session.elements
             entry, element, point = self._action_context(session, action)
             try:
+                if action['action'] in ('tap', 'swipe'):
+                    self._prepare_gesture_preview(session, action, entry, evidence)
                 self._perform(mobile, session, action, entry, element)
                 if entry.get('actionError'):
                     self._cancel_failed_batch(session, action, entry['actionError'], publish)
@@ -204,6 +212,52 @@ class ScenarioRunner:
                 session.resource_feedback = reason + '; unexecuted commands remain in the commands collection.'
                 self._save_plan(session)
                 publish()
+
+    def _preview_gesture(self, session, action, evidence, publish):
+        step = len(session.result['steps'])
+        try:
+            if action['action'] == 'show_gesture':
+                preview, screenshot = self._saved_gesture_preview(session, action, evidence)
+            else:
+                preview = GesturePreview.render(action, session.elements, session.image)
+                screenshot = evidence.save_image(f'gesture-preview-{step:04d}.png', preview['image'])
+        except ValueError as error:
+            reason = self.redactor.text(str(error))
+            self._finish_command(session, 'failed', reason, error=reason)
+            self._cancel_failed_batch(session, action, reason, publish)
+            return
+        description = preview['description']
+        session.gesture_preview = preview
+        session.resource_feedback = description + ' Inspect the marked screenshot before choosing a real gesture.'
+        self._finish_command(session, 'handled', description, step, action_feedback=description)
+        session.commands.stop('Inspect the gesture preview before issuing further device commands')
+        session.result['steps'].append(self.redactor.records.step(dict(
+            step=step, action=action, screenshot=screenshot, actionFeedback=description, actionDispatched=False)))
+        session.result['screenshots'] = list(evidence.images.values())
+        self._save_plan(session)
+        publish()
+
+    @staticmethod
+    def _prepare_gesture_preview(session, action, entry, evidence):
+        try:
+            preview = GesturePreview.render(action, session.elements, session.image, recorded=True)
+            path = evidence.save_image(f"gesture-command-{action['commandId']:04d}.png", preview['image'])
+        except (ValueError, InfrastructureError, OSError):
+            # A missing illustration does not change the adapter's normal action.
+            return
+        session.gesture_previews[action['commandId']] = (path, preview['description'])
+        entry['gesturePreviewScreenshot'] = path
+
+    @staticmethod
+    def _saved_gesture_preview(session, action, evidence):
+        command_id = action.get('gestureCommandId', -1)
+        if command_id == -1:
+            command_id = next(reversed(session.gesture_previews), -1)
+        if command_id not in session.gesture_previews:
+            raise ValueError('No saved gesture preview for this command. Use demo_tap or demo_swipe to preview a target.')
+        path, description = session.gesture_previews[command_id]
+        image = evidence.load_images([evidence.images[path]])[0]['image']
+        return dict(description=f'Gesture command {command_id}. {description}', image=image), path
 
     def _cancel_failed_batch(self, session, action, reason, publish):
         """Stop pending commands and retain one issue message for the next AI turn."""

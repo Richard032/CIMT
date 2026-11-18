@@ -35,7 +35,7 @@ class RecordRedactor:
         )
 
     def step(self, value):
-        return self._record(value, ["step", "screenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation", "completedAt"], {"action": self.action, "adapterCall": self.adapter_call})
+        return self._record(value, ["step", "screenshot", "gesturePreviewScreenshot", "ui", "planStepId", "sourceState", "destinationState", "resultObservation", "completedAt"], {"action": self.action, "adapterCall": self.adapter_call})
 
     def adapter_call(self, value):
         return self._record(value, ['tool', 'status'], {
