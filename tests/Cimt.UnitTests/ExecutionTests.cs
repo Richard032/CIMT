@@ -294,10 +294,10 @@ internal sealed class FakeCleanup(List<string> calls) : IRunCleanup
 
 internal sealed class FakeReport(List<string> calls) : IRunReportWriter
 {
-    public int Write(RunState state)
+    public void Write(RunState state, RunReportData data)
     {
-        calls.Add("report");
-        return state.Exit;
+        if (data.Final)
+            calls.Add("report");
     }
 }
 

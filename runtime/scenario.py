@@ -12,6 +12,7 @@ from coverage_tracker import CoverageTracker
 from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery, StartupGuard
 from errors import DeviceActionError, InfrastructureError, LimitReached, NoProgressAction
 from evidence import ScenarioEvidence
+from gesture_preview import GesturePreview
 from check_results import scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
@@ -19,7 +20,9 @@ from ai_interaction import AiInteraction
 from command_queue import CommandQueue
 from batch_feedback import BatchFeedback
 from observation_recorder import ObservationRecorder
+from result_review.contracts import CompletionReviewer, EvidenceRequest
 from result_review.ledger import EvidenceLedger
+from request_journal import RequestJournal
 from test_planning.planner import TestPlanner
 from test_planning.loop_recovery import LoopRecovery
 
@@ -41,6 +44,8 @@ class ScenarioSession:
     planner: TestPlanner = field(default_factory=TestPlanner)
     recovery: LoopRecovery = field(default_factory=LoopRecovery)
     resource_feedback: str = ''
+    gesture_preview: dict | None = None
+    gesture_previews: dict = field(default_factory=dict)
     observed_at: str | None = None
     decision_observed_at: str | None = None
     commands: CommandQueue = field(default_factory=CommandQueue)
@@ -79,6 +84,7 @@ class ScenarioRunner:
         clock=time.time,
         requirements=None,
         activity=None,
+        budget=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -90,15 +96,15 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
-        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity)
+        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity, budget)
 
-    def run(self, mobile, build, result, agent, publish):
+    def run(self, mobile, build, result, agent, publish, reviewer: CompletionReviewer | None = None):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
         scenario = self._new_result(build)
         result["scenarios"].append(scenario)
         try:
             publish()
-            self._run(mobile, build, scenario, agent, publish)
+            self._run(mobile, build, scenario, agent, publish, reviewer)
         finally:
             # Errors and limits must not hide work that still needs testing.
             if scenario["completion"] != "complete":
@@ -107,19 +113,19 @@ class ScenarioRunner:
                     scenario["remaining"].append(UNFINISHED_OBJECTIVE)
             publish()
 
-    def _run(self, mobile, build, result, agent, publish):
+    def _run(self, mobile, build, result, agent, publish, reviewer):
         """Order device and AI operations for the current objective."""
         evidence = self._evidence(mobile, build)
         session, monitor = self._prepare(mobile, build, result, evidence, publish)
         try:
-            self._execute(mobile, build, session, monitor, agent, evidence, publish)
+            self._execute(mobile, build, session, monitor, agent, evidence, publish, reviewer)
         finally:
             session.commands.stop('Scenario ended before these commands were performed')
             session.feedback.close()
             self._save_plan(session)
             publish()
 
-    def _execute(self, mobile, build, session, monitor, agent, evidence, publish):
+    def _execute(self, mobile, build, session, monitor, agent, evidence, publish, reviewer):
         startup = StartupGuard(mobile, evidence, publish)
         recovery = CrashRecovery(mobile, monitor, evidence, self.redactor, publish)
         while True:
@@ -133,11 +139,14 @@ class ScenarioRunner:
             if not self._within_app(session):
                 publish()
                 return
-            action = self._choose(mobile, session, agent, evidence, publish)
+            action = self._choose(mobile, session, agent, evidence, publish, reviewer)
             if action['action'] in ['recall', 'note']:
                 self._finish_command(session, 'handled', 'Context/note command; no device action')
                 self._save_plan(session)
                 publish()
+                continue
+            if action['action'] in ('demo_tap', 'demo_swipe', 'show_gesture'):
+                self._preview_gesture(session, action, evidence, publish)
                 continue
             if action['action'] == 'recover':
                 self._finish_command(session, 'handled', 'AI requested recovery')
@@ -162,6 +171,8 @@ class ScenarioRunner:
             before = session.elements
             entry, element, point = self._action_context(session, action)
             try:
+                if action['action'] in ('tap', 'swipe'):
+                    self._prepare_gesture_preview(session, action, entry, evidence)
                 self._perform(mobile, session, action, entry, element)
                 if entry.get('actionError'):
                     self._cancel_failed_batch(session, action, entry['actionError'], publish)
@@ -200,6 +211,52 @@ class ScenarioRunner:
                 session.resource_feedback = reason + '; unexecuted commands remain in the commands collection.'
                 self._save_plan(session)
                 publish()
+
+    def _preview_gesture(self, session, action, evidence, publish):
+        step = len(session.result['steps'])
+        try:
+            if action['action'] == 'show_gesture':
+                preview, screenshot = self._saved_gesture_preview(session, action, evidence)
+            else:
+                preview = GesturePreview.render(action, session.elements, session.image)
+                screenshot = evidence.save_image(f'gesture-preview-{step:04d}.png', preview['image'])
+        except ValueError as error:
+            reason = self.redactor.text(str(error))
+            self._finish_command(session, 'failed', reason, error=reason)
+            self._cancel_failed_batch(session, action, reason, publish)
+            return
+        description = preview['description']
+        session.gesture_preview = preview
+        session.resource_feedback = description + ' Inspect the marked screenshot before choosing a real gesture.'
+        self._finish_command(session, 'handled', description, step, action_feedback=description)
+        session.commands.stop('Inspect the gesture preview before issuing further device commands')
+        session.result['steps'].append(self.redactor.records.step(dict(
+            step=step, action=action, screenshot=screenshot, actionFeedback=description, actionDispatched=False)))
+        session.result['screenshots'] = list(evidence.images.values())
+        self._save_plan(session)
+        publish()
+
+    @staticmethod
+    def _prepare_gesture_preview(session, action, entry, evidence):
+        try:
+            preview = GesturePreview.render(action, session.elements, session.image, recorded=True)
+            path = evidence.save_image(f"gesture-command-{action['commandId']:04d}.png", preview['image'])
+        except (ValueError, InfrastructureError, OSError):
+            # A missing illustration does not change the adapter's normal action.
+            return
+        session.gesture_previews[action['commandId']] = (path, preview['description'])
+        entry['gesturePreviewScreenshot'] = path
+
+    @staticmethod
+    def _saved_gesture_preview(session, action, evidence):
+        command_id = action.get('gestureCommandId', -1)
+        if command_id == -1:
+            command_id = next(reversed(session.gesture_previews), -1)
+        if command_id not in session.gesture_previews:
+            raise ValueError('No saved gesture preview for this command. Use demo_tap or demo_swipe to preview a target.')
+        path, description = session.gesture_previews[command_id]
+        image = evidence.load_images([evidence.images[path]])[0]['image']
+        return dict(description=f'Gesture command {command_id}. {description}', image=image), path
 
     def _cancel_failed_batch(self, session, action, reason, publish):
         """Stop pending commands and retain one issue message for the next AI turn."""
@@ -295,7 +352,7 @@ class ScenarioRunner:
         )
         return False
 
-    def _choose(self, mobile, session, agent, evidence, publish):
+    def _choose(self, mobile, session, agent, evidence, publish, reviewer):
         session.planner.observe(session.elements)
         session.coverage.observe(session.elements)
         coverage = session.coverage.snapshot()
@@ -331,8 +388,11 @@ class ScenarioRunner:
                 currentElements=session.elements, proposed=proposed))
             try:
                 self.control.check()
+                if reviewer is None:
+                    raise InfrastructureError('Completion reviewer is unavailable')
+                observer = RequestJournal(session.result, evidence, self.redactor, publish)
                 with self._operation('Review proposed completion', mobile, session.result['target']):
-                    review = self.redactor.object(agent.review_completion(review_input))
+                    review = self.redactor.object(reviewer.review(EvidenceRequest(review_input, observer, self.control.check)))
             except (InfrastructureError, LimitReached) as error:
                 if isinstance(error, LimitReached):
                     review_limit = error

@@ -18,6 +18,8 @@ Updated: 10 November 2026. Start with the guide matching your task. Current user
 
 - [Requirements](requirements.md): approved product and numbered acceptance criteria; later decisions can supersede earlier wording.
 - [Architecture](architecture.md): responsibilities and evolution; distinguish approved design from implemented increments.
+- [Current UML and layer map](architecture-uml.md) and [worker protocol](worker-protocol.md).
+- [Decision agent](decision-agent.md): replacement contract and integration limits.
 - [Development](development.md): source boundaries, conventions and existing verification commands.
 - [Current implementation status](implementation-status.md): dated evidence, limitations and executed check results.
 - [1.0 readiness](release-1.0.md): open acceptance/release gates.

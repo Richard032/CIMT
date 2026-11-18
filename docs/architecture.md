@@ -1,9 +1,11 @@
 # CIMT architecture
 
+The [current UML and layer map](architecture-uml.md) describe the implemented interfaces and execution flows. The [worker protocol](worker-protocol.md) defines the private .NET/Python handoff.
+
 **Current decision context:** Each request contains original instructions, fresh masked evidence, feedback, and selected scenario records. Previous chat messages are not sent. The AI may explicitly select registered historical screenshots.
 
 Documentation baseline: 1.0
-Updated: 10 November 2026
+Updated: 14 November 2026
 Status: approved architecture with dated implementation increments; Mobile MCP selected, release qualification open
 Authority: [confirmed requirements](requirements.md)
 
@@ -23,29 +25,7 @@ Approved implementation: a .NET command-line application, shell script for Mac s
 
 ## 2. Components
 
-```mermaid
-flowchart TD
-    T[Developer terminal] --> C[CIMT command]
-    J[Jenkins pipeline on Mac] --> C
-    Y[Default YAML / run YAML / arguments] --> C
-    I[Instruction / requirement / setup text] --> C
-    C --> O[Run orchestrator and Mac lock]
-    O --> B[Git clone and build manager]
-    O --> S[Device scheduler: maximum two active devices]
-    S --> W[Isolated device workers]
-    W --> A[Device adapter]
-    A --> D[Selected startup Android / iOS devices]
-    W --> N[AI Instruction and Context]
-    N --> A
-    N --> E
-    W --> P[OpenAI gateway and shared budget ledger]
-    W --> K[Execution Stopping Policy]
-    O --> E[Local event and evidence store]
-    W --> E
-    B --> E
-    E --> R[Portable HTML report]
-    O --> F[Finalization and owned work retention]
-```
+See the [current component and dependency diagram](architecture-uml.md#layers-and-dependencies).
 
 The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the CIMT lifecycle, evaluation policy, or strict cost cap.
 
@@ -59,10 +39,10 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 | Scenario planner | Retain the AI-owned plan, mappings, ambiguity and overrides; supply them as context without selecting the next test. |
 | Device worker | Reset, setup/login, execute, observe, collect step screenshots, recover crashes, and replay. |
 | Device adapter | Discovery, installation, launch/stop, data reset, UI observations, actions, screenshots, crash diagnostics. |
-| OpenAI gateway | Centralize model access, redact inputs, describe command resources, account usage, and reserve maximum cost. |
+| OpenAI request service | Check model access, journal requests, reserve budget, send requests and settle usage. Prompt construction belongs to the decision, review and proposal components. |
 | Evidence store | Persist events, screenshots, actions, findings, statuses, and redacted metadata incrementally. |
 | Report renderer | Produce local HTML with relative evidence links, including a partial report without further AI calls. |
-| Finalizer | Stop workers, settle accounting, render report, retain work and evidence, and release host lock. |
+| Finalizer | After cleanup and the proposal attempt, calculate the outcome from worker evidence and coverage. Supply the outcome to reporting and return its exit code. |
 
 ## 3. Proposed execution lifecycle
 
@@ -142,21 +122,11 @@ RunCleanup retains a redacted helper log under the report's logs/native-daemon.l
 
 Legacy workspace.root and reports.root are accepted to preserve private configuration compatibility, but cannot relocate output. CommandApplication prints the policy and a legacy-setting notice; CommandReports stores the policy in output-layout.json. New templates omit those roots. No private file is rewritten. Command errors retain the selected layout even when YAML cannot load. With unusable command syntax and no selected input, the launch folder is the last known input location. Unsafe/unwritable output produces a terminal failure; there is no fallback report tree elsewhere. Output containment resolves existing aliases before creating folders. This replaces the earlier common-root proposal under FR-52/FR-53.
 
-## 5. Model control and strict budgeting
+## 5. Model control and shared budget
 
-OpenAI is confirmed; API style, SDK, model, and pricing source are not selected in this draft.
+The OpenAI transport counts the same model input used for generation. AiServices journals the request and asks Budget to reserve the counted input cost. The shared ledger admits a request only if its counted input cost fits. Each retry has its own count and reservation.
 
-Proposed gateway rules:
-
-- All model calls, including planning, reproduction, replay, and analysis, pass through one gateway.
-- Use an atomic ledger shared by both workers. Admission requires spent + reserved + new worst-case reservation to remain within the configured limit.
-- Compute a conservative upper bound for input, images, output, and any other billable dimensions before sending a request. Bound output explicitly; disable unbounded paid tools.
-- Use a model/pricing combination only when its maximum charge can be bounded. Do not substitute an estimate for an enforceable upper bound.
-- Settle successful calls against actual usage. Keep conservative reservations for timeouts or ambiguous billing until reconciled. Retries require separate reservations.
-- If pricing is unavailable, stale beyond a validated policy, or cannot cover a billable dimension, refuse the paid call and report the reason.
-- Stop incomplete if the next necessary call cannot be funded. The final HTML is rendered locally.
-
-Strict cap feasibility is a release gate, not a proven capability. A local ledger cannot cap unrelated usage of the same account/key. The proposed guarantee is for CIMT-issued requests in one run, under validated pricing assumptions. The approved ai-budget fields are amount and currency; strict enforcement is mandatory and has no opt-out switch. Supported currencies, price refresh policy, rounding, and treatment of provider price changes require implementation review.
+Budget settles full reported usage even when the output charges take the run over budget. If usage is missing or the process exits with a request in flight, the ledger retains the counted input cost plus the full output cap as uncertain. The budget is an admission estimate and actual spending can exceed it. See [the run engine](run-engine.md#budget-deadline-and-stopping) for the current policy.
 
 ## 6. Scenario execution, crashes, and replay
 
@@ -243,7 +213,7 @@ A Mac-wide install does not automatically make a user's Keychain, Git credential
 | Device adapter | Mobile MCP is selected. The historical comparison is retained; complete application/privacy/device qualification remains open. |
 | Implementation / distribution | .NET CLI and shell setup script approved; package distribution and dependency manager open. |
 | Version matrix | Open; Intel hardware may constrain available macOS/Xcode/device OS combinations. |
-| Strict budget | Confirmed requirement; prove conservative billing bounds for selected model. |
+| Shared budget | Verify counted input admission and reported usage settlement for the selected model. |
 | Full app reset | Platform reset plus custom reset commands and stop on reset failure approved; prove state isolation. |
 | Three-crash matching | Same scenario/action or screen, matching signature when available, consecutive counter reset on success approved; validate implementation. |
 | Outcome precedence / exit codes | Approved: 0/1/2/3, precedence 3 → 1 → 2 → 0; separate verdict/completion/errors. |
@@ -296,7 +266,7 @@ The single-run lock uses exclusive file sharing supported on macOS. YAML mapping
 
 Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
 
-The current pricing profiles accept gpt-5.4-mini-2026-03-17 and gpt-5.6-luna with USD accounting; section 27 defines their charge bounds. Each request reserves the full model context input cost plus its enforced output cap under one shared lock; uncertain requests retain their maximum reservation. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
+The current pricing profiles accept gpt-5.4-mini-2026-03-17 and gpt-5.6-luna with USD accounting; section 27 defines their charge bounds. One shared lock admits requests using counted input. Uncertain requests retain the counted input plus the full output cap. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
 
 The current engine treats the supplied text as one exploration objective per target/device. Full scenario decomposition, adaptive replay, manifest-driven setup, complete credential/reset acceptance, Jenkins, and second-Mac demonstration remain required. iOS reinstall verifies the app container; Keychain/backend reset requires application hooks where relevant. These are implementation limits, not changes to the requirements baseline.
 
@@ -394,7 +364,7 @@ RunSignals translates SIGINT/SIGTERM into a worker flag, and RunControl checks t
 
 ActivityLog reads the shared user-interruption flag/marker when an operation raises. During a known user stop it records and propagates the existing LimitReached interruption reason, so nested operations do not introduce failed/Broken pipe rows. It does not block cleanup entry or change already saved failures; successful cleanup remains completed. ScenarioRunner retains a stoppingReason on interrupted action records, and StepHtmlRenderer displays stopped with that reason while preserving an earlier crash classification. DeviceRunner handles close errors under the same stop/error policy and publishes its final state in a finally block. A genuine close failure without interruption remains an infrastructure failure; a later cleanup error does not replace the original device error. Host RunActivityLog.Run also accepts the run cancellation token for test stages: exceptions after a known user stop become stopped activity with the same user-interruption reason before propagation to RunCoordinator. Cleanup runs without that cancelled token so a genuine finalization failure stays visible. ExplorationMemory retains a stoppingReason as the observation outcome rather than claiming UI change/no change when observation was interrupted; recorded crash/action failures retain priority. This does not change progress signatures, coverage keys or normal repetition rules.
 
-IRunReportWriter.Snapshot reuses the production redaction, coverage, outcome, and HTML pipeline. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
+RunFinalization.Snapshot computes provisional coverage and outcome and supplies them to the same report writer used for final reports. RunCoordinator saves at stage boundaries; UiExecution refreshes about every two seconds while awaiting its worker. Snapshots are synchronous local renderings of atomic worker files and the latest AI ledger; they do not query devices or AI. Snapshot rendering occurs in the host workflow, not concurrent with host stage mutations. result.json carries inProgress/updated, finished remains null, and HTML labels partial status. Each HTML/JSON file is replaced atomically; they are separate replacements, not a two-file transaction. An interim storage failure prints a safe warning and retains the prior complete file. Final report failure follows the existing command error path. Forced kill cannot run finalization, so the last interim page stays explicitly partial. No automatic recovery command or rewriting of historical reports is introduced.
 
 ## 26. Compact recent-action AI input
 
@@ -406,9 +376,9 @@ AI guidance requests a check when current evidence changes a result or adds a di
 
 Execution reads the effective ai-model.name for Budget and Agent. The same name selects the access-check endpoint and the Responses model; failures do not cause a model fallback. Successful preflight names the checked model without requesting inference. The budget ledger records its model and pricing source/date. There is no YAML schema change.
 
-Budget keeps validated profiles and one cost calculation shared by reservation and usage settlement. Mini retains its 400,000-token context and USD 0.309216 reservation. Luna has a 1,050,000-token context, USD 0.20/1.20 input/output rates per million tokens, and a 2,048-token output cap. Input is conservatively charged at the 1.25-times default cache-write rate, including ordinary and cached-read tokens. Above 272,000 input tokens, the entire request uses twice the input rate and 1.5 times the output rate. Full-context reservation is USD 0.5286864. Agent explicitly sets a 30-minute cache lifetime for profiles with that priced lifetime. Mini request settings remain unchanged.
+Budget keeps validated profiles and one cost calculation shared by reservation and usage settlement. Mini retains its 400,000-token context and USD 0.309216 model-wide maximum cost. Luna has a 1,050,000-token context, USD 0.20/1.20 input/output rates per million tokens, and a 2,048-token output cap. Input is conservatively charged at the 1.25-times default cache-write rate, including ordinary and cached-read tokens. Above 272,000 input tokens, the entire request uses twice the input rate and 1.5 times the output rate. Full-context maximum cost is USD 0.5286864. Agent explicitly sets a 30-minute cache lifetime for profiles with that priced lifetime. Mini request settings remain unchanged.
 
-A shared lock reserves funds before either device worker sends a request. Valid usage settles at the appropriate conservative rates; missing or invalid usage retains the full reservation. Unknown profiles/currencies stop before inference. These are upper-cost ledger values under the documented rate assumptions, not exact provider invoices. Rates were checked on 30 October 2026 against the [Mini model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Luna model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna), and [cache pricing guidance](https://developers.openai.com/api/docs/guides/prompt-caching). Online pricing discovery and cost reconciliation remain deferred; no additional API or administrator credential is required.
+A shared lock reserves funds before either device worker sends a request. Valid usage settles at the appropriate conservative rates; missing usage retains counted input plus the full output cap. Invalid usage retains the model-wide upper bound. Unknown profiles/currencies stop before inference. These are upper-cost ledger values under the documented rate assumptions, not exact provider invoices. Rates were checked on 30 October 2026 against the [Mini model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Luna model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna), and [cache pricing guidance](https://developers.openai.com/api/docs/guides/prompt-caching). Online pricing discovery and cost reconciliation remain deferred; no additional API or administrator credential is required.
 
 ## 28. One report folder per execution
 
@@ -467,7 +437,7 @@ Execution journals accepted decisions, selections, pending/completed recovery re
 
 FR-97 changes the layer to inputs and retained information only. runtime/ai_instructions/ contains InstructionContext, ActionPromptBuilder and the human-interface catalogue. Before each AI request, InstructionContext queries the supplied Mobile MCP adapter for a fresh verified masked screen and retains the observation. It assembles instructions, requirements, setup/scope, aliases, resources and the AI-selected context from the existing planning/evidence stores. All masked elements remain evidence; the separate humanInterface catalogue describes adapter-declared controls, including unavailable controls with their state flags. It is not an action whitelist.
 
-Reply reading is in runtime/command_reply.py, provider/accounting in Agent, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. The text-command transport remains. FR-99 adds ordered command batches outside this input-only layer; function calling is not introduced. The owner confirmed Mobile MCP, so no Appium adapter is added.
+Reply reading is in runtime/command_reply.py, provider/accounting and independent AI services in runtime/ai_services.py, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. The text-command transport remains. FR-99 adds ordered command batches outside this input-only layer; function calling is not introduced. The owner confirmed Mobile MCP, so no Appium adapter is added.
 
 DR-01 packaging includes the full ai_instructions/, test_planning/, stopping_policy/ and device_adapter/ folders. Remove obsolete ai_exchange source modules and decision_recovery.py when installing. Existing action_prompt.py imports preserve caller compatibility. See [responsibilities, tradeoffs and sequence](ai-instruction-context.md). Source/offline checks remain separate from installation and live qualification.
 
@@ -500,7 +470,7 @@ The lifecycle receives execution's shared-stop callback and injectable monotonic
 
 FR-101 / AC-71 define runtime/batch_feedback.py as scenario-local execution data, not another layer. BatchFeedback retains one initial observation per batch and ordered command/result and independent-observation events. Each event references its resulting observation; there is no duplicated before snapshot. ObservationRecorder registers verified masked frames, links full UI observations into the existing planner catalogue and records system warnings. The Device Adapter's warnings.py recognizes Android's system ANR Wait resource identifier without evaluating arbitrary app text. Warning episodes log device/time/step once while remaining referenced by each affected result; warnings alone do not set verdicts or stop execution.
 
-AiInteraction prepares fresh current evidence and the pending complete paths for the next normal provider request, then marks feedback supplied only after a completed reply. ActionPromptBuilder puts batchFeedback and currentWarnings outside optional historical selection. RequestContext may defer oversized optional history, but cannot drop new batch path steps. Older batches remain retrievable through the batches collection and exact AI selection; original instructions/current evidence remain authoritative. No separate success-acknowledgement call or second model is introduced.
+AiInteraction prepares fresh current evidence and the pending complete paths for the next normal provider request, then marks feedback supplied only after a completed reply. ActionPromptBuilder puts batchFeedback and currentWarnings outside optional historical selection. Older batches remain retrievable through the batches collection and exact AI selection; original instructions/current evidence remain authoritative. No separate success-acknowledgement call or second model is introduced.
 
 A done behind other commands is a mechanical batch handoff. Retain it as deferred, do not apply its predicted checks/plan/completion, mark later commands unexecuted and return actual results for a new AI decision. A first-command done can end the objective. No semantic response gate or host-selected replacement action is added. Existing failures cancel the pending tail; limits/privacy retain unsupplied results without bypassing stopping rules.
 
@@ -516,13 +486,11 @@ The Device Adapter's ExternalFiles component owns app-container file transfer an
 
 The launcher resolves its installation root, loads that installation's environment.sh, and supports the source checkout's ignored .local/install environment. CommandRunner constructs each child process environment with the selected installation's bin, tools/node-packages/bin and tools/node-packages/lib/node_modules/.bin directories before inherited PATH entries. It preserves explicit process environment values and does not change the user's shell. Python run/replay preflight checks node and mcp-server-mobile before model access, cloning or building. Device discovery by module path cannot substitute for checking the executable used by device workers.
 
-## Context request capacity and evidence reuse
+## Context capacity and evidence freshness
 
-ActionPromptBuilder.state supplies the same state layout to instruction preparation and prompt construction. request_context.context_usage measures the selected record package in UTF-8 bytes and reports each collection's count/size; it performs no relevance selection. Capacity deferral preserves mandatory current evidence and new batch feedback. The feedback explains whole-collection selection, unchanged selections and an explicit latest-record example.
+Every decision begins with a fresh masked observation, including after notes and recall. The default agent runs an OpenAI Agents SDK turn through AiServices. AiServices records and counts the payload before inference and settles actual usage afterward.
 
-ScenarioSession records the last capture time and whether the last command was an action-free recall. AiInteraction prepares context before acquiring another image. If a recall still leaves an oversized history package, it reuses the verified image and timestamp, marks the request as reused and records that fact. Fitting selections receive fresh masked evidence before their normal decision request. Actions, notes and recovery return to fresh observation behavior; unknown capture times are never reused. The AI can still act from the explicitly timestamped supplied evidence during capacity deferral under the existing historical-evidence policy; no semantic command veto or fixed recall limit is introduced.
-
-Prepare AI context measures state preparation and capacity checking. Refresh AI screen evidence measures observation acquisition. AI context selection and AI action decision identify the request purpose; AI decision cycle includes their nested work. Agent measures only OpenAiTransport.request with a monotonic clock, resetting its last measurement before every choice. AiInteraction records AI provider response with that duration, status, kind, device and target, including failed transports. A request stopped before transport has no provider timing. The HTML activity renderer uses these existing structured activity records.
+Activity records distinguish evidence capture, context preparation, the decision cycle and provider response. AiServices measures the transport call with a monotonic clock. The request kind distinguishes a normal decision, context selection, recovery or retry.
 
 ## Targeted swipe translation and audit records
 
@@ -538,4 +506,9 @@ ActionExecutor uses Mobile.replace_text for configured credential values after f
 
 Timed swipes use the existing native adapter boundary because Mobile MCP 1.0.14 does not expose swipe duration. ActionExecutor resolves geometry, rounds nonnegative points using the same half-up rule as Mobile MCP native gestures, validates both endpoints, and calls Mobile.swipe_coordinates. The helper receives io swipe x1,y1,x2,y2 --duration milliseconds. The actual adapterCall records tool mobilecli io swipe with the exact integer endpoints and unchanged durationMs. Untimed swipes retain their existing adapter path; a timed failure never falls back to default timing.
 
-Bootstrap ContextMemory.project supplies all collections while selection is None. Without an explicit AI selection, retained observations, states and other collections grow until prepare_context defers the selected package. ActionPromptBuilder now demonstrates a normal command plus an explicit compact context and gives shorter context guidance. Capacity feedback adds selectionActive and exampleReply (recall plus an explicit summary/selection). These are resources for AI; bootstrap behavior, optional selection and execution policy are unchanged.
+ContextMemory.project supplies bootstrap history until the AI chooses a selection. Command resources show how to submit a compact selection with a normal command. Provider context and budget limits apply to the resulting request.
+
+
+## Replaceable decision agent
+
+The decision contract in `runtime/decision_agent.py` accepts a `DecisionRequest` and returns normalized CIMT commands. `check_access` checks the chosen agent; `decide` supplies its next decision. The request carries original inputs, fresh masked screen evidence, history, credential aliases, shared budget and deadline/cancellation and optional request-recording facilities. The default `runtime/agent.py` uses `AiServices` for OpenAI. CompletionReviewer and ProposalGenerator receive redacted evidence and an observer in EvidenceRequest. Their default implementations build their own prompts and decode replies. AiServices only handles provider access, journaling, transport and accounting. Execution accepts an agent factory and a separate review factory; it owns device actions, evidence, stopping and reporting. See [decision agent](decision-agent.md) for the contract and integration limits.

@@ -31,7 +31,7 @@ Report presentation is split by responsibility: RunHtmlRenderer composes section
 | src/Cimt/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
 | src/Cimt/Settings | Read YAML, validate sections, and redact secrets. | Validate in-memory nodes; replace the file reader when testing overrides. |
 | src/Cimt/Execution | Order run steps, enforce deadlines, discover devices, check out source, and build targets. | Replace ICommandRunner, IRunStep, cleanup, progress, or text input at their boundaries. |
-| src/Cimt/Reporting | Calculate outcomes and render local reports. | Supply saved JSON and configuration; no device or API is needed. |
+| src/Cimt/Reporting | Render the outcome and evidence supplied by execution finalization. | Supply saved JSON and configuration; no device or API is needed. |
 | src/Cimt/Infrastructure | Start processes and hold the Mac lock. | Use fake process runners for unit tests; keep actual lock/process checks in regression tests. |
 | tools/Cimt.BuildWorker | Read a build request, create arguments, publish, select artifacts, and write metadata. | Test command/outcome policies directly; replace IBuildProcess for workflow tests. |
 
@@ -54,7 +54,9 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
-| action_prompt.py, agent.py, agents_sdk.py, openai_transport.py | Build model input, run OpenAI Agents SDK turns, reserve cost, parse actions, and send HTTPS requests. |
+| decision_agent.py, agent.py, agents_sdk.py | Define and implement the action decision boundary and run OpenAI Agents SDK turns. |
+| ai_services.py, openai_transport.py | Account for, journal and send OpenAI requests. |
+| result_review/ | Build the evidence ledger and define independent review and proposal interfaces and implementations. |
 | device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
 | device_adapter/app_lifecycle.py, native.py, readiness.py, status.py, target.py | Keep app lifecycle, read-only native calls, readiness, status and platform identity separate. |
 | device_adapter/startup.py | Retry only the fixed read-only readiness probe before app setup; never select stopping scope. |
@@ -161,4 +163,4 @@ FR-100 / AC-70: keep the post-install/launch wait in AppLifecycle.wait_after_lau
 
 BatchFeedback is execution data without device/provider/filesystem calls. ObservationRecorder registers verified masked observations and factual system warnings; the Device Adapter recognizes Android system identifiers. ScenarioRunner owns actual execution/finish handoff; input preparation only supplies recorded resources. Keep complete new path feedback outside optional context deferral, and let AI select historical batches. Avoid copying raw UI/images into event records or applying a queued finish's future checks.
 
-The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded/oversized history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Dated installation and replay findings are preserved in [installation notes](installation-notes.md) and [implementation history](implementation-history.md). Current acceptance status is recorded separately.
+The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded optional history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Dated installation and replay findings are preserved in [installation notes](installation-notes.md) and [implementation history](implementation-history.md). Current acceptance status is recorded separately.

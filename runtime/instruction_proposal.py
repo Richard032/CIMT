@@ -1,6 +1,7 @@
 """Save a reviewable proposal without changing the source inputs."""
 
 from pathlib import Path
+from result_review.contracts import EvidenceRequest, ProposalGenerator
 
 
 class InstructionProposal:
@@ -12,9 +13,9 @@ class InstructionProposal:
         self.redactor = redactor
         self.activity = activity
 
-    def create(self, agent, results, outcome):
+    def create(self, generator: ProposalGenerator, results, outcome, observer):
         evidence = self.redactor.object({"inputs": self.inputs, "runOutcome": outcome, "devices": results})
-        proposal = self.redactor.object(agent.propose(evidence))
+        proposal = self.redactor.object(generator.propose(EvidenceRequest(evidence, observer)))
         self._write("AI draft for review.", proposal)
         self.activity.write("Instruction proposal", "completed", "Review instruction-setup-proposal.md before using it.")
 

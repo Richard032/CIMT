@@ -6,6 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
 from result_review.ledger import EvidenceLedger
+from types import SimpleNamespace
+from result_review.contracts import EvidenceRequest
 from result_review.critic import CompletionCritic
 from errors import InfrastructureError
 import json
@@ -82,11 +84,12 @@ class EvidenceLedgerTests(unittest.TestCase):
 class CompletionCriticTests(unittest.TestCase):
     def test_passes_evidence_to_budgeted_request_and_parses_feedback(self):
         calls = []
-        def request(body, kind):
+        def request(body, kind, observer, *, check_cancelled=None):
             calls.append((body, kind))
             return dict(status='completed', output=[dict(type='message', content=[
                 dict(type='output_text', text='{"decision":"revise","feedback":"More work remains"}')])])
-        result = CompletionCritic('fixture', request, 100).review(dict(ledger={'recordedEvidence': {'steps': [1]}, 'aiInterpretations': {'progressNote': 'claim'}}))
+        result = CompletionCritic(SimpleNamespace(model='fixture', send=request)).review(
+            EvidenceRequest(dict(ledger={'recordedEvidence': {'steps': [1]}, 'aiInterpretations': {'progressNote': 'claim'}})))
         self.assertEqual(result['decision'], 'revise')
         self.assertEqual(calls[0][1], 'completion critic')
         self.assertIn('blocked completion can correctly have an inconclusive check', calls[0][0]['input'][0]['content'])
@@ -94,8 +97,8 @@ class CompletionCriticTests(unittest.TestCase):
         self.assertEqual(json.loads(calls[0][0]['input'][1]['content'][0]['text'])['ledger']['recordedEvidence']['steps'], [1])
 
     def test_invalid_response_is_not_accepted_as_a_review(self):
-        def request(body, kind):
+        def request(body, kind, observer, *, check_cancelled=None):
             return dict(status='completed', output=[dict(type='message', content=[
                 dict(type='output_text', text='{"decision":"agree"}')])])
         with self.assertRaises(InfrastructureError):
-            CompletionCritic('fixture', request, 100).review({})
+            CompletionCritic(SimpleNamespace(model='fixture', send=request)).review(EvidenceRequest({}))

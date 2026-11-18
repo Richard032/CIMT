@@ -2,6 +2,10 @@
 
 import json
 import pathlib
+import re
+import subprocess
+import time
+from errors import DeviceActionError, LimitReached
 from .target import DeviceTarget
 
 
@@ -55,6 +59,31 @@ class DeviceStatus:
             return executable in json.dumps(data)
         finally:
             path.unlink(missing_ok=True)
+
+    def sample_memory(self, app_id):
+        """Read PSS and RSS for the main process of the tested Android app."""
+        if self.device['platform'] != 'android':
+            raise DeviceActionError('Memory sampling is available on Android only')
+        if not re.fullmatch(r'[A-Za-z0-9_.]+', app_id):
+            raise DeviceActionError('Memory sampling requires a valid installed Android app ID')
+        try:
+            serial = DeviceTarget(self.device, self.run_command).adb_serial()
+            remaining = self.context['deadline'] - time.time()
+            if remaining <= 0:
+                raise LimitReached('Whole-run time limit reached')
+            result = self.run_command(['adb', '-s', serial, 'shell', 'dumpsys', 'meminfo', '-s', app_id],
+                                      capture_output=True, text=True, timeout=min(15, remaining))
+        except (OSError, subprocess.TimeoutExpired):
+            raise DeviceActionError('Android memory query did not complete') from None
+        if result.returncode == 0:
+            records = re.split(r'(?m)^\*\* MEMINFO in pid (\d+) \[([^\]\n]+)\] \*\*[^\n]*', result.stdout)
+            for pid, package, section in zip(records[1::3], records[2::3], records[3::3]):
+                if package != app_id:
+                    continue
+                totals = re.search(r'TOTAL PSS:\s*(\d+)\s+TOTAL RSS:\s*(\d+)', section)
+                if totals:
+                    return int(pid), int(totals[1]), int(totals[2])
+        raise DeviceActionError('No PSS and RSS sample was returned for the tested Android app')
 
     def crashes(self):
         """Read native crash metadata without deleting device diagnostics."""

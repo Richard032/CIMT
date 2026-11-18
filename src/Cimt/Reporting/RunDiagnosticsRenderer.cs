@@ -70,12 +70,18 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
             return "<p>AI inference requests: Unavailable; no recorded AI request count or cost ledger.</p>";
         return "<dl class=\"facts\">" + Row("Model", Field(budget, "model", configuration.Root.Get("ai-model")?.Value("name") ?? "Not recorded"))
             + Row("AI inference requests", Field(budget, "requests", "Not recorded")) + Row("Accounted upper cost", Money(budget, "accountedUpperCost"))
-            + Row("Uncertain upper cost", Money(budget, "uncertainUpperCost")) + Row("Pending reservations", Money(budget, "pendingUpperCost"))
+            + Row("Uncertain upper cost", Money(budget, "uncertainUpperCost"))
+            + Row("Pending estimated reservations", Money(budget, "pendingEstimatedCost"))
+            + Row("Pending maximum exposure", Money(budget, "pendingUpperCost"))
+            + Row("Budget overrun including uncertainty", Money(budget, "budgetOverrun"))
             + Row("Input tokens", Field(budget, "inputTokens", "Not recorded"))
             + Row("Output tokens", Field(budget, "outputTokens", "Not recorded"))
             + Row("Recorded cached input tokens", Field(budget, "cachedInputTokens", "Not recorded"))
             + Row("Requests with cache usage details", Field(budget, "cacheUsageRequests", "Not recorded"))
-            + Row("Budget limit", Money(budget, "limit")) + "</dl><p>Conservative cost accounting, not a verified provider invoice. Pending and uncertain costs remain reserved separately.</p>"
+            + Row("Budget limit", Money(budget, "limit"))
+            + Row("Model-wide maximum request cost", Money(budget, "maximumRequestReservation"))
+            + "</dl><p>Reservations cover counted input. Reported output is charged when the response arrives. "
+            + "The next input cost must fit the remaining budget.</p>"
             + RequestUsage(budget);
     }
 

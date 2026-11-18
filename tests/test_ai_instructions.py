@@ -29,8 +29,21 @@ class InstructionTests(unittest.TestCase):
         disabled = dict(ref='@disabled', type='Button', label='Save', enabled=False)
         hidden = dict(ref='@hidden', type='Button', label='Continue', visible=False)
         inputs = state([disabled, hidden])
-        self.assertEqual(inputs['humanInterface'], [dict(disabled, inputKind='tap'), dict(hidden, inputKind='tap')])
+        self.assertEqual(inputs['humanInterface'], [disabled, hidden])
         self.assertEqual(inputs['elements'], [])
+
+    def test_source_requirements_survive_partial_history_selection(self):
+        source = 'The saved value persists. Save shows a confirmation.'
+        catalogue = [dict(id='REQ-1', text='The saved value persists.'),
+                     dict(id='REQ-2', text='Save shows a confirmation.')]
+        for chosen in ([], catalogue[:1], catalogue):
+            with self.subTest(chosen=chosen):
+                body = ActionPromptBuilder('fixture').build('Explore', source, '', [], b'masked',
+                    [], [], {}, requirement_results=catalogue,
+                    exploration_memory=dict(selectedActions=[], selectedCoverage={}, selectedRequirements=chosen))
+                inputs = json.loads(body['input'][1]['content'][0]['text'])
+                self.assertEqual(inputs['requirements'], '' if chosen == catalogue else source)
+                self.assertEqual(inputs['requirementResults'], chosen)
 
     def test_static_text_is_evidence_without_becoming_a_control(self):
         text = dict(ref='@caption', type='Text', text='Current selection')
@@ -40,12 +53,25 @@ class InstructionTests(unittest.TestCase):
 
     def test_generic_control_uses_adapter_clickable_metadata(self):
         control = dict(ref='@web-control', type='android.view.View', clickable=True)
-        self.assertEqual(state([control])['humanInterface'][0]['inputKind'], 'tap')
+        self.assertEqual(state([control])['humanInterface'], [control])
 
-    def test_text_element_with_identifier_is_included_as_tap_target(self):
+    def test_identified_text_field_is_a_possible_target_without_inferred_action(self):
+        field = dict(ref='@file', type='TextField', identifier='example.xpa', value='example.xpa')
+        self.assertEqual(state([field])['humanInterface'], [field])
+
+    def test_identified_generic_element_is_a_possible_target(self):
+        element = dict(ref='@item', type='Other', identifier='item', enabled=False)
+        self.assertEqual(state([element])['humanInterface'], [element])
+
+    def test_prompt_allows_tapping_items_that_do_not_look_like_buttons(self):
+        prompt = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})['input'][0]['content']
+        self.assertIn('you may tap a visible item even if it does not look like a button', prompt)
+        self.assertIn('Do not assume an item is selected merely because it is displayed', prompt)
+
+    def test_text_element_with_identifier_is_included_as_possible_target(self):
         login = dict(ref='@e65', type='android.widget.TextView', text='Login',
                      identifier='ch.curtis.econ_a:id/Login_Label', visible=False, enabled=False)
-        self.assertEqual(state([login])['humanInterface'], [dict(login, inputKind='tap')])
+        self.assertEqual(state([login])['humanInterface'], [login])
 
     def test_empty_identifier_does_not_make_static_text_a_control(self):
         caption = dict(type='android.widget.TextView', text='Caption', identifier='')
@@ -177,9 +203,11 @@ class InstructionTests(unittest.TestCase):
 
     def test_picker_guidance_survives_large_history_and_recovery(self):
         wheel = dict(ref='@wheel', type='PickerWheel', value='Tier C')
-        body = ActionPromptBuilder('fixture').build('Select the requested tier', '', '', [wheel],
+        body = ActionPromptBuilder('fixture').build('Select the requested tier', 'Preserve the selection', '', [wheel],
             b'masked', [dict(observation='x' * 70000)], [], {},
-            exploration_memory=dict(recoveryRequest=dict(id=1, kind='repetition')))
+            requirement_results=[dict(id='REQ-1')], exploration_memory=dict(
+                recoveryRequest=dict(id=1, kind='repetition'),
+                historicalImages=[dict(id='older', image=b'older')]))
         inputs = json.loads(body['input'][1]['content'][0]['text'])
         self.assertNotIn('contextSelectionRequired', inputs)
         self.assertEqual(inputs['humanInterface'][0]['ref'], '@wheel')

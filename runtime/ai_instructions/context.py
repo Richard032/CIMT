@@ -24,6 +24,7 @@ class InstructionContext:
         memory['batchFeedback'] = session.feedback.pending()
         memory['currentWarnings'] = [session.feedback.warnings[key] for key in session.feedback.current_warnings]
         memory = self.redactor.records.request_context(memory)
+        memory['devicePlatform'] = device.get('platform')
         memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
         memory['evidenceLedger'] = self.redactor.object(session.result.get('evidenceLedger', {}))
         summary = memory.pop('summary', '')
@@ -34,6 +35,8 @@ class InstructionContext:
         # Historical pixels are supplied only when the AI selected them.
         memory['historicalImages'] = (evidence.load_images(memory['selectedScreenshots'])
             if session.planner.context_memory.selection is not None else [])
+        if session.gesture_preview is not None:
+            memory['gesturePreview'] = session.gesture_preview
         return [self.inputs['instructions'], self.inputs.get('requirements', ''),
             self._setup(session, device), session.elements, session.image, session.history,
             self.credential_aliases, session.coverage.snapshot(), session.result['requirements'],

@@ -54,6 +54,11 @@ public sealed class ScenarioHtmlRenderer(Configuration configuration, ReportEvid
                 + "<p>Input tokens: " + Encode(Field(request, "inputTokens", "not reported"))
                 + "; output tokens: " + Encode(Field(request, "outputTokens", "not reported"))
                 + "; cached input tokens: " + Encode(Field(request, "cachedInputTokens", "not reported")) + ".</p>";
+            if (request.TryGetProperty("countedInputTokens", out _))
+                detail += "<p>Counted input tokens: " + Encode(Field(request, "countedInputTokens"))
+                    + (request.TryGetProperty("reservedOutputTokens", out _) ?
+                        " · Reserved output tokens: " + Encode(Field(request, "reservedOutputTokens")) : "")
+                    + " · Estimated reservation (USD): " + Encode(Field(request, "estimatedReservation", "not reserved")) + ".</p>";
             if (request.TryGetProperty("sectionBytes", out var sections) && sections.ValueKind == JsonValueKind.Object)
                 detail += Details("Text section sizes", "<ul>" + string.Join("", sections.EnumerateObject()
                     .Select(section => "<li>" + Encode(configuration.Scrub(section.Name)) + ": "

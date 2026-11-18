@@ -11,7 +11,7 @@ from agent import Agent
 from budget import Budget
 from errors import InfrastructureError, LimitReached
 from openai_transport import NoRedirect, OpenAiTransport
-from action_prompt import FIELDS
+from ai_instructions.instructions import FIELDS
 from redaction import Redactor, ScreenMasker
 from crashes import CrashCounter
 from actions import ActionExecutor
@@ -22,8 +22,8 @@ MODEL = "gpt-5.4-mini-2026-03-17"
 class RuntimeChecks(unittest.TestCase):
     def test_dynamic_reservation_fits_small_budget(self):
         budget = Budget(MODEL, '.02', 'USD')
-        held = budget.reserve(1000, 2048)
-        self.assertEqual(held, Decimal('.009966'))
+        held = budget.reserve(1000)
+        self.assertEqual(held.estimated, Decimal('.00075'))
         budget.finish({'input_tokens': 1000, 'output_tokens': 20}, reservation=held)
         self.assertEqual(budget.pending, 0)
         self.assertEqual(budget.accounted, Decimal('.00084'))
@@ -33,14 +33,14 @@ class RuntimeChecks(unittest.TestCase):
         first = budget.reserve(1000)
         second = budget.reserve(5000)
         budget.finish(None, reservation=second)
-        self.assertEqual(budget.pending, first)
-        self.assertEqual(budget.uncertain, second)
+        self.assertEqual(budget.pending, first.estimated)
+        self.assertEqual(budget.uncertain, second.maximum)
         budget.finish({'input_tokens': 1000, 'output_tokens': 0}, reservation=first)
         self.assertEqual(budget.pending, 0)
 
     def test_restore_retains_each_dynamic_pending_reservation(self):
         budget = Budget(MODEL, 1, 'USD')
-        held = budget.reserve(1000) + budget.reserve(5000)
+        held = budget.reserve(1000).maximum + budget.reserve(5000).maximum
         restored = Budget(MODEL, 1, 'USD')
         restored.restore(budget.snapshot())
         self.assertEqual(restored.uncertain, held)
@@ -48,17 +48,17 @@ class RuntimeChecks(unittest.TestCase):
         self.assertEqual(len(restored.usage_records), 2)
 
     def test_dynamic_reservation_rejects_unfunded_request(self):
-        budget = Budget(MODEL, '.009', 'USD')
+        budget = Budget(MODEL, '.0007', 'USD')
         with self.assertRaises(LimitReached):
             budget.reserve(1000)
         self.assertEqual(budget.requests, 0)
 
-    def test_usage_exceeding_dynamic_reservation_is_accounted_and_stops(self):
-        budget = Budget(MODEL, 1, 'USD')
-        held = budget.reserve(1, 1)
-        with self.assertRaises(InfrastructureError):
-            budget.finish({'input_tokens': 1000, 'output_tokens': 20}, reservation=held)
-        self.assertEqual(budget.accounted, Decimal('.00084'))
+    def test_output_cost_can_exceed_input_reservation(self):
+        budget = Budget(MODEL, '.001', 'USD')
+        held = budget.reserve(1000)
+        budget.finish({'input_tokens': 1000, 'output_tokens': 100}, reservation=held)
+        self.assertEqual(budget.accounted, Decimal('.0012'))
+        self.assertEqual(budget.snapshot()['budgetOverrun'], '0.0002')
 
     def test_agent_counts_input_before_reserving_generation(self):
         calls = []
@@ -69,12 +69,13 @@ class RuntimeChecks(unittest.TestCase):
             return 1000
         def request(path, body):
             calls.append(path)
-            self.assertEqual(budget.pending, Decimal('.009966'))
-            return {'usage': {'input_tokens': 1000, 'output_tokens': 0}}
+            self.assertEqual(budget.pending, Decimal('.00075'))
+            return {'status': 'completed', 'usage': {'input_tokens': 1000, 'output_tokens': 0},
+                    'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': '{"action":"note"}'}]}]}
         agent = Agent({'ai-model': {'name': MODEL, 'api-key': 'synthetic'}},
                       budget, time.time() + 30,
                       transport=SimpleNamespace(count_input_tokens=count, request=request))
-        agent._request({'max_output_tokens': 2048}, 'decision')
+        agent.choose('test', '', '', [], b'image-fixture', [], [], {})
         self.assertEqual(calls, ['count', 'responses'])
 
     def test_token_count_request_preserves_images_and_omits_generation_options(self):
@@ -104,7 +105,7 @@ class RuntimeChecks(unittest.TestCase):
                       time.time() + 30, transport=SimpleNamespace(
                           count_input_tokens=count, request=lambda *args: calls.append(args)))
         with self.assertRaises(InfrastructureError):
-            agent._request({'max_output_tokens': 2048}, 'decision')
+            agent.choose('test', '', '', [], b'image-fixture', [], [], {})
         self.assertEqual(calls, [])
         self.assertEqual(budget.requests, 0)
 
@@ -112,10 +113,22 @@ class RuntimeChecks(unittest.TestCase):
         budget = Budget(MODEL, 1, 'USD')
         budget.reserve()
         saved = budget.snapshot()
-        del saved['pendingReservations']
+        del saved['pendingEstimatedCost']
         restored = Budget(MODEL, 1, 'USD')
         restored.restore(saved)
         self.assertEqual(restored.uncertain, budget.bound)
+
+    def test_previous_dynamic_ledger_restores_with_per_request_maxima(self):
+        budget = Budget(MODEL, 1, 'USD')
+        budget.reserve(1000)
+        budget.reserve(2000)
+        saved = budget.snapshot()
+        del saved['pendingEstimatedCost']
+        saved['pendingReservations'] = ['0.009966', '0.010716']
+        restored = Budget(MODEL, 1, 'USD')
+        restored.restore(saved)
+        self.assertEqual(restored.uncertain, Decimal('0.020682'))
+        self.assertEqual(len(restored.usage_records), 2)
 
     def test_luna_reserves_full_context_with_cache_and_long_context_charges(self):
         budget = Budget("gpt-5.6-luna", 1, "USD")

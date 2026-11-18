@@ -38,7 +38,8 @@ public sealed class ExecutionRedactor(JsonTextRedactor json)
             ["warnings"] = rows => json.Items(rows, Warning),
             ["decisions"] = rows => json.Items(rows, row => json.Record(row, ["id", "step"], new() { ["response"] = Action })),
             ["aiRequests"] = rows => json.Items(rows, row => json.Record(row,
-                ["id", "step", "kind", "status", "requestPath", "timestamp", "inputTokens", "outputTokens", "cachedInputTokens"],
+                ["id", "step", "kind", "status", "requestPath", "timestamp", "inputTokens", "outputTokens", "cachedInputTokens",
+                    "countedInputTokens", "reservedOutputTokens", "estimatedReservation"],
                 new() { ["images"] = JsonTextRedactor.Keep })),
             ["screenshots"] = rows => json.Items(rows, row => json.Record(row, ["id", "path", "sha256"]))
         });

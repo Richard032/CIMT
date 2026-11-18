@@ -11,7 +11,7 @@ public sealed class RunDiagnosticsTests
     {
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
-        new RunReportWriter().Snapshot(fixture.State);
+        RunFinalization.Snapshot(fixture.State, new RunReportWriter());
         var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
         var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
         Assert.Contains("Partial report", html);
@@ -28,8 +28,8 @@ public sealed class RunDiagnosticsTests
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
         var reports = new RunReportWriter();
-        reports.Snapshot(fixture.State);
-        reports.Write(fixture.State);
+        RunFinalization.Snapshot(fixture.State, reports);
+        RunFinalization.Finish(fixture.State, reports);
         Assert.DoesNotContain("Partial report", await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html")));
         var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
         Assert.False(result.GetProperty("inProgress").GetBoolean());
@@ -43,11 +43,14 @@ public sealed class RunDiagnosticsTests
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
         await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ui-results.json"), fixture.Execution.GetRawText());
-        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ai-budget.json"), "{\"requests\":7}");
-        new RunReportWriter().Snapshot(fixture.State);
+        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ai-budget.json"), """
+            {"requests":7,"currency":"USD","maximumRequestReservation":"0.309216"}
+            """);
+        RunFinalization.Snapshot(fixture.State, new RunReportWriter());
         var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
         Assert.Contains("Required mask geometry changed", html);
         Assert.Contains("AI inference requests</dt><dd>7", html);
+        Assert.Contains("Model-wide maximum request cost</dt><dd>0.309216 USD", html);
         Assert.DoesNotContain("synthetic-credential", html);
     }
 
@@ -60,10 +63,43 @@ public sealed class RunDiagnosticsTests
         var state = new RunState(fixture.State.Configuration, fixture.State.Folders, fixture.State.Deadline)
             { Cancellation = cancellation.Token, Exit = 1 };
         cancellation.Cancel();
-        Assert.Equal(1, new RunReportWriter().Write(state));
+        Assert.Equal(1, RunFinalization.Finish(state, new RunReportWriter()));
         var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(state.Report, "result.json")));
         Assert.Equal("failed", result.GetProperty("verdict").GetString());
         Assert.Equal("incomplete", result.GetProperty("completion").GetString());
+    }
+
+    [Fact]
+    public async Task UnsupportedWorkerResultsStillProduceAnInfrastructureReport()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ui-results.json"),
+            """{"protocolVersion":2,"devices":[]}""");
+
+        Assert.Equal(3, RunFinalization.Finish(fixture.State, new RunReportWriter()));
+
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
+        Assert.Contains("Install matching CIMT host and runtime", html);
+    }
+
+    [Theory]
+    [InlineData("""{"protocolVersion":1,"devices":[{}]}""", "requires an identity object and a scenarios array")]
+    [InlineData("""{"protocolVersion":1,"devices":[{"device":{},"scenarios":[{}]}]}""", "invalid outcome or diagnostic fields")]
+    public async Task MalformedWorkerRecordsStillProduceAFinalRunReport(string snapshot, string reason)
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var saved = Path.Combine(fixture.State.Report, "ui-results.json");
+        await File.WriteAllTextAsync(saved, snapshot);
+
+        Assert.Equal(3, RunFinalization.Finish(fixture.State, new RunReportWriter()));
+
+        var result = JsonSerializer.Deserialize<JsonElement>(
+            await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
+        Assert.False(result.GetProperty("inProgress").GetBoolean());
+        Assert.Contains(reason, result.GetProperty("errors")[0].GetString());
+        Assert.Equal(snapshot, await File.ReadAllTextAsync(saved));
     }
 
     [Fact]
@@ -263,7 +299,7 @@ public sealed class RunDiagnosticsTests
         fixture.State.Exit = 3;
         fixture.State.Activity.Record("Capture", "failed", "geometry changed");
         await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ui-results.json"), fixture.Execution.GetRawText());
-        Assert.Equal(3, new RunReportWriter().Write(fixture.State));
+        Assert.Equal(3, RunFinalization.Finish(fixture.State, new RunReportWriter()));
         var result = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "result.json")));
         Assert.Contains(result.GetProperty("activity").EnumerateArray(), item => item.GetProperty("operation").GetString() == "Capture");
         Assert.Contains(result.GetProperty("stoppingReasons").EnumerateArray(), item => item.GetProperty("category").GetString() == "Infrastructure failure");

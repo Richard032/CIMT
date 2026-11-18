@@ -11,12 +11,12 @@ public sealed class ReplayReportTests
         using var fixture = new DiagnosticFixture();
         await fixture.Prepare();
         var writer = new RunReportWriter();
-        writer.Write(fixture.State);
+        RunFinalization.Finish(fixture.State, writer);
         var previous = File.ReadAllText(Path.Combine(fixture.State.Report, "index.html"));
         var pair = new RunFolderAllocator().Create(fixture.State.Configuration.WorkspaceRoot,
             fixture.State.Configuration.ReportsRoot, fixture.State.Started.AddMinutes(1));
         var replay = new RunState(fixture.State.Configuration, pair, fixture.State.Deadline) { Command = "replay" };
-        writer.Write(replay);
+        RunFinalization.Finish(replay, writer);
         var html = File.ReadAllText(Path.Combine(replay.Report, "index.html"));
         Assert.NotEqual(fixture.State.Report, replay.Report);
         Assert.Equal(2, Directory.GetDirectories(fixture.State.Configuration.ReportsRoot).Length);
@@ -34,9 +34,9 @@ public sealed class ReplayReportTests
         await fixture.Prepare();
         var replay = new RunState(fixture.State.Configuration, fixture.State.Folders, fixture.State.Deadline) { Command = "replay" };
         var writer = new RunReportWriter();
-        writer.Snapshot(replay);
+        RunFinalization.Snapshot(replay, writer);
         Assert.Contains("Partial report", File.ReadAllText(Path.Combine(replay.Report, "index.html")));
-        writer.Write(replay);
+        RunFinalization.Finish(replay, writer);
         Assert.DoesNotContain("Partial report", File.ReadAllText(Path.Combine(replay.Report, "index.html")));
         var result = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(replay.Report, "result.json")));
         Assert.Equal("replay", result.GetProperty("command").GetString());
@@ -80,7 +80,7 @@ public sealed class ReplayReportTests
                 steps = new[] { new { action = "tap", observation = "Observed control", screenshot = "devices/" + platform + "/step.png" } } } }
         });
         File.WriteAllText(Path.Combine(replay.Report, "ui-results.json"), JsonSerializer.Serialize(new { devices }));
-        new RunReportWriter().Write(replay);
+        RunFinalization.Finish(replay, new RunReportWriter());
         var html = File.ReadAllText(Path.Combine(replay.Report, "index.html"));
         Assert.Contains("ios phone", html);
         Assert.Contains("android phone", html);

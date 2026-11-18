@@ -74,7 +74,7 @@ def command_objects(text):
 def command(value):
     """Fill omitted resource arguments. Do not score or approve the AI's content."""
     defaults = dict(action='note', ref='', text='', x=-1, y=-1, direction='', distance=None, durationMs=None, credential='',
-        field='', observation='', progressNote='', repeatInstruction='', repeatReason='', remaining=[],
+        field='', gestureCommandId=-1, expectedRef='', observation='', progressNote='', repeatInstruction='', repeatReason='', remaining=[],
         completion='continue', checks=[], planUpdates=[], discoveredControls=[],
         configuration=[], pathDecisions=[], planStepId=0, context=None,
         recovery=dict(id=-1, decision='none', reason=''))
@@ -83,9 +83,9 @@ def command(value):
         supplied = value.get(name, default)
         if default is None or type(supplied) is type(default):
             result[name] = supplied
-    if result['action'] in ('swipe', 'wait'):
+    if result['action'] in ('swipe', 'demo_swipe', 'demo_tap', 'wait'):
         # Preserve invalid arguments for explicit execution feedback.
-        names = ['x', 'y', 'distance', 'durationMs'] if result['action'] == 'swipe' else ['durationMs']
+        names = ['durationMs'] if result['action'] == 'wait' else ['x', 'y', 'distance', 'durationMs']
         for name in names:
             supplied = value.get(name, defaults[name])
             # Invalid numbers/containers must still produce valid JSON failure reports.
@@ -94,8 +94,12 @@ def command(value):
             elif type(supplied) is float and not math.isfinite(supplied):
                 supplied = str(supplied)
             result[name] = supplied
-    if result['action'] == 'swipe' and 'ref' in value and not isinstance(value['ref'], str):
-        result['argumentError'] = 'Swipe ref must be a string'
+    if result['action'] in ('swipe', 'demo_swipe', 'demo_tap') and 'ref' in value and not isinstance(value['ref'], str):
+        result['argumentError'] = 'Gesture ref must be a string'
+    if result['action'] == 'sample_memory' and any(
+            value.get(name, defaults[name]) != defaults[name]
+            for name in ('ref', 'text', 'x', 'y', 'direction', 'distance', 'durationMs', 'credential', 'field')):
+        result['argumentError'] = 'sample_memory takes no device arguments and measures only the tested app'
     if result['action'] == 'wait':
         unsupported = [name for name in ('ref', 'text', 'x', 'y', 'direction', 'distance', 'credential', 'field')
                        if value.get(name, defaults[name]) != defaults[name]]

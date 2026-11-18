@@ -11,7 +11,7 @@ class DeviceRunner:
 
     def __init__(
         self, context, redactor, control, journal, scenarios, mobile_factory, agent_factory,
-        activity=None,
+        activity=None, reviewer_factory=None,
     ):
         self.context = context
         self.redactor = redactor
@@ -21,6 +21,7 @@ class DeviceRunner:
         self.mobile_factory = mobile_factory
         self.agent_factory = agent_factory
         self.activity = activity
+        self.reviewer_factory = reviewer_factory
 
     def run(self, device, index):
         """Test one startup device and publish its final state even after an error."""
@@ -69,11 +70,12 @@ class DeviceRunner:
 
     def _run_targets(self, mobile, result):
         agent = self.agent_factory()
+        reviewer = self.reviewer_factory() if self.reviewer_factory else None
         for build in self.context["builds"]:
             if build["platform"] == mobile.device["platform"]:
                 with self._operation("Execute target", mobile.device, build["target"]):
                     self.scenarios.run(
-                        mobile, build, result, agent, lambda: self.journal.publish(result)
+                        mobile, build, result, agent, lambda: self.journal.publish(result), reviewer=reviewer
                     )
 
     def _operation(self, name, device, target=""):

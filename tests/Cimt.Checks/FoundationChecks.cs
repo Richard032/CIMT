@@ -429,6 +429,7 @@ build:
 #!/usr/bin/env python3
 import sys,json,pathlib,os,time
 c=json.load(sys.stdin)
+assert c['protocolVersion']==1, 'host did not send worker protocol v1'
 if '--proposal' in sys.argv:
  report=pathlib.Path(c['report'])
  if os.environ.get('CIMT_FIXTURE_WAIT_FOR_INTERRUPT'):
@@ -444,7 +445,7 @@ if '--preflight' in sys.argv and os.environ.get('CIMT_FIXTURE_RETAINED_MARKER'):
  assert pathlib.Path(os.environ['CIMT_FIXTURE_RETAINED_MARKER']).exists(), 'retained work was deleted before cloning'
 if '--preflight' not in sys.argv:
  pathlib.Path(c['report'],'identity-probe.json').write_text(json.dumps({'runId':c['runId'],'workName':pathlib.Path(c['work']).name}))
- d={'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
+ d={'protocolVersion':1,'runId':c['runId'],'devices':[{'index':1,'device':{'platform':'android'},'error':None,'stoppingReason':None,'scenarios':[{'target':'ok','completion':'complete','crashes':[],'steps':[]}]}]}
  if os.environ.get('CIMT_FIXTURE_WAIT_FOR_INTERRUPT'):
   s=d['devices'][0]['scenarios'][0];s['completion']='incomplete';s['steps']=[{'action':'tap','observation':'Synthetic progress','observedOutcome':'No observed UI change'}]
   p=pathlib.Path(c['report'],'ui-results.json');p.write_text(json.dumps(d))

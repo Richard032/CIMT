@@ -10,9 +10,11 @@ from .controls import human_interface
 FIELDS = {
     "action": {
         "type": "string",
-        "enum": ["tap", "swipe", "text", "credential", "back", "wait", "restart", "recall", "recover", "done"],
+        "enum": ["tap", "swipe", "demo_tap", "demo_swipe", "show_gesture", "text", "credential", "back", "wait", "restart", "recall", "recover", "done"],
     },
     "ref": {"type": "string", "description": "Target UI ref. Credential entry needs this or valid x/y coordinates."},
+    "expectedRef": {"type": "string", "description": "Optional current element ref for demo commands. Draw its bounds and check whether the start point is inside."},
+    "gestureCommandId": {"type": "integer", "description": "Optional command ID for show_gesture. Omit to show the latest saved tap or swipe."},
     "text": {"type": "string"},
     "x": {"type": "integer"},
     "y": {"type": "integer"},
@@ -58,6 +60,19 @@ SYSTEM_PROMPT = (
     "commands, actual statuses, observation references, warnings, errors and cancelled commands. "
     "Read every step rather than assuming only the final screen matters. No separate acknowledgement call is added. "
     "Compare each observed app response with what you expected from your request. "
+    "Whenever a tap or swipe produces an unexpected app response, request show_gesture before retrying. "
+    "It returns the marked pre-action screenshot of the latest saved tap or swipe. Supply gestureCommandId "
+    "to inspect a specific command. Compare the marks with the intended control and the actual app response. "
+    "Use demo_tap or demo_swipe to check a corrected gesture before dispatch. A demo marks the start and, "
+    "for a swipe, the path and endpoint on a "
+    "screenshot without sending any input. Send the demo by itself, inspect the returned image, and then "
+    "choose the real action. Use the same target and direction arguments as tap or swipe. Demo_swipe needs "
+    "an explicit target and distance. A ref marks the center of its bounds. For a visible feature inside a "
+    "larger control, use absolute device x/y for the feature itself. Check your point against the control's "
+    "bounds. For a coordinate demo, also provide expectedRef for the intended control when available. "
+    "Use the returned inside/outside feedback before interpreting the image. Read the blue coordinate grid to correct a missed start. Send uncertain gestures one at a time. "
+    "If the current value stays the same and the marker missed the target, revise the starting coordinates "
+    "and inspect a new demo before trying another real gesture. "
     "If it differs, review the preceding steps and actual feedback, reconsider whether your action "
     "and target were appropriate, and try a corrected action when supported by the evidence and test goal. "
     "Do not repeat an ineffective action without a reason. If the evidence indicates an app defect "
@@ -179,6 +194,9 @@ SYSTEM_PROMPT = (
     "Do not classify all generic views as clickable. Use configuration ONLY for values already visible on the CURRENT screen: "
     "ref, setting name, and an exact value/text/label or checked/selected true/false. Never predict a configuration result. "
     "Last-observed configuration is context, not proof it still applies or persists after restart. "
+    "Android only: use sample_memory for a read-only measurement of the tested app with no device arguments. "
+    "Read its PID, total PSS and total RSS in actionFeedback. Compare samples from the same PID at comparable "
+    "checkpoints. A failed sample supplies no memory result. "
     "Use restart to terminate and relaunch ONLY the tested app without clearing data when the testing task needs it. "
     "Use pathDecisions to classify known paths as in scope, out of scope, or blocked, with task ID and explanation "
     "based on instructions/requirements. Use the bounded map and return routes to inspect pending paths; "
@@ -218,8 +236,8 @@ SYSTEM_PROMPT = (
     "Start timing only from the actual action specified by the test. Do not stop blocked while the next required action is available. "
     "Omitted earlier records are unknown; use recall if needed. "
     "Earlier refs can expire and must be verified on the current screen. "
-    "humanInterface lists controls detected in the current UI tree, including hidden and disabled controls. "
-    "Elements with automation identifiers are included as interactive targets. "
+    "humanInterface lists possible UI targets from the current UI tree, including hidden and disabled elements. Their type and identifier do not limit them to one action or prove they are interactive. Choose an action from the instructions and evidence, then check the result. "
+    "When the task or screen evidence suggests selection, you may tap a visible item even if it does not look like a button, such as a label, text field, list item, or image. Do not assume an item is selected merely because it is displayed; tap it when required and verify the result before continuing. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
     "The screenshot also contains observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "
@@ -259,6 +277,7 @@ class ActionPromptBuilder:
         historical_images = (exploration_memory or {}).get('historicalImages', [])
         state = self.state(instructions, requirements, setup, elements, screenshot, history,
             aliases, coverage, requirement_results, resource_feedback, exploration_memory)
+        preview = (exploration_memory or {}).get('gesturePreview')
         body = {
             "model": self.model,
             "store": False,
@@ -268,7 +287,7 @@ class ActionPromptBuilder:
             "reasoning": {"effort": "low"},
             "input": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                self._screen_message(state, screenshot, historical_images),
+                self._screen_message(state, screenshot, historical_images, preview),
             ],
         }
         return body
@@ -276,18 +295,22 @@ class ActionPromptBuilder:
     @staticmethod
     def state(instructions, requirements, setup, elements, screenshot, history, aliases, coverage,
               requirement_results=None, resource_feedback=None, exploration_memory=None):
-        """Assemble the same state for capacity checks and provider requests."""
+        """Assemble mandatory evidence and AI-selected context."""
         memory = dict(exploration_memory or {})
         memory.pop('historicalImages', None)
         memory.pop('conversation', None)
+        memory.pop('gesturePreview', None)
+        platform = memory.pop('devicePlatform', None)
         batch_feedback = memory.pop('batchFeedback', [])
         current_warnings = memory.pop('currentWarnings', [])
         selected = 'selectedActions' in memory
+        catalogue = requirement_results or []
+        selected_requirements = memory.pop('selectedRequirements') if selected else catalogue
         state = {
             "instructions": instructions,
-            # Catalogue entries already contain all source text. Avoid sending it twice.
-            "requirements": "" if requirement_results else requirements,
-            "requirementResults": memory.pop('selectedRequirements') if selected else requirement_results or [],
+            # Only a complete catalogue can stand in for the source requirements.
+            "requirements": "" if catalogue and len(selected_requirements) == len(catalogue) else requirements,
+            "requirementResults": selected_requirements,
             "setup": setup,
             "elements": [element for element in elements if element.get("type") == "CimtScreenInfo"],
             "humanInterface": human_interface(elements),
@@ -305,7 +328,10 @@ class ActionPromptBuilder:
             expected='Saving shows a confirmation', observed='The confirmation appeared after saving',
             reason='', instructionQuote='')
         state['commandResources'] = {
-            'actions': ['tap', 'text', 'credential', 'swipe', 'back', 'wait', 'restart', 'recall', 'recover', 'done'],
+            'actions': list(FIELDS['action']['enum']),
+            'showGestureExample': dict(action='show_gesture'),
+            'demoTapExample': dict(action='demo_tap', x=120, y=200),
+            'demoSwipeExample': dict(action='demo_swipe', x=120, y=200, direction='right', distance=50, durationMs=700),
             'arguments': FIELDS,
             'contextExample': dict(action='tap', ref='<chosen current control ref>',
                 context=dict(summary='Observed progress and next unfinished step', includeAll=[], records=[])),
@@ -318,10 +344,17 @@ class ActionPromptBuilder:
             ]),
             'notes': 'Plan, checks, context and recovery fields are optional AI-owned records, not permission to act.',
         }
+        if platform == 'android':
+            resources = state['commandResources']
+            resources['actions'].append('sample_memory')
+            resources['arguments'] = dict(FIELDS, action=dict(FIELDS['action'],
+                enum=[*FIELDS['action']['enum'], 'sample_memory']))
+            resources['memorySampleExample'] = dict(
+                action='sample_memory', observation='Sample app memory at the checkpoint')
         return state
 
     @staticmethod
-    def _screen_message(state, screenshot, historical_images=None):
+    def _screen_message(state, screenshot, historical_images=None, preview=None):
         """Pair the redacted UI data with its already masked screenshot."""
         message = {
             "role": "user",
@@ -333,6 +366,12 @@ class ActionPromptBuilder:
                 },
             ],
         }
+        if preview:
+            message['content'].extend([
+                dict(type='input_text', text=preview['description']),
+                dict(type='input_image', image_url='data:image/png;base64,'
+                     + base64.b64encode(preview['image']).decode()),
+            ])
         for historical in historical_images or []:
             caption = 'Selected historical screenshot ' + str(historical['id']) + '; not the current screen.'
             message['content'].append(dict(type='input_text', text=caption))

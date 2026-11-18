@@ -21,6 +21,8 @@ from scenario import ScenarioSession
 from evidence import ScenarioEvidence
 from actions import ActionExecutor
 from agent import Agent
+from ai_services import AiServices
+from result_review.critic import CompletionCritic
 from device_adapter.app_lifecycle import AppLifecycle
 from budget import Budget
 from coverage_tracker import CoverageTracker
@@ -129,11 +131,11 @@ class FakeAgent:
         self.actions = iter(actions)
         self.calls = []
 
-    def choose(self, *arguments):
-        self.calls.append(arguments)
+    def decide(self, request):
+        self.calls.append(request.arguments())
         return next(self.actions)
 
-    def review_completion(self, evidence):
+    def review(self, request):
         return {'decision': 'agree', 'feedback': 'Evidence supports the proposed result.'}
 
 
@@ -255,7 +257,7 @@ class ConfiguredModelTests(unittest.TestCase):
                 agent = Agent({"ai-model": {"name": model, "api-key": "synthetic"}},
                               budget, time.time() + 30,
                               transport=SimpleNamespace(request=lambda path: calls.append(path)))
-                agent.check_access()
+                agent.services.check_access()
                 self.assertEqual(calls, ["models/" + model])
                 self.assertEqual(budget.requests, 0)
 
@@ -270,7 +272,7 @@ class ConfiguredModelTests(unittest.TestCase):
                       Budget("gpt-5.6-luna", 1, "USD"), time.time() + 30,
                       transport=SimpleNamespace(request=denied))
         with self.assertRaises(InfrastructureError):
-            agent.check_access()
+            agent.services.check_access()
         self.assertEqual(calls, ["models/gpt-5.6-luna"])
 
     def test_inference_uses_luna_with_the_priced_cache_lifetime(self):
@@ -292,6 +294,44 @@ class ConfiguredModelTests(unittest.TestCase):
         agent.choose("Explore", "", "", [], b"masked", [], [], {})
         self.assertEqual(transport.bodies[0]["model"], MODEL)
         self.assertNotIn("prompt_cache_options", transport.bodies[0])
+
+    def test_custom_budget_factory_is_shared_with_execution(self):
+        made = []
+
+        def make_budget(model, amount, currency):
+            budget = Budget(model, amount, currency)
+            made.append(budget)
+            return budget
+
+        with tempfile.TemporaryDirectory() as folder:
+            config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                      "ai-budget": {"amount": 1, "currency": "USD"}}
+            execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                  budget_factory=make_budget)
+            self.assertIs(execution.budget, made[0])
+            self.assertIs(execution._agent().services.budget, made[0])
+            self.assertIs(execution._reviewer().service.budget, made[0])
+
+    def test_preflight_checks_selected_agent_without_openai_methods(self):
+        calls = []
+
+        class IndependentAgent:
+            __slots__ = ()
+
+            def check_access(self):
+                calls.append('ready')
+
+            def decide(self, request):
+                return action()
+
+        with tempfile.TemporaryDirectory() as folder:
+            config = {"ai-model": {"name": MODEL, "api-key": "synthetic"},
+                      "ai-budget": {"amount": 1, "currency": "USD"}}
+            execution = Execution({"config": config, "report": folder, "deadline": time.time() + 30},
+                                  agent_factory=IndependentAgent)
+            with patch("run_ui.shutil.which", return_value="/tools/executable"), redirect_stdout(io.StringIO()):
+                self.assertEqual(execution.run(preflight=True), 0)
+        self.assertEqual(calls, ['ready'])
 
     def test_preflight_reports_and_journals_the_configured_model(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -326,6 +366,34 @@ class ConfiguredModelTests(unittest.TestCase):
                         execution.run(preflight=True)
                 self.assertEqual(calls, [])
                 self.assertFalse(pathlib.Path(folder, "devices").exists())
+
+
+class AndroidMemoryTests(unittest.TestCase):
+    def test_ai_memory_command_exposes_device_measurement_in_action_feedback(self):
+        mobile = SimpleNamespace(device={'platform': 'android'}, readiness=lambda: None,
+                                 sample_memory=lambda: (123, 512, 1024))
+        executor = ActionExecutor({}, Redactor({}), float('inf'))
+        self.assertEqual(executor.execute(mobile, action('sample_memory'), []),
+                         'Android app memory: PID 123, total PSS 512 KiB, total RSS 1024 KiB.')
+
+    def test_reads_only_the_tested_process_and_reports_pss_and_rss(self):
+        from device_adapter.status import DeviceStatus
+        calls = []
+
+        def run(arguments, **options):
+            calls.append(arguments)
+            return SimpleNamespace(returncode=0, stdout=(
+                "** MEMINFO in pid 12 [fixture.app:background] **\n"
+                "TOTAL PSS: 99 TOTAL RSS: 100 TOTAL SWAP PSS: 1\n"
+                "** MEMINFO in pid 34 [fixture.app] **\n"
+                "TOTAL PSS: 512 TOTAL RSS: 1024 TOTAL SWAP PSS: 10\n"))
+
+        commands = SimpleNamespace(device=dict(platform='android', id='emulator-5554', type='emulator'),
+                                   context={'deadline': float('inf')}, native=None, run_command=run)
+        status = DeviceStatus(commands, None)
+
+        self.assertEqual(status.sample_memory('fixture.app'), (34, 512, 1024))
+        self.assertEqual(calls, [['adb', '-s', 'emulator-5554', 'shell', 'dumpsys', 'meminfo', '-s', 'fixture.app']])
 
 
 class WaitActionTests(unittest.TestCase):
@@ -852,10 +920,35 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(row['targetType'], 'Button')
         self.assertIsNotNone(row['decisionObservedAt'])
 
-    def test_critic_request_is_recorded_with_the_decision(self):
-        agent, _, transport = api_agent([action()])
+    def test_independent_agent_needs_only_decide_and_uses_separate_reviewer(self):
+        class OtherAgent:
+            __slots__ = ()
+
+            def decide(self, request):
+                self_request.append(request)
+                return action()
+
+        self_request = []
+        class IndependentReviewer:
+            __slots__ = ()
+
+            def review(self, request):
+                return dict(decision='agree', feedback=request.evidence['instructions'])
+
+        reviewer = IndependentReviewer()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result,
+                        OtherAgent(), lambda: None, reviewer=reviewer)
+        self.assertEqual(self_request[0].instructions, 'Explore buttons')
+        self.assertEqual(result['scenarios'][0]['completionReview']['decision'], 'agree')
+        self.assertEqual(result['scenarios'][0]['completion'], 'complete')
+
+    def test_critic_request_is_recorded_with_the_decision(self):
+        agent, budget, transport = api_agent([action()])
+        reviewer = CompletionCritic(AiServices({"ai-model": {"name": MODEL, "api-key": "synthetic"}},
+                              budget, time.time() + 30, transport=transport))
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=reviewer)
         records = result['scenarios'][0]['aiRequests']
         self.assertEqual([row['kind'] for row in records], ['decision', 'completion critic'])
         self.assertEqual([row['status'] for row in records], ['completed', 'completed'])
@@ -868,13 +961,13 @@ class ScenarioTests(unittest.TestCase):
                 super().__init__([action(), action()])
                 self.reviews = []
 
-            def review_completion(self, evidence):
-                self.reviews.append(evidence)
+            def review(self, request):
+                self.reviews.append(request.evidence)
                 return dict(decision='revise', feedback='Only one submission has evidence.')
 
         agent = RevisingAgent()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=agent)
         scenario = result['scenarios'][0]
         self.assertEqual(len(agent.reviews), 1)
         self.assertEqual(len(agent.calls), 2)
@@ -888,25 +981,26 @@ class ScenarioTests(unittest.TestCase):
                 super().__init__([action(completion='blocked', checks=[])])
                 self.reviews = []
 
-            def review_completion(self, evidence):
-                self.reviews.append(evidence)
+            def review(self, request):
+                self.reviews.append(request.evidence)
                 return dict(decision='agree', feedback='The remaining work is blocked.')
 
         agent = ReviewingAgent()
         result = {'scenarios': []}
-        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None)
+        self.runner.run(FakeMobile(self.root, elements=[]), self.build, result, agent, lambda: None, reviewer=agent)
         self.assertEqual(len(agent.reviews), 1)
         self.assertEqual(agent.reviews[0]['proposed']['completion'], 'blocked')
         self.assertEqual(result['scenarios'][0]['completion'], 'incomplete')
 
     def test_critic_unavailable_accepts_the_actor_stop(self):
         class UnavailableAgent(FakeAgent):
-            def review_completion(self, evidence):
+            def review(self, request):
                 raise InfrastructureError('Critic unavailable')
 
         result = {'scenarios': []}
+        actor = FakeAgent([action()])
         self.runner.run(FakeMobile(self.root, elements=[]), self.build, result,
-                        UnavailableAgent([action()]), lambda: None)
+                        actor, lambda: None, reviewer=UnavailableAgent([]))
         self.assertEqual(result['scenarios'][0]['completionReview']['decision'], 'unavailable')
         self.assertEqual(result['scenarios'][0]['completion'], 'complete')
 
@@ -917,7 +1011,7 @@ class ScenarioTests(unittest.TestCase):
                 reason='This control is unrelated to the configured testing objective', planStepId=0)])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose, review_completion=lambda evidence: dict(decision="agree", feedback="Supported")), lambda: None)
+        self.runner.run(mobile, self.build, result, SimpleNamespace(decide=lambda request: choose(*request.arguments())), lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['completion'], 'complete')
         self.assertEqual(scenario['coverage']['outstandingObservedControls'], 1)
@@ -1123,7 +1217,7 @@ class ScenarioTests(unittest.TestCase):
         agent, budget, _ = api_agent(['AI working note'] * 4 + [action('tap', ref='@e1'), action()])
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
-        self.runner.run(mobile, self.build, result, agent, lambda: None)
+        self.runner.run(mobile, self.build, result, agent, lambda: None, reviewer=CompletionCritic(agent.services))
         self.assertEqual(budget.requests, 7)
         self.assertEqual(len([name for name, _ in mobile.calls if name.startswith('mobile_click')]), 1)
         self.assertEqual(result['scenarios'][0]['decisions'][0]['response']['modelResponse'], 'AI working note')
@@ -1405,7 +1499,7 @@ class ScenarioTests(unittest.TestCase):
         mobile = FakeMobile(self.root)
         result = {'scenarios': []}
         with self.assertRaisesRegex(LimitReached, 'User interrupted'):
-            self.runner.run(mobile, self.build, result, SimpleNamespace(choose=choose), lambda: None)
+            self.runner.run(mobile, self.build, result, SimpleNamespace(decide=lambda request: choose(*request.arguments())), lambda: None)
         scenario = result['scenarios'][0]
         self.assertEqual(scenario['recoveries'][0]['status'], 'waiting')
         self.assertTrue(scenario['remaining'])
@@ -1572,6 +1666,103 @@ class ScenarioTests(unittest.TestCase):
         self.assertIn('Wait accepts only durationMs', request['resourceFeedback'])
         self.assertFalse(any(name.startswith('mobile_click') for name, _ in mobile.calls))
 
+    def test_demo_swipe_returns_marked_screen_without_executing_the_batch_tail(self):
+        from PIL import Image
+        from screenshot_image import ScreenshotImage
+
+        batch = [action('demo_swipe', ref='@wheel', direction='down', distance=35, durationMs=1000),
+                 action('tap', ref='@wheel')]
+        agent, _, transport = api_agent([batch, action()])
+        mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (402, 874), 'white'))
+        mobile.snapshot = lambda: (mobile.elements, screenshot)
+        result = {'scenarios': []}
+
+        self.runner.run(mobile, self.build, result, agent, lambda: None)
+
+        scenario = result['scenarios'][0]
+        step = scenario['steps'][1]
+        self.assertFalse(step['actionDispatched'])
+        self.assertNotIn('adapterCall', step)
+        self.assertIn('(201, 766)', step['actionFeedback'])
+        self.assertIn('(201, 801)', step['actionFeedback'])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertEqual(scenario['commandQueue']['commands'][1]['status'], 'not executed')
+        content = transport.bodies[1]['input'][-1]['content']
+        images = [part['image_url'] for part in content if part['type'] == 'input_image']
+        self.assertEqual(len(images), 2)
+        self.assertNotEqual(images[0], images[1])
+        self.assertEqual(scenario['aiRequests'][1]['images'][1], step['screenshot'])
+
+    def test_show_gesture_returns_pre_action_tap_image_after_screen_changes(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        tap = action('tap', x=30, y=65)
+        before = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'white'))
+        after = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'blue'))
+        mobile = FakeMobile(self.root)
+        mobile.snapshot = lambda: (mobile.elements, after if any(
+            name.startswith('mobile_click') for name, _ in mobile.calls) else before)
+        result, agent = self.run_scenario(mobile, [tap, action('show_gesture'), action()])
+
+        preview = agent.calls[2][-1]['gesturePreview']
+        self.assertEqual(preview['image'], GesturePreview.render(
+            tap, mobile.elements, before, recorded=True)['image'])
+        self.assertEqual(agent.calls[2][4], after)
+        self.assertIn('Gesture command 0', preview['description'])
+        self.assertEqual(result['steps'][1]['gesturePreviewScreenshot'], result['steps'][2]['screenshot'])
+        self.assertEqual([name for name, _ in mobile.calls], ['reset', 'mobile_click_on_screen_at_coordinates'])
+
+    def test_demo_tap_marks_the_requested_point_in_scaled_screenshot_pixels(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (200, 400), 'white'))
+        result = GesturePreview.render(action('demo_tap', x=20, y=65), [SIZE], screenshot)
+
+        self.assertIn('(20, 65)', result['description'])
+        image = ScreenshotImage.decode(result['image'])
+        marker = (255, 39, 91)
+        self.assertTrue(all(image.getpixel((50, y)) == marker for y in range(126, 136)))
+        self.assertEqual(image.getpixel((20, 65)), (0, 114, 186))
+
+    def test_demo_swipe_path_is_at_least_ten_pixels_thick(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        screen = dict(type='CimtScreenInfo', screenWidth=360, screenHeight=240)
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (360, 240), 'white'))
+        preview = GesturePreview.render(action('demo_swipe', x=80, y=100, direction='right',
+            distance=200), [screen], screenshot)
+
+        image = ScreenshotImage.decode(preview['image'])
+        self.assertTrue(all(image.getpixel((160, y)) == (255, 39, 91) for y in range(96, 106)))
+
+    def test_demo_reports_when_start_misses_expected_control_bounds(self):
+        from PIL import Image
+        from gesture_preview import GesturePreview
+        from screenshot_image import ScreenshotImage
+
+        control = dict(ref='@slider', coordinates=dict(x=10, y=80, width=80, height=20))
+        screenshot = ScreenshotImage.encode(Image.new('RGB', (100, 200), 'white'))
+        preview = GesturePreview.render(action('demo_swipe', x=30, y=60, direction='right',
+            distance=20, expectedRef='@slider'), [SIZE, control], screenshot)
+
+        self.assertIn('OUTSIDE expectedRef @slider', preview['description'])
+        self.assertIn('y from 80 to 100', preview['description'])
+
+    def test_demo_swipe_reports_offscreen_endpoint_without_executing(self):
+        mobile = FakeMobile(self.root)
+        scenario, _ = self.run_scenario(mobile, [
+            action('demo_swipe', x=5, y=20, direction='left', distance=10), action()])
+
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
+        self.assertIn('endpoint is outside', scenario['commandQueue']['commands'][0]['reason'])
+
     def test_timed_swipe_call_and_duration_reach_next_ai_batch_feedback(self):
         agent, _, transport = api_agent([action('swipe', ref='@wheel', direction='down', distance=35, durationMs=1000), action()])
         mobile = FakeMobile(self.root, elements=[SWIPE_WHEEL, SWIPE_SCREEN])
@@ -1625,7 +1816,7 @@ class StopThenReportFailure:
     def __init__(self, control):
         self.control = control
 
-    def choose(self, *arguments):
+    def decide(self, request):
         self.control.stop()
         return action(checks=[check("failed")], remaining=["Check other buttons"])
 

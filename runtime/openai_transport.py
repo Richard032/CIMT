@@ -30,6 +30,21 @@ class OpenAiTransport:
             urllib.request.HTTPSHandler(context=context), NoRedirect()
         )
 
+    def count_input_tokens(self, body):
+        """Count the same model input, including images and message formatting."""
+        # Count accepts input fields, not generation options such as max_output_tokens.
+        fields = ('model', 'input', 'instructions', 'reasoning', 'text', 'tools', 'tool_choice',
+                  'parallel_tool_calls', 'conversation', 'previous_response_id', 'truncation')
+        payload = {field: body[field] for field in fields if field in body}
+        try:
+            response = self.request("responses/input_tokens", payload)
+        except InfrastructureError as error:
+            raise InfrastructureError("Could not count provider input tokens: " + str(error)) from None
+        count = response.get("input_tokens") if isinstance(response, dict) else None
+        if type(count) is not int or count < 0:
+            raise InfrastructureError("Provider returned an invalid input token count")
+        return count
+
     def request(self, path, body=None):
         """Send one bounded HTTPS request and keep error messages free of private input."""
         remaining = self.deadline - self.clock()
@@ -48,17 +63,6 @@ class OpenAiTransport:
             raise InfrastructureError(
                 "OpenAI API transport/response failed: " + type(error).__name__
             ) from None
-
-    def count_input_tokens(self, body):
-        """Count the same text and image input before reserving generation costs."""
-        fields = ('model', 'input', 'instructions', 'tools', 'tool_choice', 'text',
-                  'reasoning', 'truncation')
-        result = self.request('responses/input_tokens',
-                              {key: body[key] for key in fields if key in body})
-        count = result.get('input_tokens') if isinstance(result, dict) else None
-        if type(count) is not int or count < 0:
-            raise InfrastructureError('OpenAI returned an invalid input token count')
-        return count
 
     def _create_request(self, path, body):
         data = None if body is None else json.dumps(body).encode()
