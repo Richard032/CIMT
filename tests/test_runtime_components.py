@@ -1479,6 +1479,40 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(state['recentActions'][0]['result'], 'No observed UI change after the action')
         self.assertEqual(state['recentActions'][0]['controlLabel'], 'Open')
 
+    def test_decision_screen_reference_recalls_elements_and_critic_keeps_the_full_ledger(self):
+        def state(body):
+            return json.loads(body['input'][-1]['content'][0]['text'])
+
+        def commands():
+            yield action('tap', ref='@e1', context=dict(summary='', includeAll=[], records=[]))
+            yield action('recall', context=dict(summary='', includeAll=[], records=[
+                dict(collection='observations', id=screen_reference()['uiObservation'])]))
+            yield action()
+
+        def screen_reference():
+            memory = state(transport.bodies[1])['explorationMemory']
+            return memory['evidenceLedger']['recordedEvidence']['recentScreens'][0]
+
+        agent, _, transport = api_agent(commands())
+        result = {'scenarios': []}
+
+        self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None,
+                        reviewer=CompletionCritic(agent.services))
+
+        reference = screen_reference()
+        self.assertEqual(set(reference), {'step', 'observedAt', 'observation', 'uiObservation'})
+        fresh = transport.bodies[1]['input'][-1]['content']
+        self.assertEqual(fresh[1]['type'], 'input_image')
+        self.assertEqual(state(transport.bodies[1])['humanInterface'][0]['label'], 'Open')
+        recalled = state(transport.bodies[2])['explorationMemory']['selectedObservations']
+        self.assertEqual(recalled[0]['id'], reference['uiObservation'])
+        self.assertEqual(recalled[0]['elements'][0]['label'], 'Open')
+        critic_ledger = state(transport.review_bodies[0])['ledger']
+        self.assertEqual(critic_ledger['recordedEvidence']['recentScreens'][0]['elements'][0]['label'], 'Open')
+        report_ledger = result['scenarios'][0]['evidenceLedger']
+        self.assertEqual(critic_ledger['recordedEvidence']['recentScreens'],
+                         report_ledger['recordedEvidence']['recentScreens'])
+
     def test_recall_updates_ai_context_without_touching_the_device(self):
         recall = action('recall', context=dict(summary='Remember the first observation', includeAll=['tasks'], records=[]))
         result, agent = self.run_scenario(FakeMobile(self.root, elements=[]), [recall, action()])

@@ -48,7 +48,7 @@ class EvidenceLedger:
             elements = observation.get('elements', [])
             fields = ('identifier', 'type', 'label', 'text', 'visible', 'enabled')
             screens.append(dict(step=event.get('step'), observedAt=event.get('observedAt'),
-                observation=event['observation'],
+                observation=event['observation'], uiObservation=reference['uiObservation'],
                 elements=[{key: deepcopy(row[key]) for key in fields if key in row}
                           for row in elements[:self.MAX_ELEMENTS]],
                 omittedElements=max(0, len(elements) - self.MAX_ELEMENTS)))
