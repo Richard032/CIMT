@@ -109,6 +109,8 @@ class ScriptedTransport:
             value = next(self.responses)
         if isinstance(value, Exception):
             raise value
+        if isinstance(value, dict) and 'output' in value and 'status' in value:
+            return value
         return {
             "status": "completed",
             "usage": {"input_tokens": 10, "output_tokens": 10},
@@ -565,6 +567,47 @@ class ScenarioTests(unittest.TestCase):
         ])
 
         self.assertEqual(result['steps'][1]['observation'], explanation)
+
+    def test_registered_memory_tool_uses_normal_scenario_execution(self):
+        class MemoryMobile(FakeMobile):
+            def sample_memory(self):
+                return 123, 512, 1024
+
+        tool_call = dict(type='function_call', name='sample_memory', call_id='call_sample',
+                         arguments='{"observation":"Take the baseline."}')
+        provider_reply = dict(status='completed', usage=dict(input_tokens=10, output_tokens=10),
+                              output=[tool_call])
+        agent, _, transport = api_agent([provider_reply, action(completion='blocked')])
+        result = {'scenarios': []}
+
+        self.runner.run(MemoryMobile(self.root), self.build, result, agent, lambda: None)
+
+        steps = result['scenarios'][0]['steps']
+        self.assertEqual(steps[1]['action']['action'], 'sample_memory')
+        tool_result = next(item for item in transport.bodies[1]['input']
+                           if item.get('type') == 'function_call_output')
+        self.assertEqual(tool_result['call_id'], 'call_sample')
+        self.assertEqual(json.loads(tool_result['output'])['actionFeedback'],
+                         'Android app memory: PID 123, total PSS 512 KiB, total RSS 1024 KiB.')
+
+    def test_rejected_tool_keeps_original_arguments_redacted_in_report(self):
+        secret = 'fixture "private" value'
+        self.redactor = Redactor(dict(credentials={'fixture': {'password': secret}}))
+        mobile = FakeMobile(self.root)
+        call = dict(type='function_call', name='show_gesture', call_id='call_bad',
+                    arguments=json.dumps(dict(gestureCommandId='4', observation=secret)))
+        response = dict(status='completed', usage=dict(input_tokens=10, output_tokens=10), output=[call])
+        agent, _, _ = api_agent([response, action(completion='blocked')])
+        result = {'scenarios': []}
+
+        self.create_runner().run(mobile, self.build, result, agent, lambda: None)
+
+        rejected = result['scenarios'][0]['decisions'][0]['response']
+        self.assertEqual(rejected['action'], 'note')
+        header, arguments = rejected['modelResponse'].splitlines()
+        self.assertEqual(json.loads(header)['call_id'], 'call_bad')
+        self.assertEqual(json.loads(arguments), dict(gestureCommandId='4', observation='<redacted>'))
+        self.assertEqual([name for name, _ in mobile.calls], ['reset'])
 
     def test_one_ai_reply_executes_multiple_commands_in_received_order(self):
         batch = ''.join(json.dumps(value) for value in [action('tap', ref='@one'), action('back'), action()])

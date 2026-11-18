@@ -12,9 +12,11 @@ class CommandQueue:
         self.pending = deque()
         self.current = None
         self.next_batch = 0
+        self.tool_call = None
 
     def add(self, reply):
         first = dict(reply)
+        self.tool_call = first.pop('toolCall', None)
         commands = [first] + first.pop('queuedCommands', [])
         for position, action in enumerate(commands):
             row = dict(id=len(self.records), batchId=self.next_batch, position=position,

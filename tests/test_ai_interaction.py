@@ -205,6 +205,7 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual([url.rsplit('/v1/', 1)[1] for url, _ in calls], ['responses/input_tokens', 'responses'])
         count_payload, inference = (body for _, body in calls)
         self.assertEqual(count_payload['input'], inference['input'])
+        self.assertEqual(count_payload['tools'], inference['tools'])
         self.assertEqual(count_payload['model'], inference['model'])
         self.assertNotIn('max_output_tokens', count_payload)
         self.assertEqual(inference['max_output_tokens'], 2048)
@@ -212,6 +213,123 @@ class AiInteractionTests(unittest.TestCase):
         self.assertEqual((request['countedInputTokens'], request['outputTokens']), (1000, 700))
         self.assertEqual(request['estimatedReservation'], '0.00075')
         self.assertNotIn('reservedOutputTokens', request)
+
+    def test_sdk_tool_registers_and_returns_the_observed_memory_sample_to_the_model(self):
+        agent, _, transport = api_agent([action()])
+        requests = []
+        original_request = transport.request
+        provider_call = dict(type='function_call', name='sample_memory', call_id='call_memory',
+                             arguments='{"observation":"Measure the app."}')
+        reasoning = dict(type='reasoning', id='rs_sample', summary=[], encrypted_content='opaque-encrypted-data')
+
+        def request(path, body):
+            requests.append(body)
+            if len(requests) == 1:
+                return dict(status='completed', usage=dict(input_tokens=10, output_tokens=10),
+                            output=[reasoning, provider_call])
+            return original_request(path, body)
+
+        transport.request = request
+        choose = lambda: self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        reply = choose()
+        self.assertEqual(reply['action'], 'sample_memory')
+        tools = {tool['name']: tool for tool in requests[0]['tools']}
+        self.assertIn('sample_memory', tools)
+        self.assertIn('swipe', tools)
+        self.assertFalse(requests[0]['parallel_tool_calls'])
+
+        queue, feedback = self.session.commands, self.session.feedback
+        queue.add(reply)
+        feedback.start(0)
+        queue.take()
+        feedback.take(queue.current)
+        feedback.finish(queue.finish('executed', step=1), action_feedback='Android app memory: PID 123')
+
+        choose()
+
+        sent_reasoning, sent_call, sent_result = requests[1]['input'][1:4]
+        self.assertEqual(sent_reasoning, reasoning)
+        self.assertEqual(sent_call['call_id'], provider_call['call_id'])
+        self.assertEqual(sent_result['call_id'], sent_call['call_id'])
+        self.assertEqual(sent_result['type'], 'function_call_output')
+        self.assertEqual(json.loads(sent_result['output'])['actionFeedback'], 'Android app memory: PID 123')
+        saved = self.root / self.session.result['aiRequests'][1]['requestPath']
+        self.assertNotIn(reasoning['encrypted_content'], saved.read_text())
+
+    def test_sdk_rejects_undeclared_tool_arguments(self):
+        agent, _, transport = api_agent([])
+        transport.request = lambda path, body: dict(status='completed',
+            usage=dict(input_tokens=10, output_tokens=10),
+            output=[dict(type='function_call', name='sample_memory', call_id='call_bad',
+                         arguments='{"observation":"Check memory","appId":"another.app"}')])
+
+        reply = self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        self.assertEqual(reply['action'], 'note')
+        self.assertIn('No device action was dispatched', reply['resourceFeedback'])
+
+    def test_sdk_rejects_invalid_tool_arguments_before_applying_defaults(self):
+        for name, arguments, reason in (
+            ('show_gesture', {'gestureCommandId': '4'}, 'gestureCommandId must be integer'),
+            ('text', {}, 'Missing required tool argument: text'),
+            ('wait', {'durationMs': True}, 'durationMs must be integer or null'),
+            ('tap', {'recovery': {'id': '4'}}, 'recovery is missing decision'),
+            ('tap', {'checks': [{'status': 'invented'}]}, 'checks item 0 does not match'),
+            ('tap', {'ref': '@e1', 'x': 500, 'y': 600}, 'either a target ref or both'),
+            ('tap', {}, 'either a target ref or both'),
+        ):
+            with self.subTest(tool=name):
+                agent, _, transport = api_agent([])
+                call = dict(type='function_call', name=name, call_id='call_bad',
+                            arguments=json.dumps(dict(arguments, observation='Continue the test.')))
+                transport.request = lambda path, body: dict(status='completed',
+                    usage=dict(input_tokens=10, output_tokens=10), output=[call])
+
+                reply = self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+                self.assertEqual(reply['action'], 'note')
+                self.assertIn(reason, reply['resourceFeedback'])
+                self.assertNotIn('toolCall', reply)
+
+    def test_sdk_device_tool_preserves_planning_checks_context_and_recovery(self):
+        agent, _, transport = api_agent([])
+        requests = []
+        check = dict(taskId=3, subject='Open settings', source='instructions', status='passed',
+                     expected='Settings opens', observed='Settings is visible', reason='Screen evidence',
+                     requirementId='', instructionQuote='')
+        recovery = dict(id=2, decision='replan', reason='Open the other menu.')
+        context = dict(summary='Settings is open.', includeAll=[], records=[])
+        arguments = dict(ref='@e1', observation='Continue from Settings.', planStepId=3,
+                         checks=[check], recovery=recovery, context=context)
+        native_call = dict(type='function_call', name='tap', call_id='call_plan',
+                           arguments=json.dumps(arguments))
+        def submit(path, body):
+            requests.append(body)
+            return dict(status='completed', usage=dict(input_tokens=10, output_tokens=10), output=[native_call])
+        transport.request = submit
+
+        reply = self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        self.assertEqual(reply['action'], 'tap')
+        for name, expected in arguments.items():
+            self.assertEqual(reply[name], expected)
+        state = json.loads(requests[0]['input'][-1]['content'][0]['text'])
+        tools = {tool['name']: tool['parameters'] for tool in requests[0]['tools']}
+        example = state['commandResources']['toolContextExample']
+        self.assertEqual(example['arguments']['context']['includeAll'], [])
+        self.assertEqual(example['arguments']['context']['records'], [])
+        self.assertEqual(tools['tap']['properties']['checks']['items']['properties'], {})
+        self.assertIn('anyOf', state['commandResources']['arguments']['checks']['items'])
+
+    def test_sdk_omits_android_only_tools_on_ios(self):
+        self.mobile.device['platform'] = 'ios'
+        agent, _, transport = api_agent([action()])
+
+        self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        tools = [tool['name'] for tool in transport.bodies[0]['tools']]
+        self.assertNotIn('sample_memory', tools)
+        self.assertNotIn('back', tools)
 
     def test_invalid_count_prevents_inference_even_when_budget_is_available(self):
         agent, budget, _ = api_agent([])

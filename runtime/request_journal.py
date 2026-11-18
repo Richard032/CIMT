@@ -24,6 +24,8 @@ class RequestJournal:
         images = []
         sections = {}
         for message in payload.get('input', []):
+            if message.get('type') == 'reasoning' and 'encrypted_content' in message:
+                message['encrypted_content'] = '<encrypted reasoning omitted>'
             content = message.get('content')
             if not isinstance(content, list):
                 continue

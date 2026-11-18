@@ -5,15 +5,18 @@ import asyncio
 from agents import Agent, Model, ModelRefusalError, ModelResponse, ModelRetrySettings, ModelSettings, RunConfig, Runner, Usage
 from openai.types.responses import ResponseOutputMessage, ResponseOutputRefusal, ResponseOutputText
 
+from agent_tools import ToolTurn
 from errors import InfrastructureError
 
 
 def run_turn(body, request):
     """Return the provider response so CIMT can handle status and command syntax."""
     instructions, *inputs = body["input"]
-    model = AuditedResponsesModel(body, request)
+    tool_turn = ToolTurn(body.get('tools', []))
+    model = AuditedResponsesModel(body, request, tool_turn)
     agent = Agent(
         name="CIMT", instructions=instructions["content"], model=model,
+        tools=tool_turn.sdk_tools(), tool_use_behavior='stop_on_first_tool',
         model_settings=ModelSettings(retry=ModelRetrySettings(max_retries=0)),
     )
     try:
@@ -22,15 +25,17 @@ def run_turn(body, request):
     except ModelRefusalError:
         # CIMT reports refusals without including the provider's refusal text.
         pass
-    return model.response
+    return (dict(model.response, cimtToolReply=tool_turn.reply)
+            if tool_turn.reply is not None else model.response)
 
 
 class AuditedResponsesModel(Model):
     """Give the SDK model output while retaining the original Responses record."""
 
-    def __init__(self, body, request):
+    def __init__(self, body, request, tool_turn):
         self.settings = {key: value for key, value in body.items() if key != "input"}
         self.request = request
+        self.tool_turn = tool_turn
         self.response = None
 
     async def get_response(self, system_instructions, input, model_settings, tools,
@@ -42,7 +47,7 @@ class AuditedResponsesModel(Model):
             raise InfrastructureError("OpenAI response was not an object")
         usage = self.response.get("usage") or {}
         return ModelResponse(
-            output=self._messages(),
+            output=self._messages() + self.tool_turn.output(self.response),
             usage=Usage(requests=1, input_tokens=usage.get("input_tokens", 0),
                         output_tokens=usage.get("output_tokens", 0)),
             response_id=self.response.get("id"),
