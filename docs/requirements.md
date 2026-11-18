@@ -471,6 +471,8 @@ After each run or retained-build replay, CIMT shall produce a reviewable proposa
 
 CIMT shall attempt one proposal after normal completion, failure or graceful cancellation using available inputs and partial evidence. The request uses the configured model, remaining shared budget and run time, interactive AI testing authorization when enabled, and existing redaction. If a request cannot complete, the file shall record the reason and include the available original instructions and setup. The proposal shall not change the test verdict. Proposal files and associated evidence are private until reviewed for sharing.
 
+The default OpenAI decision agent shall expose supported device commands as registered function tools. CIMT shall use the normal command queue and include the observed result with the next decision under the same tool call ID. Tool schemas and results shall be included in input token counting. Android-only tools shall be advertised only to Android workers. Existing JSON batches and completion commands remain supported.
+
 
 ### Dynamic request reservations
 

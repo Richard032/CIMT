@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from agent_tools import register_tools, tool_exchange
 from ai_instructions.instructions import ActionPromptBuilder
 from ai_services import AiServices
 from command_reply import read_reply
@@ -22,7 +23,8 @@ class Agent:
     def decide(self, request):
         """Produce a decision through the replaceable agent contract."""
         return self.choose(*request.arguments(), observer=request.request_observer,
-                           check_cancelled=request.check_cancelled, report_timing=request.report_timing)
+                           check_cancelled=request.check_cancelled, report_timing=request.report_timing,
+                           previous_tool_result=request.previous_tool_result)
 
     def choose(
         self,
@@ -37,7 +39,7 @@ class Agent:
         requirement_results=None,
         resource_feedback=None,
         exploration_memory=None,
-        *, observer=None, check_cancelled=None, report_timing=None,
+        *, observer=None, check_cancelled=None, report_timing=None, previous_tool_result=None,
     ):
         """Request one action through the SDK and shared budget."""
         body = self.prompts.build(
@@ -53,8 +55,12 @@ class Agent:
             resource_feedback,
             exploration_memory,
         )
-        retry_body = deepcopy(body)
         state = json.loads(body['input'][-1]['content'][0]['text'])
+        body['tools'] = register_tools((exploration_memory or {}).get('devicePlatform'))
+        body['parallel_tool_calls'] = False
+        body['include'] = ['reasoning.encrypted_content']
+        body['input'][-1:-1] = tool_exchange(previous_tool_result)
+        retry_body = deepcopy(body)
         kind = 'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision'
         response = self.services.send(body, kind, observer, check_cancelled=check_cancelled,
                                       report_timing=report_timing)
@@ -65,4 +71,4 @@ class Agent:
                 'Return a shorter response with only the next necessary commands and concise progress.')))
             response = self.services.send(retry_body, 'decision retry', observer,
                                           check_cancelled=check_cancelled, report_timing=report_timing)
-        return read_reply(response)
+        return response['cimtToolReply'] if 'cimtToolReply' in response else read_reply(response)

@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from copy import deepcopy
+import json
 from ai_instructions.context import InstructionContext
 from request_journal import RequestJournal
 from decision_agent import DecisionAgent, DecisionRequest
@@ -35,13 +36,31 @@ class AiInteraction:
         # Isolate agent context edits from live evidence; keep service hooks shared.
         request = DecisionRequest(*deepcopy(arguments), request_observer=observer, report_timing=report_timing,
                                   budget=self.budget, deadline=self.control.deadline,
-                                  check_cancelled=self.control.check)
+                                  check_cancelled=self.control.check,
+                                  previous_tool_result=self._previous_tool_result(session))
         with self._operation('AI action decision', mobile, session):
             reply = agent.decide(request)
         if reply.get('action') not in ('recall', 'note'):
             session.gesture_preview = None
         session.feedback.delivered()
         return reply
+
+    def _previous_tool_result(self, session):
+        call = session.commands.tool_call
+        if call is None:
+            return None
+        batches = session.feedback.pending()
+        if not batches:
+            return None
+        row = session.commands.records[-1]
+        event = next((event for event in batches[-1]['path'] if event.get('commandId') == row['id']), None)
+        if event is None:
+            return None
+        arguments = self.redactor.object(json.loads(call['arguments']))
+        call = dict(call, arguments=json.dumps(arguments, ensure_ascii=False))
+        result = {key: event[key] for key in ('status', 'step', 'observation', 'uiChange', 'error', 'actionFeedback')
+                  if key in event}
+        return call, self.redactor.object(result)
 
     def _operation(self, name, mobile, session):
         return (self.activity.operation(name, mobile.device, session.result['target'])
