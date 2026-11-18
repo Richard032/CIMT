@@ -42,6 +42,21 @@ class BudgetReservationTests(unittest.TestCase):
         self.assertEqual(budget.pending, reservations[0].estimated)
         self.assertEqual(budget.requests, 1)
 
+    def test_failed_journal_does_not_hold_budget_for_an_unsent_request(self):
+        budget = Budget(next(iter(PRICING)), '0.01', 'USD')
+
+        def fail_to_write():
+            raise OSError('Budget ledger is unavailable')
+
+        budget.journal = fail_to_write
+        with self.assertRaisesRegex(OSError, 'Budget ledger is unavailable'):
+            budget.reserve(10_000)
+
+        snapshot = budget.snapshot()
+        self.assertEqual(snapshot['requests'], 0)
+        self.assertEqual(Decimal(snapshot['pendingEstimatedCost']), 0)
+        self.assertEqual(Decimal(snapshot['pendingUpperCost']), 0)
+
     def test_inflight_estimate_restores_at_counted_input_plus_full_output_when_usage_unknown(self):
         budget = Budget(next(iter(PRICING)), '1', 'USD')
         request_one = budget.reserve(200)

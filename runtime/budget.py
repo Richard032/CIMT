@@ -120,7 +120,14 @@ class Budget:
             self.pending += reservation.estimated
             self.pending_maximum += reservation.maximum
             self.requests += 1
-        self.journal()
+        try:
+            self.journal()
+        except Exception:
+            # The request cannot be sent if its reservation could not be saved.
+            with self.lock:
+                self._release(reservation)
+                self.requests -= 1
+            raise
         return reservation
 
     def _request_cost(self, input_tokens):
