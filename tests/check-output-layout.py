@@ -25,6 +25,20 @@ def write_tools(installation):
         path = tools / name
         path.write_text("#!/bin/bash\nprintf '%b\\n' " + shlex.quote(reply) + "\n")
         path.chmod(0o700)
+    module = installation / "tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"
+    module.parent.mkdir(parents=True)
+    module.write_text("""
+module.exports.Mobilecli = class {
+    getDevices({ type }) {
+        const device = { id: 'fixture-device', platform: 'android', state: 'online', type: 'real' };
+        return { data: { devices: type === device.type ? [device] : [] } };
+    }
+
+    getPath() {
+        return '/fixture/mobilecli';
+    }
+};
+""".lstrip())
     (installation / "environment.sh").write_text(
         "export PATH=" + shlex.quote(str(tools)) + ':"$PATH"\n'
     )
