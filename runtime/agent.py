@@ -39,7 +39,7 @@ class Agent:
         exploration_memory=None,
         *, observer=None, check_cancelled=None, report_timing=None,
     ):
-        """Request one action after the shared budget has reserved its maximum cost."""
+        """Request one action through the SDK and shared budget."""
         body = self.prompts.build(
             instructions,
             requirements,
@@ -55,8 +55,7 @@ class Agent:
         )
         retry_body = deepcopy(body)
         state = json.loads(body['input'][-1]['content'][0]['text'])
-        kind = ('context selection' if 'contextSelectionRequired' in state else
-            'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision')
+        kind = 'recovery' if 'recoveryRequest' in state['explorationMemory'] else 'decision'
         response = self.services.send(body, kind, observer, check_cancelled=check_cancelled,
                                       report_timing=report_timing)
         details = response.get('incomplete_details')

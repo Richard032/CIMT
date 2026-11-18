@@ -88,9 +88,14 @@ class Budget:
             if 'pendingEstimatedCost' in snapshot:
                 estimated = Decimal(snapshot['pendingEstimatedCost'])
                 valid_pending = (estimated.is_finite() and 0 <= estimated <= pending <= pending_requests * self.bound)
+            elif 'pendingReservations' in snapshot:
+                # Earlier runs on main stored individual maximum reservations.
+                reservations = [Decimal(value) for value in snapshot['pendingReservations']]
+                valid_pending = (len(reservations) == pending_requests
+                                 and all(value.is_finite() and 0 <= value <= self.bound for value in reservations)
+                                 and sum(reservations, Decimal(0)) == pending)
             else:
-                # Old installations reserved a fixed model-wide amount per request.
-                valid_pending = pending == pending_requests * self.bound
+                valid_pending = pending_requests >= 0 and pending == pending_requests * self.bound
             if not valid_pending:
                 raise ValueError("The saved ledger contains invalid pending costs")
         except (KeyError, TypeError, ValueError, InvalidOperation):

@@ -41,9 +41,7 @@ Current UI evidence, execution scope, fixed permission/safety instructions and c
 
 ## Capacity and cost
 
-request_context.py limits the serialized selected-record package to 64 KiB. This is a technical byte allowance, not a token estimate or a relevance rule. When exceeded, the entire selected package is deferred and an explicit contextSelectionRequired request supplies the previous AI summary/selection and collection counts with current evidence. The AI can return recall with a smaller selection, act using available current evidence or finish blocked with remaining work. The notice does not veto a command. Source records remain available through exact/range retrieval; CIMT never chooses which records are relevant.
-
-Provider context limits still apply to the whole request, including mandatory inputs, the current screenshot and explicitly selected historical images. The 64 KiB allowance measures the selected text/record package, not pixel-token usage; it does not cap provider image-token charges. All selected image input remains covered by the existing full-context cost reservation. If mandatory source/evidence cannot fit or an API/transport operation fails, report the actual infrastructure/limit failure instead of silently trimming it. The byte allowance does not guarantee provider acceptance of arbitrary mandatory inputs.
+The selected history is sent without an automatic 64 KiB deferral. The AI can request individual records to keep its context focused. Provider context limits apply to the whole request, including source inputs, current evidence, and selected historical screenshots. If the request is too large or the provider fails, CIMT reports the actual failure rather than silently dropping selected records. All selected image input remains covered by the provider-counted input reservation.
 
 Supported pricing profiles with prompt-cache controls place an explicit cache breakpoint after stable system instructions. Actual reuse depends on provider eligibility and matching context; it is not assumed. Budget records input/output tokens and optional cached-token counts for each settled request. Missing cache details are unavailable, not zero. The conservative accounted spending bound continues to charge validated upper rates without relying on optional cache discounts. Context-selection and recovery requests use the same reservation/cancellation/deadline path as ordinary decisions.
 
@@ -99,7 +97,7 @@ sequenceDiagram
     loop Until complete, blocked, cancelled or limited
         Memory-->>Run: Exact AI-selected context and record counts
         Run->>Run: Check capacity, time and spending limits
-        Run->>AI: Instructions, masked evidence, selected context or capacity notice
+        Run->>AI: Instructions, masked evidence and selected context
         AI-->>Run: Command or note, optional records and context updates
         alt AI requests omitted records
             Run->>Memory: Apply exact recall addresses
@@ -141,7 +139,7 @@ Exclusive AI ownership of relevance is CIMT's approved product choice, not an Op
 | --- | --- | --- |
 | FR-88: AI relevance ownership | ContextMemory, TestPlanner, ActionPromptBuilder | ContextSelectionTests, MappingPromptTests |
 | FR-89: every detected loop recovers | LoopRecovery, DecisionRecovery, ScenarioRunner | ScenarioTests: repeated recovery, AI-detected loops, recall, blocking and cancellation |
-| FR-90: efficient recoverable context | ContextMemory paging/retain, RequestContext, ScenarioEvidence, Agent | ContextCapacityTests, HistoricalImageTests, scenario screenshot selection |
+| FR-90: efficient recoverable context | ContextMemory paging/retain, ScenarioEvidence, Agent | HistoricalImageTests, scenario screenshot selection |
 | FR-91: stable task/check identity | TestPlan, CheckRecorder, typed redactors | PlanningRegressionTests, redaction suites |
 | FR-92: mapping/progress corrections | screen_model, ApplicationMap, ExplorationMemory | PlanningRegressionTests, existing map/control tests |
 | FR-93: reports and usage | PlanningHtmlRenderer, RunDiagnosticsRenderer, Budget | PlanningReportTests, RequestUsageTests, existing policy/CLI suites |

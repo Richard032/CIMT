@@ -105,7 +105,7 @@ Our concrete example used Python 3.15.2 from [python.org](https://www.python.org
 /usr/local/bin/python3.15 -c 'import platform; print(platform.machine())'
 export CIMT_PYTHON_BOOTSTRAP=/usr/local/bin/python3.15
 bash scripts/install-cimt-runtime.sh
-"$CIMT_INSTALL_ROOT/tools/python/bin/python" -c 'import PIL, truststore; print(PIL.__version__, truststore.__version__)'
+"$CIMT_INSTALL_ROOT/tools/python/bin/python" -c 'import agents, PIL, truststore; from importlib.metadata import version; print(PIL.__version__, truststore.__version__, version("openai-agents"))'
 ```
 
 Substitute the interpreter actually selected on your Mac. The script creates an isolated environment, installs the checkout's declared requirements, copies the complete runtime packages and supplies test-folder build templates. It does not publish the .NET host or build worker; do that in step 8.

@@ -102,7 +102,7 @@ class AiInteractionTests(unittest.TestCase):
             self.assertNotEqual(arguments[-1]['currentEvidence']['observedAt'],
                                 '2026-11-09T22:55:00.000+00:00')
 
-    def test_default_agent_defers_oversized_history_with_fresh_evidence_and_batch_feedback(self):
+    def test_default_agent_preserves_selected_history_with_fresh_evidence_and_batch_feedback(self):
         self.select_large_history()
         self.session.feedback.start(0)
         pending = self.session.feedback.pending()
@@ -113,11 +113,11 @@ class AiInteractionTests(unittest.TestCase):
 
         state = json.loads(transport.bodies[0]['input'][-1]['content'][0]['text'])
         self.assertEqual(reply['action'], 'tap')
-        self.assertEqual(state['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(state['humanInterface'][0]['label'], 'Fresh screen')
         self.assertFalse(state['currentEvidence']['reusedForContextSelection'])
         self.assertEqual(state['batchFeedback'], pending)
-        self.assertIn('contextSelectionRequired', state)
-        self.assertNotIn('selectedObservations', state['explorationMemory'])
+        self.assertNotIn('contextSelectionRequired', state)
+        self.assertTrue(state['explorationMemory']['selectedObservations'])
         self.assertIn('evidenceLedger', state['explorationMemory'])
 
     def test_reduced_selection_refreshes_changed_screen_before_normal_decision(self):
@@ -156,7 +156,7 @@ class AiInteractionTests(unittest.TestCase):
         self.assertIn('commandResources', current)
         self.assertEqual([row['observation'] for row in current['recentActions']],
                          ['First step', 'Second step'])
-        self.assertEqual(current['elements'][0]['label'], 'Fresh screen')
+        self.assertEqual(current['humanInterface'][0]['label'], 'Fresh screen')
         self.assertEqual(messages[1]['content'][1]['type'], 'input_image')
 
     def test_each_decision_records_redacted_request_and_screenshot_reference(self):
@@ -241,6 +241,28 @@ class AiInteractionTests(unittest.TestCase):
         record = self.session.result['aiRequests'][0]
         self.assertEqual(record['status'], 'failed')
         self.assertTrue((self.root / record['requestPath']).is_file())
+
+    def test_invalid_usage_still_records_the_provider_request_outcome(self):
+        agent, budget, _ = api_agent([])
+        agent.services.transport.request = lambda path, body: dict(status='completed',
+            usage=dict(input_tokens=10, output_tokens=999999))
+        with self.assertRaises(InfrastructureError):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+        self.assertEqual(self.session.result['aiRequests'][0]['status'], 'completed')
+        self.assertEqual(budget.uncertain, budget.bound)
+
+    def test_sdk_refusal_stops_without_exposing_provider_text_or_retrying(self):
+        agent, budget, transport = api_agent([])
+        response = dict(status="completed", usage=dict(input_tokens=10, output_tokens=3),
+                        output=[dict(type="message", content=[
+                            dict(type="refusal", refusal="private provider refusal")])])
+        transport.request = lambda path, body: response
+
+        with self.assertRaisesRegex(InfrastructureError, "^OpenAI refused the request; no action executed$"):
+            self.interaction.choose(self.mobile, self.session, agent, self.evidence, lambda: None)
+
+        self.assertEqual(budget.snapshot()["requests"], 1)
+        self.assertEqual(len(self.session.result["aiRequests"]), 1)
 
     def test_output_limit_retry_has_its_own_request_record(self):
         agent, _, _ = api_agent([])

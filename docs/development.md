@@ -54,7 +54,7 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | crashes.py | Observe terminations and apply startup/retry/cancel rules. |
 | evidence.py | Save redacted worker snapshots and masked images. |
 | budget.py, run_control.py | Enforce shared cost and time/stop rules. |
-| decision_agent.py, agent.py | Define and implement the action decision boundary. |
+| decision_agent.py, agent.py, agents_sdk.py | Define and implement the action decision boundary and run OpenAI Agents SDK turns. |
 | ai_services.py, openai_transport.py | Account for, journal and send OpenAI requests. |
 | result_review/ | Build the evidence ledger and define independent review and proposal interfaces and implementations. |
 | device_adapter/mobile.py | Connect device services after bounded read-only startup recovery. |
@@ -67,6 +67,8 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 | device_adapter/mcp_client.py, rpc_messages.py | Own the MCP connection and parse complete RPC messages. |
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
+
+CIMT runs each decision, completion review and instruction proposal as a single Agents SDK turn. The SDK uses CIMT's audited Responses model adapter. CIMT reserves budget and journals each provider request before transport, preserves provider status for response handling, and dispatches commands through its existing queue. SDK tracing and automatic retries are disabled. Reinstall the Python support runtime after upgrading to this revision to pick up the SDK dependency.
 
 ## Run the checks
 
@@ -161,4 +163,4 @@ FR-100 / AC-70: keep the post-install/launch wait in AppLifecycle.wait_after_lau
 
 BatchFeedback is execution data without device/provider/filesystem calls. ObservationRecorder registers verified masked observations and factual system warnings; the Device Adapter recognizes Android system identifiers. ScenarioRunner owns actual execution/finish handoff; input preparation only supplies recorded resources. Keep complete new path feedback outside optional context deferral, and let AI select historical batches. Avoid copying raw UI/images into event records or applying a queued finish's future checks.
 
-The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded/oversized history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Dated installation and replay findings are preserved in [installation notes](installation-notes.md) and [implementation history](implementation-history.md). Current acceptance status is recorded separately.
+The existing Python suites test complete cycles, unchanged/unknown results, independent updates, cancelled tails, mandatory feedback despite excluded optional history, first-command completion, ANR episodes, evidence reuse and tamper rejection. Existing BatchFeedbackReportTests cover warning visibility, ordered paths, redaction and safe links. No test project/harness or third-party change is added. Install matching .NET/Python files together. Dated installation and replay findings are preserved in [installation notes](installation-notes.md) and [implementation history](implementation-history.md). Current acceptance status is recorded separately.

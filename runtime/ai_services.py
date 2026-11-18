@@ -1,6 +1,7 @@
 """Accounted access to the OpenAI provider."""
 
 import time
+from agents_sdk import run_turn
 from openai_transport import OpenAiTransport
 
 
@@ -18,6 +19,12 @@ class AiServices:
         self.transport.request("models/" + self.model)
 
     def send(self, body, kind, observer=None, *, check_cancelled=None, report_timing=None):
+        if check_cancelled is not None:
+            check_cancelled()
+        return run_turn(body, lambda request: self._send(
+            request, kind, observer, check_cancelled, report_timing))
+
+    def _send(self, body, kind, observer, check_cancelled, report_timing):
         if check_cancelled is not None:
             check_cancelled()
         # Keep cache-write charges within the rate used by this pricing profile.

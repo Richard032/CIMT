@@ -12,7 +12,7 @@ The layer only prepares AI instructions and keeps information available for futu
 
 The layer lives in runtime/ai_instructions/. InstructionContext assembles the sources and retained scenario information. ActionPromptBuilder constructs the request. controls.py describes the human-interface controls declared by the device adapter. The layer has no reply decoder, response validator, device-action dispatcher or OpenAI transport.
 
-Complete records remain in the existing scenario evidence and Test Planning and Exploration stores. The input layer uses those stores instead of keeping another copy of the plan. It applies the AI's exact context selection without deciding relevance, reducing history itself or replacing requirements with a summary. A selection that cannot fit returns capacity information for the AI to handle; records are retained.
+Complete records remain in the existing scenario evidence and Test Planning and Exploration stores. The input layer uses those stores instead of keeping another copy of the plan. It applies the AI's exact context selection without deciding relevance, reducing history itself or replacing requirements with a summary. Selected records remain available for the AI to retrieve; provider limits still apply to the complete request.
 
 ## Current screen information
 
@@ -73,10 +73,8 @@ sequenceDiagram
 
 FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history deferral. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
 
-## Capacity feedback and observation freshness
+## Observation freshness and context selection
 
-Selected-history capacity is measured from the same assembled state used by ActionPromptBuilder. Feedback contains selected bytes, allowance bytes, per-collection counts/sizes and an example using includeAll: [] with an individual/latest record. It explains that whole collections and individual records are combined, and null/absent context keeps the existing selection. No record relevance is chosen by the host.
+Every decision refreshes the masked screen, including after a note or recall. The request includes current controls, the current screenshot, the evidence ledger, mandatory batch feedback, and AI-selected history. When the selection omits requirement entries, the request also includes the original requirement text. CIMT records screen acquisition, context preparation, and provider timing separately.
 
-Every decision refreshes the masked screen, including when an oversized selection persists after recall. The default prompt builder defers the oversized selected history and its historical screenshots. It retains current evidence, original sources, the evidence ledger and mandatory batch feedback. When history selection omits requirement entries, the request includes the original requirement text. The request includes capacity and selection guidance. Provider timing belongs to AiServices. Context preparation and screen acquisition have separate activity records.
-
-The command resources show how to attach an explicit selection to a normal action. The capacity notice distinguishes explicit selection from bootstrap history and includes a recall example. The AI chooses which records to retrieve or continues from current evidence.
+The command resources show how to attach a context selection and summary to a normal action. The AI chooses which earlier records to retrieve and can continue from the current screen. Provider context and shared budget limits apply to the complete request.

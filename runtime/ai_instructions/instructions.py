@@ -4,7 +4,6 @@ import base64
 import json
 from budget import MAX_OUTPUT
 from check_results import CHECK_SCHEMA
-from request_context import prepare_context
 from test_planning.planning_contract import FIELDS as PLAN_FIELDS
 from .controls import human_interface
 
@@ -240,7 +239,7 @@ SYSTEM_PROMPT = (
     "humanInterface lists possible UI targets from the current UI tree, including hidden and disabled elements. Their type and identifier do not limit them to one action or prove they are interactive. Choose an action from the instructions and evidence, then check the result. "
     "When the task or screen evidence suggests selection, you may tap a visible item even if it does not look like a button, such as a label, text field, list item, or image. Do not assume an item is selected merely because it is displayed; tap it when required and verify the result before continuing. "
     "Use each control's visible and enabled flags to tell whether it is available. Missing flags mean unknown. "
-    "The elements and screenshot also contain observations such as status text and loading indicators. "
+    "The screenshot also contains observations such as status text and loading indicators. "
     "The original instructions and requirements remain authoritative. "
     "A repetition signal is a request for assessment, not proof of an app defect. When recoveryRequest is present, "
     "acknowledge its id in recovery and explain your revised approach, intentional repetition, or blocker. "
@@ -278,11 +277,6 @@ class ActionPromptBuilder:
         historical_images = (exploration_memory or {}).get('historicalImages', [])
         state = self.state(instructions, requirements, setup, elements, screenshot, history,
             aliases, coverage, requirement_results, resource_feedback, exploration_memory)
-        state = prepare_context(state)
-        if 'contextSelectionRequired' in state:
-            # The selected catalogue normally carries the requirement text.
-            state['requirements'] = requirements
-            historical_images = []
         preview = (exploration_memory or {}).get('gesturePreview')
         body = {
             "model": self.model,
@@ -301,7 +295,7 @@ class ActionPromptBuilder:
     @staticmethod
     def state(instructions, requirements, setup, elements, screenshot, history, aliases, coverage,
               requirement_results=None, resource_feedback=None, exploration_memory=None):
-        """Assemble mandatory evidence and AI-selected context before checking capacity."""
+        """Assemble mandatory evidence and AI-selected context."""
         memory = dict(exploration_memory or {})
         memory.pop('historicalImages', None)
         memory.pop('conversation', None)
@@ -318,7 +312,7 @@ class ActionPromptBuilder:
             "requirements": "" if catalogue and len(selected_requirements) == len(catalogue) else requirements,
             "requirementResults": selected_requirements,
             "setup": setup,
-            "elements": elements,
+            "elements": [element for element in elements if element.get("type") == "CimtScreenInfo"],
             "humanInterface": human_interface(elements),
             "recentActions": memory.pop('selectedActions') if selected else history,
             "credentialAliases": aliases,
