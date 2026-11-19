@@ -165,6 +165,14 @@ class InstructionTests(unittest.TestCase):
         self.assertIn('Elapsed time from tap command 7 is 30 seconds', prompt)
         self.assertIn('The wait completion does not reset the start time', prompt)
 
+    def test_prompt_requests_separate_checks_as_soon_as_evidence_supports_them(self):
+        body = ActionPromptBuilder('fixture').build('Explore', '', '', [], b'masked', [], [], {})
+        prompt = body['input'][0]['content']
+        self.assertIn('Record any newly supported requirement result in checks on the next tool call or JSON command', prompt)
+        self.assertIn('record two separate checks with that evidence', prompt)
+        self.assertIn("Use source requirements and the catalogue's id and taskId", prompt)
+        self.assertIn('pass it only when ALL its conditions have evidence', prompt)
+
     def test_done_example_reports_objective_and_requirement_checks_separately(self):
         example = state([])['commandResources']['doneExample']
         self.assertEqual(example['action'], 'done')

@@ -82,3 +82,5 @@ The decision ledger lists recent post-action screens by step, observation time, 
 The command resources show how to attach a context selection and summary to a normal action. The AI chooses which earlier records to retrieve and can continue from the current screen. Provider context and shared budget limits apply to the complete request.
 
 Every decision includes a compact requirement catalogue with requirement IDs, linked task IDs, current statuses and source line ranges when available. The AI uses these IDs for requirement checks. Full result records remain selectable through context.
+
+The decision prompt asks the AI to record a requirement result on the next command once the evidence supports it. If the same evidence supports an instruction check, the AI records a separate requirement check with the catalogue IDs.
