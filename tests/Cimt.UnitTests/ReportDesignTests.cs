@@ -244,6 +244,29 @@ public sealed class ReportDesignTests
             Assert.Contains("href=\"#" + section + "\"", html);
         Assert.Contains("name=\"viewport\"", html);
         Assert.Contains("<main", html);
+        Assert.DoesNotContain("href=\"#instruction-proposal\"", html);
+    }
+
+    [Theory]
+    [InlineData("AI draft for review.")]
+    [InlineData("No AI proposal was generated. Reason: OpenAI API request failed with HTTP 400")]
+    public async Task ReportHeaderLinksToReadableProposalAndStatus(string status)
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        var path = Path.Combine(fixture.State.Report, "instruction-setup-proposal.md");
+        await File.WriteAllTextAsync(path, $"# Instruction and setup proposal\n\n{status}\n\n## Proposed setup\n\n<fixture-tag>");
+
+        var html = Render(fixture);
+
+        Assert.Contains("<header class=\"report-header\">", html);
+        Assert.Contains("href=\"#instruction-proposal\">Instruction and setup proposal", html);
+        Assert.Contains("id=\"instruction-proposal\"", html);
+        Assert.Contains("<p>" + status + "</p>", html);
+        Assert.Contains("href=\"instruction-setup-proposal.md\">Open original Markdown", html);
+        Assert.Contains("<summary>Read proposal record</summary>", html);
+        Assert.Contains("&lt;fixture-tag&gt;", html);
+        Assert.DoesNotContain("<fixture-tag>", html);
     }
 
     private static string Render(DiagnosticFixture fixture) => new RunHtmlRenderer(fixture.State.Configuration)
