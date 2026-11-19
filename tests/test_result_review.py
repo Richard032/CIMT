@@ -62,6 +62,7 @@ class EvidenceLedgerTests(unittest.TestCase):
                 elements=[dict(type='Text', label='Ready', value='ignored')])])) )
         screen = EvidenceLedger().snapshot(result)['recordedEvidence']['recentScreens'][0]
         self.assertEqual(screen['observedAt'], '2026-01-01T00:00:03Z')
+        self.assertEqual(screen['uiObservation'], 'ui-1')
         self.assertEqual(screen['elements'], [dict(type='Text', label='Ready')])
 
     def test_recent_screen_discloses_omitted_elements(self):

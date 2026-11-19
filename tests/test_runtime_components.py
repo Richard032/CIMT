@@ -893,6 +893,38 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "passed")
         self.assertTrue(result["requirements"][0]["screenshot"])
 
+    def test_compact_context_keeps_requirement_check_ids_and_current_statuses(self):
+        definitions = [dict(id=f'REQ-000{number}', text=text, startLine=line, endLine=line)
+                       for number, text, line in [(1, 'Save works', 3), (2, 'The result persists', 5)]]
+
+        def state(index):
+            return json.loads(transport.bodies[index]['input'][-1]['content'][0]['text'])
+
+        def check_for(index, requirement):
+            entry = state(index)['requirementCatalogue'][requirement]
+            return dict(check(), source='requirements', requirementId=entry['id'], taskId=entry['taskId'])
+
+        def responses():
+            yield action('recall', context=dict(summary='Use current evidence', includeAll=[], records=[]))
+            yield action('note', context=None, checks=[check_for(1, 0)])
+            yield action(context=None, checks=[check(), check_for(2, 1)])
+
+        agent, _, transport = api_agent(responses())
+        result = {'scenarios': []}
+        self.create_runner(definitions).run(FakeMobile(self.root, elements=[]), self.build,
+                                            result, agent, lambda: None)
+
+        expected = [dict(id='REQ-0001', taskId=1, status='not tested', startLine=3, endLine=3),
+                    dict(id='REQ-0002', taskId=2, status='not tested', startLine=5, endLine=5)]
+        self.assertEqual(state(0)['requirementCatalogue'], expected)
+        self.assertEqual(state(1)['requirementResults'], [])
+        self.assertEqual(state(1)['explorationMemory']['testPlan']['tasks'], [])
+        self.assertEqual(state(1)['requirementCatalogue'], expected)
+        self.assertEqual(state(2)['requirementCatalogue'], [dict(expected[0], status='passed'), expected[1]])
+        scenario = result['scenarios'][0]
+        self.assertEqual([row['status'] for row in scenario['requirements']], ['passed', 'passed'])
+        self.assertEqual(scenario['verdict'], 'passed')
+
     def test_observed_button_must_be_activated_before_completion(self):
         result, _ = self.run_scenario(FakeMobile(self.root), [action(completion='blocked')])
         self.assertEqual(result["completion"], "incomplete")
@@ -1478,6 +1510,40 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(state['explorationMemory']['currentControls'][0]['attempts'], 1)
         self.assertEqual(state['recentActions'][0]['result'], 'No observed UI change after the action')
         self.assertEqual(state['recentActions'][0]['controlLabel'], 'Open')
+
+    def test_decision_screen_reference_recalls_elements_and_critic_keeps_the_full_ledger(self):
+        def state(body):
+            return json.loads(body['input'][-1]['content'][0]['text'])
+
+        def commands():
+            yield action('tap', ref='@e1', context=dict(summary='', includeAll=[], records=[]))
+            yield action('recall', context=dict(summary='', includeAll=[], records=[
+                dict(collection='observations', id=screen_reference()['uiObservation'])]))
+            yield action()
+
+        def screen_reference():
+            memory = state(transport.bodies[1])['explorationMemory']
+            return memory['evidenceLedger']['recordedEvidence']['recentScreens'][0]
+
+        agent, _, transport = api_agent(commands())
+        result = {'scenarios': []}
+
+        self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None,
+                        reviewer=CompletionCritic(agent.services))
+
+        reference = screen_reference()
+        self.assertEqual(set(reference), {'step', 'observedAt', 'observation', 'uiObservation'})
+        fresh = transport.bodies[1]['input'][-1]['content']
+        self.assertEqual(fresh[1]['type'], 'input_image')
+        self.assertEqual(state(transport.bodies[1])['humanInterface'][0]['label'], 'Open')
+        recalled = state(transport.bodies[2])['explorationMemory']['selectedObservations']
+        self.assertEqual(recalled[0]['id'], reference['uiObservation'])
+        self.assertEqual(recalled[0]['elements'][0]['label'], 'Open')
+        critic_ledger = state(transport.review_bodies[0])['ledger']
+        self.assertEqual(critic_ledger['recordedEvidence']['recentScreens'][0]['elements'][0]['label'], 'Open')
+        report_ledger = result['scenarios'][0]['evidenceLedger']
+        self.assertEqual(critic_ledger['recordedEvidence']['recentScreens'],
+                         report_ledger['recordedEvidence']['recentScreens'])
 
     def test_recall_updates_ai_context_without_touching_the_device(self):
         recall = action('recall', context=dict(summary='Remember the first observation', includeAll=['tasks'], records=[]))

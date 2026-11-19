@@ -26,7 +26,7 @@ class InstructionContext:
         memory = self.redactor.records.request_context(memory)
         memory['devicePlatform'] = device.get('platform')
         memory['currentEvidence'] = dict(observedAt=session.observed_at, reusedForContextSelection=False)
-        memory['evidenceLedger'] = self.redactor.object(session.result.get('evidenceLedger', {}))
+        memory['evidenceLedger'] = self._decision_ledger(session.result.get('evidenceLedger', {}))
         summary = memory.pop('summary', '')
         selection = memory.get('selection')
         if isinstance(selection, dict):
@@ -41,6 +41,20 @@ class InstructionContext:
             self._setup(session, device), session.elements, session.image, session.history,
             self.credential_aliases, session.coverage.snapshot(), session.result['requirements'],
             session.resource_feedback, memory]
+
+    def _decision_ledger(self, ledger):
+        """Supply recent screen addresses for recall without copying their UI lists."""
+        if 'recordedEvidence' not in ledger:
+            return self.redactor.object(ledger)
+        recorded = dict(ledger['recordedEvidence'])
+        recent_screens = recorded.pop('recentScreens', [])
+        safe = self.redactor.object(dict(ledger, recordedEvidence=recorded))
+        fields = ('step', 'observedAt', 'observation', 'uiObservation')
+        # These host-generated fields must match the retained observation addresses.
+        safe['recordedEvidence']['recentScreens'] = [
+            {key: screen[key] for key in fields if key in screen} for screen in recent_screens
+        ]
+        return safe
 
     def observe(self, mobile, session, evidence=None):
         """Ask the device adapter for fresh masked UI information and keep it."""

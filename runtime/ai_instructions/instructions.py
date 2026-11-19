@@ -173,8 +173,9 @@ SYSTEM_PROMPT = (
     "the host retains them. Use an empty checks list when there is no new assessment. "
     "Use overridden only for a requirement that conflicts with the testing instructions, "
     "and explain that conflict. Include only observations supported by the supplied evidence. "
-    "requirementResults contains the catalogue entries selected by you; the complete catalogue remains retrievable. For a requirements check, copy its "
-    "requirementId exactly from that catalogue; for an instructions check use an empty ID. "
+    "requirementCatalogue always lists each requirement ID, its task ID, current result, and source line range when available. "
+    "Use the line range to find the requirement text or match its ID in requirementResults, which contains the selected detailed results. "
+    "For a requirements check, copy the catalogue id into requirementId and use the corresponding taskId. For an instructions check use an empty ID. "
     "Preserve the supplied requirement meaning. A catalogue item may contain several conditions; "
     "pass it only when ALL its conditions have evidence. Do not pass a compound item after "
     "checking only one clause. If its meaning is unclear, record your interpretation and an "
@@ -192,7 +193,7 @@ SYSTEM_PROMPT = (
     "Navigation is not a passed test. A done response needs an instructions check for taskId 0. "
     "If the same new evidence decides both the objective and a requirement, include separate checks in done. "
     "Use source instructions and taskId 0 for the objective. For a requirement, use source requirements, "
-    "its exact requirementId from the catalogue, and the matching taskId from testPlan.tasks. "
+    "the exact requirementId and matching taskId from requirementCatalogue. "
     "An instruction check leaves the requirement's status unchanged. "
     "A decisive pass or failure can finish with completion complete and remaining empty. "
     "Record evidence in checks or observation. Reserve remaining for work that still needs testing. "
@@ -233,7 +234,9 @@ SYSTEM_PROMPT = (
     "The selection summary is not a device observation. Distinguish an action from its observed outcome. "
     "A ledger entry’s decisionObservedAt is the time of the screen used by its AI explanation, "
     "completedAt is the action time, and observedAt is the following screen time. "
-    "recordedEvidence.recentScreens contains a limited set of post-action UI records, not an exhaustive history. "
+    "recordedEvidence.recentScreens lists recent post-action screen references. "
+    "To inspect an older element list, use recall with context.records containing collection observations "
+    "and the screen's uiObservation as id. "
     "A navigation action, preparation step or command dispatch does not itself prove a later required action occurred. "
     "Controls can share a label: compare targetIdentifier, targetType and the action sequence in the evidence ledger. "
     "Complete the required steps and verify their outcomes before counting progress. "
@@ -318,6 +321,7 @@ class ActionPromptBuilder:
             # Only a complete catalogue can stand in for the source requirements.
             "requirements": "" if catalogue and len(selected_requirements) == len(catalogue) else requirements,
             "requirementResults": selected_requirements,
+            "requirementCatalogue": memory.pop('requirementCatalogue', []),
             "setup": setup,
             "elements": [element for element in elements if element.get("type") == "CimtScreenInfo"],
             "humanInterface": human_interface(elements),
