@@ -173,7 +173,7 @@ The deadline starts at invocation and includes preparation/builds. Budget is sha
 | 2 | Incomplete/inconclusive work without a higher-priority error. |
 | 3 | Configuration, build or infrastructure error. |
 
-Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Navigation, successful builds, tool-call completion and screenshot capture do not prove a requirement passed.
+Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Controls discovered during the run remain available in the exploration map and coverage counts. The AI can leave incidental controls unclassified and finish once the requirements and planned work are resolved. Explicitly in-scope paths still need an attempt, and blocked paths keep completion incomplete. Navigation, successful builds, tool-call completion and screenshot capture do not prove a requirement passed.
 
 ## Review the proposed instructions and setup
 

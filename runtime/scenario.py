@@ -516,15 +516,8 @@ class ScenarioRunner:
 
     @staticmethod
     def _add_unresolved_work(result):
-        """Include known coverage gaps even when no final AI response was returned."""
-        outstanding = result.get("coverage", {}).get("outstandingObservedControls", 0)
-        messages = []
-        if 'planningRemaining' in result:
-            messages.extend(result['planningRemaining'])
-        elif outstanding:
-            messages.append(
-                str(outstanding) + " observed control/state combinations were not activated"
-            )
+        """Include unfinished plan work and unresolved requirements after the AI stops."""
+        messages = list(result.get("planningRemaining", []))
         unresolved = RequirementResults.unresolved(result["requirements"])
         if unresolved:
             messages.append(str(unresolved) + " requirements have no decided result")

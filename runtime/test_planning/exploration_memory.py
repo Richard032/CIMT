@@ -118,9 +118,13 @@ class ExplorationMemory:
             routable=verified and action['action'] != 'restart' and not entry.get('navigation') and not entry.get('recovery'))
         self.observe(after)
 
+    @staticmethod
+    def _is_pending(row):
+        return row['scope'] == 'blocked' or (row['scope'] == 'in scope' and row['attempts'] == 0)
+
     def remaining(self):
         return [row['label'] + ': ' + (row['reason'] or row['scope']) for row in self.paths.values()
-                if row['scope'] in ['unclassified', 'blocked'] or row['scope'] == 'in scope' and row['attempts'] == 0]
+                if self._is_pending(row)]
 
     def current_controls(self, elements):
         state = self.map.state_id(elements)
@@ -139,7 +143,7 @@ class ExplorationMemory:
         state = self.map.state_id(elements)
         return dict(currentScreen=state, currentControls=self.current_controls(elements), knownPaths=len(self.paths),
             pendingPlan=self.plan, pendingPaths=[dict(row) for row in self.paths.values()
-                if row['scope'] != 'out of scope' and row['attempts'] == 0],
+                if self._is_pending(row)],
             recentTransitions=self.transitions, stalledPaths=[dict(row) for row in self.paths.values()
                 if row['unchangedAttempts'] >= 3 or row['repeatedWithoutNewPath'] >= 3],
             applicationMap=dict(states=list(self.map.states.values()), configuration=self.map.configuration,
