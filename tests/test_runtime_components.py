@@ -881,17 +881,18 @@ class ScenarioTests(unittest.TestCase):
         self.assertIn('"target": "Release"', setup)
         self.assertIn("Other devices and targets are scheduled independently", setup)
 
-    def test_mapped_requirement_and_objective_can_complete(self):
+    def test_mapped_requirement_and_objective_can_complete_with_incidental_controls(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
         mapped = dict(check(), taskId=1, source="requirements", requirementId="REQ-0001")
         result, _ = self.run_scenario(
-            FakeMobile(self.root, elements=[]),
+            FakeMobile(self.root),
             [action(checks=[mapped, check()])],
             self.create_runner(definitions),
         )
         self.assertEqual(result["completion"], "complete")
         self.assertEqual(result["verdict"], "passed")
         self.assertTrue(result["requirements"][0]["screenshot"])
+        self.assertEqual(result["coverage"]["outstandingObservedControls"], 1)
 
     def test_compact_context_keeps_requirement_check_ids_and_current_statuses(self):
         definitions = [dict(id=f'REQ-000{number}', text=text, startLine=line, endLine=line)
@@ -925,10 +926,26 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual([row['status'] for row in scenario['requirements']], ['passed', 'passed'])
         self.assertEqual(scenario['verdict'], 'passed')
 
-    def test_observed_button_must_be_activated_before_completion(self):
-        result, _ = self.run_scenario(FakeMobile(self.root), [action(completion='blocked')])
-        self.assertEqual(result["completion"], "incomplete")
+    def test_unclassified_button_does_not_prevent_completion(self):
+        result, _ = self.run_scenario(FakeMobile(self.root), [action()])
+        self.assertEqual(result["completion"], "complete")
+        self.assertEqual(result["verdict"], "passed")
         self.assertEqual(result["coverage"]["outstandingObservedControls"], 1)
+        self.assertEqual(result["exploration"]["paths"][0]["scope"], "unclassified")
+        self.assertEqual(result["remaining"], [])
+
+    def test_explicitly_blocked_path_prevents_completion(self):
+        def decide(request):
+            path = request.arguments()[-1]['currentControls'][0]['id']
+            return action(pathDecisions=[dict(id=path, scope='blocked',
+                reason='Required control is inaccessible', planStepId=0)])
+
+        result = {'scenarios': []}
+        self.runner.run(FakeMobile(self.root), self.build, result,
+                        SimpleNamespace(decide=decide), lambda: None)
+        scenario = result['scenarios'][0]
+        self.assertEqual(scenario['completion'], 'incomplete')
+        self.assertIn('Open: Required control is inaccessible', scenario['remaining'])
 
     def test_successful_activation_can_complete_the_objective(self):
         mobile = FakeMobile(self.root)
@@ -1234,7 +1251,7 @@ class ScenarioTests(unittest.TestCase):
             self.runner.run(FakeMobile(self.root), self.build, result, agent, lambda: None)
         self.assertIn("Check other buttons", result["scenarios"][0]["remaining"])
 
-    def test_failure_includes_unresolved_requirements_and_controls(self):
+    def test_failure_reports_unresolved_requirements_without_unclassified_paths(self):
         definitions = [{"id": "REQ-0001", "text": "Save works", "startLine": 1, "endLine": 1}]
         result = {"scenarios": []}
         with self.assertRaises(InfrastructureError):
@@ -1243,7 +1260,7 @@ class ScenarioTests(unittest.TestCase):
                 result, FakeAgent([action("tap", ref="@missing")]), lambda: None)
         remaining = result["scenarios"][0]["remaining"]
         self.assertIn("1 requirements have no decided result", remaining)
-        self.assertIn("Open: unclassified", remaining)
+        self.assertNotIn("Open: unclassified", remaining)
 
     def test_accepted_action_is_not_reported_as_unactivated_after_capture_failure(self):
         result = {"scenarios": []}
@@ -1557,8 +1574,8 @@ class ScenarioTests(unittest.TestCase):
     def test_ai_finish_is_not_rejected_by_a_host_plan_evaluation(self):
         result, agent = self.run_scenario(FakeMobile(self.root), [action()])
         self.assertEqual(len(agent.calls), 1)
-        self.assertEqual(result['completion'], 'incomplete')
-        self.assertTrue(result['remaining'])
+        self.assertEqual(result['completion'], 'complete')
+        self.assertEqual(result['remaining'], [])
         self.assertEqual(result['recoveries'], [])
 
     def test_ai_can_detect_a_loop_before_the_repetition_counter_does(self):

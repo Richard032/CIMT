@@ -109,8 +109,19 @@ class TestPlanningTests(unittest.TestCase):
         self.planner.accept(action, self.screen)
         self.assertFalse(any('Settings:' in item for item in self.planner.saved()['planningRemaining']))
 
-    def test_unclassified_paths_remain_explicit_pending_work(self):
-        self.assertIn('Settings: unclassified', self.planner.saved()['planningRemaining'])
+    def test_unclassified_paths_are_preserved_without_pending_work(self):
+        saved = self.planner.saved()
+        self.assertEqual(saved['exploration']['paths'][0]['scope'], 'unclassified')
+        self.assertNotIn('Settings: unclassified', saved['planningRemaining'])
+        self.assertEqual(self.planner.memory.snapshot(self.screen)['pendingPaths'], [])
+
+    def test_explicitly_in_scope_unattempted_path_remains_pending(self):
+        key = self.planner.saved()['exploration']['paths'][0]['id']
+        self.planner.accept(decision(pathDecisions=[dict(id=key, scope='in scope',
+            reason='Open the requested settings', planStepId=0)]), self.screen)
+        self.assertIn('Settings: Open the requested settings', self.planner.saved()['planningRemaining'])
+        pending = self.planner.memory.snapshot(self.screen)['pendingPaths']
+        self.assertEqual([path['id'] for path in pending], [key])
 
     def test_unknown_path_is_retained_as_a_requested_path(self):
         self.planner.accept(decision(pathDecisions=[dict(id='invented', scope='out of scope',

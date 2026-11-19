@@ -120,8 +120,8 @@ class ExplorationMemoryTests(unittest.TestCase):
     def test_untried_path_is_retained_after_leaving_its_view(self):
         self.memory.observe(self.screen + [dict(BUTTON, identifier='Other', ref='@e2')])
         self.memory.observe([dict(BUTTON, identifier='Back')])
-        pending = self.memory.snapshot([dict(BUTTON, identifier='Back')])['pendingPaths']
-        self.assertTrue(any(row['label'] == 'Settings' and row['attempts'] == 0 for row in pending))
+        paths = self.memory.saved()['paths']
+        self.assertTrue(any(row['label'] == 'Settings' and row['attempts'] == 0 for row in paths))
 
     def test_element_order_does_not_create_a_new_view(self):
         other = dict(BUTTON, identifier='Other', ref='@e2')
