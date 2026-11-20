@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "runtime"))
 from knowledge.store import KnowledgeStore, ReviewError, StaleReport
 from knowledge.web import KnowledgePage
 from redaction import Redactor
-from knowledge.proposals import write_proposals
+from knowledge.proposals import without_screen_observations, write_proposals
 from test_runtime_components import api_agent, action
 
 
@@ -129,6 +129,19 @@ class KnowledgeTests(unittest.TestCase):
         self.assertIn("This report is read-only.", old)
         self.assertIn("/reports/new/index.html#knowledge", old)
         self.assertNotIn("<form", old)
+
+    def test_proposal_omits_exploration_ui_trees_and_keeps_screen_references(self):
+        screen = {"id": "observed", "elements": [{"label": "large full UI tree"}]}
+        scenario = {"exploration": {"paths": [{"label": "Open"}], "applicationMap": {
+            "states": [{"id": "home", "observations": ["observed"]}],
+            "observations": [screen]}}, "steps": [{"resultObservation": "observed"}]}
+        evidence = {"devices": [{"scenarios": [scenario]}]}
+        result = without_screen_observations(evidence)["devices"][0]["scenarios"][0]
+        self.assertNotIn("observations", result["exploration"]["applicationMap"])
+        self.assertEqual(result["exploration"]["applicationMap"]["states"],
+                         [{"id": "home", "observations": ["observed"]}])
+        self.assertEqual(result["steps"], scenario["steps"])
+        self.assertEqual(scenario["exploration"]["applicationMap"]["observations"], [screen])
 
     def test_post_run_proposal_redacts_and_waits_for_approval(self):
         class Generator:

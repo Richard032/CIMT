@@ -84,13 +84,30 @@ class OpenAiKnowledgeProposal:
         return value["requests"]
 
 
+def without_screen_observations(evidence):
+    """Keep the exploration paths and screen references without full UI trees."""
+    devices = []
+    for device in evidence.get("devices", []):
+        scenarios = []
+        for scenario in device.get("scenarios", []):
+            exploration = scenario.get("exploration")
+            if isinstance(exploration, dict) and isinstance(exploration.get("applicationMap"), dict):
+                application_map = {key: value for key, value in exploration["applicationMap"].items()
+                                   if key != "observations"}
+                scenario = dict(scenario, exploration=dict(exploration, applicationMap=application_map))
+            scenarios.append(scenario)
+        devices.append(dict(device, scenarios=scenarios) if "scenarios" in device else device)
+    return dict(evidence, devices=devices)
+
+
 def write_proposals(report, generator, observer, store, redactor, builds, evidence):
     """Validate requests against the app identities and entries supplied to the agent."""
     path = Path(report) / "knowledge-proposals.json"
     try:
         apps = {build["app-name"] for build in builds if build.get("app-name")}
         catalogues = {app: store.entries(app) for app in sorted(apps)}
-        request = EvidenceRequest(redactor.object(dict(evidence, approvedKnowledge=catalogues)), observer)
+        payload = dict(without_screen_observations(evidence), approvedKnowledge=catalogues)
+        request = EvidenceRequest(redactor.object(payload), observer)
         proposals = generator.propose(request)
         if not isinstance(proposals, list):
             raise InfrastructureError("Knowledge proposals must be a JSON array.")
