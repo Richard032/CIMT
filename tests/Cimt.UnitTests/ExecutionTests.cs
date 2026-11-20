@@ -76,6 +76,18 @@ public sealed class ExecutionTests : IDisposable
         Assert.True(request.RootElement.GetProperty("outcome").GetProperty("cancelled").GetBoolean());
     }
 
+    [Theory]
+    [InlineData("/fixture/Local Report/index.html")]
+    [InlineData("http://127.0.0.1:8765/reports/run/index.html#knowledge")]
+    public async Task ReportBrowserOpensTheExactFinalLocation(string location)
+    {
+        var runner = new FakeCommandRunner();
+        await RunReportBrowser.Open(location, runner);
+        var command = Assert.Single(runner.Commands);
+        Assert.Equal("/usr/bin/open", command.Executable);
+        Assert.Equal(location, Assert.Single(command.Arguments));
+    }
+
     [Fact]
     public async Task ExistingProposalIsNotOverwrittenDuringFinalization()
     {

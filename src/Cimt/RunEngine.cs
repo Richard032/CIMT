@@ -29,8 +29,10 @@ public static class RunEngine
         var state = CreateState(config, runFolders, replay, interruption.Token);
         var exit = await coordinator.Execute(state);
         var reviewUrl = await KnowledgeReports.Publish(state, runner, paths);
-        Console.WriteLine("CIMT " + state.Command + " finished with exit " + exit + ". Report: "
-            + (reviewUrl ?? Path.Combine(state.Report, "index.html")));
+        var reportLocation = reviewUrl ?? Path.Combine(state.Report, "index.html");
+        Console.WriteLine("CIMT " + state.Command + " finished with exit " + exit + ". Report: " + reportLocation);
+        if (OperatingSystem.IsMacOS() && (!Console.IsInputRedirected || !Console.IsOutputRedirected))
+            await RunReportBrowser.Open(reportLocation, runner);
         return exit;
     }
 

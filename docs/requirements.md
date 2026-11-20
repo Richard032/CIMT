@@ -502,7 +502,7 @@ New knowledge shall describe a reusable app task. Preserve exact UI labels and a
 
 ### Post-run review
 
-The run report (`index.html`) shall have a separate **Knowledge** tab with approval controls directly in the report. CIMT shall start the local viewer automatically for Learning-enabled runs and print the interactive report URL. Users shall be able to review the report after the run exits without starting the standalone editor. It shall present all knowledge change requests from the run in a table with one row per request. For an enabled run, the tab shall show a clear message if no changes were proposed or if proposals could not be produced.
+The run report (`index.html`) shall have a separate **Knowledge** tab with approval controls directly in the report. CIMT shall start the local viewer automatically for Learning-enabled runs and print the interactive report URL. Users shall be able to review the report after the run exits without starting the standalone editor. After interactive runs and replays finish on macOS, CIMT shall open the finalized report in the default browser. Use the interactive URL when available and the saved HTML otherwise. Automated executions shall print the report location without launching a browser. A browser launch failure shall leave the test outcome unchanged. It shall present all knowledge change requests from the run in a table with one row per request. For an enabled run, the tab shall show a clear message if no changes were proposed or if proposals could not be produced.
 
 Each row shall show:
 
