@@ -18,13 +18,18 @@ class AiServices:
         """Check model access without issuing an inference request."""
         self.transport.request("models/" + self.model)
 
-    def send(self, body, kind, observer=None, *, check_cancelled=None, report_timing=None):
+    def send_post_run(self, body, kind, observer=None):
+        """Account for a final proposal even after the testing budget is spent."""
+        return self.send(body, kind, observer, allow_overrun=True)
+
+    def send(self, body, kind, observer=None, *, check_cancelled=None, report_timing=None,
+             allow_overrun=False):
         if check_cancelled is not None:
             check_cancelled()
         return run_turn(body, lambda request: self._send(
-            request, kind, observer, check_cancelled, report_timing))
+            request, kind, observer, check_cancelled, report_timing, allow_overrun))
 
-    def _send(self, body, kind, observer, check_cancelled, report_timing):
+    def _send(self, body, kind, observer, check_cancelled, report_timing, allow_overrun):
         if check_cancelled is not None:
             check_cancelled()
         # Keep cache-write charges within the rate used by this pricing profile.
@@ -43,7 +48,7 @@ class AiServices:
                 record['countedInputTokens'] = input_tokens
             if check_cancelled is not None:
                 check_cancelled()
-            reservation = self.budget.reserve(input_tokens)
+            reservation = self.budget.reserve(input_tokens, allow_overrun=allow_overrun)
             if record is not None:
                 if reservation.input_tokens is not None:
                     record['estimatedReservation'] = str(reservation.estimated)

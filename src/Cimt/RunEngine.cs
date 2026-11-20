@@ -26,7 +26,12 @@ public static class RunEngine
         var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http), terminalInput, runner, replay, reports);
         var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), reports,
             new ProposalFinalization(runner, paths));
-        return await coordinator.Execute(CreateState(config, runFolders, replay, interruption.Token));
+        var state = CreateState(config, runFolders, replay, interruption.Token);
+        var exit = await coordinator.Execute(state);
+        var reviewUrl = await KnowledgeReports.Publish(state, runner, paths);
+        Console.WriteLine("CIMT " + state.Command + " finished with exit " + exit + ". Report: "
+            + (reviewUrl ?? Path.Combine(state.Report, "index.html")));
+        return exit;
     }
 
     private static IRunStep[] CreateSteps(RuntimePaths paths, RunProcess processes, IRunProgress progress,

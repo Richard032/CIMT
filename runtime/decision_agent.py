@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
 
+class KnowledgeLookup(Protocol):
+    """Search the current app's approved entries or retrieve one by ID."""
+
+    def __call__(self, *, query: str = "", entry_id: str = "") -> list | dict | None:
+        ...
+
+
 @dataclass(frozen=True)
 class DecisionRequest:
     """A fresh observation and task context for one decision."""
@@ -25,6 +32,7 @@ class DecisionRequest:
     deadline: float | None = None
     check_cancelled: Callable[[], None] | None = None
     previous_tool_result: tuple[dict, dict] | None = None
+    knowledge_lookup: KnowledgeLookup | None = None
 
     def arguments(self):
         """Return the values used by the existing OpenAI prompt builder."""

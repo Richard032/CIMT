@@ -39,22 +39,23 @@ public sealed class ProposalFinalization(ICommandRunner runner, RuntimePaths pat
 {
     public async Task Execute(RunState state)
     {
-        if (state.Inputs.Count == 0)
-            throw new ConfigurationException("No testing inputs were loaded.");
         if (ExecutionCheckpoint.IsEnabled(state) && !state.AiTestingApproved)
             throw new ConfigurationException("The interactive AI testing checkpoint was not acknowledged.");
 
-        var timeout = state.Deadline.RemainingSeconds(60);
+        const int proposalRequestSeconds = 60;
+        var timeout = (state.Configuration.Learning ? 2 : 1) * proposalRequestSeconds + 5;
         state.Activity.Record("Instruction proposal", "started", "Reviewing the test goals and recorded results.");
-        // Device cancellation has already been handled. This review uses only the remaining run time.
+        // Device limits and cancellation have already been handled. Proposal requests get their own time.
         var result = await runner.Run(new(paths.Python, [paths.Worker, "--proposal"], timeout, state.Environment,
             Input: JsonSerializer.Serialize(new
             {
                 protocolVersion = RuntimeResults.ProtocolVersion,
                 config = RuntimeRequest.ConvertNode(state.Configuration.Root),
+                learning = state.Configuration.Learning,
+                builds = state.Builds,
                 report = state.Report,
-                deadline = Math.Min(state.Deadline.End.ToUnixTimeMilliseconds(),
-                    DateTimeOffset.UtcNow.AddSeconds(timeout).ToUnixTimeMilliseconds()) / 1000.0,
+                deadline = DateTimeOffset.UtcNow.AddSeconds(timeout).ToUnixTimeMilliseconds() / 1000.0,
+                proposalRequestSeconds,
                 inputs = state.Inputs,
                 outcome = new
                 {

@@ -11,6 +11,12 @@ if [ -z "${CIMT_INSTALL_ROOT:-}" ]; then
   fi
 fi
 if [ -f "$CIMT_INSTALL_ROOT/environment.sh" ]; then source "$CIMT_INSTALL_ROOT/environment.sh"; fi
+if [ "${1:-}" = "knowledge" ]; then
+  shift
+  if [ "$#" -ne 0 ]; then echo "Usage: cimt knowledge" >&2; exit 3; fi
+  cd "$CIMT_INSTALL_ROOT/lib/cimt-runtime"
+  exec "$CIMT_INSTALL_ROOT/tools/python/bin/python" -m knowledge.web "$CIMT_INSTALL_ROOT" --editor-url
+fi
 if [ -f "$CIMT_SOURCE_ROOT/lib/cimt/cimt.dll" ]; then
   exec dotnet "$CIMT_SOURCE_ROOT/lib/cimt/cimt.dll" "$@"
 fi

@@ -12,8 +12,6 @@ public sealed class RunReportWriter : IRunReportWriter
         WriteMachineResult(state, outcome, execution, coverage, activity, final);
         var renderer = new RunHtmlRenderer(state.Configuration);
         WriteAtomic(Path.Combine(state.Report, "index.html"), renderer.Render(state, outcome, execution, coverage, activity, !final));
-        if (final)
-            Console.WriteLine("CIMT " + state.Command + " finished with exit " + outcome.ExitCode + ". Report: " + Path.Combine(state.Report, "index.html"));
     }
 
     private static void WriteMachineResult(RunState state, RunOutcome outcome, JsonElement? execution, RequirementCoverage coverage,

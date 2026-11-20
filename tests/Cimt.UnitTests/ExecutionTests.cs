@@ -59,6 +59,24 @@ public sealed class ExecutionTests : IDisposable
     }
 
     [Fact]
+    public async Task PostRunProposalStartsAfterTheTestingDeadlineAndCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var state = State(new RunDeadline(DateTimeOffset.UtcNow.AddSeconds(-1)), cancellation.Token);
+        var runner = new FakeCommandRunner();
+        await new ProposalFinalization(runner, new RuntimePaths("/fixture")).Execute(state);
+
+        var command = Assert.Single(runner.Commands);
+        Assert.Contains("--proposal", command.Arguments);
+        Assert.False(command.Cancellation.IsCancellationRequested);
+        using var request = JsonDocument.Parse(command.Input!);
+        Assert.True(request.RootElement.GetProperty("deadline").GetDouble()
+            > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
+        Assert.True(request.RootElement.GetProperty("outcome").GetProperty("cancelled").GetBoolean());
+    }
+
+    [Fact]
     public async Task ExistingProposalIsNotOverwrittenDuringFinalization()
     {
         var calls = new List<string>();

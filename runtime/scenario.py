@@ -85,6 +85,7 @@ class ScenarioRunner:
         requirements=None,
         activity=None,
         budget=None,
+        knowledge=None,
     ):
         self.inputs = inputs
         self.config = config
@@ -96,7 +97,7 @@ class ScenarioRunner:
         self.clock = clock
         self.requirements = requirements or []
         self.activity = activity
-        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity, budget)
+        self.ai_interaction = AiInteraction(inputs, config, redactor, control, activity, budget, knowledge)
 
     def run(self, mobile, build, result, agent, publish, reviewer: CompletionReviewer | None = None):
         """Execute one objective until it completes, is blocked, or reaches a limit."""
@@ -318,6 +319,7 @@ class ScenarioRunner:
         return {
             "target": build["target"],
             "appId": build["app-id"],
+            **({"appName": build["app-name"]} if build.get("app-name") else {}),
             "verdict": "inconclusive",
             "completion": "incomplete",
             "steps": [],

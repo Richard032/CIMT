@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Cimt;
 
 public sealed record RetainedApp(string Target, string Platform, string Project, string Configuration,
-    string Framework, string Artifact, string AppId, string Sha256, string DeviceKind = "physical");
+    string Framework, string Artifact, string AppId, string Sha256, string DeviceKind = "physical", string? AppName = null);
 
 public sealed record RetainedBuildSet(int Version, string SourceRunId, string Repository,
     string Branch, string Commit, List<RetainedApp> Apps);
@@ -66,7 +66,8 @@ public sealed class RetainedBuildStore
         RunFolderSafety.Inside(state.Report, build["artifact"]);
         return new(build["target"], build["platform"], target.Value("project")!, target.Value("configuration")!,
             settings.Value("framework")!, Path.GetRelativePath(state.Configuration.Outputs.Root, build["artifact"]),
-            build["app-id"], await Digest(build["artifact"], state.Deadline), new DeviceSelection(state.Configuration.Root.Get("execution")).Kind);
+            build["app-id"], await Digest(build["artifact"], state.Deadline), new DeviceSelection(state.Configuration.Root.Get("execution")).Kind,
+            build.GetValueOrDefault("app-name"));
     }
 
     private static async Task<RetainedBuildSet> Read(Configuration configuration)
@@ -112,13 +113,16 @@ public sealed class RetainedBuildStore
         await Copy(artifact, copied, state.Deadline);
         if (!string.Equals(await Digest(copied, state.Deadline), app.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new ConfigurationException("A retained app artifact changed after its build. No app was executed.");
-        state.Builds.Add(new()
+        var build = new Dictionary<string, string>
         {
             ["target"] = app.Target,
             ["platform"] = app.Platform,
             ["artifact"] = copied,
             ["app-id"] = app.AppId
-        });
+        };
+        if ((app.AppName ?? state.Configuration.Root.Value("application-name")) is { } name)
+            build["app-name"] = name.Trim();
+        state.Builds.Add(build);
     }
 
     private static Node? FindTarget(Configuration configuration, string name) =>

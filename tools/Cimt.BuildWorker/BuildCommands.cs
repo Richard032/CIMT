@@ -9,7 +9,7 @@ public static class BuildCommands
 
     public static string[] Metadata(BuildRequest request) =>
         new[] { "msbuild", request.Project, "-p:Configuration=" + request.Configuration,
-            "-p:TargetFramework=" + request.Framework, "-getProperty:ApplicationId" }
+            "-p:TargetFramework=" + request.Framework, "-getProperty:ApplicationId,ApplicationTitle" }
             .Concat(PropertyArguments(request)).ToArray();
 
     private static IEnumerable<string> PropertyArguments(BuildRequest request) =>

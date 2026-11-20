@@ -11,11 +11,12 @@ from decision_agent import DecisionAgent, DecisionRequest
 class AiInteraction:
     """Coordinates AI requests and recovery notices outside the instruction layer."""
 
-    def __init__(self, inputs, config, redactor, control, activity=None, budget=None):
+    def __init__(self, inputs, config, redactor, control, activity=None, budget=None, knowledge=None):
         self.redactor = redactor
         self.control = control
         self.activity = activity
         self.budget = budget
+        self.knowledge = knowledge
         self.instructions = InstructionContext(inputs, config.get("credentials", {}), redactor)
 
     def choose(self, mobile, session, agent: DecisionAgent, evidence, publish):
@@ -34,10 +35,12 @@ class AiInteraction:
                     mobile.device, session.result['target'], seconds=timing['seconds'])
 
         # Isolate agent context edits from live evidence; keep service hooks shared.
+        app = session.result.get("appName")
+        lookup = (lambda **arguments: self.redactor.object(self.knowledge.lookup(app, **arguments))) if self.knowledge and app else None
         request = DecisionRequest(*deepcopy(arguments), request_observer=observer, report_timing=report_timing,
                                   budget=self.budget, deadline=self.control.deadline,
                                   check_cancelled=self.control.check,
-                                  previous_tool_result=self._previous_tool_result(session))
+                                  previous_tool_result=self._previous_tool_result(session), knowledge_lookup=lookup)
         with self._operation('AI action decision', mobile, session):
             reply = agent.decide(request)
         if reply.get('action') not in ('recall', 'note'):

@@ -18,9 +18,9 @@ public sealed class RunHtmlRenderer(Configuration configuration)
         var evidence = new ReportEvidence(state.Report);
         var diagnostics = new RunDiagnosticsRenderer(configuration);
         var proposal = Proposal(state.Report, evidence);
-        return ReportPage.Start(state.Command, state.Identity.Id) + Header(state, outcome, inProgress, proposal.Length > 0) + ReportPage.Navigation
+        return ReportPage.Start(state.Command, state.Identity.Id) + Header(state, outcome, inProgress, proposal.Length > 0) + ReportPage.Navigation.Replace("</nav>", "<a href=\"#knowledge\">Knowledge</a></nav>")
             + "<main id=\"report-content\">" + diagnostics.Overview(state, outcome, safeExecution, scenarios)
-            + proposal
+            + proposal + KnowledgeReports.Section(state, inProgress)
             + "<section id=\"findings\" aria-labelledby=\"findings-title\"><h2 id=\"findings-title\">Findings</h2>"
             + new FindingHtmlRenderer(configuration, evidence).Render(scenarios) + diagnostics.Reasons(state, outcome, safeExecution) + "</section>"
             + new ScenarioHtmlRenderer(configuration, evidence).Render(scenarios)

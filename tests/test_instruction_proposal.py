@@ -90,14 +90,58 @@ class InstructionProposalTests(unittest.TestCase):
         self.assertIn("<redacted>", recorded)
         self.assertEqual(json.loads((self.report / "proposal-requests.json").read_text())["aiRequests"][0]["status"], "completed")
 
-    def test_exhausted_budget_records_reason_without_request(self):
+    def test_post_run_proposal_is_sent_and_charged_when_testing_budget_is_exhausted(self):
         self.context["config"]["ai-budget"]["amount"] = 0
-        output = self.create()
-        self.assertIn("No AI proposal was generated", output)
-        self.assertIn("budget", output)
-        self.assertIn("Original", output)
-        self.assertNotIn("secret-password", output)
-        self.assertEqual(self.transport.calls, [])
+        self.assertIn("Screen observed", self.create())
+        self.assertEqual(len(self.transport.calls), 1)
+        self.assertEqual(self.ledger()["requests"], 1)
+        self.assertEqual(self.ledger()["budgetOverrun"], self.ledger()["accountedUpperCost"])
+
+    def test_learning_proposal_is_attempted_after_failed_instruction_proposal(self):
+        class ProposalTransport(Transport):
+            def request(self, path, body):
+                if self.calls:
+                    self.response = '{"requests": []}'
+                return super().request(path, body)
+
+        self.transport = ProposalTransport("invalid JSON")
+        self.context["config"]["ai-budget"]["amount"] = 0
+        self.context["learning"] = True
+        with patch.dict("os.environ", {"CIMT_INSTALL_ROOT": self.folder.name}):
+            self.assertIn("No AI proposal was generated", self.create())
+
+        self.assertEqual([row["kind"] for row in self.ledger()["requestUsage"]],
+                         ["instruction proposal", "knowledge proposal"])
+        proposals = json.loads((self.report / "knowledge-proposals.json").read_text())
+        self.assertEqual(proposals["message"], "The AI proposed no knowledge changes.")
+        self.assertEqual(len(self.transport.calls), 2)
+
+    def test_structured_knowledge_response_saves_verified_candidates_for_review(self):
+        candidates = [dict(app="ECON-M", operation="add", entryId="", name=name,
+                           description="Verified the read-only view", steps=[f"Tap {name}"])
+                      for name in ("Tilt", "Recline")]
+
+        class ProposalTransport(Transport):
+            def request(self, path, body):
+                if self.calls:
+                    self.response = json.dumps({"requests": candidates})
+                return super().request(path, body)
+
+        self.transport = ProposalTransport(self.transport.response)
+        self.context.update(learning=True, builds=[{"app-name": "ECON-M"}])
+        with patch.dict("os.environ", {"CIMT_INSTALL_ROOT": self.folder.name}):
+            self.create()
+
+        request_body = self.transport.calls[1][1]
+        prompt = request_body["input"][0]["content"]
+        self.assertIn("Write new entries as reusable procedures", prompt)
+        self.assertIn("Preserve actual UI labels", prompt)
+        self.assertIn("with 'for example'", prompt)
+        response_format = request_body["text"]["format"]
+        self.assertEqual(response_format["type"], "json_schema")
+        self.assertTrue(response_format["strict"])
+        proposals = json.loads((self.report / "knowledge-proposals.json").read_text())
+        self.assertEqual([row["name"] for row in proposals["requests"]], ["Tilt", "Recline"])
 
     def test_cancelled_run_reviews_partial_results_and_preserves_prior_charges(self):
         self.context["outcome"]["cancelled"] = True
@@ -118,6 +162,12 @@ class InstructionProposalTests(unittest.TestCase):
         self.create()
         self.assertEqual(self.evidence()["devices"], [])
         self.assertIn("instructions", self.evidence()["inputs"])
+
+    def test_unreadable_device_results_do_not_prevent_the_proposal(self):
+        (self.report / "ui-results.json").write_text("invalid JSON")
+        self.create()
+        self.assertEqual(self.evidence()["devices"], [])
+        self.assertIn("valid JSON", self.evidence()["runOutcome"]["deviceEvidenceUnavailable"])
 
     def test_invalid_saved_budget_does_not_reset_spending_or_call_ai(self):
         ledger = self.report / "ai-budget.json"

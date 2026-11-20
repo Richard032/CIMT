@@ -6,7 +6,8 @@ namespace Cimt;
 
 public sealed record BuildJob(string Target, string Platform, string Folder, string RequestFile,
     string ResultFile, string Script, string RepositoryRoot, string? ArtifactFallback, string? AppIdFallback,
-    string Configuration = "", string Framework = "")
+    string Configuration = "", string Framework = "", string Project = "",
+    IReadOnlyDictionary<string, string>? Properties = null)
 {
     public string LogName => Path.GetFileName(Folder) + ".log";
 }
@@ -25,7 +26,8 @@ public sealed class BuildJobFactory(RuntimePaths paths)
         var job = new BuildJob(name, platform, folder, Path.Combine(folder, "request.json"),
             Path.Combine(folder, "result.json"), settings.Get("script")?.PathValue ?? paths.BuildScript(platform),
             Path.Combine(state.Work, "repository"), settings.Value("artifact"), settings.Value("app-id"),
-            target.Value("configuration")!, settings.Value("framework")!);
+            target.Value("configuration")!, settings.Value("framework")!, target.Value("project")!,
+            settings.Get("properties")?.Map?.ToDictionary(p => p.Key, p => p.Value.Text));
         await WriteRequest(job.RequestFile, target, settings);
         return job;
     }
@@ -65,7 +67,8 @@ public sealed class BuildArtifactStore
             ["target"] = job.Target,
             ["platform"] = job.Platform,
             ["artifact"] = saved,
-            ["app-id"] = result.AppId
+            ["app-id"] = result.AppId,
+            ["app-name"] = script.GetValueOrDefault("app-name", "").Trim()
         };
     }
 
@@ -131,7 +134,16 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
     {
         try
         {
-            state.Builds.Add(await artifacts.Save(state, job));
+            var build = await artifacts.Save(state, job);
+            if (build["app-name"].Length == 0)
+            {
+                build.Remove("app-name");
+                var name = state.Configuration.Learning ? await AppName(state, job)
+                    : state.Configuration.Root.Value("application-name")?.Trim();
+                if (!string.IsNullOrWhiteSpace(name))
+                    build["app-name"] = name;
+            }
+            state.Builds.Add(build);
             return true;
         }
         catch (ConfigurationException error)
@@ -143,6 +155,26 @@ public sealed class ApplicationBuilder(RunProcess processes, BuildArtifactStore 
                 job.Target, job.Platform, log: job.LogName, error: error);
             return false;
         }
+    }
+
+    private async Task<string?> AppName(RunState state, BuildJob job)
+    {
+        var arguments = new[] { "msbuild", Path.Combine(job.RepositoryRoot, job.Project),
+            "-nologo", "-p:Configuration=" + job.Configuration, "-p:TargetFramework=" + job.Framework,
+            "-getProperty:ApplicationTitle" }.Concat((job.Properties ?? new Dictionary<string, string>())
+                .Select(property => "-p:" + property.Key + "=" + property.Value));
+        try
+        {
+            var result = await processes.Invoke(state, "dotnet", arguments, 30);
+            var title = result.Stdout.Trim();
+            if (result.Exit == 0 && title.Length > 0 && !title.Contains('\n'))
+                return title;
+        }
+        catch (Exception error) when (error is ConfigurationException or System.ComponentModel.Win32Exception)
+        {
+            state.Activity.Record("Resolve application name", "unavailable", "Build metadata did not supply an application name.");
+        }
+        return state.Configuration.Root.Value("application-name")?.Trim();
     }
 
     private static void RecordFailure(RunState state, BuildJob job, int exit)

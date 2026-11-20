@@ -10,7 +10,10 @@ with tempfile.TemporaryDirectory(prefix='cimt-build-contract-') as tmp:
  fake.write_text('''#!/usr/bin/env python3
 import os,sys,pathlib,json
 args=sys.argv[1:]
-if args[0]=='msbuild':print('com.example.fixture');sys.exit(0)
+if args[0]=='msbuild':
+ assert '-getProperty:ApplicationId,ApplicationTitle' in args
+ print(json.dumps({'Properties':{'ApplicationId':'com.example.fixture','ApplicationTitle':'Fixture App'}}))
+ sys.exit(0)
 assert args[0]=='publish'
 assert '-c' in args and '-f' in args
 platform=os.environ['FIXTURE_PLATFORM']
@@ -33,7 +36,7 @@ if os.environ['FIXTURE_MODE']=='ambiguous':(out/'other-Signed.apk').write_bytes(
   assert r.returncode==expected,(platform,mode,r.returncode,r.stdout[-1200:],r.stderr[-1200:])
   assert 'synthetic-signing-secret' not in r.stdout+r.stderr,'Signing value leaked'
   if expected==0:
-   d=json.loads(result.read_text());assert pathlib.Path(d['artifact']).is_absolute() and pathlib.Path(d['artifact']).exists();assert d['app-id']=='com.example.fixture'
+   d=json.loads(result.read_text());assert pathlib.Path(d['artifact']).is_absolute() and pathlib.Path(d['artifact']).exists();assert d['app-id']=='com.example.fixture';assert d['app-name']=='Fixture App'
   else:assert not result.exists(),'Stale result survived failure'
   print('PASS',platform,mode)
 print('4 simulated build-contract checks passed; real application builds are separate.')

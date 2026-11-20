@@ -122,7 +122,7 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
 
     private int ShowHelp()
     {
-        output.WriteLine("CIMT — Curtis Intelligent Mobile Test\nCommands: setup, validate, run, replay\nOptions: --config <YAML> [--run-config <YAML>] [--branch <branch>] [--scenario <saved-scenario>]");
+        output.WriteLine("CIMT — Curtis Intelligent Mobile Test\nCommands: setup, validate, run, replay\nInstalled launcher: cimt knowledge\nOptions: --config <YAML> [--run-config <YAML>] [--branch <branch>] [--scenario <saved-scenario>]");
         return 0;
     }
 }

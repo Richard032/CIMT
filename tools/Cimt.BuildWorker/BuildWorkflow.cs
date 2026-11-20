@@ -14,8 +14,8 @@ public sealed class BuildWorkflow(IBuildProcess process, BuildLog log)
             return built.Exit;
         var artifact = BuildArtifacts.Resolve(request, output);
         var metadata = await process.Run(BuildCommands.Metadata(request), request.Repository);
-        var appId = AppIdResolver.Resolve(metadata, request.AppIdFallback);
-        await BuildResultWriter.Write(request.ResultFile, artifact, appId);
+        var (appId, appName) = AppIdResolver.ReadMetadata(metadata, request.AppIdFallback);
+        await BuildResultWriter.Write(request.ResultFile, artifact, appId, appName);
         Console.WriteLine("Build result written: " + request.ResultFile);
         return 0;
     }

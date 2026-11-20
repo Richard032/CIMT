@@ -32,7 +32,7 @@ class OpenAiProposal:
                         "with nonempty string fields interpretation, instructions, setup, and evidence.")},
                     {"role": "user", "content": [{"type": "input_text", "text": json.dumps(request.evidence, ensure_ascii=False)}]},
                 ]}
-        response = self.service.send(body, "instruction proposal", request.request_observer)
+        response = self.service.send_post_run(body, "instruction proposal", request.request_observer)
         if response.get("status") != "completed":
             raise InfrastructureError("Proposal response was incomplete")
         parts = [part for item in response.get("output", []) if item.get("type") == "message"

@@ -22,10 +22,15 @@ fi
 "$CIMT_INSTALL_ROOT/tools/python/bin/python" -m pip install --disable-pip-version-check -r "$SOURCE_ROOT/runtime/requirements.txt"
 mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime"
 cp "$SOURCE_ROOT/runtime/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
-for runtime_package in test_planning stopping_policy ai_instructions device_adapter result_review; do
+for runtime_package in test_planning stopping_policy ai_instructions device_adapter result_review knowledge; do
   mkdir -p "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package"
   cp "$SOURCE_ROOT/runtime/$runtime_package/"*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/$runtime_package/"
 done
+mkdir -p "$CIMT_INSTALL_ROOT/data/knowledge"
+install -m 644 "$SOURCE_ROOT/runtime/knowledge/editor.html" "$CIMT_INSTALL_ROOT/data/knowledge/editor.html"
+if [ ! "$SOURCE_ROOT/Knowledge Database.command" -ef "$CIMT_INSTALL_ROOT/Knowledge Database.command" ]; then
+  install -m 755 "$SOURCE_ROOT/Knowledge Database.command" "$CIMT_INSTALL_ROOT/Knowledge Database.command"
+fi
 # Remove source modules replaced by the named packages and execution components.
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/exploration_memory.py"
 rm -f "$CIMT_INSTALL_ROOT/lib/cimt-runtime/decision_recovery.py"
