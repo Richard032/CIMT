@@ -109,11 +109,11 @@ class Budget:
         self.cache_usage_requests = cache_requests
         self.usage_records = usage + [dict(kind='device request', status='uncertain')] * pending_requests
 
-    def reserve(self, input_tokens=None):
+    def reserve(self, input_tokens=None, *, allow_overrun=False):
         """Hold the counted input cost before starting inference."""
         with self.lock:
             reservation = self._request_cost(input_tokens)
-            if self.accounted + self.uncertain + self.pending + reservation.estimated > self.limit:
+            if not allow_overrun and self.accounted + self.uncertain + self.pending + reservation.estimated > self.limit:
                 message = "Remaining shared AI budget cannot fund a worst-case request" if input_tokens is None else (
                     "Remaining shared AI budget cannot fund the counted request input")
                 raise LimitReached(message)

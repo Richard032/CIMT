@@ -17,6 +17,8 @@ flowchart TD
     Agent["Decision agent<br/>runtime/decision_agent.py"]
     Review["Evidence ledger, completion review and proposals<br/>runtime/result_review"]
     Provider["OpenAI request accounting and transport<br/>runtime/ai_services.py"]
+    Knowledge["App knowledge and approval<br/>runtime/knowledge"]
+    Editor["Local HTML editor and report review"]
     Journal["Masked evidence and worker journal<br/>runtime/evidence.py"]
     Finish["Run finalization<br/>src/Cimt/Execution/RunFinalization.cs"]
     Report["JSON and HTML rendering<br/>src/Cimt/Reporting"]
@@ -31,6 +33,9 @@ flowchart TD
     Worker --> Stop
     Worker --> Agent
     Worker --> Review
+    Worker -->|App-scoped lookup and post-run proposals| Knowledge
+    Knowledge -->|Default proposal generator| Provider
+    Editor -->|User-approved writes and direct edits| Knowledge
     Agent -->|Default OpenAI implementation| Provider
     Review -->|Default OpenAI implementations| Provider
     Worker --> Journal
@@ -62,6 +67,11 @@ classDiagram
         <<interface>>
         +Write(RunState, RunReportData)
     }
+    class KnowledgeLookup {
+        <<interface>>
+        +lookup(query, entry_id)
+    }
+    DecisionRequest --> KnowledgeLookup : optional read-only capability
     DecisionAgent <|.. Agent
     CompletionReviewer <|.. CompletionCritic
     ProposalGenerator <|.. OpenAiProposal
@@ -79,7 +89,7 @@ classDiagram
     RunFinalization --> IRunReportWriter
 ```
 
-DecisionRequest carries copied context plus shared execution hooks. EvidenceRequest carries redacted evidence, the request observer and a cancellation check for in-run review. ProposalResult and CompletionReview define the expected reply fields. AiServices records requests and accounts for usage. Each default AI implementation supplies the prompt and handles its own reply. The proposal worker restores the persisted run budget.
+DecisionRequest carries copied context plus shared execution hooks. EvidenceRequest carries redacted evidence, the request observer and a cancellation check for in-run review. ProposalResult and CompletionReview define the expected reply fields. AiServices records requests and accounts for usage. Each default AI implementation supplies the prompt and handles its own reply. The proposal worker restores the persisted run budget. When Learning is enabled, the decision request also exposes app-scoped knowledge lookup through a read-only capability. The knowledge layer owns the local database, report review transactions, and standalone editor. Approval and direct edits never pass through the decision agent.
 
 ## Run, replay and finalization sequence
 

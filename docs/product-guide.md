@@ -4,6 +4,12 @@ Documentation baseline: 1.0. Updated: 10 November 2026.
 
 This guide describes implemented commands. [Requirements](requirements.md) define the approved product; [release readiness](release-1.0.md) identifies unfinished work. Older proposals and dated usage notes are preserved in [product-guide history](product-guide-history.md). Install first using the [Mac how-to](installation.md).
 
+## App knowledge
+
+Set `Learning: true` in the run configuration to give the agent an app-scoped lookup and let it propose knowledge changes after the run. Missing or false Learning disables both. Knowledge is guidance. Current test instructions take priority. Builds use the existing app title, and replay reuses the title from build metadata. For a custom build without a common title or a retained build created before title capture, set `application-name` in CIMT settings.
+
+Double-click **Knowledge Database.command** in the CIMT folder to open the local editor in your browser. You can also run `cimt knowledge` to print its address. Browse, add, edit, or delete entries independently of testing. Learning-enabled runs print an interactive report URL. CIMT starts its local report viewer automatically. Interactive Mac runs and replays open the finalized report in the default browser. For an enabled run, the report opens to the **Knowledge** tab. You can edit, accept, decline, or reopen a proposal. Acceptance saves immediately. Older reports show their history read-only. The SQLite database lives under `$CIMT_INSTALL_ROOT/data/knowledge/`.
+
 ## Commands
 
 | Command | What happens |
@@ -183,7 +189,7 @@ CIMT maintains a compact evidence ledger for each scenario. Its recorded evidenc
 
 After a run or replay, including one stopped with Ctrl+C, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It explains how the AI interpreted the goals, details, timing and stopping conditions, then gives draft instructions, reusable app setup and supporting evidence. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
 
-The proposal uses one inference request within the run's remaining budget and deadline. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a limit, checkpoint or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
+CIMT attempts one instruction and setup proposal request, plus one knowledge proposal request when Learning is enabled. Each has its own time window. These post-run requests can exceed the testing budget, and the run ledger includes their charges and any overrun. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a proposal timeout, missing checkpoint acknowledgement, or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
 
 ## Open a run or replay report
 

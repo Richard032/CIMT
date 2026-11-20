@@ -37,7 +37,11 @@ public sealed class ConfigurationValidator
     /// <summary>Check each settings section; file access checks belong to a separate service.</summary>
     public void Validate(Node root)
     {
-        Keys(root, "workspace", "reports", "repository", "build", "inputs", "credentials", "reset", "masking", "execution", "ai-model", "ai-budget", "external-files");
+        Keys(root, "workspace", "reports", "repository", "build", "inputs", "credentials", "reset", "masking", "execution", "ai-model", "ai-budget", "external-files", "Learning", "application-name");
+        if (root.Get("Learning") is { } learning && !bool.TryParse(learning.Scalar, out _))
+            throw new ConfigurationException("Learning must be true or false.");
+        if (root.Get("application-name") is not null)
+            Text(root, "application-name");
         // Accept old output settings so private files still load. OutputLayout ignores their paths.
         Keys(root.Get("workspace"), "root");
         ValidateReports(root.Get("reports"));

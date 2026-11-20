@@ -1,9 +1,11 @@
 """Composition root for the Python worker used by the public .NET command."""
 
 import json
+import os
 import pathlib
 import shutil
 import sys
+import time
 from actions import ActionExecutor
 from agent import Agent
 from ai_services import AiServices
@@ -24,6 +26,8 @@ from run_signals import RunSignals
 from runtime_protocol import read_request, read_results
 from result_review.critic import CompletionCritic
 from result_review.proposal import OpenAiProposal
+from knowledge.store import KnowledgeStore
+from knowledge.proposals import OpenAiKnowledgeProposal, write_proposals
 
 
 class Execution:
@@ -32,6 +36,8 @@ class Execution:
     def __init__(self, context, mobile_factory=None, agent_factory=None, scheduler=None, review_factory=None, budget_factory=None):
         self.context = context
         self.config = context["config"]
+        self.knowledge = (KnowledgeStore(os.environ["CIMT_INSTALL_ROOT"])
+                          if context.get("learning") else None)
         self.redactor = Redactor(self.config)
         self.budget = (budget_factory or Budget)(
             self.config["ai-model"]["name"],
@@ -85,7 +91,7 @@ class Execution:
             actions,
             self.context["report"],
             requirements=self.context.get("requirements", []),
-            activity=self.activity, budget=self.budget,
+            activity=self.activity, budget=self.budget, knowledge=self.knowledge,
         )
         return DeviceRunner(
             self.context,
@@ -109,7 +115,7 @@ class Execution:
         return CompletionCritic(AiServices(self.config, self.budget, self.context["deadline"]))
 
 
-def finalize_proposal(context, proposal_factory=None, budget_factory=None):
+def finalize_proposal(context, proposal_factory=None, budget_factory=None, knowledge_factory=None):
     """Review the saved run after device execution and its cancellation have ended."""
     config = context["config"]
     report = pathlib.Path(context["report"])
@@ -122,18 +128,40 @@ def finalize_proposal(context, proposal_factory=None, budget_factory=None):
         if ledger.exists():
             budget.restore(json.loads(ledger.read_text(encoding="utf-8")))
         budget.journal = lambda: atomic(ledger, budget.snapshot())
-        results = read_results(report / "ui-results.json")
+        outcome = context["outcome"]
+        try:
+            results = read_results(report / "ui-results.json")
+        except InfrastructureError as error:
+            results = []
+            outcome = dict(outcome, deviceEvidenceUnavailable=str(error))
         request_folder = report / "proposal-requests"
         request_folder.mkdir(parents=True, exist_ok=True)
         request_result = {"steps": []}
-        generator = (proposal_factory(config, budget, context["deadline"]) if proposal_factory
-                     else OpenAiProposal(AiServices(config, budget, context["deadline"])))
+        def request_deadline():
+            return min(context["deadline"], time.time() + context.get("proposalRequestSeconds", 60))
+
         observer = RequestJournal(request_result, ScenarioEvidence(request_folder, report), redactor,
             lambda: atomic(report / "proposal-requests.json", redactor.object(request_result)))
-        proposal.create(generator, results, context["outcome"], observer)
+        try:
+            deadline = request_deadline()
+            generator = (proposal_factory(config, budget, deadline) if proposal_factory
+                         else OpenAiProposal(AiServices(config, budget, deadline)))
+            proposal.create(generator, results, outcome, observer)
+        except Exception as error:
+            proposal.unavailable(str(error))
+        if context.get("learning"):
+            service = AiServices(config, budget, request_deadline()) if knowledge_factory is None else None
+            knowledge = knowledge_factory() if knowledge_factory else OpenAiKnowledgeProposal(service)
+            write_proposals(report, knowledge, observer, KnowledgeStore(os.environ["CIMT_INSTALL_ROOT"]),
+                            redactor, context.get("builds", []),
+                            {"inputs": context["inputs"], "runOutcome": outcome, "devices": results})
     except Exception as error:
         # Proposal failures cannot change the verdict or exit code of device testing.
-        proposal.unavailable(str(error))
+        if not proposal.path.exists():
+            proposal.unavailable(str(error))
+        if context.get("learning"):
+            atomic(report / "knowledge-proposals.json",
+                   {"message": "Knowledge proposals unavailable: " + type(error).__name__, "requests": []})
     return 0
 
 

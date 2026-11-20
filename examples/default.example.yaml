@@ -1,4 +1,5 @@
 # Copy outside Git, fill private values, then restrict access to the owner.
+Learning: false
 workspace:
   root: ./work
 reports:

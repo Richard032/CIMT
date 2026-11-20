@@ -26,7 +26,14 @@ public static class RunEngine
         var steps = CreateSteps(paths, processes, progress, folders, new TextInputReader(http), terminalInput, runner, replay, reports);
         var coordinator = new RunCoordinator(steps, new RunCleanup(runner, paths, folders), reports,
             new ProposalFinalization(runner, paths));
-        return await coordinator.Execute(CreateState(config, runFolders, replay, interruption.Token));
+        var state = CreateState(config, runFolders, replay, interruption.Token);
+        var exit = await coordinator.Execute(state);
+        var reviewUrl = await KnowledgeReports.Publish(state, runner, paths);
+        var reportLocation = reviewUrl ?? Path.Combine(state.Report, "index.html");
+        Console.WriteLine("CIMT " + state.Command + " finished with exit " + exit + ". Report: " + reportLocation);
+        if (OperatingSystem.IsMacOS() && (!Console.IsInputRedirected || !Console.IsOutputRedirected))
+            await RunReportBrowser.Open(reportLocation, runner);
+        return exit;
     }
 
     private static IRunStep[] CreateSteps(RuntimePaths paths, RunProcess processes, IRunProgress progress,

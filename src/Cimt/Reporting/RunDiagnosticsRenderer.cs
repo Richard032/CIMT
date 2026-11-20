@@ -55,7 +55,7 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
             + Row("Device environment", new DeviceSelection(configuration.Root.Get("execution")).Kind)
             + Row("Started (UTC)", Time(state.Started)) + Row(state.Finished is null ? "Snapshot updated (UTC)" : "Finished (UTC)", Time(finished))
             + Row("Elapsed", Duration((finished - state.Started).TotalSeconds)) + Row("Successful app builds available", state.Builds.Count.ToString(CultureInfo.InvariantCulture)) + "</dl>"
-            + Budget(execution) + string.Join("", provenance.Select(stage => "<dl>" + Row("Source build run", Field(stage, "sourceRunId")) + Row("Source build commit", Field(stage, "sourceCommit")) + "</dl>"))
+            + Budget(execution, state.Report) + string.Join("", provenance.Select(stage => "<dl>" + Row("Source build run", Field(stage, "sourceRunId")) + Row("Source build commit", Field(stage, "sourceCommit")) + "</dl>"))
             + Details("Exact timestamps and build configurations", "<dl>" + Row("Started (UTC)", state.Started.ToUniversalTime().ToString("O"))
                 + Row("Snapshot / finish (UTC)", finished.ToUniversalTime().ToString("O"))
                 + Row("Elapsed seconds", Math.Max(0, (finished - state.Started).TotalSeconds).ToString("0.000", CultureInfo.InvariantCulture)) + "</dl><h4>Requested targets and actual build configurations</h4><ul>"
@@ -64,10 +64,24 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
             + "<p>Install/reset/launch commands and screenshot checks are preparation. They do not establish a passed application test.</p>";
     }
 
-    public string Budget(JsonElement? execution)
+    public string Budget(JsonElement? execution, string? report = null)
     {
+        const string unavailable = "<p>AI inference requests: Unavailable; no recorded AI request count or cost ledger.</p>";
         if (execution is not { } value || !value.TryGetProperty("budget", out var budget))
-            return "<p>AI inference requests: Unavailable; no recorded AI request count or cost ledger.</p>";
+        {
+            if (report is null)
+                return unavailable;
+            // Early failures can have paid post-run proposals without a device result.
+            try
+            {
+                using var ledger = JsonDocument.Parse(File.ReadAllText(Path.Combine(report, "ai-budget.json")));
+                budget = ledger.RootElement.Clone();
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+            {
+                return unavailable;
+            }
+        }
         return "<dl class=\"facts\">" + Row("Model", Field(budget, "model", configuration.Root.Get("ai-model")?.Value("name") ?? "Not recorded"))
             + Row("AI inference requests", Field(budget, "requests", "Not recorded")) + Row("Accounted upper cost", Money(budget, "accountedUpperCost"))
             + Row("Uncertain upper cost", Money(budget, "uncertainUpperCost"))
@@ -81,7 +95,7 @@ public sealed class RunDiagnosticsRenderer(Configuration configuration)
             + Row("Budget limit", Money(budget, "limit"))
             + Row("Model-wide maximum request cost", Money(budget, "maximumRequestReservation"))
             + "</dl><p>Reservations cover counted input. Reported output is charged when the response arrives. "
-            + "The next input cost must fit the remaining budget.</p>"
+            + "During testing, the next input cost must fit the remaining budget. Post-run proposals can exceed it.</p>"
             + RequestUsage(budget);
     }
 

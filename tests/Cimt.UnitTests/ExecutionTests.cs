@@ -59,6 +59,36 @@ public sealed class ExecutionTests : IDisposable
     }
 
     [Fact]
+    public async Task PostRunProposalStartsAfterTheTestingDeadlineAndCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var state = State(new RunDeadline(DateTimeOffset.UtcNow.AddSeconds(-1)), cancellation.Token);
+        var runner = new FakeCommandRunner();
+        await new ProposalFinalization(runner, new RuntimePaths("/fixture")).Execute(state);
+
+        var command = Assert.Single(runner.Commands);
+        Assert.Contains("--proposal", command.Arguments);
+        Assert.False(command.Cancellation.IsCancellationRequested);
+        using var request = JsonDocument.Parse(command.Input!);
+        Assert.True(request.RootElement.GetProperty("deadline").GetDouble()
+            > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
+        Assert.True(request.RootElement.GetProperty("outcome").GetProperty("cancelled").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("/fixture/Local Report/index.html")]
+    [InlineData("http://127.0.0.1:8765/reports/run/index.html#knowledge")]
+    public async Task ReportBrowserOpensTheExactFinalLocation(string location)
+    {
+        var runner = new FakeCommandRunner();
+        await RunReportBrowser.Open(location, runner);
+        var command = Assert.Single(runner.Commands);
+        Assert.Equal("/usr/bin/open", command.Executable);
+        Assert.Equal(location, Assert.Single(command.Arguments));
+    }
+
+    [Fact]
     public async Task ExistingProposalIsNotOverwrittenDuringFinalization()
     {
         var calls = new List<string>();

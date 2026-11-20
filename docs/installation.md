@@ -168,6 +168,8 @@ source "$CIMT_INSTALL_ROOT/environment.sh"
 
 The installed launcher loads this environment automatically. Users should not need to source it manually before every `cimt` invocation. The source launcher also discovers `.local/install/environment.sh` beside its checkout. An explicit `CIMT_INSTALL_ROOT` selects another installation. Keep the `.bin` directory for `mcp-server-mobile` in the saved environment; setting only `MOBILECLI_PATH` is insufficient.
 
+The runtime installer also installs the HTML knowledge editor under `$CIMT_INSTALL_ROOT/data/knowledge/`. Rerunning the installer refreshes the editor while retaining the SQLite database there. After publishing the command host, double-click **Knowledge Database.command** in the CIMT folder to start the local viewer and open the editor in your browser. The file is available in the source checkout and at the root of the installation. To get the address in Terminal, run `cimt knowledge`. The local viewer stays available after the command returns. Learning-enabled runs start it automatically and print the interactive report URL. The editor can be opened without a test run or internet access.
+
 ## 8. Publish the command host and build worker
 
 From the CIMT source checkout, with the chosen environment loaded:

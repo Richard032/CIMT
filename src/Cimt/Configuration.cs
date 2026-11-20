@@ -12,6 +12,7 @@ public sealed class Configuration
     }
     public HashSet<string> Secrets => redactor.Values;
     public OutputLayout Outputs { get; }
+    public bool Learning => bool.TryParse(Root.Value("Learning"), out var enabled) && enabled;
     public string ReportsRoot => Outputs.ReportsRoot;
     public string WorkspaceRoot => Outputs.WorkRoot;
     public bool HasLegacyOutputRoots => Root.Get("workspace")?.Get("root") is not null

@@ -22,6 +22,7 @@ TOOLS = {
     'back': ('Press the Android system Back button.', ''),
     'wait': ('Wait while respecting the shared run deadline.', 'durationMs'),
     'restart': ('Restart the tested application.', ''),
+    'knowledge_lookup': ('Find approved app knowledge by query, or retrieve steps by entry ID.', ''),
     'sample_memory': ('Sample PSS and RSS of the tested Android application.', ''),
 }
 
@@ -48,16 +49,21 @@ COMMAND_METADATA = (
 )
 
 
-def register_tools(platform):
+def register_tools(platform, knowledge=False):
     """Publish tools supported on the device, using existing command argument schemas."""
-    return [
+    tools = [
         dict(type='function', name=name, description=description, strict=False,
              parameters=dict(type='object', additionalProperties=False,
                  required=['observation', *REQUIRED_ARGUMENTS.get(name, ())],
                  properties={key: tool_property(key) for key in (*arguments.split(), *COMMAND_METADATA)}))
         for name, (description, arguments) in TOOLS.items()
-        if platform == 'android' or name not in ('back', 'sample_memory')
+        if name != 'knowledge_lookup' and (platform == 'android' or name not in ('back', 'sample_memory'))
     ]
+    if knowledge:
+        tools.append(dict(type='function', name='knowledge_lookup', description=TOOLS['knowledge_lookup'][0],
+            strict=False, parameters=dict(type='object', additionalProperties=False, required=[],
+                properties={key: dict(type='string') for key in ('query', 'entryId')})))
+    return tools
 
 
 def tool_property(key):
@@ -83,7 +89,7 @@ def argument_error(name, values, parameters):
         if key not in values:
             return f'Missing required tool argument: {key}.'
     for key, value in values.items():
-        if error := schema_error(value, FIELDS[key]):
+        if error := schema_error(value, properties[key] if name == "knowledge_lookup" else FIELDS[key]):
             return f'Tool argument {key} {error}.'
     if name in ('tap', 'demo_tap'):
         ref = bool(values.get('ref'))
@@ -182,7 +188,8 @@ class ToolTurn:
         if error:
             self.reject(error)
             return 'Invalid tool arguments. No device command accepted.'
-        self.reply = command(dict(values, action=name))
+        self.reply = (dict(action=name, **values) if name == 'knowledge_lookup'
+                      else command(dict(values, action=name)))
         self.reply['modelResponse'] = original_tool_call(self.original_calls[0])
         self.reply['toolCall'] = dict(self.call, reasoning=self.reasoning)
         return 'Command accepted for CIMT dispatch.'

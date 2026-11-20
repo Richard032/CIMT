@@ -171,6 +171,24 @@ public sealed class ExecutionCheckpointTests : IDisposable
         Assert.Throws<ConfigurationException>(() => new ConfigurationValidator().Validate(WithSetting(root, value)));
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    public async Task LearningUsesAnExplicitBooleanOrDefaultsToFalse(string? value, bool expected)
+    {
+        using var fixture = new InputFolderFixture();
+        await fixture.Prepare();
+        var root = Node.Read(fixture.SharedFile);
+        if (value is not null)
+            root = Node.Merge(root, new(null, new()
+            {
+                ["Learning"] = new(value, null, null, root.Origin)
+            }, null, root.Origin));
+        new ConfigurationValidator().Validate(root);
+        Assert.Equal(expected, new Configuration(root).Learning);
+    }
+
     private static Node WithSetting(Node root, string? value) => Node.Merge(root,
         new(null, new() { ["execution"] = new(null, value is null ? [] : new()
         {

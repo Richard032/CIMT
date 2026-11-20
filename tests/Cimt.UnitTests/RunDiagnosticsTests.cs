@@ -55,6 +55,19 @@ public sealed class RunDiagnosticsTests
     }
 
     [Fact]
+    public async Task FinalReportShowsProposalCostsWithoutWorkerResults()
+    {
+        using var fixture = new DiagnosticFixture();
+        await fixture.Prepare();
+        await File.WriteAllTextAsync(Path.Combine(fixture.State.Report, "ai-budget.json"), """
+            {"requests":1,"currency":"USD","budgetOverrun":"0.02"}
+            """);
+        RunFinalization.Finish(fixture.State, new RunReportWriter());
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.State.Report, "index.html"));
+        Assert.Contains("Budget overrun including uncertainty</dt><dd>0.02 USD", html);
+    }
+
+    [Fact]
     public async Task InterruptedFinalReportKeepsFailureAndForcesIncomplete()
     {
         using var fixture = new DiagnosticFixture();

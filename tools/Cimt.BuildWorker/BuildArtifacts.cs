@@ -48,15 +48,31 @@ public static class AppIdResolver
         return value;
     }
 
+    public static (string AppId, string? AppName) ReadMetadata(BuildProcessResult query, string fallback)
+    {
+        var output = query.Output.Trim();
+        if (query.Exit == 0 && output.StartsWith('{'))
+        {
+            using var metadata = JsonDocument.Parse(output);
+            var properties = metadata.RootElement.GetProperty("Properties");
+            var id = properties.GetProperty("ApplicationId").GetString() ?? "";
+            var name = properties.GetProperty("ApplicationTitle").GetString()?.Trim();
+            return (Resolve(query with { Output = id }, fallback), string.IsNullOrWhiteSpace(name) ? null : name);
+        }
+        return (Resolve(query, fallback), null);
+    }
+
     private static bool IsValid(string value) => Regex.IsMatch(value, "^[A-Za-z0-9_.-]+$");
 }
 
 /// <summary>Publishes result metadata only after a successful build.</summary>
 public static class BuildResultWriter
 {
-    public static async Task Write(string file, string artifact, string appId)
+    public static async Task Write(string file, string artifact, string appId, string? appName)
     {
         var result = new Dictionary<string, string> { ["artifact"] = Path.GetFullPath(artifact), ["app-id"] = appId };
+        if (appName is not null)
+            result["app-name"] = appName;
         await File.WriteAllTextAsync(file + ".partial", JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
         File.Move(file + ".partial", file, overwrite: true);
     }

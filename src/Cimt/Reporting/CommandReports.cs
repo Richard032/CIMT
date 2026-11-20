@@ -17,7 +17,9 @@ public sealed class CommandReports : ICommandReports
     public async Task SaveConfiguration(CommandSession session)
     {
         var configuration = session.Configuration!;
-        var json = JsonSerializer.Serialize(configuration.Sanitized(configuration.Root), JsonOptions);
+        var settings = JsonSerializer.SerializeToNode(configuration.Sanitized(configuration.Root))!.AsObject();
+        settings["Learning"] = configuration.Learning;
+        var json = settings.ToJsonString(JsonOptions);
         await File.WriteAllTextAsync(Path.Combine(session.Report!, "effective-config.json"), json);
         // Record the new policy without changing the user's private configuration file.
         var layout = new

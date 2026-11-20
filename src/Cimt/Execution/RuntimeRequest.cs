@@ -6,6 +6,7 @@ public static class RuntimeRequest
     public static Dictionary<string, object?> Create(RunState state) => new()
     {
         ["protocolVersion"] = RuntimeResults.ProtocolVersion,
+        ["learning"] = state.Configuration.Learning,
         ["runId"] = state.Identity.Id,
         ["config"] = ConvertNode(state.Configuration.Root),
         ["report"] = state.Report,
