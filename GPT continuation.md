@@ -11,7 +11,7 @@ Updated: 10 November 2026. This is an agent handover, not an installation log or
 
 ## Current handover
 
-The documentation review targets existing `feature/external_file`; no merge, release tag or new paid/device test is authorized by it. The source baseline before the documentation revision is `c54ea32`. The earlier automatic shared app-learning feature was reverted. App knowledge is maintained through explicit reviewed setup text, not automatic learning or publishing.
+The documentation review targets existing `feature/external_file`; no merge, release tag or new paid/device test is authorized by it. The source baseline before the documentation revision is `c54ea32`. The earlier automatic shared app-learning feature was reverted. Current builds also support optional, locally stored app knowledge with human approval. See [test inputs](docs/test-inputs.md#separate-app-knowledge-from-the-issue).
 
 [Implementation status](docs/implementation-status.md) records current scope and executed evidence. On 10 November, 349 .NET unit tests, 512 Python unit tests, 22 runtime-policy checks, 22 CLI/lifecycle checks, four build-contract checks and four example checks passed. The final output-layout fixture failed because its isolated Mobile MCP module was missing. Do not call the full bundle green or change an unrelated test merely to hide the failure.
 

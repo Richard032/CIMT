@@ -38,6 +38,20 @@ public sealed class OutcomeTests
             RunOutcomePolicy.Evaluate(0, Execution("inconclusive", "complete")));
     }
 
+    [Theory]
+    [InlineData("phone-a", "first", 0)]
+    [InlineData("phone-a", "second", 2)]
+    [InlineData("phone-b", "first", 2)]
+    public void EveryExpectedDeviceAndTargetNeedsAnObjectiveEvenWithoutRequirements(string device, string target, int exit)
+    {
+        var execution = JsonSerializer.Deserialize<JsonElement>("""
+            {"devices":[{"device":{"id":"phone-a","platform":"android"},
+            "scenarios":[{"target":"first","verdict":"passed","completion":"complete","crashes":[]}]}]}
+            """);
+        var scopes = new[] { new RequirementScope(target, "android", device, device, "") };
+        Assert.Equal(exit, RunOutcomePolicy.Evaluate(0, execution, expectedScopes: scopes).ExitCode);
+    }
+
     [Fact]
     public void InvalidCheckStatusCannotBeHiddenByAPassedScenario()
     {

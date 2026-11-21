@@ -24,12 +24,19 @@ class DeviceTarget:
         result = self.run_command(["adb", "devices"], capture_output=True, text=True, timeout=15)
         if result.returncode:
             raise InfrastructureError("Android emulator serial lookup failed")
+        matches = []
         for line in result.stdout.splitlines():
             columns = line.split()
             if len(columns) == 2 and columns[0].startswith("emulator-") and columns[1] == "device":
                 name = self.run_command(["adb", "-s", columns[0], "emu", "avd", "name"], capture_output=True, text=True, timeout=15)
-                if name.returncode == 0 and name.stdout.splitlines()[:1] == [self.device["id"]]:
-                    return columns[0]
+                if name.returncode or not name.stdout.strip():
+                    raise InfrastructureError("Cannot verify the AVD name of an online Android emulator")
+                if name.stdout.splitlines()[:1] == [self.device["id"]]:
+                    matches.append(columns[0])
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            raise InfrastructureError("Multiple Android emulators use the selected AVD name. Select a unique ADB serial or stop the duplicate.")
         raise InfrastructureError("Selected Android emulator has no online ADB serial")
 
     def verify_simulator(self):

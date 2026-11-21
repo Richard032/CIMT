@@ -8,9 +8,12 @@ public sealed record RunOutcome(int ExitCode, string Verdict, string Completion)
 public static class RunOutcomePolicy
 {
     /// <summary>Keep failures visible even when coverage is incomplete or a build failed.</summary>
-    public static RunOutcome Evaluate(int exit, JsonElement? execution, RequirementCoverage? coverage = null)
+    public static RunOutcome Evaluate(int exit, JsonElement? execution, RequirementCoverage? coverage = null,
+        IReadOnlyList<RequirementScope>? expectedScopes = null)
     {
         var hasFailure = false;
+        var missing = expectedScopes?.Where(scope => scope.DeviceId.Length > 0)
+            .Select(scope => (scope.DeviceId, scope.Platform, scope.Target)).ToHashSet();
         var scenarioCount = 0;
         var allComplete = execution.HasValue;
         var allDecided = execution.HasValue;
@@ -21,6 +24,10 @@ public static class RunOutcomePolicy
                 foreach (var scenario in device.GetProperty("scenarios").EnumerateArray())
                 {
                     scenarioCount++;
+                    if (missing is { Count: > 0 } && device.TryGetProperty("device", out var identity)
+                        && identity.TryGetProperty("id", out var id) && identity.TryGetProperty("platform", out var platform)
+                        && scenario.TryGetProperty("target", out var target))
+                        missing.Remove((id.ToString(), platform.ToString(), target.ToString()));
                     var verdict = scenario.TryGetProperty("verdict", out var result) ? result.GetString() : null;
                     hasFailure |= scenario.GetProperty("crashes").GetArrayLength() > 0 || verdict == "failed";
                     allDecided &= verdict is "passed" or "failed";
@@ -29,6 +36,7 @@ public static class RunOutcomePolicy
                 }
             }
         allDecided &= scenarioCount > 0;
+        allComplete &= missing is not { Count: > 0 };
         hasFailure |= coverage?.HasFailures == true;
         allComplete &= coverage?.HasUnresolved != true;
         if (hasFailure)

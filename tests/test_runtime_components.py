@@ -2070,13 +2070,21 @@ class BoundaryTests(unittest.TestCase):
             screen.snapshot()
         self.assertFalse(masked)
 
+    def test_apk_identity_mismatch_stops_before_device_access(self):
+        commands = SimpleNamespace(device={"platform": "android"}, run_command=lambda *args, **kwargs:
+                                   subprocess.CompletedProcess(args, 0, "com.other.app", ""))
+        lifecycle = AppLifecycle(commands, self.fail)
+        with self.assertRaisesRegex(InfrastructureError, "APK application ID"):
+            lifecycle.reset("fixture.apk", "com.example.app", "Release")
+
     def test_failed_android_data_clear_prevents_launch(self):
         present = iter([{"data": []}, {"data": [{"packageName": "com.example.app"}]}])
         calls = []
         commands = SimpleNamespace(
             device={"platform": "android", "id": "fixture"},
             native=lambda _: next(present),
-            run_command=lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, "Failed", ""),
+            run_command=lambda args, **kwargs: (subprocess.CompletedProcess(args, 0, "com.example.app", "")
+                if args[0] == "apkanalyzer" else subprocess.CompletedProcess(args, 1, "Failed", "")),
         )
         lifecycle = AppLifecycle(commands, lambda name, **kwargs: calls.append(name))
         with self.assertRaises(InfrastructureError):

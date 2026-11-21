@@ -38,6 +38,14 @@ class DeviceTargetTests(unittest.TestCase):
         target = DeviceTarget({"platform": "android", "type": "emulator", "id": "CIMT"}, command)
         self.assertEqual("emulator-5554", target.adb_serial())
 
+    def test_two_emulators_with_the_same_name_are_rejected(self):
+        def command(args, **options):
+            output = "emulator-5554 device\nemulator-5556 device" if args == ["adb", "devices"] else "CIMT\nOK"
+            return subprocess.CompletedProcess(args, 0, output, "")
+        target = DeviceTarget({"platform": "android", "type": "emulator", "id": "CIMT"}, command)
+        with self.assertRaisesRegex(InfrastructureError, "Multiple Android emulators"):
+            target.adb_serial()
+
     def test_unmatched_emulator_is_rejected(self):
         def command(args, **options):
             return subprocess.CompletedProcess(args, 0, "", "")

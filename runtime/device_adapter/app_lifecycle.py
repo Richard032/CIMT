@@ -1,5 +1,6 @@
 """Installation and reset of the application under test."""
 
+import subprocess
 import time
 from errors import InfrastructureError
 from .target import DeviceTarget
@@ -25,9 +26,15 @@ class AppLifecycle:
     def reset(self, artifact, app_id, target):
         """Reset platform data and verify app hooks before launching the app."""
         self._check_app_id(app_id)
+        serial = None
+        if self.commands.device["platform"] == "android":
+            self._verify_apk(artifact, app_id)
+            serial = DeviceTarget(self.commands.device, self.commands.run_command).adb_serial()
+        self.check()
         self._remove_existing(app_id)
         self._install(artifact, app_id)
-        self._clear_android_data(app_id)
+        if serial is not None:
+            self._clear_android_data(app_id, serial)
         self._run_hooks(app_id, target)
         ExternalFiles(self.commands, self.check).copy(app_id)
         self.call("mobile_launch_app", packageName=app_id)
@@ -50,6 +57,17 @@ class AppLifecycle:
                 "Refusing to replace a system or automation-helper application"
             )
 
+    def _verify_apk(self, artifact, app_id):
+        try:
+            result = self.commands.run_command(
+                ["apkanalyzer", "manifest", "application-id", artifact],
+                capture_output=True, text=True, timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise InfrastructureError("Cannot inspect the APK. Verify that Android SDK apkanalyzer is on PATH.") from None
+        if result.returncode or result.stdout.strip() != app_id:
+            raise InfrastructureError("Cannot verify the APK application ID against the build metadata. Android reset stopped.")
+
     def _remove_existing(self, app_id):
         if self.app_present(app_id):
             self.call("mobile_uninstall_app", packageName=app_id, timeout=120)
@@ -62,11 +80,9 @@ class AppLifecycle:
         if not self.app_present(app_id):
             raise InfrastructureError("Installed app identifier was not verified")
 
-    def _clear_android_data(self, app_id):
-        if self.commands.device["platform"] != "android":
-            return
+    def _clear_android_data(self, app_id, serial):
         result = self.commands.run_command(
-            ["adb", "-s", DeviceTarget(self.commands.device, self.commands.run_command).adb_serial(), "shell", "pm", "clear", app_id],
+            ["adb", "-s", serial, "shell", "pm", "clear", app_id],
             capture_output=True,
             text=True,
             timeout=30,

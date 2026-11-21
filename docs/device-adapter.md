@@ -92,3 +92,7 @@ sequenceDiagram
         Stop-->>Run: Existing infrastructure or limit policy
     end
 ```
+
+## Android reset identity checks
+
+Before removing an installed app, CIMT reads the application ID from the APK using `apkanalyzer manifest application-id` and compares it with the build metadata. Install the Android SDK command-line tools and ensure `apkanalyzer` is on the launcher’s PATH. If the package cannot be verified, reset stops before changing the device. When the adapter supplies an AVD name, exactly one online emulator must match. If multiple emulators share that name, stop the duplicate or select a unique serial exposed by discovery.

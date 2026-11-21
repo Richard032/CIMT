@@ -50,10 +50,11 @@ public static class RunFinalization
 
     private static RunReportData Evaluate(RunState state, JsonElement? execution, bool final)
     {
-        var coverage = RequirementReportBuilder.Build(state.Requirements, RequirementScopes.Create(state),
+        var scopes = RequirementScopes.Create(state);
+        var coverage = RequirementReportBuilder.Build(state.Requirements, scopes,
             execution, state.Inputs.GetValueOrDefault("instructions", ""),
             RequirementCatalogue.Hash(state.Inputs.GetValueOrDefault("requirements", "")));
-        var outcome = RunOutcomePolicy.Evaluate(state.Exit, execution, coverage);
+        var outcome = RunOutcomePolicy.Evaluate(state.Exit, execution, coverage, scopes);
         if (!final || state.Cancellation.IsCancellationRequested)
             outcome = new(ExitCodes.Combine(outcome.ExitCode, 2), outcome.Verdict, "incomplete");
         return new(outcome, execution, coverage, final);

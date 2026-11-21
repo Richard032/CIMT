@@ -46,7 +46,7 @@ Reference `./build/android.sh` and `./build/ios.sh` in the appropriate target. B
 
 Keep navigation facts in setup rather than repeating them in every scenario. Keep issue history and previous unsuccessful fixes out of AI instructions unless they change what must be tested. CIMT treats text files as test inputs, not permission for a developer agent to execute unrelated actions. Fixture bytes are not instructions.
 
-For reusable knowledge, maintain a reviewed setup file in Git and point `inputs.setup` to it, or copy the relevant reviewed text into this test folder. Update it deliberately when the UI changes. There is no automatic learning/publishing feature. Never add passwords, API keys, private XPA data or personal device IDs to shared knowledge.
+For reusable knowledge, maintain a reviewed setup file in Git and point `inputs.setup` to it, or copy the relevant reviewed text into this test folder. Update it deliberately when the UI changes. To make approved procedures available during testing, set `Learning: true` in the run configuration. The default is `false`. During an enabled run the AI can browse groups, search descriptions and alternate names, and read approved steps by knowledge ID whenever it needs them. After the run, review proposed additions, updates, and deletions in the latest report’s **Knowledge** tab. Accepting a change saves it immediately to this installation’s local database. Never add passwords, API keys, private XPA data or personal device IDs to shared knowledge.
 
 ## Real-life setup example
 

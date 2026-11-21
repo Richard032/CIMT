@@ -90,7 +90,10 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-t
 java -version
 javac -version
 adb version
+command -v apkanalyzer
 ```
+
+CIMT uses Android SDK’s `apkanalyzer` to verify the APK identity before resetting an app. To check an existing build locally, run `apkanalyzer manifest application-id /path/to/app.apk` and compare the result with its configured or build-reported `app-id`.
 
 Our application required Android platform 36 and build-tools 36.0.0. The selected emulator used a newer ARM64 system image. On another setup choose components from the application's target and the workload's documented requirements. If `sdkmanager` reports a CLI replacement or deprecation, use the supported SDK Manager UI or current official CLI instructions; do not assume an old bootstrap command is still appropriate.
 
