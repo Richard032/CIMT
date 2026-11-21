@@ -64,7 +64,9 @@ class Agent:
             body['input'][0]['content'] += (
                 '\nApproved app knowledge is available throughout the test. Browse groups with knowledge_lookup. '
                 'Choose a group and call knowledge_lookup with its group ID to read procedure descriptions. '
-                'Use query to narrow groups or descriptions, including alternate scenario wording. Use nextOffset '
+                'For direct search across groups, call knowledge_lookup with query alone, for example open XPA. '
+                'Search returns descriptions, IDs, and group memberships. Combine query with a group ID to narrow '
+                'the search, and use alternate scenario wording when needed. Use nextOffset '
                 'to request another page when needed. After choosing a procedure, call knowledge_lookup with '
                 'its entryId to read its ID, description, groups, and exact approved steps. '
                 'Consult knowledge when you encounter a new task or unfamiliar workflow during the run. '
@@ -78,7 +80,7 @@ class Agent:
         if knowledge_index is not None:
             body['input'][-1]['content'].append(dict(type='input_text', text=(
                 'Approved knowledge groups for this app and platform. '
-                'Choose a group to browse procedure descriptions. '
+                'Choose a group or search for a task to see procedure descriptions. '
                 + json.dumps(knowledge_index, ensure_ascii=False))))
         body['parallel_tool_calls'] = False
         body['include'] = ['reasoning.encrypted_content']

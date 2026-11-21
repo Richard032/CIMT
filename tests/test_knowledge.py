@@ -59,7 +59,7 @@ class KnowledgeTests(unittest.TestCase):
         self.assertEqual([(row["name"], row["count"]) for row in index["groups"]], [("General", 2)])
         page = self.store.browse("econ-m", platform="ios", group="General")
         self.assertEqual([row["name"] for row in page["procedures"]], ["iOS picker", "Open XPA"])
-        self.assertEqual(set(page["procedures"][0]), {"id", "name", "aliases", "description"})
+        self.assertEqual(set(page["procedures"][0]), {"id", "name", "aliases", "description", "groups"})
         android, = self.store.lookup("ECON-M", "picker", platform="android")
         self.assertIsNone(self.store.lookup("ECON-M", entry_id=android["id"], platform="ios"))
 
@@ -83,6 +83,18 @@ class KnowledgeTests(unittest.TestCase):
         self.assertEqual(entry["description"], description["description"])
         self.assertEqual(entry["id"], description["id"])
         self.assertEqual([group["name"] for group in entry["groups"]], ["Fixtures", "Setup"])
+
+    def test_search_across_groups_matches_aliases_without_exposing_steps(self):
+        for platform, groups in (("ios", ["Offline files", "Setup"]), ("android", ["Offline files"])):
+            self.store.edit(dict(self.proposal, name="Load offline data", aliases=["Open XPA"],
+                                 platform=platform, groups=groups))
+        results = self.store.browse("ECON-M", platform="ios", query="How do I open the XPA?")
+        row, = results["procedures"]
+        self.assertEqual(row["name"], "Load offline data")
+        self.assertEqual([group["name"] for group in row["groups"]], ["Offline files", "Setup"])
+        self.assertNotIn("steps", row)
+        entry = self.store.browse("ECON-M", platform="ios", entry_id=row["id"])
+        self.assertEqual(entry["steps"], self.proposal["steps"])
 
     def test_existing_entries_gain_default_metadata_without_changing_their_ids(self):
         store = KnowledgeStore(self.root / "legacy")

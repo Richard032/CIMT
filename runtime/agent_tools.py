@@ -22,7 +22,7 @@ TOOLS = {
     'back': ('Press the Android system Back button.', ''),
     'wait': ('Wait while respecting the shared run deadline.', 'durationMs'),
     'restart': ('Restart the tested application.', ''),
-    'knowledge_lookup': ('Browse approved knowledge groups, list procedure descriptions in a group, or read approved steps by entry ID.', ''),
+    'knowledge_lookup': ('Browse approved knowledge groups, search procedure descriptions by query across groups or within one group, or read approved steps by entry ID.', ''),
     'sample_memory': ('Sample PSS and RSS of the tested Android application.', ''),
 }
 

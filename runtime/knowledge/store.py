@@ -83,7 +83,9 @@ class KnowledgeStore:
         entries = [self._entry(row) for row in rows
                    if (app is None or row["app"].casefold() == app.strip().casefold())
                    and (platform is None or row["platform"] in ("", platform))]
-        terms = re.findall(r"\w+", query.casefold())
+        words = re.findall(r"\w+", query.casefold())
+        filler = {"a", "an", "can", "do", "how", "i", "in", "the", "to"}
+        terms = [word for word in words if word not in filler] or words
 
         def score(entry):
             names = " ".join([entry["name"], *entry["aliases"]]).casefold()
@@ -114,18 +116,25 @@ class KnowledgeStore:
         if entry_id:
             entry = self.lookup(app, entry_id=entry_id, platform=platform)
             return dict(entry, groups=[self._group(app, name) for name in entry["groups"]]) if entry else None
+        if not group and not query.strip():
+            return self.group_index(app, platform, offset=offset)
+        entries = self.entries(app, query, platform=platform)
         if not group:
-            return self.group_index(app, platform, query, offset)
+            return self._page("procedures", [self._describe(row) for row in entries], offset, 20)
         descriptions = []
         selected = None
-        for row in self.entries(app, query, platform=platform):
+        for row in entries:
             for name in row["groups"]:
                 identity = self._group(app, name)
                 if group == identity["id"] or group.strip().casefold() == name.casefold():
                     selected = identity
-                    descriptions.append({key: row[key] for key in ("id", "name", "aliases", "description")})
+                    descriptions.append(self._describe(row))
                     break
         return dict(self._page("procedures", descriptions, offset, 20), group=selected)
+
+    def _describe(self, row):
+        return {**{key: row[key] for key in ("id", "name", "aliases", "description")},
+                "groups": [self._group(row["app"], name) for name in row["groups"]]}
 
     @staticmethod
     def _page(key, rows, offset, size):
