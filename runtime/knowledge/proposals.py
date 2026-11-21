@@ -8,6 +8,7 @@ from budget import MAX_OUTPUT
 from evidence import atomic
 from errors import InfrastructureError
 from result_review.contracts import EvidenceRequest
+from .store import DEFAULT_GROUP, PLATFORMS
 
 
 
@@ -25,13 +26,16 @@ PROPOSAL_FORMAT = {
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["app", "operation", "entryId", "description", "name", "steps"],
+                    "required": ["app", "operation", "entryId", "description", "name", "steps", "platform", "aliases", "groups"],
                     "properties": {
                         "app": {"type": "string"},
                         "operation": {"type": "string", "enum": ["add", "update", "delete"]},
                         "entryId": {"type": "string"},
                         "description": {"type": "string"},
                         "name": {"type": "string"},
+                        "groups": {"type": "array", "items": {"type": "string"}},
+                        "platform": {"type": "string", "enum": ["", *PLATFORMS]},
+                        "aliases": {"type": "array", "items": {"type": "string"}},
                         "steps": {"type": "array", "items": {"type": "string"}},
                     },
                 },
@@ -59,7 +63,12 @@ class OpenAiKnowledgeProposal:
                     "Preserve actual UI labels. Introduce a verified run-specific detail with 'for example', such as "
                     "'Tap the filename of the XPA you want to open (for example, test.xpa)'. "
                     "Keep platform or configuration conditions when the evidence shows the procedure depends on them. "
-                    "Do not claim a procedure works on untested platforms. "
+                    "Use the platform field to scope an entry supported by one platform, and an empty platform "
+                    "for shared procedures. Do not claim a procedure works on untested platforms. "
+                    "Propose one or more groups for each request. Prefer existing groups for the same workflow and use a "
+                    "short new group name when needed. Retain the existing groups on deletion. "
+                    "Use aliases for verified alternate task names used in different scenarios. Update the same "
+                    "entry by ID when an existing procedure gains another name. "
                     "Do not include credentials or personal data. An uncertain observation is not learned knowledge. "
                     "Return the proposed changes in requests using the supplied schema. "
                     "Use an empty requests array if there are no changes or no app identity. "
@@ -111,8 +120,18 @@ def write_proposals(report, generator, observer, store, redactor, builds, eviden
         proposals = generator.propose(request)
         if not isinstance(proposals, list):
             raise InfrastructureError("Knowledge proposals must be a JSON array.")
-        rows = [normalize(item, catalogues, redactor) for item in proposals]
-        message = "Review the proposed changes." if rows else "The AI proposed no knowledge changes."
+        rows = []
+        rejected = []
+        for index, item in enumerate(proposals, start=1):
+            try:
+                rows.append(normalize(item, catalogues, redactor))
+            except InfrastructureError as error:
+                rejected.append(f"Request {index}: {error}")
+        if rejected:
+            message = (("Review the proposed changes." if rows else "No valid knowledge proposals were saved.")
+                       + f" Skipped {len(rejected)} invalid request(s). " + " ".join(rejected))
+        else:
+            message = "Review the proposed changes." if rows else "The AI proposed no knowledge changes."
     except Exception as error:
         rows = []
         message = ("Knowledge proposals unavailable: " + redactor.text(str(error))
@@ -138,7 +157,19 @@ def normalize(item, catalogues, redactor):
     if not all(isinstance(value, str) and value.strip() for value in (name, description)) or not (
             isinstance(steps, list) and steps and all(isinstance(step, str) and step.strip() for step in steps)):
         raise InfrastructureError("A proposal needs a name, description and ordered steps.")
-    text = redactor.object(dict(name=name, description=description, steps=steps))
+    platform = item.get("platform", existing["platform"] if existing else "")
+    aliases = item.get("aliases", existing["aliases"] if existing else [])
+    if platform not in ("", *PLATFORMS):
+        raise InfrastructureError("The proposal did not identify a supported platform.")
+    if not isinstance(aliases, list) or any(not isinstance(alias, str) for alias in aliases):
+        raise InfrastructureError("Alternate names must be text.")
+    groups = existing["groups"] if operation == "delete" else item.get(
+        "groups", existing["groups"] if existing else [DEFAULT_GROUP])
+    if not isinstance(groups, list) or not groups or any(not isinstance(name, str) or not name.strip() for name in groups):
+        raise InfrastructureError("The proposal needs at least one knowledge group.")
+    text = redactor.object(dict(name=name, description=description, steps=steps, aliases=aliases,
+                                groups=[name.strip() for name in groups]))
+    text["platform"] = platform
     return dict(text, id=uuid4().hex, app=item["app"], operation=operation,
                 entryId=existing["id"] if existing and operation != "add" else "",
                 revision=existing["revision"] if existing and operation != "add" else "",

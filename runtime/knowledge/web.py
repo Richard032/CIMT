@@ -13,7 +13,7 @@ import sys
 import time
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
-from .store import KnowledgeStore, ReviewError, StaleReport
+from .store import DEFAULT_GROUP, KnowledgeStore, PLATFORMS, ReviewError, StaleReport
 
 
 PORT = 8765
@@ -59,6 +59,18 @@ class KnowledgePage:
                   f'<label>Description <textarea name="description">{esc(draft.get("description", ""))}</textarea></label><br>'
                   f'<label>Steps, one per line <textarea name="steps" rows="6">'
                   f'{esc(chr(10).join(draft.get("steps", [])))}</textarea></label><br>')
+        choices = {"": "All platforms", "android": "Android", "ios": "iOS",
+                   "windows": "Windows", "maccatalyst": "Mac Catalyst"}
+        if entry_id := draft.get("entryId") or (draft.get("id") if app else None):
+            output += f'<p>Knowledge ID <code>{esc(entry_id)}</code></p>'
+        options = "".join(f'<option value="{platform}"'
+                          f'{" selected" if platform == draft.get("platform", "") else ""}>{choices[platform]}</option>'
+                          for platform in ("", *PLATFORMS))
+        output += ('<label>Groups, one per line <textarea name="groups" rows="3">'
+                   f'{esc(chr(10).join(draft.get("groups", [DEFAULT_GROUP])))}</textarea></label><br>'
+                   f'<label>Platform <select name="platform">{options}</select></label><br>'
+                   '<label>Alternate names, one per line <textarea name="aliases" rows="3">'
+                   f'{esc(chr(10).join(draft.get("aliases", [])))}</textarea></label><br>')
         if review:
             choices = ("delete", "update") if current else ("add",)
             options = "".join(f'<option{" selected" if operation == draft["operation"] else ""}>{operation}</option>'
@@ -73,17 +85,20 @@ class KnowledgePage:
         return "<ol>" + "".join(f"<li>{esc(step)}</li>" for step in entry["steps"]) + "</ol>"
 
     def database(self, query):
-        items = []
+        groups = {}
         for row in self.store.entries(query=query):
             fields = dict(entryId=row["id"], revision=row["revision"])
             buttons = ('<button name="action" value="save">Save</button> '
                        '<label><input type="checkbox" name="confirm"> Confirm deletion</label> '
                        '<button name="action" value="delete">Delete</button>')
             edit = self.form("/edit", fields, self.editor_fields(row, app=True) + buttons)
-            items.append(f'<details><summary>{esc(row["app"])} · {esc(row["name"])}</summary>'
+            for name in row["groups"]:
+                groups.setdefault((row["app"], name), []).append(f'<details><summary>{esc(row["app"])} · {esc(row["name"])}</summary>'
                          f'<p>{esc(row["description"])}</p>{self.steps(row)}{edit}</details>')
+        items = [f'<details><summary>{esc(app)} · {esc(group)} ({len(entries)})</summary>'
+                 + "".join(entries) + "</details>" for (app, group), entries in sorted(groups.items())]
         add = self.form("/edit", {}, self.editor_fields({}, app=True) + '<button name="action" value="save">Add</button>')
-        return ('<h1>Knowledge database</h1><form><label>Search app or knowledge name '
+        return ('<h1>Knowledge database</h1><form><label>Search app, group, or knowledge name '
                 f'<input name="q" value="{esc(query)}"></label> <button>Search</button></form>'
                 + "".join(items) + "<h2>Add knowledge</h2>" + add)
 
@@ -93,7 +108,7 @@ class KnowledgePage:
             raise ReviewError("The report is not registered with this installation.")
         data = load_proposals(path)
         rows = "".join(self.request_row(report, item, latest == report) for item in data["requests"])
-        table = ('<table><thead><tr><th>Operation</th><th>What I learned</th><th>Name</th><th>Steps</th>'
+        table = ('<table><thead><tr><th>Operation</th><th>What I learned</th><th>Name and group</th><th>Steps</th>'
                  '<th>Decision and actions</th></tr></thead><tbody>' + rows + '</tbody></table>' if rows else "")
         notice = (f'<p>This report is read-only. <a href="{report_url(latest)}">Open the latest report</a>.</p>'
                   if report != latest else "")
@@ -125,14 +140,25 @@ class KnowledgePage:
         before = ("<strong>At proposal time</strong>" + self.steps(original) if original else "")
         context = ("<strong>Current entry</strong><p>" + esc(current["name"]) + "</p>" + self.steps(current)
                    if current else "<p>No current entry.</p>")
+        names = ", ".join(draft.get("aliases", []))
+        identity = (f'<p>Knowledge ID <code>{esc(draft["entryId"])}</code></p>' if draft.get("entryId") else "")
+        scope = esc(draft.get("platform") or "All platforms")
+        groups = esc(", ".join(draft.get("groups", [DEFAULT_GROUP])))
         return (f'<tr><td>{esc(draft["operation"])}</td><td>{esc(draft["description"])}</td>'
-                f'<td>{esc(draft["name"])}</td><td>{self.steps(draft)}{before}{context}</td>'
+                f'<td>{esc(draft["name"])}{identity}<p>Groups {groups} · {scope}</p>{esc(names)}</td><td>{self.steps(draft)}{before}{context}</td>'
                 f'<td>{esc(status.title())}<p>{esc(revisions)}</p>{actions}</td></tr>')
 
     @staticmethod
     def draft(values):
-        return dict(name=values.get("name", ""), description=values.get("description", ""),
-                    steps=[line.strip() for line in values.get("steps", "").splitlines() if line.strip()])
+        draft = dict(name=values.get("name", ""), description=values.get("description", ""),
+                     steps=[line.strip() for line in values.get("steps", "").splitlines() if line.strip()])
+        if "aliases" in values:
+            draft["aliases"] = [line.strip() for line in values["aliases"].splitlines() if line.strip()]
+        if "platform" in values:
+            draft["platform"] = values["platform"]
+        if "groups" in values:
+            draft["groups"] = [line.strip() for line in values["groups"].splitlines() if line.strip()]
+        return draft
 
     def change(self, route, values):
         action = values.get("action")

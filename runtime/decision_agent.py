@@ -5,9 +5,9 @@ from typing import Any, Callable, Protocol
 
 
 class KnowledgeLookup(Protocol):
-    """Search the current app's approved entries or retrieve one by ID."""
+    """List groups, browse procedure descriptions, or retrieve approved steps by ID."""
 
-    def __call__(self, *, query: str = "", entry_id: str = "") -> list | dict | None:
+    def __call__(self, *, query: str = "", group: str = "", entry_id: str = "", offset: int = 0) -> dict | None:
         ...
 
 
@@ -33,6 +33,7 @@ class DecisionRequest:
     check_cancelled: Callable[[], None] | None = None
     previous_tool_result: tuple[dict, dict] | None = None
     knowledge_lookup: KnowledgeLookup | None = None
+    knowledge_index: dict | None = None
 
     def arguments(self):
         """Return the values used by the existing OpenAI prompt builder."""

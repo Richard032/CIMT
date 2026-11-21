@@ -22,7 +22,7 @@ TOOLS = {
     'back': ('Press the Android system Back button.', ''),
     'wait': ('Wait while respecting the shared run deadline.', 'durationMs'),
     'restart': ('Restart the tested application.', ''),
-    'knowledge_lookup': ('Find approved app knowledge by query, or retrieve steps by entry ID.', ''),
+    'knowledge_lookup': ('Browse approved knowledge groups, list procedure descriptions in a group, or read approved steps by entry ID.', ''),
     'sample_memory': ('Sample PSS and RSS of the tested Android application.', ''),
 }
 
@@ -62,7 +62,8 @@ def register_tools(platform, knowledge=False):
     if knowledge:
         tools.append(dict(type='function', name='knowledge_lookup', description=TOOLS['knowledge_lookup'][0],
             strict=False, parameters=dict(type='object', additionalProperties=False, required=[],
-                properties={key: dict(type='string') for key in ('query', 'entryId')})))
+                properties={**{key: dict(type='string') for key in ('query', 'group', 'entryId')},
+                            'offset': dict(type='integer', minimum=0)})))
     return tools
 
 

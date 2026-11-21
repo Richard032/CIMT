@@ -1,10 +1,16 @@
 """Persistent app knowledge and transactional review history."""
 
 from contextlib import contextmanager
+from hashlib import sha256
 import json
+import re
 from pathlib import Path
 import sqlite3
 from uuid import uuid4
+
+
+DEFAULT_GROUP = "General"
+PLATFORMS = ("android", "ios", "windows", "maccatalyst")
 
 
 class ReviewError(ValueError):
@@ -30,13 +36,15 @@ class KnowledgeStore:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS entries (
                     id TEXT PRIMARY KEY, app TEXT NOT NULL, name TEXT NOT NULL,
-                    description TEXT NOT NULL, steps TEXT NOT NULL, revision TEXT NOT NULL);
+                    description TEXT NOT NULL, steps TEXT NOT NULL, revision TEXT NOT NULL,
+                    platform TEXT NOT NULL DEFAULT '', aliases TEXT NOT NULL DEFAULT '[]', groups TEXT NOT NULL DEFAULT '["General"]');
                 CREATE TABLE IF NOT EXISTS reports (
                     id TEXT PRIMARY KEY, path TEXT NOT NULL, finished TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS reviews (
                     report TEXT NOT NULL, request TEXT NOT NULL, generation INTEGER NOT NULL,
                     decision TEXT NOT NULL, draft TEXT NOT NULL, PRIMARY KEY(report, request, generation));
             """)
+            self._migrate_entries(connection)
             if write:
                 connection.execute("BEGIN IMMEDIATE")
             with connection:
@@ -45,22 +53,90 @@ class KnowledgeStore:
             connection.close()
 
     @staticmethod
+    def _migrate_entries(db):
+        def columns():
+            return {row["name"] for row in db.execute("PRAGMA table_info(entries)")}
+
+        if {"platform", "aliases", "groups"} <= columns():
+            return
+        with db:
+            db.execute("BEGIN IMMEDIATE")
+            existing = columns()
+            if "platform" not in existing:
+                db.execute("ALTER TABLE entries ADD COLUMN platform TEXT NOT NULL DEFAULT ''")
+            if "aliases" not in existing:
+                db.execute("ALTER TABLE entries ADD COLUMN aliases TEXT NOT NULL DEFAULT '[]'")
+            if "groups" not in existing:
+                db.execute("""ALTER TABLE entries ADD COLUMN groups TEXT NOT NULL DEFAULT '["General"]'""")
+
+    @staticmethod
     def _entry(row):
-        return dict(row, steps=json.loads(row["steps"])) if row else None
+        if row is None:
+            return None
+        entry = dict(row, steps=json.loads(row["steps"]), aliases=json.loads(row["aliases"]))
+        entry["groups"] = json.loads(row["groups"])
+        return entry
 
-    def entries(self, app=None, query=""):
+    def entries(self, app=None, query="", *, platform=None):
         with self.connect() as db:
-            rows = db.execute("SELECT * FROM entries ORDER BY app, name").fetchall()
-        return [self._entry(row) for row in rows
-                if (app is None or row["app"].casefold() == app.strip().casefold())
-                and query.casefold() in " ".join((row["name"], row["description"],
-                                                row["app"] if app is None else "")).casefold()]
+            rows = db.execute("SELECT * FROM entries ORDER BY app, name, id").fetchall()
+        entries = [self._entry(row) for row in rows
+                   if (app is None or row["app"].casefold() == app.strip().casefold())
+                   and (platform is None or row["platform"] in ("", platform))]
+        terms = re.findall(r"\w+", query.casefold())
 
-    def lookup(self, app, query="", entry_id=""):
-        entries = self.entries(app, query)
+        def score(entry):
+            names = " ".join([entry["name"], *entry["aliases"]]).casefold()
+            searchable = " ".join((names, entry["description"], entry["id"], entry["app"], *entry["groups"])).casefold()
+            return sum(term in names for term in terms) if all(term in searchable for term in terms) else -1
+
+        ranked = [(score(entry), entry) for entry in entries]
+        ranked.sort(key=lambda item: (-item[0], not bool(item[1]["platform"])))
+        return [entry for match, entry in ranked if match >= 0]
+
+    @staticmethod
+    def _group(app, name):
+        key = app.strip().casefold() + "\0" + name.strip().casefold()
+        return {"id": sha256(key.encode()).hexdigest()[:16], "name": name}
+
+    def group_index(self, app, platform, query="", offset=0):
+        groups = {}
+        for entry in self.entries(app, query, platform=platform):
+            for name in entry["groups"]:
+                identity = self._group(app, name)
+                group = groups.setdefault(identity["id"], dict(identity, count=0, knowledgeIds=[]))
+                group["count"] += 1
+                if len(group["knowledgeIds"]) < 5:
+                    group["knowledgeIds"].append(entry["id"])
+        return self._page("groups", sorted(groups.values(), key=lambda group: group["name"].casefold()), offset, 12)
+
+    def browse(self, app, *, platform, group="", query="", entry_id="", offset=0):
+        if entry_id:
+            entry = self.lookup(app, entry_id=entry_id, platform=platform)
+            return dict(entry, groups=[self._group(app, name) for name in entry["groups"]]) if entry else None
+        if not group:
+            return self.group_index(app, platform, query, offset)
+        descriptions = []
+        selected = None
+        for row in self.entries(app, query, platform=platform):
+            for name in row["groups"]:
+                identity = self._group(app, name)
+                if group == identity["id"] or group.strip().casefold() == name.casefold():
+                    selected = identity
+                    descriptions.append({key: row[key] for key in ("id", "name", "aliases", "description")})
+                    break
+        return dict(self._page("procedures", descriptions, offset, 20), group=selected)
+
+    @staticmethod
+    def _page(key, rows, offset, size):
+        end = offset + size
+        return {key: rows[offset:end], "nextOffset": end if end < len(rows) else None}
+
+    def lookup(self, app, query="", entry_id="", *, platform=None):
+        entries = self.entries(app, query if not entry_id else "", platform=platform)
         if entry_id:
             return next((row for row in entries if row["id"] == entry_id), None)
-        return [{key: row[key] for key in ("id", "name", "description")} for row in entries[:20]]
+        return [{key: row[key] for key in ("id", "name", "aliases", "description")} for row in entries[:20]]
 
     @staticmethod
     def _save(db, draft, entry_id):
@@ -75,10 +151,28 @@ class KnowledgeStore:
             return ""
         if not all(draft.get(key, "").strip() for key in ("app", "name", "description")) or not draft.get("steps"):
             raise ReviewError("Application, name, description and at least one step are required.")
+        platform = draft.get("platform", current["platform"] if current else "")
+        if platform not in ("", *PLATFORMS):
+            raise ReviewError("Choose a supported platform or All platforms.")
+        groups = draft.get("groups", current["groups"] if current else [DEFAULT_GROUP])
+        if not isinstance(groups, list) or not groups or any(not isinstance(name, str) or not name.strip() for name in groups):
+            raise ReviewError("At least one knowledge group is required.")
+        groups = {name.strip().casefold(): name.strip() for name in groups}
+        aliases = draft.get("aliases", current["aliases"] if current else [])
+        if not isinstance(aliases, list) or any(not isinstance(alias, str) for alias in aliases):
+            raise ReviewError("Alternate names must be text.")
+        name = draft["name"].strip()
+        if current and current["name"].casefold() != name.casefold():
+            aliases = [*aliases, current["name"]]
+        aliases = {alias.strip().casefold(): alias.strip() for alias in aliases
+                   if alias.strip() and alias.strip().casefold() != name.casefold()}
         revision = uuid4().hex
-        db.execute("INSERT OR REPLACE INTO entries VALUES (?, ?, ?, ?, ?, ?)",
-                   (entry_id, draft["app"].strip(), draft["name"].strip(), draft["description"].strip(),
-                    json.dumps(draft["steps"], ensure_ascii=False), revision))
+        db.execute("""INSERT OR REPLACE INTO entries
+                      (id, app, name, description, steps, revision, platform, aliases, groups)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (entry_id, draft["app"].strip(), name, draft["description"].strip(),
+                    json.dumps(draft["steps"], ensure_ascii=False), revision, platform,
+                    json.dumps(list(aliases.values()), ensure_ascii=False), json.dumps(list(groups.values()), ensure_ascii=False)))
         return revision
 
     def edit(self, draft):

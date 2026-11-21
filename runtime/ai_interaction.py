@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from copy import deepcopy
+import sqlite3
 import json
 from ai_instructions.context import InstructionContext
 from request_journal import RequestJournal
@@ -36,11 +37,23 @@ class AiInteraction:
 
         # Isolate agent context edits from live evidence; keep service hooks shared.
         app = session.result.get("appName")
-        lookup = (lambda **arguments: self.redactor.object(self.knowledge.lookup(app, **arguments))) if self.knowledge and app else None
+        platform = mobile.device.get("platform", "").lower()
+        lookup = None
+        index = None
+        if self.knowledge and app:
+            def lookup(**arguments):
+                return self.redactor.object(self.knowledge.browse(app, platform=platform, **arguments))
+
+            if not session.commands.records:
+                try:
+                    index = self.redactor.object(self.knowledge.group_index(app, platform))
+                except (OSError, sqlite3.Error):
+                    pass
         request = DecisionRequest(*deepcopy(arguments), request_observer=observer, report_timing=report_timing,
                                   budget=self.budget, deadline=self.control.deadline,
                                   check_cancelled=self.control.check,
-                                  previous_tool_result=self._previous_tool_result(session), knowledge_lookup=lookup)
+                                  previous_tool_result=self._previous_tool_result(session), knowledge_lookup=lookup,
+                                  knowledge_index=index)
         with self._operation('AI action decision', mobile, session):
             reply = agent.decide(request)
         if reply.get('action') not in ('recall', 'note'):
