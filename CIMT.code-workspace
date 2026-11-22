@@ -5,6 +5,7 @@
     }
   ],
   "settings": {
+    "dotnet.defaultSolution": "CIMT.slnx",
     "python.defaultInterpreterPath": "${userHome}/Development/CIMT/.local/install/tools/python/bin/python"
   },
   "tasks": {
