@@ -183,5 +183,22 @@ def main(stream, arguments):
         return 3
 
 
+def wait_for_debugger(arguments):
+    """Pause the selected worker entry point before reading the private request."""
+    phase = "proposal" if "--proposal" in arguments else "preflight" if "--preflight" in arguments else "execution"
+    if os.environ.get("CIMT_DEBUG_PYTHON") != phase:
+        return
+    sys.path.insert(0, os.environ["CIMT_DEBUGPY_PATH"])
+    try:
+        import debugpy
+    finally:
+        sys.path.pop(0)
+    debugpy.configure(subProcess=False)
+    debugpy.listen(("127.0.0.1", 5678))
+    print(f"CIMT activity: Python {phase} worker waiting for the debugger on port 5678.", flush=True)
+    debugpy.wait_for_client()
+
+
 if __name__ == "__main__":
+    wait_for_debugger(sys.argv[1:])
     raise SystemExit(main(sys.stdin, sys.argv[1:]))

@@ -6,6 +6,10 @@ Use [dependency selection](dependencies.md) for version authority and [installat
 
 The repository rules are in [AGENTS.md](../AGENTS.md). The product requirements remain in [requirements.md](requirements.md). The refactor and defect fixes keep the approved public commands, YAML fields, limits, and outcome rules. The review and its resolution record are in [the product review](reviews/2026-10-28-product-implementation-review.md).
 
+## Debug a command from the terminal
+
+Use the [CIMT debug README](../DEBUG-README.md) to attach VS Code to the C# host and Python worker from a terminal command.
+
 ## Keep each part small
 
 A class owns one area of work. A method has one purpose. A workflow method may call several steps in order; the details belong to those steps. Prefer clear names and normal control flow. Add an interface only where a dependency needs replacement in a test. Constructor injection and ordered workflow steps are the main patterns used here. Do not use the proxy pattern.

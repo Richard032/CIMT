@@ -32,6 +32,21 @@
     "version": "0.2.0",
     "configurations": [
       {
+        "name": "CIMT host · attach to terminal command",
+        "type": "coreclr",
+        "request": "attach",
+        "processId": "${command:pickProcess}"
+      },
+      {
+        "name": "CIMT Python worker · attach",
+        "type": "debugpy",
+        "request": "attach",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 5678
+        }
+      },
+      {
         "name": "CIMT host · show help",
         "type": "coreclr",
         "request": "launch",

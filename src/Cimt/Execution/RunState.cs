@@ -50,7 +50,17 @@ public sealed class RunState(Configuration configuration, RunFolders folders, Ru
 public sealed class RuntimePaths(string root)
 {
     public string NativeModule => Path.Combine(root, "tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js");
-    public string Worker => Path.Combine(root, "lib/cimt-runtime/run_ui.py");
+    public string Worker
+    {
+        get
+        {
+#if DEBUG
+            if (Environment.GetEnvironmentVariable("CIMT_DEBUG_RUNTIME") is { Length: > 0 } source)
+                return Path.Combine(source, "run_ui.py");
+#endif
+            return Path.Combine(root, "lib/cimt-runtime/run_ui.py");
+        }
+    }
     public string Python => Path.Combine(root, "tools/python/bin/python");
     public string BuildScript(string platform) => Path.Combine(root, "scripts/build/" + platform + ".sh");
 
