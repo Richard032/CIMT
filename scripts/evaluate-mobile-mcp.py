@@ -10,7 +10,7 @@ class Mcp:
         self.sel = selectors.DefaultSelector(); self.sel.register(self.p.stdout, selectors.EVENT_READ)
         self.buffer = b''; self.id = 0
         self.request('initialize', {'protocolVersion':'2025-06-18','capabilities':{},
-            'clientInfo':{'name':'cimt-device-evaluation','version':'0.1'}})
+            'clientInfo':{'name':'testpilot-device-evaluation','version':'0.1'}})
         self.p.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n'); self.p.stdin.flush()
     def request(self, method, params, timeout=45):
         self.id += 1; rid = self.id
@@ -84,7 +84,7 @@ def probe(device, output):
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',required=True);p.add_argument('--platform',choices=['android','ios']);a=p.parse_args()
     output=pathlib.Path(a.output);output.mkdir(mode=0o700,parents=True,exist_ok=True)
-    root=pathlib.Path(os.environ['CIMT_INSTALL_ROOT'])
+    root=pathlib.Path(os.environ['TESTPILOT_INSTALL_ROOT'])
     module=root/'tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js'
     code='const {Mobilecli}=require(process.argv[1]); console.log(JSON.stringify(new Mobilecli().getDevices({type:"real"})));'
     d=json.loads(subprocess.check_output(['node','-e',code,str(module)],text=True))

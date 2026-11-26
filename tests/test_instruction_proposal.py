@@ -107,7 +107,7 @@ class InstructionProposalTests(unittest.TestCase):
         self.transport = ProposalTransport("invalid JSON")
         self.context["config"]["ai-budget"]["amount"] = 0
         self.context["learning"] = True
-        with patch.dict("os.environ", {"CIMT_INSTALL_ROOT": self.folder.name}):
+        with patch.dict("os.environ", {"TESTPILOT_INSTALL_ROOT": self.folder.name}):
             self.assertIn("No AI proposal was generated", self.create())
 
         self.assertEqual([row["kind"] for row in self.ledger()["requestUsage"]],
@@ -129,7 +129,7 @@ class InstructionProposalTests(unittest.TestCase):
 
         self.transport = ProposalTransport(self.transport.response)
         self.context.update(learning=True, builds=[{"app-name": "ECON-M"}])
-        with patch.dict("os.environ", {"CIMT_INSTALL_ROOT": self.folder.name}):
+        with patch.dict("os.environ", {"TESTPILOT_INSTALL_ROOT": self.folder.name}):
             self.create()
 
         request_body = self.transport.calls[1][1]

@@ -1,4 +1,4 @@
-"""Versioned private JSON exchanged with the CIMT host."""
+"""Versioned private JSON exchanged with the TestPilot host."""
 
 import json
 import math
@@ -13,7 +13,7 @@ def _object(value, label):
         raise InfrastructureError(f'{label} must be a JSON object')
     version = value.get('protocolVersion', VERSION)
     if type(version) is not int or version != VERSION:
-        raise InfrastructureError(f'Unsupported {label} protocol version; install matching CIMT host and runtime')
+        raise InfrastructureError(f'Unsupported {label} protocol version; install matching TestPilot host and runtime')
     return value
 
 

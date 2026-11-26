@@ -4,17 +4,17 @@
 
 Updated: 29 October 2026. Status: implemented and checked with simulations; live model access and real application execution remain unverified.
 
-The [approved requirements](requirements.md) remain the release target. This document describes the smaller implementation that can now be exercised through cimt run. It is not a release-acceptance claim.
+The [approved requirements](requirements.md) remain the release target. This document describes the smaller implementation that can now be exercised through testpilot run. It is not a release-acceptance claim.
 
 ## Execution path
 
-OutputLayout selects the directory containing --run-config, or --config when used alone. Installed execution is independent of the launch directory and source checkout. CIMT creates CIMT output/work and CIMT output/reports below those inputs, including retained error reports when configuration cannot load. Users do not prepare output folders. Legacy output-root fields load with a notice but no longer select locations. See the [folder contract](product-guide-history.md#7-path-rules-and-run-folders).
+OutputLayout selects the directory containing --run-config, or --config when used alone. Installed execution is independent of the launch directory and source checkout. TestPilot creates TestPilot output/work and TestPilot output/reports below those inputs, including retained error reports when configuration cannot load. Users do not prepare output folders. Legacy output-root fields load with a notice but no longer select locations. See the [folder contract](product-guide-history.md#7-path-rules-and-run-folders).
 
 The .NET command holds the Mac-wide lock, loads merged YAML and text inputs, checks model access without inference, snapshots online devices in the configured physical or virtual environment, clones the configured branch and its recorded submodules, and builds each applicable target/platform. Optional execution.interactive-pauses adds terminal acknowledgement before model access, repository/build access, and AI testing after successful builds. Omitted/false preserves unattended execution; waiting counts toward the same whole-run deadline. The [product walkthrough](product-guide.md#interactive-pauses) explains the generic stage information, Enter acknowledgements, and Jenkins configuration. Successful installable artifacts are saved under the local report. Build errors remain exit 3 while other targets are attempted.
 
 The Python support worker uses the installed Mobile MCP server and its native helper. All startup devices are scheduled, with at most two active. Targets on one device execute sequentially. Each target/device currently receives one objective from the supplied instructions and requirements. The model selects one action using current evidence, earlier observations, its plan or expected app behavior. Host code checks mechanical constraints and dispatches it; the target need not match the latest observed UI controls. Answered interaction rejections are recorded for the AI's next decision without a host-selected replacement. Credentials are requested by alias and entered locally into a verified maskable field without supplying their values to the model. See FR-95 and the [AI action ownership boundary](architecture.md#ai-action-ownership-and-mechanical-resources--fr-95).
 
-Before each objective the app is reinstalled; Android data clear is verified. Optional reset and verification hooks receive CIMT_TARGET, CIMT_DEVICE, and CIMT_APP_ID, with their working directory resolved from the declaring YAML. iOS reinstall verifies the app container; Keychain/backend state requires app-specific hooks. Reset or masking failures stop the run. A locked device receives no application actions and is marked incomplete.
+Before each objective the app is reinstalled; Android data clear is verified. Optional reset and verification hooks receive TESTPILOT_TARGET, TESTPILOT_DEVICE, and TESTPILOT_APP_ID, with their working directory resolved from the declaring YAML. iOS reinstall verifies the app container; Keychain/backend state requires app-specific hooks. Reset or masking failures stop the run. A locked device receives no application actions and is marked incomplete.
 
 The native daemon has a run-specific home. Ownership records retain work across input folders. Finalization stops the helper and preserves work; only a new clone removes older verified work for those same inputs. Reports remain separate. The developer checkout is never adopted or deleted.
 
@@ -37,13 +37,13 @@ Use the [example folder](../examples/econ-button-crash/README.md) for the exact 
 Development verification from the source folder:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet build src/Cimt/Cimt.csproj -c Release
-dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release
-dotnet build tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release
+source /Users/Shared/TestPilot/environment.sh
+dotnet build src/TestPilot/TestPilot.csproj -c Release
+dotnet run --project tests/TestPilot.Checks/TestPilot.Checks.csproj -c Release
+dotnet build tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release
 python3 tests/check-build-contract.py
-/Users/Shared/CIMT/tools/python/bin/python tests/check-runtime.py
-/Users/Shared/CIMT/tools/python/bin/python tests/check-example-build.py
+/Users/Shared/TestPilot/tools/python/bin/python tests/check-runtime.py
+/Users/Shared/TestPilot/tools/python/bin/python tests/check-example-build.py
 ```
 
 The checks cover configuration and CLI behavior, owned cleanup, failure precedence, concurrent budget reservations, uncertain API usage, secret masking, crash counters, action bounds, build metadata, and the macOS target import. They use simulations/fixtures. No real MAUI app pass or live OpenAI access is inferred from them.
@@ -72,7 +72,7 @@ The source branch testing/curmitAndNugets at 8b50dd12f65e0f3ffd9f8df68013d566014
 
 ## Retention and replay increment
 
-Current behavior is defined in [work retention and replay](work-retention-and-replay.md). Publish intermediates are retained. Explicit build properties are unchanged and omitted properties are left to the project. After a completed build stage, successful apps are recorded with provenance/digests. cimt replay uses those retained artifacts with current instructions, creates a new report, and has no Git/restore/build steps. Missing/changed/profile-mismatched apps stop rather than rebuild. The public regression disables Git and build fixture commands while replay still reaches its fake UI worker. Saved-action-history replay and the other listed acceptance gaps remain unfinished.
+Current behavior is defined in [work retention and replay](work-retention-and-replay.md). Publish intermediates are retained. Explicit build properties are unchanged and omitted properties are left to the project. After a completed build stage, successful apps are recorded with provenance/digests. testpilot replay uses those retained artifacts with current instructions, creates a new report, and has no Git/restore/build steps. Missing/changed/profile-mismatched apps stop rather than rebuild. The public regression disables Git and build fixture commands while replay still reaches its fake UI worker. Saved-action-history replay and the other listed acceptance gaps remain unfinished.
 
 ## Diagnostic reporting increment
 
@@ -80,4 +80,4 @@ New run/replay reports expose the requested mandatory overview, chronological ac
 
 ## One report folder for each run or replay
 
-Every run and replay has a separate report_<timestamp>/index.html under its input folder's CIMT output/reports. Replay reuses builds, while its device results, diagnostics and screenshots belong to the newly allocated report. Partial/final snapshots and early errors use that invocation's folder. The terminal prints the exact dated HTML path; command and identity identify its contents. No shared reports/index.html or evidence-base redirection is created. See the [operator procedure](product-guide.md#open-a-run-or-replay-report).
+Every run and replay has a separate report_<timestamp>/index.html under its input folder's TestPilot output/reports. Replay reuses builds, while its device results, diagnostics and screenshots belong to the newly allocated report. Partial/final snapshots and early errors use that invocation's folder. The terminal prints the exact dated HTML path; command and identity identify its contents. No shared reports/index.html or evidence-base redirection is created. See the [operator procedure](product-guide.md#open-a-run-or-replay-report).

@@ -328,7 +328,7 @@ class RuntimeChecks(unittest.TestCase):
             readiness=lambda: None, call=lambda *a, **kw: calls.append((a, kw))
         )
         execution = ActionExecutor({}, Redactor({}), time.time() + 30)
-        elements = [{"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}]
+        elements = [{"type": "TestPilotScreenInfo", "screenWidth": 100, "screenHeight": 200}]
         action = {"action": "tap", "ref": "", "x": 100, "y": 2}
         with self.assertRaises(ValueError):
             execution.execute(mobile, action, elements)

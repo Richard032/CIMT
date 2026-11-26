@@ -45,7 +45,7 @@ module.exports.Mobilecli = class {
 
 
 def write_inputs(shared, inputs):
-    """Provide only user inputs. CIMT must create every output folder itself."""
+    """Provide only user inputs. TestPilot must create every output folder itself."""
     shared.mkdir()
     inputs.mkdir()
     settings = shared / "default.yaml"
@@ -87,7 +87,7 @@ async def invoke(command, cwd, settings, run_file, env):
 
 def check_report(inputs, count):
     """Check retained output while ensuring validation created no clone work."""
-    root = inputs / "CIMT output"
+    root = inputs / "TestPilot output"
     reports = list((root / "reports").glob("report_*"))
     assert len(reports) == count
     assert all((report / "index.html").is_file() for report in reports)
@@ -104,9 +104,17 @@ async def check_launcher(command, root):
     other = root / "another launch folder"
     other.mkdir()
     settings = write_inputs(shared, inputs)
-    env = dict(os.environ, CIMT_INSTALL_ROOT=str(installation))
+    env = dict(os.environ, TESTPILOT_INSTALL_ROOT=str(installation))
     env.pop("OPENAI_API_KEY", None)
-    assert not (inputs / "CIMT output").exists()
+    help_process = await asyncio.create_subprocess_exec(
+        str(command), "--help", cwd=other, env=env,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    help_output, _ = await asyncio.wait_for(help_process.communicate(), timeout=60)
+    assert help_process.returncode == 0
+    assert b"Usage: testpilot <command>" in help_output
+    print("PASS renamed launcher exposes the documented testpilot command")
+    assert not (inputs / "TestPilot output").exists()
 
     code, output = await invoke(command, inputs, settings, Path("app.yaml"), env)
     assert code == 0, output
@@ -117,8 +125,8 @@ async def check_launcher(command, root):
     code, output = await invoke(command, other, settings, inputs / "app.yaml", env)
     assert code == 0, output
     check_report(inputs, 2)
-    assert not (other / "CIMT output").exists()
-    assert not (shared / "CIMT output").exists()
+    assert not (other / "TestPilot output").exists()
+    assert not (shared / "TestPilot output").exists()
     assert not (installation / "reports").exists()
     assert (first / "index.html").read_bytes() == original
     print("PASS another launch folder keeps output with the same inputs and preserves reports")
@@ -144,12 +152,12 @@ async def check_launcher(command, root):
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--command", type=Path, default=Path(__file__).resolve().parents[1] / "scripts" / "cimt"
+        "--command", type=Path, default=Path(__file__).resolve().parents[1] / "scripts" / "testpilot"
     )
     options = parser.parse_args()
-    with tempfile.TemporaryDirectory(prefix="cimt-output-layout-") as folder:
+    with tempfile.TemporaryDirectory(prefix="testpilot-output-layout-") as folder:
         await check_launcher(options.command.resolve(), Path(folder))
-    print("5 public output-layout checks passed. No API or physical device was used.")
+    print("6 public output-layout checks passed. No API or physical device was used.")
 
 
 if __name__ == "__main__":

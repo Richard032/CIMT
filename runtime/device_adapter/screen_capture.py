@@ -114,7 +114,7 @@ class ScreenCapture:
         with Image.open(io.BytesIO(encoded)) as picture:
             elements.append(
                 {
-                    "type": "CimtScreenInfo",
+                    "type": "TestPilotScreenInfo",
                     "screenWidth": size["width"],
                     "screenHeight": size["height"],
                     "imageWidth": picture.width,

@@ -43,7 +43,7 @@ class ActivityLog:
                 with self.path.open("a", encoding="utf-8") as stream:
                     stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
             context = "/".join(filter(None, [entry["platform"], entry["device"], target]))
-            print("CIMT activity: " + entry["timestamp"] + " [" + context + "] "
+            print("TestPilot activity: " + entry["timestamp"] + " [" + context + "] "
                   + operation + " — " + status
                   + (" (" + format(seconds, ".3f") + " seconds)" if seconds is not None else "")
                   + ": " + entry["message"], file=self.output, flush=True)

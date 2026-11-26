@@ -1,4 +1,4 @@
-"""Run one OpenAI Agents SDK turn using CIMT's audited request path."""
+"""Run one OpenAI Agents SDK turn using TestPilot's audited request path."""
 
 import asyncio
 
@@ -10,12 +10,12 @@ from errors import InfrastructureError
 
 
 def run_turn(body, request):
-    """Return the provider response so CIMT can handle status and command syntax."""
+    """Return the provider response so TestPilot can handle status and command syntax."""
     instructions, *inputs = body["input"]
     tool_turn = ToolTurn(body.get('tools', []))
     model = AuditedResponsesModel(body, request, tool_turn)
     agent = Agent(
-        name="CIMT", instructions=instructions["content"], model=model,
+        name="TestPilot", instructions=instructions["content"], model=model,
         tools=tool_turn.sdk_tools(), tool_use_behavior='stop_on_first_tool',
         model_settings=ModelSettings(retry=ModelRetrySettings(max_retries=0)),
     )
@@ -23,9 +23,9 @@ def run_turn(body, request):
         asyncio.run(Runner.run(agent, inputs, max_turns=1,
                                run_config=RunConfig(tracing_disabled=True)))
     except ModelRefusalError:
-        # CIMT reports refusals without including the provider's refusal text.
+        # TestPilot reports refusals without including the provider's refusal text.
         pass
-    return (dict(model.response, cimtToolReply=tool_turn.reply)
+    return (dict(model.response, testpilotToolReply=tool_turn.reply)
             if tool_turn.reply is not None else model.response)
 
 
@@ -54,10 +54,10 @@ class AuditedResponsesModel(Model):
         )
 
     def stream_response(self, *args, **kwargs):
-        raise NotImplementedError("CIMT uses non-streaming model turns")
+        raise NotImplementedError("TestPilot uses non-streaming model turns")
 
     def _messages(self):
-        # CIMT handles incomplete replies and output-limit retries using the original status.
+        # TestPilot handles incomplete replies and output-limit retries using the original status.
         if self.response.get("status") != "completed":
             return []
         messages = []
@@ -71,6 +71,6 @@ class AuditedResponsesModel(Model):
                 elif part.get("type") == "refusal":
                     content.append(ResponseOutputRefusal(type="refusal", refusal=part.get("refusal", "")))
             messages.append(ResponseOutputMessage(
-                type="message", id=item.get("id", f"cimt-message-{index}"), role="assistant",
+                type="message", id=item.get("id", f"testpilot-message-{index}"), role="assistant",
                 status="completed", content=content))
         return messages

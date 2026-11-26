@@ -1,4 +1,4 @@
-# CIMT installation and setup guide
+# TestPilot installation and setup guide
 
 > Historical working record, preserved on 10 November 2026. Entries describe the source, decisions and evidence available on their stated dates. Superseded commands and unfinished plans are not the current installation procedure or a new user instruction. Use [installation.md](installation.md) for the current document and [release readiness](release-1.0.md) for qualification limits.
 
@@ -9,9 +9,9 @@ Scope: Intel Mac baseline for local command-line and Jenkins execution; observed
 
 ## 1. Purpose and current status
 
-This document describes how to prepare another supported Mac, install CIMT, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
+This document describes how to prepare another supported Mac, install TestPilot, configure an application, and prove that local testing works. Findings from the first Mac are used to improve the repeatable procedure; its particular paths, installed versions, and hardware are examples, not mandatory product defaults.
 
-The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. cimt validate produces readiness reports; setup and saved-action-history replay remain unimplemented; replay without --scenario reuses retained builds with current testing instructions. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
+The CLI/configuration foundation, default Android/iOS build workers, and initial single-objective run engine are implemented. testpilot validate produces readiness reports; setup and saved-action-history replay remain unimplemented; replay without --scenario reuses retained builds with current testing instructions. Prerequisite bootstrap scripts ran successfully on the first Intel Mac. Section 8 records installed tools; section 10 records earlier increments and source installation commands; section 14 adds the run-engine support runtime and first real-app example. The prerequisite helpers remain separate from the future YAML-driven setup engine.
 
 The agreed initial host scope is **Intel Macs**. [Section 52](#52-apple-silicon-development-setup--9-november-2026) records a separately observed Apple Silicon development setup and its remaining acceptance work. These observations do not establish general Apple Silicon or Jenkins support. The eventual compatibility manifest will define supported combinations. Supporting additional hardware requires a reviewed scope change.
 
@@ -22,7 +22,7 @@ Related documents: [requirements](requirements.md), [architecture](architecture.
 A Mac is ready when:
 
 - The host, Xcode, .NET SDK/workloads, Java/Android SDK, device OS versions, and device adapter match a tested compatibility manifest.
-- CIMT and its default scripts are installed; normal test execution needs no administrator privileges.
+- TestPilot and its default scripts are installed; normal test execution needs no administrator privileges.
 - The actual execution account can read private configuration, reach the Git repository and branch without prompting, and access the required signing material.
 - Connected test devices are available and authorized; paired but unavailable devices do not establish readiness.
 - validate succeeds for a real application without building/installing/resetting or making paid AI requests.
@@ -39,8 +39,8 @@ Do not turn this Mac's observed versions into a supported baseline without testi
 | --- | --- | --- |
 | Intel Mac/macOS | Must run the selected developer tools. | Intel scope confirmed; supported macOS range not selected. |
 | Xcode and iPhone OS | Match Apple support and the selected .NET iOS workload. | Xcode 26.5 retained; matching iOS SDK 26.5.10284 installed in the pilot profile. Device build/install remains unverified. |
-| .NET SDK | Support CIMT's implementation and the application's target frameworks/global.json. | Isolated 10.0.300 pilot profile installed alongside existing SDKs; application-specific selection remains to be validated. |
-| MAUI Android/iOS workloads | Match the chosen SDK and application. | maui-android and maui-ios installed at workload set 10.0.300.3 in CIMT's separate SDK. |
+| .NET SDK | Support TestPilot's implementation and the application's target frameworks/global.json. | Isolated 10.0.300 pilot profile installed alongside existing SDKs; application-specific selection remains to be validated. |
+| MAUI Android/iOS workloads | Match the chosen SDK and application. | maui-android and maui-ios installed at workload set 10.0.300.3 in TestPilot's separate SDK. |
 | JDK and Android SDK/build tools | Match the application's Android targets and selected .NET Android tooling. | JDK 21, Android API 36, build-tools 36.0.0, command-line tools 22.0, and platform-tools 37.0.1 installed. |
 | Device adapter | Select after evaluating physical Android/iOS and unattended Intel/Jenkins operation. | Both evaluation candidates installed; no final selection. Mobile MCP startup/tool discovery verified. |
 | Supporting runtimes | Provide runtimes needed for adapter evaluation. | Node 22.23.4/npm 10.9.9 installed for both candidates. |
@@ -53,7 +53,7 @@ Microsoft requires an Xcode version compatible with the selected MAUI release; A
 
 ### Step 1 — Inspect the host and available storage
 
-Run in the account that will execute CIMT:
+Run in the account that will execute TestPilot:
 
 ```bash
 sw_vers
@@ -75,14 +75,14 @@ Use the intended developer or Jenkins execution account. Confirm read/write acce
 Approved folder pattern:
 
 ```text
-<installation-root>/             # CIMT and supplied default scripts
+<installation-root>/             # TestPilot and supplied default scripts
 <working-root>/work_<date-time>/ # temporary repository clone
 <report-root>/report_<date-time>/# retained report and evidence
 ```
 
 Work and report folders share a timestamp. Reports must remain outside the temporary cleanup folder. New runs use one UTC millisecond timestamp for both names; collisions advance that shared timestamp. See [run identity](run-identity.md).
 
-A shared installation such as /Users/Shared/CIMT is an example, not a required location. Private YAML files must remain accessible only to the intended account(s), outside source control.
+A shared installation such as /Users/Shared/TestPilot is an example, not a required location. Private YAML files must remain accessible only to the intended account(s), outside source control.
 
 ### Step 3 — Prepare Git and private repository access
 
@@ -97,11 +97,11 @@ Verified application example (the URL remains configurable for other application
 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git ls-remote --symref https://subgit.curtis.ch/ECON/ag-econ-mobile.git HEAD
 ```
 
-Success prints the default-branch reference and HEAD commit. The supplied application URL succeeded noninteractively on this Mac. Its advertised default is main, but CIMT's configured test branch must still be explicit. The current Git credential helper is osxkeychain; no credential values were inspected. This verifies repository read access, not a clone/build or access under another account.
+Success prints the default-branch reference and HEAD commit. The supplied application URL succeeded noninteractively on this Mac. Its advertised default is main, but TestPilot's configured test branch must still be explicit. The current Git credential helper is osxkeychain; no credential values were inspected. This verifies repository read access, not a clone/build or access under another account.
 
 For SSH URLs, host-key failure means verified trust setup is needed; it does not prove credentials are wrong. Do not disable host verification. GitHub connector access and terminal Git access are separate.
 
-The GitHub-specific procedure below is relevant to source maintenance while CIMT itself remains on GitHub; it is not required for the tested application's HTTPS Subgit URL. For GitHub's manual trust/authentication test, follow its fingerprint verification procedure. [GitHub SSH connection guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection).
+The GitHub-specific procedure below is relevant to source maintenance while TestPilot itself remains on GitHub; it is not required for the tested application's HTTPS Subgit URL. For GitHub's manual trust/authentication test, follow its fingerprint verification procedure. [GitHub SSH connection guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection).
 
 ### Step 4 — Prepare Xcode
 
@@ -144,7 +144,7 @@ javac -version
 adb version
 ```
 
-Microsoft documents a project-aware InstallAndroidDependencies build target that can obtain required SDK/JDK components. Its use and exact paths/versions will be validated during CIMT build-script development; it was not run during inspection. Android Studio and emulator images are not requirements for CIMT's initial physical-device scope. [Microsoft Android dependency installation](https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies).
+Microsoft documents a project-aware InstallAndroidDependencies build target that can obtain required SDK/JDK components. Its use and exact paths/versions will be validated during TestPilot build-script development; it was not run during inspection. Android Studio and emulator images are not requirements for TestPilot's initial physical-device scope. [Microsoft Android dependency installation](https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies).
 
 ### Step 7 — Connect and authorize physical devices
 
@@ -167,7 +167,7 @@ iPhone:
 
 Developer Mode may appear after pairing; Apple's instructions describe the on-device confirmation. [Apple Developer Mode instructions](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device).
 
-Historical paired entries marked unavailable do not count as connected test-ready devices. CIMT uses all supported devices available at run startup, with at most two active workers.
+Historical paired entries marked unavailable do not count as connected test-ready devices. TestPilot uses all supported devices available at run startup, with at most two active workers.
 
 ### Step 8 — Prepare signing and external equipment
 
@@ -181,21 +181,21 @@ Evaluate Mobile MCP and Appium against the approved physical-device requirements
 
 Both candidates and Node/npm are installed. Android control probes passed for both candidates. Following Xcode account recovery, Appium iPhone signing and 11 UI/screenshot/navigation checks passed. Mobile MCP's DeviceKit helper is installed and eight guarded iPhone smoke checks passed after unlocking (section 13). Final selection requires the complete gate in the [adapter evaluation](adapter-evaluation.md); reset, masking, and unattended app testing remain unverified.
 
-### Step 10 — Install CIMT and create configuration
+### Step 10 — Install TestPilot and create configuration
 
-The CLI foundation is installed on the first Mac. Follow section 10 to build/install it from source after the prerequisite bootstrap in section 8. Final packaging and YAML-driven cimt setup remain to be implemented; the setup invocation below is the approved future interface.
+The CLI foundation is installed on the first Mac. Follow section 10 to build/install it from source after the prerequisite bootstrap in section 8. Final packaging and YAML-driven testpilot setup remain to be implemented; the setup invocation below is the approved future interface.
 
 Approved setup invocation:
 
 ```text
-cimt setup --config setup.yaml
+testpilot setup --config setup.yaml
 ```
 
 Approved setup configuration:
 
 ```yaml
 installation:
-  root: "/Users/Shared/CIMT"
+  root: "/Users/Shared/TestPilot"
 toolchain:
   manifest: "./toolchain.yaml"
 validation:
@@ -207,34 +207,34 @@ The validation section is optional. Manifest contents, package checksums, and bo
 
 Create default.yaml and app.yaml using the [product-guide examples](product-guide.md). Required effective values include explicit model, whole-run time limit, and AI budget. Use separate ai-model and ai-budget sections. Named application credentials remain in private YAML. Protect configuration access; do not add real secrets to Git.
 
-CIMT setup may replace incompatible required tools without confirmation, recording changes. It must reuse compatible installations and be rerunnable after interruption. No replacements were made during this inspection.
+TestPilot setup may replace incompatible required tools without confirmation, recording changes. It must reuse compatible installations and be rerunnable after interruption. No replacements were made during this inspection.
 
 ### Step 11 — Validate without operating the app
 
 Implemented invocation:
 
 ```text
-cimt validate --config default.yaml --run-config app.yaml
+testpilot validate --config default.yaml --run-config app.yaml
 ```
 
 Implemented: local HTML describing configuration, text paths/URLs, Git branch access, tool availability, connected-device inventory, credential presence, and model/budget configuration. It must not build/install/reset or make paid AI calls. Actual app login, signing, and model access remain execution-time checks.
 
 ### Step 12 — Execute the first real test
 
-Use a user-supplied .NET MAUI application; CIMT will not include a demo app. Supply its Git URL, branch, solution/project, targets, instructions, and optional requirements/setup.
+Use a user-supplied .NET MAUI application; TestPilot will not include a demo app. Supply its Git URL, branch, solution/project, targets, instructions, and optional requirements/setup.
 
 Approved invocation:
 
 ```text
-cimt run --config default.yaml --run-config app.yaml
+testpilot run --config default.yaml --run-config app.yaml
 ```
 
-Create and validate CIMT's installed default Android/iOS build scripts during this work. Check reset/login, credential masking, step screenshots, crash recovery, strict AI budget, HTML output, and clone cleanup. Record actual versions, exact commands, outputs, and any manual steps in this guide.
+Create and validate TestPilot's installed default Android/iOS build scripts during this work. Check reset/login, credential masking, step screenshots, crash recovery, strict AI budget, HTML output, and clone cleanup. Record actual versions, exact commands, outputs, and any manual steps in this guide.
 
 A replay demo will then use:
 
 ```text
-cimt replay --config default.yaml --run-config app.yaml --scenario <saved-scenario-path>
+testpilot replay --config default.yaml --run-config app.yaml --scenario <saved-scenario-path>
 ```
 
 All command/script examples require runnable demonstrations against the user-supplied app. They are not delivered by this initial inspection.
@@ -252,17 +252,17 @@ Inspection only: no dependency installations, tool replacements, credential chan
 | Item | Observed result | Readiness implication |
 | --- | --- | --- |
 | Host | iMac20,1; Intel Core i9-10910 at 3.60 GHz; x86_64; 16 GB RAM. | Matches initial Intel architecture scope; not a minimum hardware specification. |
-| macOS | 26.7.1, build 25G241. | Observed, not yet a validated CIMT support baseline. |
+| macOS | 26.7.1, build 25G241. | Observed, not yet a validated TestPilot support baseline. |
 | Storage | Approximately 17 GiB available on the inspected volume. | Assess package/build/evidence space before installation; no automatic deletion authorized in this inspection. |
 | Git | Apple Git 2.50.1. | Executable present. |
-| Terminal Git route | Noninteractive SSH access to CIMT failed because GitHub's ED25519 host key is not trusted in the inspected account. | Complete verified host-trust setup, then retest credentials/repository access. No known-hosts changes made. HTTPS and the target app repository were not tested. |
-| Local documentation folder | Existing CIMT folder has no .git checkout. | Files are local documentation copies; not proof of terminal Git authentication. GitHub connector access works separately. |
+| Terminal Git route | Noninteractive SSH access to TestPilot failed because GitHub's ED25519 host key is not trusted in the inspected account. | Complete verified host-trust setup, then retest credentials/repository access. No known-hosts changes made. HTTPS and the target app repository were not tested. |
+| Local documentation folder | Existing TestPilot folder has no .git checkout. | Files are local documentation copies; not proof of terminal Git authentication. GitHub connector access works separately. |
 | Xcode | 26.5, build 17F42; selected /Applications/Xcode.app/Contents/Developer. | Tools present; version still needs matching to app/.NET workload. |
 | Xcode first-launch check | Successful exit outside the restricted inspection context. | Basic setup check passes; not a signing/install test. |
 | iPhoneOS SDK | 26.5. | Observed; actual target-device compatibility needs validation. |
 | .NET SDKs | 3.1.413, 3.1.420, 5.0.401, 5.0.408, 9.0.302, 10.0.401. | Reuse only a validated selection; no SDK removed or changed. |
 | .NET 10 runtime | Microsoft.NETCore.App and Microsoft.AspNetCore.App 10.0.12. | Present; app execution not tested. |
-| MAUI workloads | maui-android and maui-tizen, manifest 10.0.110/10.0.100; installed list reports workload version 10.0.401.1. | Android workload present; reported installed list lacks maui-ios. Tizen is not a CIMT target. |
+| MAUI workloads | maui-android and maui-tizen, manifest 10.0.110/10.0.100; installed list reports workload version 10.0.401.1. | Android workload present; reported installed list lacks maui-ios. Tizen is not a TestPilot target. |
 | Java/JDK | Java launcher exists, but java_home reports no Java runtime; no JDK found in checked standard locations. | Prepare/validate a compatible JDK. A launcher stub is not an installed JDK. |
 | Android tools | adb, sdkmanager, emulator absent from PATH; SDK absent from checked conventional locations. ANDROID_HOME/ANDROID_SDK_ROOT unset. | Physical Android readiness not testable yet. Custom uninspected install paths are not ruled out. Emulator is not required. |
 | Node/npm | Not found in PATH or checked conventional/version-manager locations. | Supporting runtime to evaluate after adapter selection. |
@@ -270,14 +270,14 @@ Inspection only: no dependency installations, tool replacements, credential chan
 | Paired Apple devices | Three paired entries: iPadOS/iOS 18.3, 18.6.2, and 27.0.1; all unavailable. | No usable connected Apple device established. Pairing history is not availability. Validate OS/toolchain compatibility after reconnecting. |
 | Provisioning profiles | 37 files in the current user's Xcode profile location. | Presence only; identities, private keys, validity, app/device coverage not checked. |
 | Jenkins | No Jenkins entries found in checked conventional launch-service/home/package locations. | Not proof of absence elsewhere. Server execution account and readiness not validated. |
-| CIMT/adapter | No cimt or appium executable found on PATH; adapter unselected. | Product implementation and adapter evaluation pending. |
+| TestPilot/adapter | No testpilot or appium executable found on PATH; adapter unselected. | Product implementation and adapter evaluation pending. |
 | OpenAI/configuration | No private keys/configuration inspected; no API requests sent. | No claim of model access, pricing validation, or strict-budget readiness. |
 
 ### Inspection-context limitations
 
 Restricted process checks initially blocked hardware properties and Apple's device service, and produced a workload-verification warning. Hardware, workload listing, Xcode first-launch status, and Apple-device discovery were rechecked outside that restricted context. Workload listing succeeded there without the warning. The restricted xctrace device listing also failed; the successful devicectl check is the basis for the availability finding.
 
-These inspection restrictions are not established Mac defects. Normal CIMT execution must be validated directly under its intended account.
+These inspection restrictions are not established Mac defects. Normal TestPilot execution must be validated directly under its intended account.
 
 ### Historical gap list from the initial inspection
 
@@ -289,7 +289,7 @@ Sections 8 and 9 record subsequent installation and application-repository acces
 4. Prepare/validate JDK, Android SDK/platform-tools, and matching iOS MAUI workload.
 5. Connect/authorize an Android device and make a paired iPhone available.
 6. Evaluate/install the selected adapter and its supporting runtime.
-7. Implement CIMT bootstrap/setup and validate/run/replay; then verify signing, reset, masking, budgeting, and reports against the real app.
+7. Implement TestPilot bootstrap/setup and validate/run/replay; then verify signing, reset, masking, budgeting, and reports against the real app.
 8. Repeat under Jenkins and on the second Intel Mac.
 
 No implementation-versus-definition deviation has been introduced. The findings identify missing prerequisites and unvalidated compatibility; they do not change approved scope.
@@ -312,7 +312,7 @@ Keep untested instructions labelled pending until verified. If implementation ne
 | --- | --- | --- |
 | 28 October 2026 | Read-only first-Mac prerequisite inspection. | Completed; findings above. |
 | 28 October 2026 | Prerequisite helper installation and rerun. | Installed versions verified; final YAML-driven manifest enforcement and app compatibility pending. |
-| Pending | CIMT setup/validate command implementation. | Not available. |
+| Pending | TestPilot setup/validate command implementation. | Not available. |
 | Pending | Physical Android/iPhone build, install, and autonomous testing. | Not executed. |
 | Pending | Jenkins and second-Intel-Mac acceptance. | Not executed. |
 
@@ -324,14 +324,14 @@ The product owner authorized installing the missing prerequisites. This section 
 
 The pilot installer requires an Intel Mac with selected Xcode 26.5. It uses the existing macOS Bash, curl, tar, unzip, and shasum tools; it does not require Homebrew or Python.
 
-From the CIMT source/documentation directory, execute:
+From the TestPilot source/documentation directory, execute:
 
 ```bash
 bash scripts/setup-prerequisites-macos.sh
-source /Users/Shared/CIMT/environment.sh
+source /Users/Shared/TestPilot/environment.sh
 ```
 
-The installer defaults to /Users/Shared/CIMT. To use another absolute installation root, set CIMT_INSTALL_ROOT before invoking the script and source that root's environment.sh afterward.
+The installer defaults to /Users/Shared/TestPilot. To use another absolute installation root, set TESTPILOT_INSTALL_ROOT before invoking the script and source that root's environment.sh afterward.
 
 The wrapper performs:
 
@@ -340,7 +340,7 @@ The wrapper performs:
    dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
 3. Android and adapter tooling through scripts/install-macos-mobile-tools.sh.
 
-The scripts are preliminary prerequisite helpers, not the completed cimt setup command. They do not yet read setup.yaml/toolchain.manifest. The supplied installed-version YAML is an inventory/profile record; final manifest-driven enforcement remains implementation work.
+The scripts are preliminary prerequisite helpers, not the completed testpilot setup command. They do not yet read setup.yaml/toolchain.manifest. The supplied installed-version YAML is an inventory/profile record; final manifest-driven enforcement remains implementation work.
 
 Activation is explicit so the existing account-wide SDK selection is preserved. Source environment.sh in the developer terminal or Jenkins pipeline before using these tools. No shell startup file was changed.
 
@@ -383,17 +383,17 @@ Direct package versions are pinned in the helpers. The Android SDK manager resol
 - The complete prerequisite wrapper was run again successfully; existing runtime installations and matching drivers were reused.
 - All three helper scripts passed Bash syntax checks.
 
-Install logs remain locally under /Users/Shared/CIMT/logs. About 7.5 GiB of tools were installed; approximately 9.9 GiB remained free at verification. No unrelated files or developer SDKs were removed.
+Install logs remain locally under /Users/Shared/TestPilot/logs. About 7.5 GiB of tools were installed; approximately 9.9 GiB remained free at verification. No unrelated files or developer SDKs were removed.
 
 ### Driver diagnostics and physical-device scope
 
 XCUITest's doctor reports zero required fixes. It also reports optional simulator/video/Remote-XPC components absent; these features were not enabled.
 
-UiAutomator2's generic doctor reports one required fix because its check assumes an Android emulator executable. CIMT's initial requirement is physical devices, and adb/platform-tools are installed. The emulator warning is recorded, not reported as an all-green diagnostic and not used to expand CIMT's device scope. Actual Android control still requires a connected phone and application test.
+UiAutomator2's generic doctor reports one required fix because its check assumes an Android emulator executable. TestPilot's initial requirement is physical devices, and adb/platform-tools are installed. The emulator warning is recorded, not reported as an all-green diagnostic and not used to expand TestPilot's device scope. Actual Android control still requires a connected phone and application test.
 
-Video/streaming utilities, Android emulator/images, and simulator-specific helpers were not installed as CIMT physical-device prerequisites.
+Video/streaming utilities, Android emulator/images, and simulator-specific helpers were not installed as TestPilot physical-device prerequisites.
 
-Some optional XCUITest Remote-XPC/tunnel features mention administrator privileges. Ordinary CIMT runs must remain unprivileged; the adapter evaluation must prove a compliant real-device path before selection. Installing a candidate is not approval of a privileged runtime design.
+Some optional XCUITest Remote-XPC/tunnel features mention administrator privileges. Ordinary TestPilot runs must remain unprivileged; the adapter evaluation must prove a compliant real-device path before selection. Installing a candidate is not approval of a privileged runtime design.
 
 ### Git trust and remaining authentication
 
@@ -410,9 +410,9 @@ These failures concerned GitHub terminal access, not the subsequently supplied a
 - The connected iPhone's install/signing/control compatibility with Xcode 26.5 and the selected adapter is unverified. Device visibility alone is not proof of readiness.
 - No application was built, installed, reset, or operated.
 
-### Remaining before CIMT can execute a test
+### Remaining before TestPilot can execute a test
 
-1. Implement the CIMT CLI and final YAML-driven setup; the prerequisite helpers do not provide autonomous testing.
+1. Implement the TestPilot CLI and final YAML-driven setup; the prerequisite helpers do not provide autonomous testing.
 2. The first application URL is now supplied and its Subgit read access verified. Select an explicit test branch and application build configuration before the first run; validate access separately under Jenkins.
 3. Connect and authorize an Android device; validate the available iPhone, including signing and its OS/toolchain requirements.
 4. Complete both adapters' real-device evaluation before selecting one.
@@ -421,7 +421,7 @@ These failures concerned GitHub terminal access, not the subsequently supplied a
 
 No approved product behaviour was changed. The installed profile and helper scripts are an implementation increment; full application compatibility, manifest enforcement, and end-to-end acceptance remain explicitly unverified.
 
-## 9. Application repository and future CIMT migration
+## 9. Application repository and future TestPilot migration
 
 The product owner supplied the first application repository:
 
@@ -431,14 +431,14 @@ https://subgit.curtis.ch/ECON/ag-econ-mobile.git
 
 A noninteractive Git reference check succeeded on 28 October 2026 using the Mac's existing configuration. It advertised refs/heads/main and a HEAD commit. The configured credential helper is osxkeychain; no passwords, tokens, or private keys were read or changed. Access is verified for the current execution account only.
 
-The existing local ECON-Mobile checkout also points at this application URL. CIMT will still clone from the configured Git URL into its owned temporary folder; the existing checkout was not modified or substituted for that workflow. No application clone, build, or test was performed in this access check.
+The existing local ECON-Mobile checkout also points at this application URL. TestPilot will still clone from the configured Git URL into its owned temporary folder; the existing checkout was not modified or substituted for that workflow. No application clone, build, or test was performed in this access check.
 
 Repository locations are separate:
 
 | Purpose | Current location | Plan |
 | --- | --- | --- |
 | Application under test | Subgit URL above. | Use configurable repository URL and explicit test branch. |
-| CIMT product code/documentation | https://github.com/Richard032/CIMT | Move to Subgit later, as requested; destination and migration steps are not yet supplied. |
+| TestPilot product code/documentation | https://github.com/Richard032/TestPilot | Move to Subgit later, as requested; destination and migration steps are not yet supplied. |
 
 The earlier GitHub terminal-authentication failures are not a blocker for reading this application repository. Future Jenkins/server accounts must establish their own authorized access. No source-repository migration has been performed.
 
@@ -447,8 +447,8 @@ The earlier GitHub terminal-authentication failures are not a blocker for readin
 [Reviewed status](implementation-status.md) records each increment and remaining work.
 
 1. Both physical devices were available. Mobile MCP and Appium passed Android control probes. Initial iPhone signing failed; after the Xcode account recovery in sections 11–12, Appium helper signing and 11 iPhone control checks passed. Mobile MCP's separate DeviceKit helper was subsequently installed with a matching wildcard profile (section 13); eight guarded iPhone smoke checks subsequently passed after unlocking. Final adapter selection remains open; its earlier Mobile MCP preference was provisional.
-2. The .NET CLI/configuration foundation is built and installed at /Users/Shared/CIMT/bin/cimt, with assemblies under lib/cimt. Source environment.sh to put it on PATH. Fifteen checks passed, and real readiness validation reached Subgit and both connected-device inventories. Only synthetic credential presence was tested; no AI request was made.
-3. Default Android/iOS scripts are installed under scripts/build, with worker assemblies under lib/cimt-build. Four simulated build-contract checks passed. Actual builds on main with submodules were attempted: Android stops at the repository's Windows-only pre-build commands, and iOS lacks an available provisioning profile. No successful artifact was produced.
+2. The .NET CLI/configuration foundation is built and installed at /Users/Shared/TestPilot/bin/testpilot, with assemblies under lib/testpilot. Source environment.sh to put it on PATH. Fifteen checks passed, and real readiness validation reached Subgit and both connected-device inventories. Only synthetic credential presence was tested; no AI request was made.
+3. Default Android/iOS scripts are installed under scripts/build, with worker assemblies under lib/testpilot-build. Four simulated build-contract checks passed. Actual builds on main with submodules were attempted: Android stops at the repository's Windows-only pre-build commands, and iOS lacks an available provisioning profile. No successful artifact was produced.
 
 The original application checkout remains untouched. Raw device evidence and build logs remain local; no screenshots, device IDs, signing identities, or credentials are committed. Temporary application clones are deleted after evaluation; retained evidence is outside them.
 
@@ -457,12 +457,12 @@ At this increment only validate was implemented; setup/run/replay returned expli
 Development verification commands:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet build src/Cimt/Cimt.csproj -c Release
-dotnet run --project tests/Cimt.Checks/Cimt.Checks.csproj -c Release
-dotnet build tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release
+source /Users/Shared/TestPilot/environment.sh
+dotnet build src/TestPilot/TestPilot.csproj -c Release
+dotnet run --project tests/TestPilot.Checks/TestPilot.Checks.csproj -c Release
+dotnet build tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release
 python3 tests/check-build-contract.py
-cimt --help
+testpilot --help
 ```
 
 See the [build contract](build-script-contract.md) for actual script invocation and the [adapter evaluation](adapter-evaluation.md) for the signing prerequisites. A valid development identity/profile and a macOS-compatible application pre-build path are required before app acceptance can proceed. No signing or source build step was bypassed.
@@ -470,18 +470,18 @@ See the [build contract](build-script-contract.md) for actual script invocation 
 
 ### Install the foundation from source on another prepared Intel Mac
 
-From the CIMT source folder, after completing section 8:
+From the TestPilot source folder, after completing section 8:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-mkdir -p "$CIMT_INSTALL_ROOT/bin" "$CIMT_INSTALL_ROOT/scripts/build"
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
-dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
-cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
-cp scripts/build/android.sh scripts/build/ios.sh "$CIMT_INSTALL_ROOT/scripts/build/"
-chmod +x "$CIMT_INSTALL_ROOT/bin/cimt" "$CIMT_INSTALL_ROOT/scripts/build/"*.sh
-bash scripts/install-cimt-runtime.sh
-cimt --help
+source /Users/Shared/TestPilot/environment.sh
+mkdir -p "$TESTPILOT_INSTALL_ROOT/bin" "$TESTPILOT_INSTALL_ROOT/scripts/build"
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
+dotnet publish tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot-build"
+cp scripts/testpilot "$TESTPILOT_INSTALL_ROOT/bin/testpilot"
+cp scripts/build/android.sh scripts/build/ios.sh "$TESTPILOT_INSTALL_ROOT/scripts/build/"
+chmod +x "$TESTPILOT_INSTALL_ROOT/bin/testpilot" "$TESTPILOT_INSTALL_ROOT/scripts/build/"*.sh
+bash scripts/install-testpilot-runtime.sh
+testpilot --help
 ```
 
 These commands install the supplied defaults. Keep custom replacements in separate files. Copy examples/default.example.yaml and examples/econ-app.example.yaml to private configuration locations, adjust their relative text paths and values, and restrict secret files to owner read/write before validation. The default example deliberately has an empty API key and a model placeholder. No live key is needed for the synthetic development checks above; real configuration/readiness validation requires configured values but does not authenticate to OpenAI.
@@ -504,8 +504,8 @@ Raw device/signing details and the build log remain in the private evaluation fo
 
 ### Manual Apple-account recovery
 
-1. Open Xcode → Settings → Accounts on the Mac under the user account that will run CIMT.
-2. Select the existing Apple account for the development team and sign in again. Complete Apple's authentication prompts locally; never put the Apple password in CIMT input files or chat.
+1. Open Xcode → Settings → Accounts on the Mac under the user account that will run TestPilot.
+2. Select the existing Apple account for the development team and sign in again. Complete Apple's authentication prompts locally; never put the Apple password in TestPilot input files or chat.
 3. Confirm the required team is available. If account access or profile creation is restricted, have the team's authorized Apple administrator prepare a development profile for the helper instead.
 4. Check signing identities with security find-identity -v -p codesigning. Confirm a valid identity and its private key match a certificate included in the chosen profile; a certificate file alone is insufficient.
 5. Supply an unexpired iOS development profile that includes the test phone and permits the automation helper's bundle identifier. A suitable team wildcard profile can cover Mobile MCP's helper; an unrelated app-specific profile cannot. Do not rename the helper to an existing application identifier.
@@ -517,7 +517,7 @@ The product owner subsequently restored Xcode sign-in. Retrying the dedicated bu
 The first-Mac check used the installed WebDriverAgent project. Substitute the actual team, phone UDID, and a new private evidence folder. Keep this helper identifier separate from tested applications.
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
+source /Users/Shared/TestPilot/environment.sh
 xcodebuild \
   -project "$APPIUM_HOME/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj" \
   -scheme WebDriverAgentRunner -configuration Debug \
@@ -526,7 +526,7 @@ xcodebuild \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="<team-id>" \
   CODE_SIGN_IDENTITY="iPhone Developer" \
-  PRODUCT_BUNDLE_IDENTIFIER=ch.curtis.cimt.WebDriverAgentRunner \
+  PRODUCT_BUNDLE_IDENTIFIER=ch.curtis.testpilot.WebDriverAgentRunner \
   build-for-testing
 ```
 
@@ -537,15 +537,15 @@ Use Apple Development instead if that is the valid identity on the new Mac. This
 After account/profile recovery, the installed native CLI exposes this procedure:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-CIMT_MOBILECLI="$(node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); process.stdout.write(Mobilecli.getMobilecliPath())')"
-"$CIMT_MOBILECLI" agent install \
+source /Users/Shared/TestPilot/environment.sh
+TESTPILOT_MOBILECLI="$(node -e 'const {Mobilecli}=require(process.env.TESTPILOT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); process.stdout.write(Mobilecli.getMobilecliPath())')"
+"$TESTPILOT_MOBILECLI" agent install \
   --device "<phone-udid>" \
   --provisioning-profile "<absolute-path-to-valid-helper.mobileprovision>"
-"$CIMT_MOBILECLI" agent status --device "<phone-udid>"
+"$TESTPILOT_MOBILECLI" agent status --device "<phone-udid>"
 ```
 
-The command syntax is confirmed by the installed CLI help. Successful agent installation is pending the valid profile. Then run the engineering probe from the CIMT source folder:
+The command syntax is confirmed by the installed CLI help. Successful agent installation is pending the valid profile. Then run the engineering probe from the TestPilot source folder:
 
 ```bash
 python3 scripts/evaluate-mobile-mcp.py --output "<new-private-evidence-folder>"
@@ -564,16 +564,16 @@ The product owner restored Xcode account access. The same dedicated WebDriverAge
 
 WebDriverAgentRunner (WDA) is the on-device automation helper supplied with Appium's XCUITest driver. It uses Apple's XCTest/XCUITest services to let the Mac inspect UI, take screenshots, and send user actions. The Mac runs Appium; the signed test runner runs on the physical iPhone.
 
-This check uses the separate ch.curtis.cimt.WebDriverAgentRunner identifier (runner suffix .xctrunner). It builds the helper from the installed Appium dependency and does not change the MAUI application's source or identity. It does not run an AI model. Creating the helper profile and building it does not prove successful device installation or control.
+This check uses the separate ch.curtis.testpilot.WebDriverAgentRunner identifier (runner suffix .xctrunner). It builds the helper from the installed Appium dependency and does not change the MAUI application's source or identity. It does not run an AI model. Creating the helper profile and building it does not prove successful device installation or control.
 
-Mobile MCP uses a different helper, DeviceKit. It was subsequently installed using a matching wildcard profile; section 13 records the results and remaining control check. WDA is being evaluated as the other adapter candidate; its successful build does not select the final CIMT adapter.
+Mobile MCP uses a different helper, DeviceKit. It was subsequently installed using a matching wildcard profile; section 13 records the results and remaining control check. WDA is being evaluated as the other adapter candidate; its successful build does not select the final TestPilot adapter.
 
 ### Reuse the signed helper for the control check
 
-Start the local Appium server and keep the iPhone unlocked. After the build in section 11, invoke the engineering probe from the CIMT source folder:
+Start the local Appium server and keep the iPhone unlocked. After the build in section 11, invoke the engineering probe from the TestPilot source folder:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
+source /Users/Shared/TestPilot/environment.sh
 appium --address 127.0.0.1 --port 4727 --log "<private-log-path>"
 ```
 
@@ -583,16 +583,16 @@ In a second activated terminal:
 python3 scripts/evaluate-appium.py \
   --output "<private-evidence-folder>" --platform ios \
   --team "<team-id>" --signing-id "iPhone Developer" \
-  --wda-bundle-id ch.curtis.cimt.WebDriverAgentRunner \
+  --wda-bundle-id ch.curtis.testpilot.WebDriverAgentRunner \
   --derived-data "<private-evidence-folder>/wda-build" \
   --use-prebuilt-wda
 ```
 
-The engineering probe currently reads devices-private.json from the evidence folder; it is a private list of objects with platform and id values captured during discovery. It is not a user-facing CIMT run command. --signing-id may instead be Apple Development on another Mac.
+The engineering probe currently reads devices-private.json from the evidence folder; it is a private list of objects with platform and id values captured during discovery. It is not a user-facing TestPilot run command. --signing-id may instead be Apple Development on another Mac.
 
 The check opens Settings, reads the UI tree, captures a screenshot, verifies the foreground application, presses Home, verifies SpringBoard, reopens Settings, verifies its return, and closes the test session. Save evidence locally and stop the temporary server after the check.
 
-A locked phone can allow the build to finish but prevent the test runner from launching. Xcode explicitly reported that the phone must be unlocked during the first control attempt. Keep it unlocked for initial installation and launch; do not put its passcode in CIMT configuration or attempt to bypass the lock screen. Unattended device-readiness handling still requires implementation and acceptance testing.
+A locked phone can allow the build to finish but prevent the test runner from launching. Xcode explicitly reported that the phone must be unlocked during the first control attempt. Keep it unlocked for initial installation and launch; do not put its passcode in TestPilot configuration or attempt to bypass the lock screen. Unattended device-readiness handling still requires implementation and acceptance testing.
 
 
 ### Recorded result and remaining scope
@@ -626,14 +626,14 @@ xcrun devicectl device info lockState \
   --json-output "<private-evidence-folder>/lock-state.json"
 ```
 
-The result.passcodeRequired field must be false. A locked or unknown state stops that phone's probe before launch, screenshot, swipe, or Home actions. The user unlocks the phone locally; CIMT must not collect its passcode or bypass the screen lock. This guard is implemented in the engineering probe; equivalent readiness handling in the full run engine remains implementation work.
+The result.passcodeRequired field must be false. A locked or unknown state stops that phone's probe before launch, screenshot, swipe, or Home actions. The user unlocks the phone locally; TestPilot must not collect its passcode or bypass the screen lock. This guard is implemented in the engineering probe; equivalent readiness handling in the full run engine remains implementation work.
 
 ### Run the iPhone-only probe
 
 After unlocking the phone, keep it unlocked while checking:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
+source /Users/Shared/TestPilot/environment.sh
 python3 scripts/evaluate-mobile-mcp.py \
   --output "<new-private-evidence-folder>" --platform ios
 ```
@@ -653,18 +653,18 @@ Both Mobile MCP and Appium now have basic physical Android/iPhone control eviden
 
 ### Install the support runtime
 
-The public run command now delegates screen processing and bounded action selection to a local Python worker. The prerequisite helper also calls scripts/install-cimt-runtime.sh. It creates an isolated environment under the selected installation root and installs Pillow 13.0.0 and truststore 0.10.5. It does not replace the Mac's global Python.
+The public run command now delegates screen processing and bounded action selection to a local Python worker. The prerequisite helper also calls scripts/install-testpilot-runtime.sh. It creates an isolated environment under the selected installation root and installs Pillow 13.0.0 and truststore 0.10.5. It does not replace the Mac's global Python.
 
-Python 3.11 or newer must already be available. The helper searches PATH and conventional python.org locations. If absent, install a compatible Intel Python from the [official macOS downloads](https://www.python.org/downloads/macos/), then rerun. A selected executable can be supplied as CIMT_PYTHON_BOOTSTRAP. On the first Mac, the existing Python 3.14.8 was reused; no new global Python installation was needed. This remains a documented manual prerequisite until final setup automation.
+Python 3.11 or newer must already be available. The helper searches PATH and conventional python.org locations. If absent, install a compatible Intel Python from the [official macOS downloads](https://www.python.org/downloads/macos/), then rerun. A selected executable can be supplied as TESTPILOT_PYTHON_BOOTSTRAP. On the first Mac, the existing Python 3.14.8 was reused; no new global Python installation was needed. This remains a documented manual prerequisite until final setup automation.
 
-From the CIMT source folder, after the prerequisite environment is prepared:
+From the TestPilot source folder, after the prerequisite environment is prepared:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-bash scripts/install-cimt-runtime.sh
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
-cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
-chmod +x "$CIMT_INSTALL_ROOT/bin/cimt"
+source /Users/Shared/TestPilot/environment.sh
+bash scripts/install-testpilot-runtime.sh
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
+cp scripts/testpilot "$TESTPILOT_INSTALL_ROOT/bin/testpilot"
+chmod +x "$TESTPILOT_INSTALL_ROOT/bin/testpilot"
 ```
 
 Keep the installed default build workers from section 10. The worker uses the Mac trust store for OpenAI HTTPS; TLS verification is enabled. Install dependencies through the helper rather than into a system Python. See [run-engine notes](run-engine.md) for architecture, policy checks, and remaining implementation limits.
@@ -676,12 +676,12 @@ All app-specific configuration and support files are in [examples/econ-button-cr
 Copy default.example.yaml to default.private.yaml inside the example and restrict permissions to owner read/write. Enter the existing OpenAI API key locally in ai-model.api-key. Named login credentials, if needed, also belong in private YAML. The prepared local development copy has no key yet. Never commit private configuration or paste its secret values into chat.
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-cimt validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
-cimt run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+source /Users/Shared/TestPilot/environment.sh
+testpilot validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+testpilot run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
 ```
 
-Jenkins uses the same run command. Its execution account still needs Git credentials, signing, device trust, an unlocked usable signing keychain, and access to the phones. Keep the test phones unlocked; CIMT does not enter device passcodes. No Jenkins acceptance run has been performed.
+Jenkins uses the same run command. Its execution account still needs Git credentials, signing, device trust, an unlocked usable signing keychain, and access to the phones. Keep the test phones unlocked; TestPilot does not enter device passcodes. No Jenkins acceptance run has been performed.
 
 The example allows 60 minutes and USD 5 across the entire run. Its explicit model is gpt-5.4-mini-2026-03-17. The initial runtime rejects models/currencies without a validated pricing bound. Review these settings before use. The runtime checks model-read access before builds and uses Responses for action selection; validation alone checks configured credential presence rather than provider access.
 
@@ -707,12 +707,12 @@ After the review fixes, the first Mac passed 126 unit tests (62 .NET and 64 Pyth
 After successful checks, update both .NET components and all Python support modules:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
-dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
-bash scripts/install-cimt-runtime.sh
-cp scripts/cimt "$CIMT_INSTALL_ROOT/bin/cimt"
-chmod +x "$CIMT_INSTALL_ROOT/bin/cimt"
+source /Users/Shared/TestPilot/environment.sh
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
+dotnet publish tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot-build"
+bash scripts/install-testpilot-runtime.sh
+cp scripts/testpilot "$TESTPILOT_INSTALL_ROOT/bin/testpilot"
+chmod +x "$TESTPILOT_INSTALL_ROOT/bin/testpilot"
 ```
 
 The runtime installer copies every supplied Python module. Copying only agent.py, mobile.py, and run_ui.py is no longer sufficient. Existing private configuration and application examples remain valid. The same phone helpers are used; real-device acceptance remains pending.
@@ -723,7 +723,7 @@ The review fixes use the same installation commands in section 15. No new depend
 
 The offline suite verifies functional findings, a result returned as a time limit expires, unresolved-check resolution, sensitive-screen transitions, preserved crash evidence, native command errors, custom-script YAML fallbacks, and clone cleanup after helper failure. These are source checks for a prepared Mac. A signed application build and physical-device exploration still need their separate acceptance run. The iPhone is unavailable at this review; no iPhone operation was attempted.
 
-First-Mac result: both .NET components were republished successfully, support dependencies were already installed, and all Python modules were copied. The public cimt --help command returned successfully. Installed host and Python module files match the corrected source build.
+First-Mac result: both .NET components were republished successfully, support dependencies were already installed, and all Python modules were copied. The public testpilot --help command returned successfully. Installed host and Python module files match the corrected source build.
 
 ## 17. Install the requirement-mapping increment
 
@@ -747,13 +747,13 @@ First-Mac identity installation verified: republished the host, copied all Pytho
 
 ## 19. Document-heading correction — 28 October 2026
 
-This correction needs no new dependency or configuration setting. Update the host and its action prompt together from the CIMT source folder:
+This correction needs no new dependency or configuration setting. Update the host and its action prompt together from the TestPilot source folder:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
-cp runtime/action_prompt.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/action_prompt.py"
-cimt --help
+source /Users/Shared/TestPilot/environment.sh
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
+cp runtime/action_prompt.py "$TESTPILOT_INSTALL_ROOT/lib/testpilot-runtime/action_prompt.py"
+testpilot --help
 ```
 
 The first Mac was updated this way after all 254 offline checks passed. Installed host/prompt files were compared with the tested source. The mapping example retains one heading as context and five requirement results. Private configuration was not read or changed. See [mapping rules](requirement-mapping.md); this does not establish real-device acceptance.
@@ -763,11 +763,11 @@ The first Mac was updated this way after all 254 offline checks passed. Installe
 Update the host, build worker, and all Python modules together. The worker now includes record_redaction.py; copying only redaction.py is insufficient. No additional dependency, YAML field, or private configuration change is needed.
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
-dotnet publish tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt-build"
-cp runtime/*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
-cimt --help
+source /Users/Shared/TestPilot/environment.sh
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
+dotnet publish tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot-build"
+cp runtime/*.py "$TESTPILOT_INSTALL_ROOT/lib/testpilot-runtime/"
+testpilot --help
 ```
 
 First-Mac verification: all 301 offline checks passed. Both installed assemblies and all Python modules match the tested source; public help works. A synthetic result passed through the real Python recorder/journal and .NET writer retains failed and exit 1 for the original status/credential collision. Pixel tests cover Unicode and escaped-character secrets. No private configuration was read or changed, and no phone or API was used. Historical reports are preserved. See [redaction behavior and limits](redaction.md).
@@ -777,9 +777,9 @@ First-Mac verification: all 301 offline checks passed. Both installed assemblies
 This update changes Python support modules only. Keep the existing native helper and publish of the host/build worker. Copy all Python files together, including screenshot_image.py, mask_geometry.py, and capture_guard.py:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-cp runtime/*.py "$CIMT_INSTALL_ROOT/lib/cimt-runtime/"
-cimt --help
+source /Users/Shared/TestPilot/environment.sh
+cp runtime/*.py "$TESTPILOT_INSTALL_ROOT/lib/testpilot-runtime/"
+testpilot --help
 ```
 
 No new dependency, YAML field, or screen-region configuration is needed. The adapter now requests lossless PNG bytes from the native helper. JPEG is rejected at the masking boundary. Mask geometry, capture-size checks, clean image export, and container UI text handling use the separate services described in [screenshot masking](screenshot-masking.md).
@@ -792,18 +792,18 @@ The product owner connected Android and iPhone, allowing the paused read-only ch
 
 Use these checks when preparing another Mac or connecting another phone:
 
-1. Check available disk space before starting the adapter. This Mac initially returned `No space left on device`. Four cached CIMT installer archives were removed only after verifying their extracted tools were installed. Do not remove active tools, application repositories, signing material, or retained reports to make space. No fixed minimum free-space requirement is established by this observation.
+1. Check available disk space before starting the adapter. This Mac initially returned `No space left on device`. Four cached TestPilot installer archives were removed only after verifying their extracted tools were installed. Do not remove active tools, application repositories, signing material, or retained reports to make space. No fixed minimum free-space requirement is established by this observation.
 2. Confirm Android is authorized for USB debugging and the iPhone is paired and connected. Keep both phones unlocked. Connection alone does not prove the helper is installed or the screen is ready.
 3. Check the iPhone helper with the section 11 `agent status` command. On this connected phone, both the native helper status and Apple's installed-app query confirmed DeviceKit was absent. Do not infer installation from a previous phone's result.
 4. If the helper is missing, follow sections 11 and 13. The development profile must be unexpired, include this phone, permit DeviceKit's bundle identifier, and include a certificate whose signing identity and private key are available on this Mac. A profile covering the phone alone is insufficient. Here, two profiles covered the phone, but only one also matched an available valid signing identity. Installation with that matching profile succeeded.
-5. Verify capture through CIMT's production Mobile.snapshot path. Select a visible identified text element from the current UI and apply its element-ID masking rule. Check black pixels at the mapped mask, hidden returned UI text, image format, and metadata. Keep raw images and UI responses in memory and retain only aggregate outcomes for this read-only check. This is distinct from the older section 11 navigation probe, which saves private screen evidence.
+5. Verify capture through TestPilot's production Mobile.snapshot path. Select a visible identified text element from the current UI and apply its element-ID masking rule. Check black pixels at the mapped mask, hidden returned UI text, image format, and metadata. Keep raw images and UI responses in memory and retain only aggregate outcomes for this read-only check. This is distinct from the older section 11 navigation probe, which saves private screen evidence.
 6. Stop the probe's own MCP client and native daemon. Keep DeviceKit installed for later runs. Check that all installed runtime modules match the source used for verification.
 
-First-Mac outcome: both physical-platform smoke checks passed sequentially; all 28 installed Python modules matched source. No product code, private YAML, application data, API key, or retained report was changed. No model call or MAUI application build was needed. The temporary aggregate results remain local under `/private/tmp/cimt-screenshot-masking-live-20261029`. Credential-entry, rotation, simultaneous device execution, real MAUI scenarios, Jenkins, and second-Mac acceptance remain open.
+First-Mac outcome: both physical-platform smoke checks passed sequentially; all 28 installed Python modules matched source. No product code, private YAML, application data, API key, or retained report was changed. No model call or MAUI application build was needed. The temporary aggregate results remain local under `/private/tmp/testpilot-screenshot-masking-live-20261029`. Credential-entry, rotation, simultaneous device execution, real MAUI scenarios, Jenkins, and second-Mac acceptance remain open.
 
-## 23. Inputs only; CIMT creates output — 29 October 2026
+## 23. Inputs only; TestPilot creates output — 29 October 2026
 
-Installed CIMT runs independently of the launch directory and source checkout. The user supplies configuration, referenced test texts, and optional custom scripts. Do not create output folders and do not configure workspace.root or reports.root. CIMT creates the entire output tree automatically below the input folder.
+Installed TestPilot runs independently of the launch directory and source checkout. The user supplies configuration, referenced test texts, and optional custom scripts. Do not create output folders and do not configure workspace.root or reports.root. TestPilot creates the entire output tree automatically below the input folder.
 
 The input folder is the folder containing --run-config, or --config when no run override is supplied. Shared default settings may live elsewhere. Input and custom-script paths still resolve relative to their declaring YAML file. A branch override does not change the selected input folder.
 
@@ -815,7 +815,7 @@ FirstRun/
   application.yaml
   inputs/
   build/                         # application-specific integration only
-  CIMT output/                   # created by CIMT, not by the user
+  TestPilot output/                   # created by TestPilot, not by the user
     work/work_<date-time>/        # temporary, when execution needs it
     reports/report_<date-time>/   # retained HTML, builds, logs, and evidence
 ```
@@ -826,42 +826,42 @@ Start from FirstRun:
 
 ```bash
 cd /Users/sumkar/Development/testing/FirstRun
-source /Users/Shared/CIMT/environment.sh
-cimt validate --config ./default.private.yaml --run-config ./application.yaml
-cimt run --config ./default.private.yaml --run-config ./application.yaml
+source /Users/Shared/TestPilot/environment.sh
+testpilot validate --config ./default.private.yaml --run-config ./application.yaml
+testpilot run --config ./default.private.yaml --run-config ./application.yaml
 ```
 
 From another launch directory, point to those same files:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-cimt validate \
+source /Users/Shared/TestPilot/environment.sh
+testpilot validate \
   --config /Users/sumkar/Development/testing/FirstRun/default.private.yaml \
   --run-config /Users/sumkar/Development/testing/FirstRun/application.yaml
 ```
 
-Both invocations keep output under FirstRun/CIMT output. Each invocation allocates a fresh report identity; execution creates paired temporary work when needed. Old reports remain. Temporary work cleanup does not remove reports or input files. The machine-wide lock and ownership registry remain with the CIMT installation.
+Both invocations keep output under FirstRun/TestPilot output. Each invocation allocates a fresh report identity; execution creates paired temporary work when needed. Old reports remain. Temporary work cleanup does not remove reports or input files. The machine-wide lock and ownership registry remain with the TestPilot installation.
 
-Missing or invalid YAML retains its error report with the selected input folder when writable. If output is blocked, unsafe, or unwritable, CIMT reports the failure in the terminal and does not create an output tree elsewhere. With invalid command syntax and no selected input, the launch folder is used. Existing links cannot redirect output outside its designated parent.
+Missing or invalid YAML retains its error report with the selected input folder when writable. If output is blocked, unsafe, or unwritable, TestPilot reports the failure in the terminal and does not create an output tree elsewhere. With invalid command syntax and no selected input, the launch folder is used. Existing links cannot redirect output outside its designated parent.
 
 Install the corrected host from the source checkout:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-dotnet publish src/Cimt/Cimt.csproj -c Release -o "$CIMT_INSTALL_ROOT/lib/cimt"
+source /Users/Shared/TestPilot/environment.sh
+dotnet publish src/TestPilot/TestPilot.csproj -c Release -o "$TESTPILOT_INSTALL_ROOT/lib/testpilot"
 ```
 
 No new dependency, phone helper, API key, or runtime module is needed for this correction. The full offline checks plus the additional blocked-output unit case passed: 181 .NET tests, 155 Python tests, and 28 public-command/build/example checks, 364 total. The installed launcher also passed all five output-layout checks from two launch folders, including spaces, shared defaults elsewhere, retained earlier reports, legacy roots, and missing/invalid YAML. These use fake readiness tools and synthetic credentials; no API request, real build, or device action was performed.
 
-FirstRun now contains inputs only. Its previously prepared empty work/reports folders were removed; its CIMT output folder will be created by the first actual invocation. See the [runnable output-layout demonstration](../examples/input-folder/README.md). Real application, model access, and Jenkins/second-Mac acceptance remain open.
+FirstRun now contains inputs only. Its previously prepared empty work/reports folders were removed; its TestPilot output folder will be created by the first actual invocation. See the [runnable output-layout demonstration](../examples/input-folder/README.md). Real application, model access, and Jenkins/second-Mac acceptance remain open.
 
 ## 24. Long native socket address — 29 October 2026
 
-The user-started FirstRun report_2026-10-29_12-37-16-923 passed model/runtime preflight, then stopped at physical-device discovery with exit 3. No repository clone, application build, installation, or test action was reached. The report also recorded failure to stop the owned native helper. This is a CIMT integration defect, not evidence of invalid API credentials or a disconnected phone.
+The user-started FirstRun report_2026-10-29_12-37-16-923 passed model/runtime preflight, then stopped at physical-device discovery with exit 3. No repository clone, application build, installation, or test action was reached. The report also recorded failure to stop the owned native helper. This is a TestPilot integration defect, not evidence of invalid API credentials or a disconnected phone.
 
-Diagnosis used the retained result.json, the generated work-folder name, and the installed helper's read-only daemon status command. The original address ended with work_<date-time>/mobilecli/daemon.sock and was 110 bytes long. Mobile CLI explicitly limits macOS addresses to 103 bytes; the installed binary rejected the calculated address with that same limit. A separate local socket check also rejected it. No device command or real CIMT rerun was needed to identify the path problem. See [upstream path validation](https://github.com/mobile-next/mobilecli/blob/main/daemon/paths.go).
+Diagnosis used the retained result.json, the generated work-folder name, and the installed helper's read-only daemon status command. The original address ended with work_<date-time>/mobilecli/daemon.sock and was 110 bytes long. Mobile CLI explicitly limits macOS addresses to 103 bytes; the installed binary rejected the calculated address with that same limit. A separate local socket check also rejected it. No device command or real TestPilot rerun was needed to identify the path problem. See [upstream path validation](https://github.com/mobile-next/mobilecli/blob/main/daemon/paths.go).
 
-The corrected host automatically creates a short owned link under /tmp/cimt-native-<installation-and-user-hash>, pointing to the run's mobilecli directory. MOBILECLI_HOME and the Python runtime use this address. The actual socket, PID, and log files stay inside FirstRun/CIMT output/work/work_<date-time>/mobilecli. The temporary link is internal coordination metadata. Users do not create it, change their input directory, or configure a new setting. Normal and next-start owned-work cleanup remove only a link with the expected target; unrelated files/links are preserved.
+The corrected host automatically creates a short owned link under /tmp/testpilot-native-<installation-and-user-hash>, pointing to the run's mobilecli directory. MOBILECLI_HOME and the Python runtime use this address. The actual socket, PID, and log files stay inside FirstRun/TestPilot output/work/work_<date-time>/mobilecli. The temporary link is internal coordination metadata. Users do not create it, change their input directory, or configure a new setting. Normal and next-start owned-work cleanup remove only a link with the expected target; unrelated files/links are preserved.
 
 Discovery and helper-stop errors now retain redacted diagnostic details. Before temporary work is removed, available helper output is copied, with credential redaction, to reports/report_<date-time>/logs/native-daemon.log. Cleanup does not stop a global helper if this run never selected an owned helper address.
 
@@ -869,7 +869,7 @@ Install from the source checkout using the host publish command in section 23. N
 
 Verification: 196 .NET tests, 155 Python tests, and 28 CLI/build/example checks passed, 379 total. The existing unit-test project binds a real local socket through the short link into a deeply nested folder. Small cases cover occupied links/files, target verification, missing targets, ownership, shared host/worker address, redacted diagnostics, log retention, and cleanup. A dangling-link regression initially failed; changing link removal to unlink the link itself corrected it, and the complete offline suite then passed. These checks use no real API, MAUI application build, or physical-device action.
 
-The corrected host was installed and compared with the tested assembly. Existing run reports were preserved and private configuration was not read or changed. No actual CIMT run was started during diagnosis or installation. The next physical discovery/build/application result must come from the user's retry; it has not yet been verified.
+The corrected host was installed and compared with the tested assembly. Existing run reports were preserved and private configuration was not read or changed. No actual TestPilot run was started during diagnosis or installation. The next physical discovery/build/application result must come from the user's retry; it has not yet been verified.
 
 ## 25. Generic interactive run checkpoints
 
@@ -877,7 +877,7 @@ The user-started FirstRun report_2026-10-29_13-18-24-585 stopped at model/runtim
 
 Update the installed host using the section 15 publish procedure. No new dependency, API key, phone helper, Python module, or build-worker update is required for interactive checkpoints. Add execution.interactive-pauses: true to the public per-run YAML; FirstRun/application.yaml and the tracked ECON example now include it. Keep private key configuration unchanged.
 
-When the user starts run, CIMT describes OpenAI model access, repository access/builds, and AI testing after a successful build, waiting for Enter at each checkpoint. The messages do not prescribe any network or environment preparation. Complete any necessary preparation before acknowledging. The key is read from YAML at startup, but authenticated requests wait for acknowledgement. No installable builds means no third pause. Waiting counts toward the configured whole-run time limit. Deadline/closed-input failure still triggers owned cleanup and a retained local report. Omitted/false preserves unattended operation; Jenkins must use that value. Enabled pauses reject redirected input. validate is unchanged. The product guide contains the full [walkthrough](product-guide.md#interactive-pauses).
+When the user starts run, TestPilot describes OpenAI model access, repository access/builds, and AI testing after a successful build, waiting for Enter at each checkpoint. The messages do not prescribe any network or environment preparation. Complete any necessary preparation before acknowledging. The key is read from YAML at startup, but authenticated requests wait for acknowledgement. No installable builds means no third pause. Waiting counts toward the configured whole-run time limit. Deadline/closed-input failure still triggers owned cleanup and a retained local report. Omitted/false preserves unattended operation; Jenkins must use that value. Enabled pauses reject redirected input. validate is unchanged. The product guide contains the full [walkthrough](product-guide.md#interactive-pauses).
 
 A separate application build blocker remains: report_2026-10-29_13-03-36-993 passed preflight, discovery, clone, and submodule initialization, but Release_Generic/Release_Pride on Android/iOS all failed in CuRMiTagger.exe under Mono. RuntimePolicyHelper calls RuntimeEnvironment.GetRuntimeInterfaceAsObject, which throws NotSupportedException there. The earlier macOS-adapter fixture established invocation only. Do not silently skip the required tagger or claim these builds succeeded. Network switching does not resolve that compatibility issue. No installable app or app interaction was produced by that run.
 
@@ -901,27 +901,27 @@ The failing command came from FirstRun/build/prebuild.targets, injected by the e
 
 Correction: replace the separate input folder's build/build.sh with the updated example script and remove the obsolete build/macos.targets and build/prebuild.targets files. FirstRun has been updated. The adapter now changes only the exact known Windows resource-copy command in the temporary cloned project, then calls the installed default Android/iOS worker. It does not inject a tagger, Mono, global imports, or properties. Other project-configured tools and Visual Studio/MSBuild integration remain in place. No installed host, worker, dependency, private YAML, application branch, or user build configuration needs changing for this fix. The recorded targets retain the user's Release configuration values despite their Debug labels.
 
-Verification: four example MSBuild fixture tests and four default-worker contract checks passed. They cover copying with no tagger, preservation of project-defined tools and configured properties, unrelated pre-build steps, unchanged requests, target conditions, and both platform delegates. Shell syntax and FirstRun/source script equality checks passed. These are synthetic checks, not real MAUI builds. The assistant did not rerun CIMT; signing, compilation, installation, and actual application testing remain for the user's next run. Reports and private configuration were preserved.
+Verification: four example MSBuild fixture tests and four default-worker contract checks passed. They cover copying with no tagger, preservation of project-defined tools and configured properties, unrelated pre-build steps, unchanged requests, target conditions, and both platform delegates. Shell syntax and FirstRun/source script equality checks passed. These are synthetic checks, not real MAUI builds. The assistant did not rerun TestPilot; signing, compilation, installation, and actual application testing remain for the user's next run. Reports and private configuration were preserved.
 
 ## 28. Retain work, preserve build properties, and replay built apps
 
 The product owner replaced deletion after execution with retention until the next clone for the same inputs. Install updated host and build-worker assemblies using section 15's publish commands. No new dependency, API key, private YAML change, phone helper, or Python module is required. Retained ownership records migrate from the earlier single-object format without losing ownership proof. New records preserve work across different input folders.
 
-Finalization keeps checkout/publish/intermediate files, stops the owned helper, saves/redacts its log, and releases a successfully stopped helper's short link. A failed stop leaves the verified link for next-run recovery. Before a later normal Git clone, only earlier verified work for those inputs is removed. Preflight failures, validation, and replay do not clear it. Reports/artifacts remain. Existing work already deleted by an older CIMT cannot be recovered by this change.
+Finalization keeps checkout/publish/intermediate files, stops the owned helper, saves/redacts its log, and releases a successfully stopped helper's short link. A failed stop leaves the verified link for next-run recovery. Before a later normal Git clone, only earlier verified work for those inputs is removed. Preflight failures, validation, and replay do not clear it. Reports/artifacts remain. Existing work already deleted by an older TestPilot cannot be recovered by this change.
 
 The default worker no longer injects AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild. It preserves explicit YAML values and project/SDK defaults; no FirstRun properties were rewritten. Installable APK/IPA output remains necessary for device testing. Missing output is explained rather than followed by an implicit property change/rebuild.
 
-A completed build stage with successful apps creates per-input retained-builds.json with original run/repository/branch/commit/profile, relative report artifacts, and digests. cimt replay --config ./default.private.yaml --run-config ./application.yaml reuses those apps with current text inputs and credentials, verifies paths/profile/integrity, and creates a new report. There is no Git/restore/build stage, no deletion of prior work, and no automatic rebuild on cache failure. Saved action-history replay remains explicitly unfinished. See the [workflow](work-retention-and-replay.md).
+A completed build stage with successful apps creates per-input retained-builds.json with original run/repository/branch/commit/profile, relative report artifacts, and digests. testpilot replay --config ./default.private.yaml --run-config ./application.yaml reuses those apps with current text inputs and credentials, verifies paths/profile/integrity, and creates a new report. There is no Git/restore/build stage, no deletion of prior work, and no automatic rebuild on cache failure. Saved action-history replay remains explicitly unfinished. See the [workflow](work-retention-and-replay.md).
 
 Verified: 237 .NET unit tests, 155 Python checks, 20 CLI/lifecycle checks, four build-contract checks, four example-adapter checks, and five public output-layout checks passed: 425 checks total. The complete suite passed before the final helper-stop recovery case; the updated .NET and CLI suites passed again after that change. The replay fixture disables Git/build commands and verifies identical app bytes and retained work. These checks use synthetic inputs and existing test projects; they do not establish a real MAUI build or device replay.
 
-Installed both updated Release assemblies on this Mac and verified byte equality with their tested local build outputs. Installed cimt.dll SHA-256: 95ddeaf75e96bf06db53c353fd1b30485ed043460be5cbb29ac28d6596a9f97f. Installed cimt-build.dll SHA-256: 98f3e8d52793a477d5df76827d710419fedee107ee0b36c6ecbab62cc04dd141. Public cimt --help succeeded. No Python modules or dependencies changed. No private configuration was read, and the assistant started no real application run; the user controls the next run.
+Installed both updated Release assemblies on this Mac and verified byte equality with their tested local build outputs. Installed testpilot.dll SHA-256: 95ddeaf75e96bf06db53c353fd1b30485ed043460be5cbb29ac28d6596a9f97f. Installed testpilot-build.dll SHA-256: 98f3e8d52793a477d5df76827d710419fedee107ee0b36c6ecbab62cc04dd141. Public testpilot --help succeeded. No Python modules or dependencies changed. No private configuration was read, and the assistant started no real application run; the user controls the next run.
 
 ## 29. First retained-work run: missing generated application resource
 
 The user-started report_2026-10-29_15-35-06-045 used testing/curmitAndNugets at 8b50dd12f65e0f3ffd9f8df68013d56601473f45. Model/runtime preflight, startup-device discovery, cloning, and submodule initialization completed. All four Android/iOS build attempts stopped at EconMobile.Common.csproj line 714 with MSB3030: Platforms/Android/Resources/values/template/strings.xml was missing. No installable app or device test was produced.
 
-The work folder and all four build-job folders remain under FirstRun/CIMT output/work/work_2026-10-29_15-35-06-045, confirming retention after this failed real build. The cloned project differs from HEAD only in the disclosed Windows-copy-to-MSBuild-Copy replacement. No tagger call was injected. Later platform attempts find the already adapted copy task and leave it unchanged.
+The work folder and all four build-job folders remain under FirstRun/TestPilot output/work/work_2026-10-29_15-35-06-045, confirming retention after this failed real build. The cloned project differs from HEAD only in the disclosed Windows-copy-to-MSBuild-Copy replacement. No tagger call was injected. Later platform attempts find the already adapted copy task and leave it unchanged.
 
 The selected revision tracks template/strings.template.xml, whose values include unresolved build/version placeholders. It ignores strings.xml, and CuRMiT-project.xml lists the missing template/strings.xml among FilesToPatch. The remaining project PreBuild copy expects that generated file on both Android and iOS. This establishes a missing generated input in the clean-clone build path; it does not establish which replacement generation process the application owner intends after removing the tagger invocation. Do not copy/rename the unresolved template, fabricate version metadata, skip the copy target, or reintroduce the old tagger automatically. Establish the intended application build preparation first, then express it in the application project or an explicitly agreed application-specific script.
 
@@ -929,7 +929,7 @@ Android also reports Java version-format warning XA0033, and iOS reports a Mono.
 
 This investigation only read the retained clone and redacted report/logs. No private YAML was read, no source/project/script was changed, and no new application build, API request, or device action was started. Resource-generation resolution and successful build/device/replay acceptance remain pending.
 
-Follow-up: the user-started report_2026-10-29_15-52-42-705 correctly picked up the new branch commit 3183659592c49aa0b2559da23ffa792f00cc5f52 (strings). The input configuration now explicitly selects Debug_Generic/Debug_Pride, matching the target labels. The new commit tracks Platforms/Android/Resources/values/strings.xml, which is the destination of the remaining PreBuild copy. Its expected source, values/template/strings.xml, remains absent. All four builds therefore still stop on MSB3030. Both the original Windows command and the portable replacement use the same source/destination; no path redirection was introduced. If the committed destination is now authoritative, remove the obsolete copy operation from the application project; if generation is still intended, provide the actual expected source through that build process. Do not reverse the copy or fabricate a generated file in generic CIMT. No application/project/script was edited during this investigation, and no new run was started.
+Follow-up: the user-started report_2026-10-29_15-52-42-705 correctly picked up the new branch commit 3183659592c49aa0b2559da23ffa792f00cc5f52 (strings). The input configuration now explicitly selects Debug_Generic/Debug_Pride, matching the target labels. The new commit tracks Platforms/Android/Resources/values/strings.xml, which is the destination of the remaining PreBuild copy. Its expected source, values/template/strings.xml, remains absent. All four builds therefore still stop on MSB3030. Both the original Windows command and the portable replacement use the same source/destination; no path redirection was introduced. If the committed destination is now authoritative, remove the obsolete copy operation from the application project; if generation is still intended, provide the actual expected source through that build process. Do not reverse the copy or fabricate a generated file in generic TestPilot. No application/project/script was edited during this investigation, and no new run was started.
 
 Read-only follow-up checks found the newly committed destination resource to be valid XML with 12 entries and no unresolved $NAME$ placeholders. Other outputs named by the tagging configuration (Platforms/iOS/Info.plist, Platforms/Android/AndroidManifest.xml, and Version.properties) are also absent in this clone. Review their intended generation or committed-input policy before assuming a clean-clone build is ready. Their absence is an observation, not a separately reproduced build failure; the current build stops at the copy task first.
 
@@ -942,20 +942,20 @@ The update adds mandatory run overview, chronological activity, and failures/sto
 Install the updated host using section 15's publish command. Copy the updated runtime modules as well:
 
 ```bash
-cp runtime/*.py /Users/Shared/CIMT/lib/cimt-runtime/
+cp runtime/*.py /Users/Shared/TestPilot/lib/testpilot-runtime/
 ```
 
-This increment adds only standard-library Python code, with no new dependency, private configuration field, API key, helper, or build-worker change. Fresh-Mac installation still uses the documented runtime installation helper, which copies these modules. Existing inputs and cimt run/cimt replay invocations remain valid; no verbosity flag is needed. Existing reports are not rewritten, and their missing historical timestamps cannot be reconstructed.
+This increment adds only standard-library Python code, with no new dependency, private configuration field, API key, helper, or build-worker change. Fresh-Mac installation still uses the documented runtime installation helper, which copies these modules. Existing inputs and testpilot run/testpilot replay invocations remain valid; no verbosity flag is needed. Existing reports are not rewritten, and their missing historical timestamps cannot be reconstructed.
 
 Verified on the first Mac: 246 .NET unit tests, 13 runtime-policy checks, 150 Python unit tests, 20 public CLI/lifecycle checks, four build-contract checks, four example-adapter checks, and five output-layout checks passed: 442 checks total. All use synthetic inputs/fake services. The existing offline requirement demo generated a synthetic failed/incomplete report with the new sections/activity; its expected exit is 1. Static HTML structure, section, and result checks passed. Visual browser inspection was unavailable because the browser tool blocks local-file URLs; no workaround was attempted.
 
-Installed the tested Release host and all 29 Python modules, checked byte equality against source/build output, and verified public help. Installed cimt.dll SHA-256: c416f3cc25f07192775b7342e58f3ff5b5bb31f1bcc7452e0a12b98663622bb9. No private YAML was read, no new real app build/run/replay or OpenAI request was issued, and no phone was operated. Real application acceptance of the improved diagnostics remains for a user-started run. The underlying capture-stability issue is still open. See [diagnostic reporting](diagnostic-reporting.md).
+Installed the tested Release host and all 29 Python modules, checked byte equality against source/build output, and verified public help. Installed testpilot.dll SHA-256: c416f3cc25f07192775b7342e58f3ff5b5bb31f1bcc7452e0a12b98663622bb9. No private YAML was read, no new real app build/run/replay or OpenAI request was issued, and no phone was operated. Real application acceptance of the improved diagnostics remains for a user-started run. The underlying capture-stability issue is still open. See [diagnostic reporting](diagnostic-reporting.md).
 
 ## 31. Remaining work after an interrupted scenario
 
 The 30 October replay exposed a reporting defect: the AI returned pending tasks, but the final scenario list stayed empty after iPhone relaunch failed. ScenarioRunner now saves each returned plan before check recording and limit handling, and finalizes pending work after preparation/execution errors. It includes known unresolved requirement/control counts and an unfinished-objective fallback. Completed scenarios clear earlier plans. No device-control or launch policy changed.
 
-For an existing installation, stop active CIMT runs, then copy runtime/scenario.py to the installed lib/cimt-runtime/scenario.py. The normal fresh-Mac runtime installation helper already copies this file. No host rebuild, dependency, configuration change, or API key setup is needed for this fix.
+For an existing installation, stop active TestPilot runs, then copy runtime/scenario.py to the installed lib/testpilot-runtime/scenario.py. The normal fresh-Mac runtime installation helper already copies this file. No host rebuild, dependency, configuration change, or API key setup is needed for this fix.
 
 Verified: 247 .NET unit tests, 158 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks passed (438 checks). The regression tests use fake relaunch/capture failures and check the saved pending list, latest-plan replacement, completion, coverage counts, redaction, and HTML stopping/scenario sections. The initial sandboxed .NET attempt could not open its process pipe; verification succeeded with the required local process permissions.
 
@@ -975,21 +975,21 @@ Verification for section 32: all four existing example-build checks passed, incl
 
 The user-started report_2026-10-30_12-36-25-944 reached the ECON login screen. The first UI read found password controls; the second read found the OS Bluetooth permission alert. The capture guard rejected the unstable image, stopping execution before any AI request or saved step screenshot. This was an infrastructure/evidence stop, with no confirmed app crash. The report could not display an image that had not passed masking verification.
 
-Update the host and runtime together for bounded fresh-frame capture retries and explicit HTML missing-evidence text. Use the existing host publish procedure and copy runtime/errors.py, runtime/capture_guard.py, runtime/screen_capture.py, runtime/mobile.py, and runtime/action_prompt.py to lib/cimt-runtime in the installation. Fresh-Mac setup already copies these modules. No new dependency, YAML setting, API key, build script, helper, or application change is required.
+Update the host and runtime together for bounded fresh-frame capture retries and explicit HTML missing-evidence text. Use the existing host publish procedure and copy runtime/errors.py, runtime/capture_guard.py, runtime/screen_capture.py, runtime/mobile.py, and runtime/action_prompt.py to lib/testpilot-runtime in the installation. Fresh-Mac setup already copies these modules. No new dependency, YAML setting, API key, build script, helper, or application change is required.
 
 Each capture gets at most three fresh attempts after valid geometry changes, with 250 ms waits counted toward the run deadline. Rejected images remain in memory and are discarded, while invalid data/device/tool errors still stop immediately. Accepted screenshots appear in new HTML reports; historical screenshots cannot be recovered. This correction is verified offline; the next user-started run/replay must confirm physical-device permission handling.
 
 Verification for section 33: 249 .NET unit tests, 167 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks passed (449 checks). Six new capture cases, two HTML cases, two permission-prompt contract cases, and one blocked-permission outcome case cover this correction. No live model/device acceptance is claimed from these fixtures.
 
-Installed the published host and all five changed runtime modules after checking that no run was active; byte comparisons and installed public help passed. Installed cimt.dll SHA-256: 3ba63065404c21431d7d755c48bca01bd072bf1b8f29145fd2f78ce36e74e0d8. The local TestRun_SingleDevice_SingleTarget instruction file alone authorizes Allow/equivalent permission choices for ECON-M; no global automatic approval action was added. Private YAML and historical reports are unchanged, and no real run/replay, paid request, or phone action was started.
+Installed the published host and all five changed runtime modules after checking that no run was active; byte comparisons and installed public help passed. Installed testpilot.dll SHA-256: 3ba63065404c21431d7d755c48bca01bd072bf1b8f29145fd2f78ce36e74e0d8. The local TestRun_SingleDevice_SingleTarget instruction file alone authorizes Allow/equivalent permission choices for ECON-M; no global automatic approval action was added. Private YAML and historical reports are unchanged, and no real run/replay, paid request, or phone action was started.
 
 ## 34. AI response correction update — 30 October 2026
 
-Install the updated host and Python modules together so the HTML report understands rejectedResponses. The source installation procedure in section 14 still applies; there is no new package, API credential, YAML field, or device helper. This update adds runtime/decision_recovery.py and changes action_prompt.py, agent.py, check_results.py, requirement_results.py, errors.py, scenario.py, and record_redaction.py. Publish the host to a staging folder, run the existing offline checks, then copy the published host and runtime modules to the installed CIMT paths. Keep a backup of replaced installed files until verification passes.
+Install the updated host and Python modules together so the HTML report understands rejectedResponses. The source installation procedure in section 14 still applies; there is no new package, API credential, YAML field, or device helper. This update adds runtime/decision_recovery.py and changes action_prompt.py, agent.py, check_results.py, requirement_results.py, errors.py, scenario.py, and record_redaction.py. Publish the host to a staging folder, run the existing offline checks, then copy the published host and runtime modules to the installed TestPilot paths. Keep a backup of replaced installed files until verification passes.
 
 The behavior is automatic for run and replay: at most three AI responses per decision, fresh masked evidence before corrections, shared budget/deadline enforcement, and mandatory unaccepted-response diagnostics. The command-line help check and byte comparison can verify installation without starting a real app test. Live API schema acceptance and physical-device execution remain separate acceptance checks and are not implied by offline verification.
 
-Verification for this increment: 467 relevant offline checks passed (250 .NET unit tests, 184 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks). The final host was published successfully. The installed host and eight changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: df3f2d9d51693a5011b74954531d3d183eb7d7fe8fd8af3bfb5888d778ee0bc2. Backup: /private/tmp/cimt-before-decision-correction.e8hvj7ht. No real app run/replay, paid API request, or phone action was started.
+Verification for this increment: 467 relevant offline checks passed (250 .NET unit tests, 184 Python unit tests, 13 runtime-policy checks, and 20 public CLI/lifecycle checks). The final host was published successfully. The installed host and eight changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed testpilot.dll SHA-256: df3f2d9d51693a5011b74954531d3d183eb7d7fe8fd8af3bfb5888d778ee0bc2. Backup: /private/tmp/testpilot-before-decision-correction.e8hvj7ht. No real app run/replay, paid API request, or phone action was started.
 
 ## 35. Exploration memory, interruption, and interim reports — 30 October 2026
 
@@ -997,33 +997,33 @@ Update the host and Python runtime together using the existing source installati
 
 The update adds whole-scenario exploration memory and bounded no-progress replanning. Terminal interruption requests controlled finalization, and the UI worker has a five-second exit grace before process-tree termination. Partial reports use the existing output folder and are refreshed about every two seconds during device testing, with atomic replacement and an explicit partial marker. Stage-boundary snapshots also cover preparation/build progress. Actual signals and forced termination are verified using temporary fake-runtime processes in the existing CLI checks, without contacting OpenAI or operating physical devices. Physical-device/API acceptance remains a user-started run/replay.
 
-Verification for this increment: 503 relevant offline checks passed (261 .NET unit tests, 207 Python unit tests, 13 runtime-policy checks, and 22 public CLI/lifecycle checks). These include actual SIGINT delivery to a temporary fake-runtime CIMT child, forced termination of a separate child after an interim report was saved, checkpoint cancellation, and a closed-pipe interruption race. The final host published successfully; installed host and all 12 changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed cimt.dll SHA-256: 97d66b943637304fef2bfef6f3a5fbf49ae7579480a8fa4318cec33ea44cf990. Original installation backup: /private/tmp/cimt-before-exploration-stop.7pl43htt. No real app run/replay, paid API request, device action, private configuration edit, or historical-report rewrite was performed for this increment.
+Verification for this increment: 503 relevant offline checks passed (261 .NET unit tests, 207 Python unit tests, 13 runtime-policy checks, and 22 public CLI/lifecycle checks). These include actual SIGINT delivery to a temporary fake-runtime TestPilot child, forced termination of a separate child after an interim report was saved, checkpoint cancellation, and a closed-pipe interruption race. The final host published successfully; installed host and all 12 changed/new runtime modules match the tested files byte-for-byte, and installed public help passed. Installed testpilot.dll SHA-256: 97d66b943637304fef2bfef6f3a5fbf49ae7579480a8fa4318cec33ea44cf990. Original installation backup: /private/tmp/testpilot-before-exploration-stop.7pl43htt. No real app run/replay, paid API request, device action, private configuration edit, or historical-report rewrite was performed for this increment.
 
 ## 36. Compact AI history input — 30 October 2026
 
-This runtime-only update replaces lib/cimt-runtime/action_prompt.py with the tested source version. No host rebuild, package, helper, private configuration, model selection, or API key change is required. Use the existing runtime source installation procedure, or back up and copy that one module after verifying that no CIMT run is active. Compare its installed bytes with runtime/action_prompt.py afterward.
+This runtime-only update replaces lib/testpilot-runtime/action_prompt.py with the tested source version. No host rebuild, package, helper, private configuration, model selection, or API key change is required. Use the existing runtime source installation procedure, or back up and copy that one module after verifying that no TestPilot run is active. Compare its installed bytes with runtime/action_prompt.py afterward.
 
 The update preserves 24 recent navigation facts plus critical findings while avoiding duplicated full checks and old plans in AI input. Full saved history and reports remain available. Five new tests exercise projection content, immutability, bounded history, critical findings, aliases/coordinates, and prompt guidance in the existing unittest suite. Live latency improvement is not established by these offline checks; compare a later user-started run against the timing baseline in performance.md.
 
-Installation verification: the installed action_prompt.py matches the tested source byte-for-byte (SHA-256 c0e27c0ae6eceeb55166ae064ac2d353e427ab203935574bb16aaf725fcc35ee). The previous module is backed up at /private/tmp/cimt-before-compact-history.pzjfq7_7/action_prompt.py. No run was active during replacement. The host is unchanged; no real test run or API request was started.
+Installation verification: the installed action_prompt.py matches the tested source byte-for-byte (SHA-256 c0e27c0ae6eceeb55166ae064ac2d353e427ab203935574bb16aaf725fcc35ee). The previous module is backed up at /private/tmp/testpilot-before-compact-history.pzjfq7_7/action_prompt.py. No run was active during replacement. The host is unchanged; no real test run or API request was started.
 
 ## 37. Configured model and Luna pricing support — 30 October 2026
 
-Update lib/cimt-runtime/budget.py, agent.py, and run_ui.py together after confirming that no CIMT run is active. Back up replaced files and compare installed bytes afterward. No host rebuild, package, helper, API key, administrator key, or YAML schema change is required. The configured supported model is checked before builds and used for inference. No private configuration is changed automatically.
+Update lib/testpilot-runtime/budget.py, agent.py, and run_ui.py together after confirming that no TestPilot run is active. Back up replaced files and compare installed bytes afterward. No host rebuild, package, helper, API key, administrator key, or YAML schema change is required. The configured supported model is checked before builds and used for inference. No private configuration is changed automatically.
 
 To select Luna, set ai-model.name to gpt-5.6-luna in the existing local configuration; keep its key and USD spending limit. The existing Mini snapshot remains supported. Unknown models/currencies stop before inference. Luna accounts for default cache-write charges and the long-context tier, reserving USD 0.5286864 per request. See the [model selection procedure](product-guide-history.md#select-the-ai-model) and architecture section 27. Automatic price retrieval and provider cost queries are deferred. Real account/model access and physical-device comparison remain user-started acceptance checks.
 
-Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/CIMT/state/run.lock for active holders. Backup: /private/tmp/cimt-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.
+Verification for Luna support: 217 Python unit tests, 22 runtime-policy checks, and 22 existing public CLI/lifecycle checks passed (261 relevant offline checks). Fourteen new cases cover model selection and the additional pricing rules. The CLI fixtures use temporary simulated runtimes, without API or physical-device access. The installed budget.py, agent.py, and run_ui.py match the tested source byte-for-byte after checking /Users/Shared/TestPilot/state/run.lock for active holders. Backup: /private/tmp/testpilot-before-luna.dvwn2h8p. Installed SHA-256 values: budget.py 3505d8e685c158ad3fdc90dc7840fbd622b48ca85c3628ac30de2bf04f6b8b9f; agent.py d22efb9203517d9e80bf1e65f7e8ab75e9089fad2eeaa15b3cdc58dd01763760; run_ui.py 8cd657cf79544aecf4289e3ffff2a43afa79f43134757065d5dc740d498d3655. Host and private configuration are unchanged. No real app test, paid API request, or phone action was started.
 
 ## 38. Per-execution report correction — 30 October 2026
 
-The product owner reaffirmed the existing contract: every run and replay has its own report_<timestamp>/index.html. Remove the briefly added shared-latest publisher and install the corrected .NET command host using the existing publish/backup procedure. Confirm no CIMT command holds the run lock before replacing the host and compare installed bytes afterward. Python runtime, build worker/scripts, credentials and YAML do not change.
+The product owner reaffirmed the existing contract: every run and replay has its own report_<timestamp>/index.html. Remove the briefly added shared-latest publisher and install the corrected .NET command host using the existing publish/backup procedure. Confirm no TestPilot command holds the run lock before replacing the host and compare installed bytes afterward. Python runtime, build worker/scripts, credentials and YAML do not change.
 
 Remove only the generated reports/index.html entry introduced by the previous update from the existing FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget inputs. Keep every report_<timestamp> folder and its HTML, JSON, logs and screenshots unchanged. User README instructions must point to the timestamped Report path printed by the execution rather than a shared latest page.
 
 Both full runs and replays continue to allocate distinct dated folders. This correction adds clearer command/identity labels and regression coverage for isolated replay output, without starting a real application test or changing previously saved results.
 
-Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed cimt.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/cimt-per-run-install.UbVTdZ/previous-host.
+Verification for the corrected per-execution contract: 266 xUnit cases and 22 existing public CLI/lifecycle checks passed (288 relevant offline checks). The replay fixture verifies its own dated HTML command/identity and absence of a shared entry or HTML base. The corrected host published successfully; all six installed files match the tested publication, and installed public help passed. Installed testpilot.dll SHA-256: 15c5fb853c15f7a81a556b92a76bab910d3a24e88cbc3c5e449f2725a68ba924. Backup: /private/tmp/testpilot-per-run-install.UbVTdZ/previous-host.
 
 Removed only the three shared reports/index.html files introduced by the previous update, from FirstRun, TestRun_SingleDevice_SingleTarget and TestRun_ios_android_SingleTarget. Verified timestamped report HTML hashes were unchanged. Python runtime, build worker/scripts, private settings, application source, and saved results remain unchanged. No real run/replay, model request or device action was started.
 
@@ -1035,7 +1035,7 @@ The worker update supplies current device/target scope to prevent remaining plan
 
 Verification: 286 xUnit tests, 218 Python unit tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks passed (548 relevant offline checks). The public fixtures include replay isolation, failed builds, controlled interruption and forced-stop partial reporting, using simulated dependencies. The report script passed syntax checking. The extended offline requirement-mapping demo produced Android/iOS results and four valid opaque synthetic PNGs, with all anchors/evidence/download links checked after folder relocation. Fourteen specified text/background color pairs met 4.5:1 in static calculations. These are not completed browser, screen-reader, 200% enlargement or user-timing acceptance tests.
 
-Installed the final six-file host publication and scoped worker module under the Mac-wide lock; all installed bytes match the tested publication/source. Public installed help passed. Host SHA-256: f5b369d6f49fdb5d1dac1b8735d3b63370dbfac5c287543275ca579e9ec8bc45. Original backup: /private/tmp/cimt-report-design.BoxIlJ/previous-host and previous-runtime. Build worker/scripts, model/pricing modules, private YAML, application source and historical test reports were preserved. No real application run/replay, paid API request or physical-device action was started.
+Installed the final six-file host publication and scoped worker module under the Mac-wide lock; all installed bytes match the tested publication/source. Public installed help passed. Host SHA-256: f5b369d6f49fdb5d1dac1b8735d3b63370dbfac5c287543275ca579e9ec8bc45. Original backup: /private/tmp/testpilot-report-design.BoxIlJ/previous-host and previous-runtime. Build worker/scripts, model/pricing modules, private YAML, application source and historical test reports were preserved. No real application run/replay, paid API request or physical-device action was started.
 
 ## 40. Virtual-device execution
 
@@ -1044,18 +1044,18 @@ The product owner approved Android Emulator and iOS Simulator execution on 31 Oc
 ### Findings from 31 October 2026
 
 - Installed the Android emulator and API 36 Google APIs x86_64 image with the existing SDK Manager. Its command completed successfully. The manager emitted its deprecation warning and `avdmanager` emitted a missing `devices.xml` warning; the named AVD was created and booted successfully despite that warning.
-- Created dedicated `CIMT_Android_API36` and `CIMT_iPhone` devices. The iPhone uses the already installed iOS 18.5 runtime. Left the existing online iPad simulator unchanged.
+- Created dedicated `TESTPILOT_Android_API36` and `TESTPILOT_iPhone` devices. The iPhone uses the already installed iOS 18.5 runtime. Left the existing online iPad simulator unchanged.
 - Verified Android boot completion and unlocked state, iOS Simulator UDID/readiness and live launchctl process format. Installed the standard DeviceKit helper, version 0.0.35, on the dedicated iPhone Simulator. No third-party tool source changes were made.
-- Installed CIMT's host, build worker and five affected runtime modules, preserving a backup at `/private/tmp/cimt-virtual-backup`. Verified installed file bytes. Host SHA256: `b56b0ee062c42a15d94245efba8a97e08a0077f35d9ef2f29faf777e89328f84`.
+- Installed TestPilot's host, build worker and five affected runtime modules, preserving a backup at `/private/tmp/testpilot-virtual-backup`. Verified installed file bytes. Host SHA256: `b56b0ee062c42a15d94245efba8a97e08a0077f35d9ef2f29faf777e89328f84`.
 - Offline validation passed: 295 .NET unit tests, 226 Python unit tests, 22 runtime-policy checks and 22 public CLI checks. The copied private YAML, input texts and build wrappers are byte-identical to the previous run. Real application build and exploration are separate qualification steps.
 - The first real run command was rejected before process startup by automatic approval review, which requested explicit approval to send masked private-app screenshots and UI text to OpenAI. The product owner subsequently requested running again. The rejected command itself performed no app testing or paid inference.
-- A separate configuration-validation attempt in the restricted shell could not acquire installation-state access and returned `UnauthorizedAccessException`; its report is not evidence of an emulator or application defect. Normal CIMT execution requires access to its installed state directory.
+- A separate configuration-validation attempt in the restricted shell could not acquire installation-state access and returned `UnauthorizedAccessException`; its report is not evidence of an emulator or application defect. Normal TestPilot execution requires access to its installed state directory.
 
 ### Simulator capture tolerance correction
 
 The subsequent approved run built and installed both apps, but stopped before AI inference on an iOS one-pixel capture mismatch. The product owner requested a tolerance correction, push, installation and replay. See [real-run qualification](virtual-devices.md#real-run-qualification-findings--31-october-2026) and [the capture correction](screenshot-masking.md#generic-mapping-tolerance-correction--31-october-2026). The final generic ±5% correction changes one Python runtime module; the host and build worker do not require rebuilding. Unit verification passed: 234 Python tests plus 22 runtime-policy checks. Keep the existing private configuration, model, budget, virtual-device IDs and retained artifacts for replay. Installation and replay results are recorded after execution.
 
-The generic tolerance module was pushed in commit `23bef7c331ff112508803eddb5fc17861142a656`, installed under the machine lock and verified byte-for-byte. Installed module SHA256: `bac94c809f322795e11ee6ec8f4959f20bc40b634e459c6a7e38bbc5ffd6258a`. Original module backup: `/private/tmp/cimt-tolerance-install-backup/mask_geometry.py`. Host/build assemblies were unchanged by this Python-only correction. Both virtual devices were ready before the requested public-command replay, which reused the retained builds and skipped Git/build. Screenshot validation passed on both platforms. See the [separate simulator signing limitation](virtual-devices.md#signing-limitation-found-during-replay); a successful capture does not establish a successful app startup or completed test.
+The generic tolerance module was pushed in commit `23bef7c331ff112508803eddb5fc17861142a656`, installed under the machine lock and verified byte-for-byte. Installed module SHA256: `bac94c809f322795e11ee6ec8f4959f20bc40b634e459c6a7e38bbc5ffd6258a`. Original module backup: `/private/tmp/testpilot-tolerance-install-backup/mask_geometry.py`. Host/build assemblies were unchanged by this Python-only correction. Both virtual devices were ready before the requested public-command replay, which reused the retained builds and skipped Git/build. Screenshot validation passed on both platforms. See the [separate simulator signing limitation](virtual-devices.md#signing-limitation-found-during-replay); a successful capture does not establish a successful app startup or completed test.
 
 The requested replay was subsequently cancelled by the product owner and finalized correctly with HTML, JSON, both device summaries and 48 PNGs. Screenshot tolerance passed on both platforms. The retained unsigned iOS app was rejected at startup; Android continued until cancellation without a recorded crash. The report preserves incomplete coverage and existing failure precedence. See [the replay outcome and remaining reporting/exploration limits](virtual-devices.md#replay-completion-and-reporting-limits). No signing repair, new build or further replay was performed as part of this cancelled run.
 
@@ -1068,19 +1068,19 @@ Publish the host using section 15 and install the matching activity.py, device_r
 
 Offline validation passed: 297 xUnit tests, 241 Python unit tests, 22 runtime-policy checks and 22 public CLI/lifecycle checks (582 checks). The host published successfully. Tests cover nested interrupted pipe errors, successful cleanup, genuine non-interrupted failures, failed close publication, prior failure precedence and stopped-step HTML. CLI tests use fake dependencies, including a one-SIGINT stop; this is not new live-device qualification.
 
-Installed under the run lock and verified all ten files byte-for-byte against the tested publication/source. Backup: /private/tmp/cimt-before-cancellation-_wl60j7o. Installed host SHA-256: 8283c329b7eb852e03eb13db80d8694378e736324677a857e55d72f669c240b2. No mobile run/replay, paid API request or device action was started for this correction.
+Installed under the run lock and verified all ten files byte-for-byte against the tested publication/source. Backup: /private/tmp/testpilot-before-cancellation-_wl60j7o. Installed host SHA-256: 8283c329b7eb852e03eb13db80d8694378e736324677a857e55d72f669c240b2. No mobile run/replay, paid API request or device action was started for this correction.
 
 
 ### Host-stage and observation cancellation follow-up
 
 The host also needs the run cancellation token at its activity boundary. RunCoordinator now supplies it to RunActivityLog for execution stages. A pipe/process exception after a known user stop is recorded as stopped with User interrupted execution before reaching the coordinator. Cleanup deliberately uses its normal uncancelled path so real finalization errors remain visible. The matching exploration_memory.py uses the interrupted step reason instead of claiming a UI change/no change from incomplete observation. Normal progress signatures, coverage counting, ref selection and capture checks are unchanged.
 
-Publish the host and replace exploration_memory.py with the matching source module under the same installation lock/backup procedure. Verification passed: 299 xUnit tests, 243 Python tests, 22 runtime-policy checks and 22 public CLI checks (586 offline checks). The host publication succeeded. Installed six host files and that module, verifying every byte; installed help passed. Backup: /private/tmp/cimt-before-host-cancellation-6dd2tmgb. Host SHA-256: f23bbd83582ffe52f54389e2a8f393bc46c2bb9fcd3e641ebf7847187c055113. New reports use the correction; historical reports remain intact. No mobile run, paid API request or device action was started.
+Publish the host and replace exploration_memory.py with the matching source module under the same installation lock/backup procedure. Verification passed: 299 xUnit tests, 243 Python tests, 22 runtime-policy checks and 22 public CLI checks (586 offline checks). The host publication succeeded. Installed six host files and that module, verifying every byte; installed help passed. Backup: /private/tmp/testpilot-before-host-cancellation-6dd2tmgb. Host SHA-256: f23bbd83582ffe52f54389e2a8f393bc46c2bb9fcd3e641ebf7847187c055113. New reports use the correction; historical reports remain intact. No mobile run, paid API request or device action was started.
 
 
 ## 42. Separate Test Planning and Exploration layer — 31 October 2026
 
-The new runtime/test_planning package contains the planning policy, task model, application map, input interpretation and progress rules. Install its Python files as a package, including __init__.py, under lib/cimt-runtime/test_planning. Copying only runtime/*.py is no longer sufficient. The updated scripts/install-cimt-runtime.sh copies both levels and removes the obsolete top-level exploration_memory.py after copying the replacement package. This source installer retains its existing dependency setup; no new Python dependency was added.
+The new runtime/test_planning package contains the planning policy, task model, application map, input interpretation and progress rules. Install its Python files as a package, including __init__.py, under lib/testpilot-runtime/test_planning. Copying only runtime/*.py is no longer sufficient. The updated scripts/install-testpilot-runtime.sh copies both levels and removes the obsolete top-level exploration_memory.py after copying the replacement package. This source installer retains its existing dependency setup; no new Python dependency was added.
 
 For an incremental update, publish the host using section 15 and back up the six host files plus matching runtime action_prompt.py, actions.py, mobile.py, scenario.py, decision_recovery.py, record_redaction.py and the old exploration_memory.py. Hold the installation run lock, install the new package and those six top-level modules, remove the backed-up obsolete top-level module, and verify file bytes. Preserve configuration, build workers/scripts, third-party tools and existing reports. The host embeds the readable plan/map renderer and typed redaction boundary. The runtime now requires the matching planning response schema, so install host/runtime changes together.
 
@@ -1089,13 +1089,13 @@ No new YAML field, API key, service or Appium installation is needed. Existing r
 Offline and live acceptance remain separate. The layer can be exercised with tests/test_test_planner.py and the existing test suites without a phone or API request. Device-specific input accessibility, useful exploration, configuration persistence and report layout on real runs remain live qualification work. No new live run is implied by installation.
 
 
-Verification for this increment passed: 304 xUnit tests, 280 Python tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks (628 offline checks). Host publication and installer syntax checks passed. Installed all 19 matching host/runtime/package files under the run lock and verified every byte. The obsolete top-level memory module was backed up and removed. Installed help and an installed-package import/schema smoke check passed without a device or API call. Original pre-planning backup: /private/tmp/cimt-before-planning-nv4wag87. Final snapshot-retention update backup: /private/tmp/cimt-before-planning-kru9cmu4. Installed host SHA-256: e9afbf3112370c798c99555d93dc3f5a345a00a4bfffc85f6a2fa0cb43c372ef. Existing private inputs, saved reports, build workers/scripts and third-party source were not changed. No live test run or paid inference was started.
+Verification for this increment passed: 304 xUnit tests, 280 Python tests, 22 runtime-policy checks and 22 existing public CLI/lifecycle checks (628 offline checks). Host publication and installer syntax checks passed. Installed all 19 matching host/runtime/package files under the run lock and verified every byte. The obsolete top-level memory module was backed up and removed. Installed help and an installed-package import/schema smoke check passed without a device or API call. Original pre-planning backup: /private/tmp/testpilot-before-planning-nv4wag87. Final snapshot-retention update backup: /private/tmp/testpilot-before-planning-kru9cmu4. Installed host SHA-256: e9afbf3112370c798c99555d93dc3f5a345a00a4bfffc85f6a2fa0cb43c372ef. Existing private inputs, saved reports, build workers/scripts and third-party source were not changed. No live test run or paid inference was started.
 
 ## 43. AI-owned context and recovery source increment
 
 The source increment adds test_planning/context_memory.py and test_planning/loop_recovery.py plus request_context.py. The existing installer copies top-level runtime modules and the whole planning package; no new prerequisite, key or configuration field is needed. Install the matching runtime files together: the action/check response contract now includes context, recovery and taskId. The HTML renderer also has matching context/recovery/usage views.
 
-This increment is validated with the existing offline suites. It has not been installed or exercised in a new CIMT mobile run as part of this task. Do not treat the earlier installed planning receipt as proof that this newer source is installed. No private inputs, retained app builds or existing reports are changed. See [AI context and recovery](ai-context-and-recovery.md).
+This increment is validated with the existing offline suites. It has not been installed or exercised in a new TestPilot mobile run as part of this task. Do not treat the earlier installed planning receipt as proof that this newer source is installed. No private inputs, retained app builds or existing reports are changed. See [AI context and recovery](ai-context-and-recovery.md).
 
 ### Installed branch verification — 31 October 2026
 
@@ -1103,7 +1103,7 @@ After the source increment, the product owner requested the latest main merged i
 
 Verified the local tracked source against that branch revision, published the matching host and installed it with the complete Python runtime and planning package under the machine run lock. The update changed 23 files and verified all 49 installation files byte-for-byte. The existing build worker already matched. Installed CLI help, worker imports and the context/recovery response-schema check passed without a device operation or API request. The source increment's earlier 669 offline checks remain its unit and fixture evidence; they were not rerun during installation.
 
-Backup: `/private/tmp/cimt-before-ai-context-gn6y7ons`. Installation receipt with file hashes: `/private/tmp/cimt-ai-context-install/receipt.json`. Private configuration, retained app builds, historical reports and third-party tools were preserved. No mobile test or replay was started by this installation. Live exploration quality and recovery acceptance remain to be verified separately.
+Backup: `/private/tmp/testpilot-before-ai-context-gn6y7ons`. Installation receipt with file hashes: `/private/tmp/testpilot-ai-context-install/receipt.json`. Private configuration, retained app builds, historical reports and third-party tools were preserved. No mobile test or replay was started by this installation. Live exploration quality and recovery acceptance remain to be verified separately.
 
 ## 44. Execution Stopping Policy installation — 31 October 2026
 
@@ -1114,7 +1114,7 @@ Installed public CLI help, worker imports, the context/recovery schema and the l
 
 ## 45. AI Resource Exchange source update
 
-Install the matching published host, top-level runtime modules and complete ai_exchange/, test_planning/ and stopping_policy/ packages together. scripts/install-cimt-runtime.sh includes these packages. No new dependency, credential, YAML field or service is needed. The matching HTML renderer shows full redacted replies and resource feedback; a runtime-only replacement would omit that view.
+Install the matching published host, top-level runtime modules and complete ai_exchange/, test_planning/ and stopping_policy/ packages together. scripts/install-testpilot-runtime.sh includes these packages. No new dependency, credential, YAML field or service is needed. The matching HTML renderer shows full redacted replies and resource feedback; a runtime-only replacement would omit that view.
 
 This update removes response-format/semantic evaluation and the three-response correction stop. Existing source/offline tests use no real devices or paid inference. The update is not installed by this source task. Revision 4125658 remains the last recorded installed revision; the later action-ownership and resource-exchange changes require a separate requested installation. Existing private inputs, retained apps and reports remain untouched. See [AI Resource Exchange](ai-resource-exchange.md).
 
@@ -1180,11 +1180,11 @@ No dependency, private setting, API key, mobile helper or third-party source/bin
 
 The installed-version replay finalized with exit 3, failed verdict and incomplete execution. iOS installed the retained app and captured a masked screen, but relaunch failed; only its worker stopped. Android recovered the known device-server startup error after three failed read-only probes, completing readiness in about 28 seconds. It then installed/launched the retained app and captured a masked screen, but the foreground-app query failed before its first AI request. Both platforms and their diagnostics/screenshots are retained in the replay's new dated HTML/JSON report. The usage ledger recorded zero inference requests and zero accounted cost. No queued command ran, so live queue/cancellation acceptance remains unqualified. No app rebuild or third-party tool change was performed.
 
-Read-only follow-up for the Android foreground failure: Android's activity/window services reported the tested app running, resumed and focused; the crash buffer was empty. A single foreground lookup using the unchanged installed native helper in a fresh temporary daemon home succeeded and returned the tested package/activity. That diagnostic daemon was then stopped. No tap, app relaunch, source patch or new test run was performed. The replay did not capture the raw focus fields at its failure time, so the exact trigger remains unproven; a startup focus transition or run-specific helper state is possible. The successful later lookup does not establish the historical focus state or validate live queue execution. CIMT currently treats the helper's foreground error as infrastructure failure without a foreground-specific retry; its separate startup readiness retry does not cover this query.
+Read-only follow-up for the Android foreground failure: Android's activity/window services reported the tested app running, resumed and focused; the crash buffer was empty. A single foreground lookup using the unchanged installed native helper in a fresh temporary daemon home succeeded and returned the tested package/activity. That diagnostic daemon was then stopped. No tap, app relaunch, source patch or new test run was performed. The replay did not capture the raw focus fields at its failure time, so the exact trigger remains unproven; a startup focus transition or run-specific helper state is possible. The successful later lookup does not establish the historical focus state or validate live queue execution. TestPilot currently treats the helper's foreground error as infrastructure failure without a foreground-specific retry; its separate startup readiness retry does not cover this query.
 
-## 50. CIMT-owned 20-second settling delay
+## 50. TestPilot-owned 20-second settling delay
 
-Install the matching runtime/device_adapter/app_lifecycle.py and mobile.py together using the existing lock, backup and byte-verification process. No .NET host, dependency, configuration or third-party helper change is required for this increment. After successful install/reset/launch, CIMT records and waits 20 seconds before first screen/foreground checks. The helper must already be connected to perform installation; its process startup/internal timeouts remain unchanged. Cancellation/shared stop/deadline stay active in short wait intervals.
+Install the matching runtime/device_adapter/app_lifecycle.py and mobile.py together using the existing lock, backup and byte-verification process. No .NET host, dependency, configuration or third-party helper change is required for this increment. After successful install/reset/launch, TestPilot records and waits 20 seconds before first screen/foreground checks. The helper must already be connected to perform installation; its process startup/internal timeouts remain unchanged. Cancellation/shared stop/deadline stay active in short wait intervals.
 
 The delay source has not been installed or replayed. Last installed revision is 046bf75, whose replay failed before inference on retained iOS relaunch and Android foreground detection. The diagnostic follow-up and installation receipt above remain separate evidence. Offline timing checks do not establish that the historical foreground issue is fixed. Existing retained apps, private inputs, reports and tool binaries are preserved.
 
@@ -1224,7 +1224,7 @@ The inference ledger recorded zero requests and zero accounted or uncertain cost
 
 ## 52. Apple Silicon development setup — 9 November 2026
 
-This procedure records commands run by the user on an Apple M4 Mac and the terminal results supplied during guided setup. It was not executed on the Linux cloud host. CIMT source revision was `1b42e8a`. Application builds, real application validation, signing, device control and paid inference remain unverified on this Mac. The installed source launcher is usable for development; this is not a completed packaged installation or release acceptance.
+This procedure records commands run by the user on an Apple M4 Mac and the terminal results supplied during guided setup. It was not executed on the Linux cloud host. TestPilot source revision was `1b42e8a`. Application builds, real application validation, signing, device control and paid inference remain unverified on this Mac. The installed source launcher is usable for development; this is not a completed packaged installation or release acceptance.
 
 ### Observed profile
 
@@ -1233,10 +1233,10 @@ This procedure records commands run by the user on an Apple M4 Mac and the termi
 | Host | Apple M4, Mac16,12, arm64, 24 GiB RAM; 289 GiB free at initial inspection. |
 | macOS | 26.5.1, build 25F80. |
 | Xcode | 26.5, build 17F42; selected at /Applications/Xcode.app/Contents/Developer; first-launch check passed; iPhoneOS SDK 26.5. |
-| .NET | Native ARM64 SDK 10.0.300 selected inside CIMT; SDK 10.0.403 remains installed alongside it. An older x64 installation is separate. |
+| .NET | Native ARM64 SDK 10.0.300 selected inside TestPilot; SDK 10.0.403 remains installed alongside it. An older x64 installation is separate. |
 | MAUI | maui-android and maui-ios; workload set 10.0.300.3, MAUI manifest 10.0.20; iOS SDK 26.5.10284. |
 | Python | python.org universal installer, Python 3.15.2 running as arm64; pip 26.2.2. |
-| Python dependencies | Pillow 13.0.0 ARM64 wheel and truststore 0.10.5 installed in CIMT's virtual environment. |
+| Python dependencies | Pillow 13.0.0 ARM64 wheel and truststore 0.10.5 installed in TestPilot's virtual environment. |
 | Node / pnpm | Native Node 26.13.0, pnpm 12.18.0 from the official standalone installer. Adapter loading and discovery passed; broader Node compatibility is not established. |
 | Java | Eclipse Temurin JDK 21.0.13+9, arm64. |
 | Android | Android Studio for Apple Silicon; SDK at ~/Library/Android/sdk; API 36 and Build Tools 36.0.0; platform-tools 37.0.1. APIs 36.1 and 37.0 were also installed. |
@@ -1247,11 +1247,11 @@ These are observed versions, not instructions to choose whatever is latest. Keep
 
 ### 1. Source checkout and native .NET
 
-Use the intended execution account. Inspect the host as in section 4, then clone CIMT:
+Use the intended execution account. Inspect the host as in section 4, then clone TestPilot:
 
 ```bash
 mkdir -p ~/Development
-git clone https://github.com/Richard032/CIMT.git ~/Development/CIMT
+git clone https://github.com/Richard032/TestPilot.git ~/Development/TestPilot
 ```
 
 Install Xcode through Apple's distribution channel and complete its first-launch requirements. Verify with the section 4 Xcode commands. Install the **macOS ARM64 SDK 10.0.300** using Microsoft's installer:
@@ -1259,7 +1259,7 @@ Install Xcode through Apple's distribution channel and complete its first-launch
 - [Exact SDK download page](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.300-macos-arm64-installer)
 - [Official Xcode 26.5 workload release](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10284)
 
-That release explicitly documents SDK 10.0.300 and workload set 10.0.300.3. SDK 10.0.403 alone did not satisfy CIMT's global.json, whose latestPatch policy excludes another feature band. No macOS or Xcode upgrade was needed for this profile.
+That release explicitly documents SDK 10.0.300 and workload set 10.0.300.3. SDK 10.0.403 alone did not satisfy TestPilot's global.json, whose latestPatch policy excludes another feature band. No macOS or Xcode upgrade was needed for this profile.
 
 If dotnet is installed but not found, check /usr/local/share/dotnet/dotnet before reinstalling. On this Mac, the installer created that native executable but no /usr/local/bin/dotnet link. Add its directory once:
 
@@ -1267,7 +1267,7 @@ If dotnet is installed but not found, check /usr/local/share/dotnet/dotnet befor
 touch ~/.zprofile
 grep -qxF 'export PATH="/usr/local/share/dotnet:$PATH"' ~/.zprofile || printf '\nexport PATH="/usr/local/share/dotnet:$PATH"\n' >> ~/.zprofile
 export PATH="/usr/local/share/dotnet:$PATH"
-cd ~/Development/CIMT
+cd ~/Development/TestPilot
 dotnet --version
 dotnet --info
 sudo /usr/local/share/dotnet/dotnet workload install maui-android maui-ios --version 10.0.300.3 --disable-parallel
@@ -1283,10 +1283,10 @@ Install native/universal Python from [python.org](https://www.python.org/downloa
 ```bash
 /usr/local/bin/python3.15 --version
 /usr/local/bin/python3.15 -c 'import platform; print(platform.machine())'
-cd ~/Development/CIMT
-export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
-export CIMT_PYTHON_BOOTSTRAP=/usr/local/bin/python3.15
-bash scripts/install-cimt-runtime.sh
+cd ~/Development/TestPilot
+export TESTPILOT_INSTALL_ROOT="$HOME/Development/TestPilot/.local/install"
+export TESTPILOT_PYTHON_BOOTSTRAP=/usr/local/bin/python3.15
+bash scripts/install-testpilot-runtime.sh
 ```
 
 Expected: arm64 and successful installation of the pinned runtime/requirements.txt dependencies. The .local installation is ignored by Git and does not require administrator privileges. This installs Python support files, not the .NET host or build workers.
@@ -1299,24 +1299,24 @@ Install the macOS ARM64 Node distribution from [nodejs.org](https://nodejs.org/e
 /usr/local/bin/node --version
 /usr/local/bin/node -p 'process.arch'
 export PATH="/usr/local/bin:$PATH"
-curl -fsSL https://get.pnpm.io/install.sh -o /tmp/cimt-install-pnpm.sh
-sh /tmp/cimt-install-pnpm.sh
+curl -fsSL https://get.pnpm.io/install.sh -o /tmp/testpilot-install-pnpm.sh
+sh /tmp/testpilot-install-pnpm.sh
 ```
 
 The official pnpm installer created ~/.zshrc and added PNPM_HOME on this Mac. Load its changes with `source ~/.zshrc`, or open a new Terminal, then verify `pnpm --version`. Installation does not update the already running shell automatically.
 
 ```bash
-export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
-mkdir -p "$CIMT_INSTALL_ROOT/tools/node-packages/lib"
-pnpm --dir "$CIMT_INSTALL_ROOT/tools/node-packages/lib" add --save-exact @mobilenext/mobile-mcp@1.0.14
+export TESTPILOT_INSTALL_ROOT="$HOME/Development/TestPilot/.local/install"
+mkdir -p "$TESTPILOT_INSTALL_ROOT/tools/node-packages/lib"
+pnpm --dir "$TESTPILOT_INSTALL_ROOT/tools/node-packages/lib" add --save-exact @mobilenext/mobile-mcp@1.0.14
 ```
 
 The local package manifest and pnpm lockfile remain under the ignored installation folder. Retain that lockfile when refreshing dependencies. The observed install selected native helper 1.0.21. Mobile MCP's automatic binary lookup failed with pnpm's nested layout even though the binary was downloaded. Use its supported MOBILECLI_PATH override:
 
 ```bash
-export MOBILECLI_PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
+export MOBILECLI_PATH="$TESTPILOT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
 "$MOBILECLI_PATH" --version
-node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log("Helper:", new Mobilecli().getPath());'
+node -e 'const {Mobilecli}=require(process.env.TESTPILOT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log("Helper:", new Mobilecli().getPath());'
 ```
 
 Expected: mobilecli version 1.0.21 and the same helper path. This exact path belongs to the observed pnpm installation; recheck it if the helper version or package layout changes. No adapter source patch, Appium installation or helper rebuild was needed for these discovery checks.
@@ -1337,13 +1337,13 @@ The latest command-line tools in this inspection supplied sdkmanager with a depr
 
 ### 5. Save the local environment
 
-Create ~/Development/CIMT/.local/install/environment.sh with the following contents. If it already exists, inspect and merge the settings; preserve existing user configuration. The file on the observed Mac was created first and extended as each component was verified.
+Create ~/Development/TestPilot/.local/install/environment.sh with the following contents. If it already exists, inspect and merge the settings; preserve existing user configuration. The file on the observed Mac was created first and extended as each component was verified.
 
 ```bash
-export CIMT_INSTALL_ROOT="$HOME/Development/CIMT/.local/install"
-export PATH="/usr/local/share/dotnet:/usr/local/bin:$HOME/Development/CIMT/scripts:$PATH"
-export PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.bin:$PATH"
-export MOBILECLI_PATH="$CIMT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
+export TESTPILOT_INSTALL_ROOT="$HOME/Development/TestPilot/.local/install"
+export PATH="/usr/local/share/dotnet:/usr/local/bin:$HOME/Development/TestPilot/scripts:$PATH"
+export PATH="$TESTPILOT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.bin:$PATH"
+export MOBILECLI_PATH="$TESTPILOT_INSTALL_ROOT/tools/node-packages/lib/node_modules/.pnpm/@mobilenext+mobilecli-darwin-arm64@1.0.21/node_modules/@mobilenext/mobilecli-darwin-arm64/mobilecli-darwin-arm64"
 export JAVA_HOME="$(/usr/libexec/java_home -v 21 -a arm64)"
 export PATH="$JAVA_HOME/bin:$PATH"
 export ANDROID_HOME="$HOME/Library/Android/sdk"
@@ -1353,7 +1353,7 @@ export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin
 Load and verify it:
 
 ```bash
-source ~/Development/CIMT/.local/install/environment.sh
+source ~/Development/TestPilot/.local/install/environment.sh
 node --version
 command -v mcp-server-mobile
 java -version
@@ -1363,18 +1363,18 @@ ls -1 "$ANDROID_HOME/platforms"
 ls -1 "$ANDROID_HOME/build-tools"
 ```
 
-The Mobile MCP command directory must be on PATH as well as the native helper override. Discovery loads a module by explicit path, so successful discovery alone does not verify that mcp-server-mobile can be launched. Run/replay preflight checks both node and mcp-server-mobile before model access and before cloning/building. CIMT adds its installed command directories to each child process automatically. Missing commands stop with the executable name and installation guidance.
+The Mobile MCP command directory must be on PATH as well as the native helper override. Discovery loads a module by explicit path, so successful discovery alone does not verify that mcp-server-mobile can be launched. Run/replay preflight checks both node and mcp-server-mobile before model access and before cloning/building. TestPilot adds its installed command directories to each child process automatically. Missing commands stop with the executable name and installation guidance.
 
-The launcher identifies its installation root and automatically loads its environment.sh. The source launcher also discovers .local/install/environment.sh beside the checkout when CIMT_INSTALL_ROOT is unset. An explicit CIMT_INSTALL_ROOT remains supported. You do not need to source this file manually before launching CIMT; sourcing is useful when running external setup commands directly. The observed setup did not globally register CIMT as a packaged application.
+The launcher identifies its installation root and automatically loads its environment.sh. The source launcher also discovers .local/install/environment.sh beside the checkout when TESTPILOT_INSTALL_ROOT is unset. An explicit TESTPILOT_INSTALL_ROOT remains supported. You do not need to source this file manually before launching TestPilot; sourcing is useful when running external setup commands directly. The observed setup did not globally register TestPilot as a packaged application.
 
 ### 6. Source CLI and offline checks
 
 ```bash
-cd ~/Development/CIMT
+cd ~/Development/TestPilot
 source .local/install/environment.sh
-dotnet build src/Cimt/Cimt.csproj -c Release
-bash scripts/cimt --help
-bash scripts/check-development.sh > ~/Desktop/cimt-development-check.txt 2>&1
+dotnet build src/TestPilot/TestPilot.csproj -c Release
+bash scripts/testpilot --help
+bash scripts/check-development.sh > ~/Desktop/testpilot-development-check.txt 2>&1
 echo "Development checks exit code: $?"
 ```
 
@@ -1408,14 +1408,14 @@ Open Simulator with `open -a Simulator` and choose an existing iOS 26.5 iPhone f
 Verify both native device types separately:
 
 ```bash
-source ~/Development/CIMT/.local/install/environment.sh
-node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"emulator"}),null,2));'
-node -e 'const {Mobilecli}=require(process.env.CIMT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"simulator"}),null,2));'
+source ~/Development/TestPilot/.local/install/environment.sh
+node -e 'const {Mobilecli}=require(process.env.TESTPILOT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"emulator"}),null,2));'
+node -e 'const {Mobilecli}=require(process.env.TESTPILOT_INSTALL_ROOT+"/tools/node-packages/lib/node_modules/@mobilenext/mobile-mcp/lib/mobilecli.js"); console.log(JSON.stringify(new Mobilecli().getDevices({type:"simulator"}),null,2));'
 ```
 
 Both returned status ok. Android discovery listed the online API 37 phone; iOS discovery listed online iPhone simulators on 18.5 and 26.5 and an iPad on 26.3. This is device discovery, not app installation, screenshots or control qualification. The paired physical iPhone was unavailable and was not counted as ready.
 
-For later CIMT inputs, use execution.device-kind: virtual and explicitly select intended device IDs if other simulators should be excluded. Android discovery uses the AVD name while iOS uses the simulator UUID. A future ARM64 iOS simulator build needs properties.RuntimeIdentifier: iossimulator-arm64; the Intel example iossimulator-x64 is not appropriate here. These app build settings have not yet been validated on this Mac.
+For later TestPilot inputs, use execution.device-kind: virtual and explicitly select intended device IDs if other simulators should be excluded. Android discovery uses the AVD name while iOS uses the simulator UUID. A future ARM64 iOS simulator build needs properties.RuntimeIdentifier: iossimulator-arm64; the Intel example iossimulator-x64 is not appropriate here. These app build settings have not yet been validated on this Mac.
 
 ### 8. Application access and selected first branch
 
@@ -1429,7 +1429,7 @@ cd ~/Development/ag-econ-mobile
 git -c credential.helper=osxkeychain submodule update --init --recursive
 ```
 
-The noninteractive read succeeded, the application cloned, and all nine submodules initialized at their recorded revisions. The per-command credential.helper setting does not establish that future CIMT child Git processes have the same default helper; verify normal noninteractive access under the final execution configuration before a CIMT run. Never embed credentials in repository URLs or private files committed to Git.
+The noninteractive read succeeded, the application cloned, and all nine submodules initialized at their recorded revisions. The per-command credential.helper setting does not establish that future TestPilot child Git processes have the same default helper; verify normal noninteractive access under the final execution configuration before a TestPilot run. Never embed credentials in repository URLs or private files committed to Git.
 
 The selected first test branch is **issue/CE1-I560_string_parameter_hidden_by_keyboard**. The hosting namespace ECON/ is not part of its Git branch name. The user switched with:
 
@@ -1442,18 +1442,18 @@ git status --short
 
 The branch tracked origin's matching branch, submodules aligned with its recorded commits, and the working tree was clean. Preserve any existing local changes before switching on another checkout. Do not use submodule update --remote; these steps intentionally retain parent-recorded revisions.
 
-The application contains a CuRMiTagger.exe pre-build invocation. The user directed that CuRMiT be removed from the application working branch before testing. That removal was **not performed** during this setup. Inspect the invocation on the selected branch and remove only the agreed CuRMiT step, preserving unrelated build steps. Any CIMT-managed fresh clone must also receive the agreed preparation through the eventual application build workflow; editing only the independent development checkout will not change a fresh clone.
+The application contains a CuRMiTagger.exe pre-build invocation. The user directed that CuRMiT be removed from the application working branch before testing. That removal was **not performed** during this setup. Inspect the invocation on the selected branch and remove only the agreed CuRMiT step, preserving unrelated build steps. Any TestPilot-managed fresh clone must also receive the agreed preparation through the eventual application build workflow; editing only the independent development checkout will not change a fresh clone.
 
 ### Remaining qualification
 
 - Remove the agreed CuRMiT invocation and inspect the selected branch's current build settings before choosing application targets/configurations.
 - Verify application builds for Android and ARM64 iOS Simulator with the chosen SDK/workloads, package feeds and required application resources.
-- Complete private CIMT input configuration, persistent Git credential-helper verification and any required signing setup. No API key was configured in this guided sequence.
+- Complete private TestPilot input configuration, persistent Git credential-helper verification and any required signing setup. No API key was configured in this guided sequence.
 - Diagnose and rerun the failed output-layout fixture without masking its readiness failure.
-- Verify CIMT validate for the real application, then separately authorize any app installation/reset, run/replay or paid inference.
+- Verify TestPilot validate for the real application, then separately authorize any app installation/reset, run/replay or paid inference.
 - Confirm the Android tablet and any physical devices separately. Jenkins operation and general Apple Silicon release support remain unqualified.
 
-Keep these results separate from the first Intel Mac's historical installation receipts. No application build, CIMT real-app run/replay, paid AI request or physical-device acceptance was completed in this Apple Silicon setup.
+Keep these results separate from the first Intel Mac's historical installation receipts. No application build, TestPilot real-app run/replay, paid AI request or physical-device acceptance was completed in this Apple Silicon setup.
 
 ## Context feedback, evidence reuse and timings — 10 November 2026
 
@@ -1475,13 +1475,13 @@ Update runtime/ai_instructions/instructions.py under the existing run lock with 
 
 ## Credential replacement — 10 November 2026
 
-Install the matching published report host and runtime/actions.py, scenario.py, batch_feedback.py, device_adapter/mobile.py, device_adapter/native.py and ai_instructions/instructions.py under the existing run lock with backup and hash verification. The installed mobilecli 1.0.21 help documents io fill [text] as replacing the focused field in one step, with an empty value clearing it; focus must be set first. Verify this capability on other installations before use. Mobile MCP 1.0.14 has append typing but no fill tool, so CIMT uses its existing native-helper boundary for replacement. No new dependency, application change or private test-setting change is needed.
+Install the matching published report host and runtime/actions.py, scenario.py, batch_feedback.py, device_adapter/mobile.py, device_adapter/native.py and ai_instructions/instructions.py under the existing run lock with backup and hash verification. The installed mobilecli 1.0.21 help documents io fill [text] as replacing the focused field in one step, with an empty value clearing it; focus must be set first. Verify this capability on other installations before use. Mobile MCP 1.0.14 has append typing but no fill tool, so TestPilot uses its existing native-helper boundary for replacement. No new dependency, application change or private test-setting change is needed.
 
 Verified on the configured iPhone simulator using the new Mobile.replace_text path: synthetic email replacement twice retained exactly one value, and empty replacement cleared it. The prior email contents were restored and verified; Login was not submitted and no AI request was made. Secure-field and Android behavior have offline regression coverage; no live Android or authentication run is claimed.
 
 Timed swipe control — 10 November 2026: install the matching report host and runtime/actions.py, command_reply.py, batch_feedback.py, device_adapter/mobile.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. Installed mobilecli 1.0.21 documents io swipe --duration as integer milliseconds; Mobile MCP 1.0.14 does not expose this field. A bounded direct iOS check found 20 points over 1000 ms left DEVELOPER unchanged, while 35 points over 1000 ms moved to adjacent FACTORY; reversing restored DEVELOPER without pressing Done. This verifies slow-drag capability, not a completed OEM-selection AI replay. No live Android or paid replay is claimed.
 
-The same one-row movement and restoration were also verified through the new CIMT ActionExecutor and Mobile.swipe_coordinates path: the actual native call recorded (201,766) to (201,801) with durationMs 1000. Original selection was restored without pressing Done or calling AI.
+The same one-row movement and restoration were also verified through the new TestPilot ActionExecutor and Mobile.swipe_coordinates path: the actual native call recorded (201,766) to (201,801) with durationMs 1000. Original selection was restored without pressing Done or calling AI.
 
 Bootstrap context guidance — 10 November 2026: update runtime/request_context.py and ai_instructions/instructions.py under the existing run lock with backups and hash verification. No host rebuild, adapter, model, budget or application change is required. The installed examples and shorter guidance help AI make an explicit working-history selection; they do not change bootstrap defaults, choose records or guarantee a live reduction in requests. Private test-text cleanup is independent of the published runtime.
 
@@ -1489,14 +1489,14 @@ Bootstrap context guidance — 10 November 2026: update runtime/request_context.
 
 ## 53. Apple Silicon local follow-up verification — 9 November 2026
 
-This follow-up supersedes section 52’s pending CuRMiTagger removal and statement that the offline suite was not rerun after adapter installation. It is a local setup record for the developer account, not a supported compatibility manifest or end-to-end acceptance result. The user reported that CIMT already builds and device discovery works. This continuation verified the environment, existing offline checks, installed runtime bytes and the requested application pre-build change. No real CIMT run, replay, application installation, paid inference, commit or push was performed.
+This follow-up supersedes section 52’s pending CuRMiTagger removal and statement that the offline suite was not rerun after adapter installation. It is a local setup record for the developer account, not a supported compatibility manifest or end-to-end acceptance result. The user reported that TestPilot already builds and device discovery works. This continuation verified the environment, existing offline checks, installed runtime bytes and the requested application pre-build change. No real TestPilot run, replay, application installation, paid inference, commit or push was performed.
 
 ### Activate and inspect the existing ARM64 installation
 
-From the CIMT checkout:
+From the TestPilot checkout:
 
 ```bash
-cd "$HOME/Development/CIMT"
+cd "$HOME/Development/TestPilot"
 source .local/install/environment.sh
 uname -m
 sw_vers
@@ -1507,7 +1507,7 @@ xcodebuild -checkFirstLaunchStatus
 xcrun --sdk iphoneos --show-sdk-version
 java -version
 file "$MOBILECLI_PATH"
-cimt --help
+testpilot --help
 ```
 
 Verified on this Mac:
@@ -1515,25 +1515,25 @@ Verified on this Mac:
 | Component | Observed result |
 | --- | --- |
 | Host | arm64; macOS 26.5.1, build 25F80. |
-| CIMT source | main, revision 1b42e8a; clean before this documentation edit. |
-| .NET in CIMT checkout | ARM64 SDK selected by CIMT's existing global.json during this historical check. |
-| Additional .NET SDK | 10.0.403 is installed; the application pre-build commands selected it (MSBuild 18.9.15). Source environment activation alone does not pin the SDK outside the CIMT checkout. |
+| TestPilot source | main, revision 1b42e8a; clean before this documentation edit. |
+| .NET in TestPilot checkout | ARM64 SDK selected by TestPilot's existing global.json during this historical check. |
+| Additional .NET SDK | 10.0.403 is installed; the application pre-build commands selected it (MSBuild 18.9.15). Source environment activation alone does not pin the SDK outside the TestPilot checkout. |
 | MAUI | maui-android and maui-ios installed for the historically selected SDK. |
 | Xcode | 26.5, build 17F42; first-launch status passed; iPhoneOS SDK 26.5. |
 | Java | Native ARM64 Temurin 21.0.13+9, selected with java_home -v 21 -a arm64. |
 | Android platform-tools | adb 1.0.41, platform-tools 37.0.1. |
 | Mobile CLI | Mach-O arm64 helper, package mobilecli-darwin-arm64 1.0.21. |
 | Python support runtime | Existing venv imports Pillow 13.0.0 and truststore 0.10.5. All 57 installed Python source modules match the checkout byte for byte. |
-| CIMT launcher | cimt --help passed; source launcher uses the checkout's Release host when no packaged host exists. |
+| TestPilot launcher | testpilot --help passed; source launcher uses the checkout's Release host when no packaged host exists. |
 
-The local environment sets CIMT_INSTALL_ROOT to `$HOME/Development/CIMT/.local/install`, adds the source scripts and native .NET paths, selects Java 21 ARM64, and adds `$HOME/Library/Android/sdk` tools. MOBILECLI_PATH explicitly selects the installed ARM64 binary inside the existing pnpm package layout. Preserve the actual installed path when reusing this environment; do not substitute an Intel helper. The file is private/local and is not a portable package manifest.
+The local environment sets TESTPILOT_INSTALL_ROOT to `$HOME/Development/TestPilot/.local/install`, adds the source scripts and native .NET paths, selects Java 21 ARM64, and adds `$HOME/Library/Android/sdk` tools. MOBILECLI_PATH explicitly selects the installed ARM64 binary inside the existing pnpm package layout. Preserve the actual installed path when reusing this environment; do not substitute an Intel helper. The file is private/local and is not a portable package manifest.
 
 The Intel bootstrap remains Intel-only and downloads x64 archives. Do not run `scripts/setup-prerequisites-macos.sh` as an Apple Silicon installation recipe. Fresh ARM64 download/install automation and package-integrity verification were not performed in this continuation. pnpm was not available on the activated PATH; existing packages were reused without package installation.
 
 ### Read-only device discovery
 
 ```bash
-source "$HOME/Development/CIMT/.local/install/environment.sh"
+source "$HOME/Development/TestPilot/.local/install/environment.sh"
 adb devices -l
 xcrun simctl list devices booted
 xcrun devicectl list devices
@@ -1545,7 +1545,7 @@ Verified outside the agent's restricted sandbox: one authorized ARM64 Android em
 
 Application: `$HOME/Development/ag-econ-mobile`, branch `issue/CE1-I560_string_parameter_hidden_by_keyboard`. The application was clean initially and recursive submodules were already initialized. No submodule revisions were changed during this continuation.
 
-Removed only the CuRMiTagger.exe Exec element from `EconMobile.Common/EconMobile.Common.csproj`. The PreBuild target and its Android-only MSBuild Copy remain unchanged, including file line endings. This is a local application modification, separate from CIMT; it will not be present in a fresh remote clone until the application change is shared through its normal workflow.
+Removed only the CuRMiTagger.exe Exec element from `EconMobile.Common/EconMobile.Common.csproj`. The PreBuild target and its Android-only MSBuild Copy remain unchanged, including file line endings. This is a local application modification, separate from TestPilot; it will not be present in a fresh remote clone until the application change is shared through its normal workflow.
 
 The following real MSBuild target checks were run from the application checkout after environment activation:
 
@@ -1560,13 +1560,13 @@ The iOS pre-build target passed. Android failed with MSB3030 because `Platforms/
 
 Ran the existing `bash scripts/check-development.sh` with the activated environment. Passed: 315 xUnit tests, 22 runtime-policy checks, 426 Python unit tests, 22 CLI/lifecycle checks, four simulated build-contract checks and four example-build tests. The final public output-layout fixture failed: Node could not find `@mobilenext/mobile-mcp/lib/mobilecli.js` under the fixture's isolated installation root. That fixture supplies fake readiness tools but no Mobile MCP package at that path. The overall script exited 1; it is not an all-green setup result. No unrelated tests were modified to bypass this blocker.
 
-Next: establish the application's intended generated strings input, verify full Android/iOS application builds and signing with the selected SDK, resolve the output-layout fixture dependency, and run public CIMT validate with the intended private inputs. A real device/app run and paid AI qualification require a separate user request. Physical-device, Jenkins, second-Intel-Mac and release acceptance remain open.
+Next: establish the application's intended generated strings input, verify full Android/iOS application builds and signing with the selected SDK, resolve the output-layout fixture dependency, and run public TestPilot validate with the intended private inputs. A real device/app run and paid AI qualification require a separate user request. Physical-device, Jenkins, second-Intel-Mac and release acceptance remain open.
 
 ## 54. General SDK/workload installation follow-up — 9 November 2026
 
 This follow-up supersedes section 53's temporary tagger removal and pending iOS build status. The original application pre-build invocation was restored, and the CuRMiT submodule was updated to the new Mac/Windows distribution. Its Mac installation script places the native launcher at the existing pre-build path.
 
-The application-only global.json introduced to reuse the older workload installation was removed at the user's request. The application now selects the installed SDK without that added pin. CIMT's pre-existing global.json is a separate source-repository setting and was not changed.
+The application-only global.json introduced to reuse the older workload installation was removed at the user's request. The application now selects the installed SDK without that added pin. TestPilot's pre-existing global.json is a separate source-repository setting and was not changed.
 
 The manual's installation steps now select workloads by the application's SDK, host architecture and current Apple compatibility guidance rather than prescribing fixed workload-set or MAUI/iOS pack versions. Historical helper scripts still contain their pilot versions; they were not rewritten as part of this documentation change. Use Step 5 rather than copying their pilot profile into a new machine setup.
 
@@ -1574,4 +1574,4 @@ The system .NET installation is administrator-owned, so the user completed workl
 
 The application then built successfully for the ARM64 iOS Simulator in Debug_Pride with zero errors and 701 warnings. The unchanged CuRMiTagger pre-build invocation succeeded and generated the next local build number. The build used the local cache of private packages copied from the external drive plus nuget.org. The existing protobuf-net compatibility warning NU1701 remained visible and was explicitly allowed for this build; package versions were unchanged. The resulting app bundle and ARM64 executable were verified on disk. This is build verification only: no simulator launch, physical-device signing, Android application build or paid AI run was performed.
 
-The application's CuRMiT submodule target and revision changes remain local until separately committed in that application repository. The application has no added SDK pin. CIMT's existing source-repository SDK selection remains unchanged.
+The application's CuRMiT submodule target and revision changes remain local until separately committed in that application repository. The application has no added SDK pin. TestPilot's existing source-repository SDK selection remains unchanged.

@@ -4,19 +4,19 @@ Updated: 29 October 2026. This policy supersedes deletion after execution and au
 
 ## Working files
 
-CIMT creates paired work_<UTC-date-time> and report_<same-date-time> folders under the selected input folder's CIMT output. Users still supply only YAML, referenced text inputs, and optional custom scripts.
+TestPilot creates paired work_<UTC-date-time> and report_<same-date-time> folders under the selected input folder's TestPilot output. Users still supply only YAML, referenced text inputs, and optional custom scripts.
 
-After a run succeeds, fails, or stops, CIMT keeps the checkout, publish folders, intermediates, and diagnostics that remain in its work folder. It stops its owned helper, redacts/saves its helper log, and releases the short helper link only after a successful stop. A failed stop keeps the verified link for recovery. Reports and copied app artifacts remain separate from work.
+After a run succeeds, fails, or stops, TestPilot keeps the checkout, publish folders, intermediates, and diagnostics that remain in its work folder. It stops its owned helper, redacts/saves its helper log, and releases the short helper link only after a successful stop. A failed stop keeps the verified link for recovery. Reports and copied app artifacts remain separate from work.
 
-A new normal run first performs configuration/input/runtime preparation, OpenAI preflight, device discovery, and any configured acknowledgement. Only immediately before Git clone does CIMT remove earlier verified owned work for that same input folder. The new run's work, other input folders' work, unrelated files, and reports are preserved. A failure before clone, validate, or replay does not remove previous work. Interrupted helper recovery stops/releases the owned helper without deleting its work. The ownership registry supports the earlier single-record format and tracks retained work across input folders.
+A new normal run first performs configuration/input/runtime preparation, OpenAI preflight, device discovery, and any configured acknowledgement. Only immediately before Git clone does TestPilot remove earlier verified owned work for that same input folder. The new run's work, other input folders' work, unrelated files, and reports are preserved. A failure before clone, validate, or replay does not remove previous work. Interrupted helper recovery stops/releases the owned helper without deleting its work. The ownership registry supports the earlier single-record format and tracks retained work across input folders.
 
-Work stays owner-only. Private build requests keep their existing owner-only permissions. Retention is not a promise that build tools never create/delete their own temporary files; CIMT finalization no longer clears the checkout or publish directories.
+Work stays owner-only. Private build requests keep their existing owner-only permissions. Retention is not a promise that build tools never create/delete their own temporary files; TestPilot finalization no longer clears the checkout or publish directories.
 
 ## Build properties
 
-The default worker forwards the YAML project, configuration, target framework, and properties. Missing properties are evaluated by that project and SDK. CIMT does not inject AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild, and does not silently replace explicit values.
+The default worker forwards the YAML project, configuration, target framework, and properties. Missing properties are evaluated by that project and SDK. TestPilot does not inject AndroidPackageFormats, RuntimeIdentifier, BuildIpa, or ArchiveOnBuild, and does not silently replace explicit values.
 
-The selected physical-device adapter needs installable APK/IPA files. If the project produces no supported artifact, CIMT reports that clearly; it does not rewrite the build settings or automatically rebuild with another profile. Artifact ambiguity still requires an explicit fallback or replacement script. Existing FirstRun properties have not been changed.
+The selected physical-device adapter needs installable APK/IPA files. If the project produces no supported artifact, TestPilot reports that clearly; it does not rewrite the build settings or automatically rebuild with another profile. Artifact ambiguity still requires an explicit fallback or replacement script. Existing FirstRun properties have not been changed.
 
 For a project that needs them, these are optional explicit YAML properties; choose them for the actual project rather than assuming every application needs them:
 
@@ -35,18 +35,18 @@ ios:
 
 ## Reuse built apps
 
-A completed build stage with at least one successful artifact writes CIMT output/retained-builds.json automatically before device testing. It describes that build run's successful apps, original repository/branch/commit, target/project/configuration/framework, report-relative artifact paths, and SHA-256 digests. It contains no API key, credentials, or signing properties. A stage with no successful apps leaves the prior successful record unchanged. A build stage interrupted before publication also leaves the prior record unchanged; its report/work may still contain partial output.
+A completed build stage with at least one successful artifact writes TestPilot output/retained-builds.json automatically before device testing. It describes that build run's successful apps, original repository/branch/commit, target/project/configuration/framework, report-relative artifact paths, and SHA-256 digests. It contains no API key, credentials, or signing properties. A stage with no successful apps leaves the prior successful record unchanged. A build stage interrupted before publication also leaves the prior record unchanged; its report/work may still contain partial output.
 
 Normal execution remains:
 
 ```bash
-cimt run --config ./default.private.yaml --run-config ./application.yaml
+testpilot run --config ./default.private.yaml --run-config ./application.yaml
 ```
 
 To execute the current input instructions using the latest published successful builds from this input folder:
 
 ```bash
-cimt replay --config ./default.private.yaml --run-config ./application.yaml
+testpilot replay --config ./default.private.yaml --run-config ./application.yaml
 ```
 
 Replay performs no Git clone, submodule update, package restore, or application build. It preserves existing work, verifies retained metadata and artifact digests, copies the already built app into its new report, and uses normal device reset/setup, current credentials, OpenAI model/budget, time limit, masking, and observation rules. The new report records command=replay, the original build run and commit, and the new replay identity.

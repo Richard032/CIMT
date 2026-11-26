@@ -9,7 +9,7 @@ Status: review findings; no runtime or configuration changes made during this au
 
 ## Scope and evidence
 
-Reviewed the .NET CLI/run steps, default build worker, Python device/AI execution, supplied installation/build scripts, and the public FirstRun configuration/build scripts. Private YAML, API keys, and signing material were not read. No CIMT run, real application build, OpenAI request, phone action, or external-repository change was performed.
+Reviewed the .NET CLI/run steps, default build worker, Python device/AI execution, supplied installation/build scripts, and the public FirstRun configuration/build scripts. Private YAML, API keys, and signing material were not read. No TestPilot run, real application build, OpenAI request, phone action, or external-repository change was performed.
 
 Installed consistency checks found no differences in 32 files: the host/build-worker assemblies match the local Release build outputs, all 28 installed Python modules match source, and both installed default build scripts match source. No extra installed Python module was found. The current FirstRun adapter matches the corrected example. These checks establish file consistency, not successful application acceptance or proof that no other defect exists.
 
@@ -27,17 +27,17 @@ Correction needed: make the retained instruction objectives and permitted explor
 
 ## H2 — Medium: the default worker overwrites explicit build properties
 
-Evidence: [EffectiveProperties](../../tools/Cimt.BuildWorker/BuildCommands.cs#L18) and [current tests](../../tests/Cimt.UnitTests/BuildWorkerTests.cs#L8).
+Evidence: [EffectiveProperties](../../tools/TestPilot.BuildWorker/BuildCommands.cs#L18) and [current tests](../../tests/TestPilot.UnitTests/BuildWorkerTests.cs#L8).
 
 The worker copies the supplied property map, then unconditionally assigns AndroidPackageFormats=apk on Android, and RuntimeIdentifier=ios-arm64, BuildIpa=true, ArchiveOnBuild=true on iOS. These become global command-line MSBuild properties for publish and metadata queries. Explicit conflicting YAML properties and project values lose to these assignments.
 
 APK/physical-iPhone outputs were an intentional documented default-worker profile. The problem is treating these defaults as unconditional overrides even when the user explicitly supplied another value. The current Android unit test deliberately supplies aab and expects the actual command to use apk; it checks that the input dictionary was not mutated rather than that its requested behavior was preserved. This is similar to the old tagger test validating the implementation's assumption.
 
-This needs alignment with FR-42 and FR-58. Defaults should fill missing values. If a requested output cannot be installed by CIMT, reject it with a clear error or require an explicitly selected supported build profile/replacement script. Do not silently replace a conflicting user setting. The audit has not changed this behavior.
+This needs alignment with FR-42 and FR-58. Defaults should fill missing values. If a requested output cannot be installed by TestPilot, reject it with a clear error or require an explicitly selected supported build profile/replacement script. Do not silently replace a conflicting user setting. The audit has not changed this behavior.
 
 ## H3 — Medium: a crash always determines failure, regardless of instruction criteria
 
-Evidence: [Python verdict](../../runtime/check_results.py#L81), [worker exit calculation](../../runtime/device_runner.py#L73), and [host verdict](../../src/Cimt/Reporting/RunOutcome.cs#L25).
+Evidence: [Python verdict](../../runtime/check_results.py#L81), [worker exit calculation](../../runtime/device_runner.py#L73), and [host verdict](../../src/TestPilot/Reporting/RunOutcome.cs#L25).
 
 A recorded crash forces failure. There is no resolved instruction-defined failure policy supplied to those decisions. A test that intentionally triggers a diagnostic crash and expects successful recovery can therefore fail even when its stated expected behavior occurred.
 
@@ -57,9 +57,9 @@ These are visible input/example behavior, not additional hidden calls in the gen
 
 | Item | Current behavior | Consequence |
 | --- | --- | --- |
-| Resource-copy adaptation | [Example build.sh](../../examples/econ-button-crash/build/build.sh#L8) replaces one exact Windows copy Exec with MSBuild Copy inside the disposable project clone. | This still edits the cloned project. It is logged, leaves other bytes/steps intact, and is documented in FR-58. It should remain an explicitly selected application adapter rather than become a generic CIMT rule. |
+| Resource-copy adaptation | [Example build.sh](../../examples/econ-button-crash/build/build.sh#L8) replaces one exact Windows copy Exec with MSBuild Copy inside the disposable project clone. | This still edits the cloned project. It is logged, leaves other bytes/steps intact, and is documented in FR-58. It should remain an explicitly selected application adapter rather than become a generic TestPilot rule. |
 | Application identities | FirstRun/application.yaml explicitly supplies ApplicationId for each branding/platform; the tracked example has the same type of values. | Those YAML properties override project-selected IDs. They may become stale when selecting another branch and must be reviewed as user configuration. They are not fixed IDs in the generic runtime. |
-| Target labels | FirstRun names targets Debug_Generic/Debug_Pride but selects Release_Generic/Release_Pride as configuration. | The labels do not choose Debug builds. CIMT follows configuration; console messages currently display only the labels. No values were changed in this audit. |
+| Target labels | FirstRun names targets Debug_Generic/Debug_Pride but selects Release_Generic/Release_Pride as configuration. | The labels do not choose Debug builds. TestPilot follows configuration; console messages currently display only the labels. No values were changed in this audit. |
 
 No additional CuRMiT/ECON-specific executable invocation was found in the generic .NET/Python run/default-build paths. That is a scoped search/review result, not a guarantee about every third-party tool or future project.
 

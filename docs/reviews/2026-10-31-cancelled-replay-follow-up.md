@@ -5,7 +5,7 @@
 
 Date: 31 October 2026
 
-Source: saved replay report_2026-10-31_06-48-22-356, its activity journal, redacted UI snapshots, and the current CIMT/installed adapter code. This review made no paid AI requests and started no new device test. Durations describe this run only.
+Source: saved replay report_2026-10-31_06-48-22-356, its activity journal, redacted UI snapshots, and the current TestPilot/installed adapter code. This review made no paid AI requests and started no new device test. Durations describe this run only.
 
 ## Approved scope
 
@@ -61,7 +61,7 @@ The installed MCP adapter launches mobilecli for each command. UI listing uses d
 Recommended next investigation, without changing execution policy:
 
 1. Compare a native UI dump with the MCP UI call on the same stable screen, recording durations only. Separate process startup, native UI enumeration and transport costs. Measure serially and with the normal maximum of two workers to identify resource contention. This measurement remains pending.
-2. If native enumeration dominates, evaluate a supported persistent native/helper connection or an upstream UI-dump optimization. If wrapper overhead dominates, consider a CIMT adapter method calling the same native operation directly, after verifying identical element normalization and valid refs. Do not edit third-party source silently.
+2. If native enumeration dominates, evaluate a supported persistent native/helper connection or an upstream UI-dump optimization. If wrapper overhead dominates, consider a TestPilot adapter method calling the same native operation directly, after verifying identical element normalization and valid refs. Do not edit third-party source silently.
 3. Treat coordinate taps as a separate tradeoff: they may avoid ref-resolution dumps, but coordinates from before an AI request can become stale. Do not switch all ref taps to coordinates without an explicit freshness/target validation policy, especially for credentials and permission dialogs.
 4. Retain both sensitive-region checks, dimension/orientation checks, readiness checks, PNG masking and current action/crash evidence. An atomic UI/image backend could reduce reads only after equivalent guarantees are demonstrated. No such capability is established in this review.
 

@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-cimt_folder="$(cd "$(dirname "$0")" && pwd)"
-if [ -x "$cimt_folder/bin/cimt" ]; then
-  launcher="$cimt_folder/bin/cimt"
-elif [ -x "$cimt_folder/.local/install/bin/cimt" ]; then
-  launcher="$cimt_folder/.local/install/bin/cimt"
-elif [ -x "$cimt_folder/scripts/cimt" ]; then
-  launcher="$cimt_folder/scripts/cimt"
+testpilot_folder="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$testpilot_folder/bin/testpilot" ]; then
+  launcher="$testpilot_folder/bin/testpilot"
+elif [ -x "$testpilot_folder/.local/install/bin/testpilot" ]; then
+  launcher="$testpilot_folder/.local/install/bin/testpilot"
+elif [ -x "$testpilot_folder/scripts/testpilot" ]; then
+  launcher="$testpilot_folder/scripts/testpilot"
 else
-  echo "CIMT is not installed. See the installation guide." >&2
+  echo "TestPilot is not installed. See the installation guide." >&2
   exit 3
 fi
 

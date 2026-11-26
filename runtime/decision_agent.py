@@ -1,4 +1,4 @@
-"""Contract between CIMT execution and a replaceable decision agent."""
+"""Contract between TestPilot execution and a replaceable decision agent."""
 
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
@@ -42,12 +42,12 @@ class DecisionRequest:
 
 
 class DecisionAgent(Protocol):
-    """Choose CIMT commands without owning the device or the scenario lifecycle."""
+    """Choose TestPilot commands without owning the device or the scenario lifecycle."""
 
     def check_access(self) -> None:
         """Check agent readiness without performing a test decision."""
         ...
 
     def decide(self, request: DecisionRequest) -> dict:
-        """Return normalized CIMT commands for the observed context."""
+        """Return normalized TestPilot commands for the observed context."""
         ...

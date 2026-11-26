@@ -19,10 +19,10 @@ CE1-I560/
     build.sh
     android.sh
     ios.sh
-  CIMT output/                  # CIMT creates this, including clone and reports
+  TestPilot output/                  # TestPilot creates this, including clone and reports
 ```
 
-`README.md` explains the purpose, tested branch, prerequisites, commands and expected result. `application.yaml` references the local text inputs, fixture and wrappers. The source repository belongs to CIMT's generated work folder after cloning; do not put a second manual checkout among the authored inputs. A manually copied checkout or standalone app build does not establish replay availability.
+`README.md` explains the purpose, tested branch, prerequisites, commands and expected result. `application.yaml` references the local text inputs, fixture and wrappers. The source repository belongs to TestPilot's generated work folder after cloning; do not put a second manual checkout among the authored inputs. A manually copied checkout or standalone app build does not establish replay availability.
 
 This is the recommended complete authoring layout. The current validator checks configured inputs and script paths; it does **not** require the literal README filename or all three wrappers when defaults are used. Relative fixture containment is enforced. Do not interpret this documentation as claiming a stricter folder validator exists.
 
@@ -30,10 +30,10 @@ Copy the build wrappers from the installed templates, keeping all three together
 
 ```bash
 mkdir -p build
-cp "$CIMT_INSTALL_ROOT/templates/test-run/build/"*.sh build/
+cp "$TESTPILOT_INSTALL_ROOT/templates/test-run/build/"*.sh build/
 ```
 
-Reference `./build/android.sh` and `./build/ios.sh` in the appropriate target. Both delegate through adjacent `build.sh`. Keep the fixture alongside the YAML, and use `external-files` to let CIMT copy/verify it after reset. No operator simulator-copy step is required.
+Reference `./build/android.sh` and `./build/ios.sh` in the appropriate target. Both delegate through adjacent `build.sh`. Keep the fixture alongside the YAML, and use `external-files` to let TestPilot copy/verify it after reset. No operator simulator-copy step is required.
 
 ## Separate app knowledge from the issue
 
@@ -44,7 +44,7 @@ Reference `./build/android.sh` and `./build/ios.sh` in the appropriate target. B
 | `requirements.txt` | Observable acceptance criteria. | The selected input remains visible above the keyboard; switching/OK remains responsive. |
 | `application.yaml` | Repository/branch, builds, devices, fixtures and input references. | Select virtual devices and the issue branch; provision `test.xpa`. |
 
-Keep navigation facts in setup rather than repeating them in every scenario. Keep issue history and previous unsuccessful fixes out of AI instructions unless they change what must be tested. CIMT treats text files as test inputs, not permission for a developer agent to execute unrelated actions. Fixture bytes are not instructions.
+Keep navigation facts in setup rather than repeating them in every scenario. Keep issue history and previous unsuccessful fixes out of AI instructions unless they change what must be tested. TestPilot treats text files as test inputs, not permission for a developer agent to execute unrelated actions. Fixture bytes are not instructions.
 
 For reusable knowledge, maintain a reviewed setup file in Git and point `inputs.setup` to it, or copy the relevant reviewed text into this test folder. Update it deliberately when the UI changes. There is no automatic learning/publishing feature. Never add passwords, API keys, private XPA data or personal device IDs to shared knowledge.
 
@@ -64,7 +64,7 @@ Use configured credential aliases if authentication is requested.
 If a required state cannot be reached, record the screen and blocker.
 ```
 
-Do not substitute Seat Configuration for Parameter Settings. The lowest text parameter can be offscreen: scroll the correct list and observe before selecting it. Do not treat a successful picker swipe as proof of OEM access. The AI must inspect the selected value before continuing. Desired app values belong here; generic gesture syntax belongs in CIMT's command guidance.
+Do not substitute Seat Configuration for Parameter Settings. The lowest text parameter can be offscreen: scroll the correct list and observe before selecting it. Do not treat a successful picker swipe as proof of OEM access. The AI must inspect the selected value before continuing. Desired app values belong here; generic gesture syntax belongs in TestPilot's command guidance.
 
 ## iOS and Android regression example
 
@@ -105,19 +105,19 @@ These are illustrative inputs, not a claim this test passed on both platforms. S
 From the prepared folder, validation is:
 
 ```bash
-cimt validate --config ./default.private.yaml --run-config ./application.yaml
+testpilot validate --config ./default.private.yaml --run-config ./application.yaml
 ```
 
 For a new source commit, new platform artifact or changed compiled settings:
 
 ```bash
-cimt run --config ./default.private.yaml --run-config ./application.yaml
+testpilot run --config ./default.private.yaml --run-config ./application.yaml
 ```
 
-After CIMT has retained the matching successful builds, to change only instructions/setup/fixtures and test again:
+After TestPilot has retained the matching successful builds, to change only instructions/setup/fixtures and test again:
 
 ```bash
-cimt replay --config ./default.private.yaml --run-config ./application.yaml
+testpilot replay --config ./default.private.yaml --run-config ./application.yaml
 ```
 
 Run clones the configured remote branch, so commit/push required application changes first. Replay does not clone **or build**. Check its retained-build manifest rather than assuming the current application checkout is used. Current input files are reread; reset/fixture provisioning, model/budget and normal testing still apply.

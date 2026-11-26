@@ -33,9 +33,9 @@ class DeviceTargetTests(unittest.TestCase):
 
     def test_emulator_name_resolves_to_its_matching_adb_serial(self):
         def command(args, **options):
-            output = "List of devices attached\nemulator-5554\tdevice\n" if args == ["adb", "devices"] else "CIMT\nOK\n"
+            output = "List of devices attached\nemulator-5554\tdevice\n" if args == ["adb", "devices"] else "TestPilot\nOK\n"
             return subprocess.CompletedProcess(args, 0, output, "")
-        target = DeviceTarget({"platform": "android", "type": "emulator", "id": "CIMT"}, command)
+        target = DeviceTarget({"platform": "android", "type": "emulator", "id": "TestPilot"}, command)
         self.assertEqual("emulator-5554", target.adb_serial())
 
     def test_unmatched_emulator_is_rejected(self):
