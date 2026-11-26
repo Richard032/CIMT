@@ -118,7 +118,7 @@ sequenceDiagram
                 Run->>Memory: Record action, transition and repetition facts
                 opt Repetition detected after execution
                     Run->>Memory: Open recovery notice and leave pending commands unexecuted
-                    Note over Run,Agent: Next normal request includes fresh evidence; no semantic acknowledgement gate
+                    Note over Run,Agent: Next normal request includes fresh evidence, no semantic acknowledgement gate
                 end
             end
         end

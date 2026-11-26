@@ -82,7 +82,7 @@ sequenceDiagram
             Adapter->>Run: Record redacted retry activity
             Adapter->>Adapter: Wait one second with cancellation checks
         else Other error or exhausted window
-            Adapter->>Adapter: Leave probe loop with failure; no automatic retry
+            Adapter->>Adapter: Leave probe loop with failure, no automatic retry
         end
     end
     alt Ready

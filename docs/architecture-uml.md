@@ -118,19 +118,19 @@ sequenceDiagram
     participant Report as RunReportWriter
     participant Web as KnowledgeReports and local server
 
-    CLI->>CLI: Acquire machine lock; validate settings; allocate run/report
+    CLI->>CLI: Acquire machine lock, validate settings, allocate run/report
     CLI->>Engine: Start run or retained-build replay
     Engine->>Host: Execute ordered steps
     Host->>Host: Load text inputs and check installed runtime
     opt Replay
         Host->>Build: Load and verify matching retained builds
     end
-    Host->>Host: Prepare work; optional OpenAI preflight checkpoint
+    Host->>Host: Prepare work, optional OpenAI preflight checkpoint
     Host->>Worker: Preflight without inference
     Host->>Host: Discover startup devices
     opt Run
         Host->>Host: Optional repository/build checkpoint
-        Host->>Build: Clone selected branch; initialize submodules; build targets
+        Host->>Build: Clone selected branch, initialize submodules, build targets
         Build-->>Host: Build outcomes and retained artifact metadata
     end
     Host->>Host: Optional AI-testing checkpoint when builds are usable
@@ -149,7 +149,7 @@ sequenceDiagram
         Worker->>Files: Save independent knowledge proposals or unavailable status
     end
     Worker-->>Host: Proposal worker finished
-    Note over Host,Worker: Proposal failure keeps the test verdict; host saves a fallback if needed
+    Note over Host,Worker: Proposal failure keeps the test verdict, host saves a fallback if needed
     Host->>Final: Finalize run
     Final->>Files: Read and validate execution snapshot
     Final->>Final: Calculate coverage, outcome and exit code
@@ -164,7 +164,7 @@ sequenceDiagram
     opt Interactive macOS terminal
         Engine->>Engine: Open interactive URL or static report
     end
-    Engine-->>CLI: Return exit code; release machine lock
+    Engine-->>CLI: Return exit code, release machine lock
 ```
 
 Exceptions skip later execution steps but still reach cleanup, proposal/fallback and finalization where possible. A configured interactive checkpoint can prevent proposal inference if AI testing was never authorized. Hard process termination or storage failure cannot guarantee finalization. Viewer registration/browser failures do not change the calculated test outcome. Replay reuses retained artifacts and runs current instructions; saved-action adaptation remains unfinished. See [run engine](run-engine.md) and [worker protocol](worker-protocol.md).
@@ -188,7 +188,7 @@ sequenceDiagram
     Device-->>Inputs: Current observation
     Inputs-->>Run: Sources, exact selected history and complete pending batch paths
     Run->>Agent: DecisionRequest with copied inputs and shared hooks
-    Agent->>Service: Journal; count exact input; admit counted input cost; infer
+    Agent->>Service: Journal, count exact input, admit counted input cost, infer
     Service-->>Agent: Reply and usage settlement
     opt Learning enabled and AI requests knowledge
         loop At most five read-only lookups
@@ -205,7 +205,7 @@ sequenceDiagram
     loop Each queued command under shared limits and foreground checks
         Run->>Queue: Take next command
         alt Done behind earlier commands
-            Run->>Records: Defer finish without predicted checks; retain unexecuted tail
+            Run->>Records: Defer finish without predicted checks, retain unexecuted tail
         else First-command done
             opt No earlier completion review
                 Run->>Critic: Review redacted evidence under shared budget/deadline
@@ -220,7 +220,7 @@ sequenceDiagram
                 Run->>Queue: Cancel failed batch tail or mark recovery tail unexecuted
             end
         else Note, recall or recover
-            Run->>Records: Handle without device action; retain context/recovery information
+            Run->>Records: Handle without device action, retain context/recovery information
         end
     end
     Note over Run,Records: Next normal decision receives every pending path, including successful and unchanged steps
@@ -252,7 +252,7 @@ sequenceDiagram
     User->>Web: Accept reviewed change, decline or reopen
     Web->>Store: Validate latest-report status and review generation
     alt Acceptance is current and valid
-        Store->>Store: Check entry revision; atomically apply change and save decision
+        Store->>Store: Check entry revision, atomically apply change and save decision
     else Decline or reopen
         Store->>Store: Save review decision without changing approved entries
     else Stale report or revision conflict

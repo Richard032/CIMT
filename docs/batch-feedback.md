@@ -103,13 +103,13 @@ sequenceDiagram
             Run->>Facts: Separate ordered observation event
         end
         opt Android system ANR observed
-            Facts->>Report: Warning with device, time and step; no automatic crash or stop
+            Facts->>Report: Warning with device, time and step, no automatic crash or stop
         end
     end
     Run->>Report: Save complete path and evidence references
     alt Another decision is allowed
         Run->>Inputs: Complete pending paths, including successful and unchanged results
-        Note over Run,Agent: Next normal decision continues testing; batch completion alone does not finish the objective
+        Note over Run,Agent: Next normal decision continues testing, batch completion alone does not finish the objective
     else Stopping or privacy prevents another request
         Run->>Report: Retain unsupplied results and stopping reason
     end

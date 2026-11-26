@@ -85,7 +85,7 @@ sequenceDiagram
                 Run->>Records: Save queue status and complete ordered result
             end
         end
-        Note over Run,Inputs: Next normal request includes successful, unchanged and failing paths; no separate acknowledgement
+        Note over Run,Inputs: Next normal request includes successful, unchanged and failing paths, no separate acknowledgement
     end
 ```
 
