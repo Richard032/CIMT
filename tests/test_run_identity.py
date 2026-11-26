@@ -41,7 +41,7 @@ class RunIdentityTests(unittest.TestCase):
         error = io.StringIO()
         with redirect_stderr(error):
             self.assertEqual(main(io.StringIO('{"protocolVersion":2}'), ['--preflight']), 3)
-        self.assertIn('install matching CIMT host and runtime', error.getvalue())
+        self.assertIn('install matching TestPilot host and runtime', error.getvalue())
 
 
 if __name__ == "__main__":

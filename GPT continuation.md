@@ -19,9 +19,9 @@ The Apple Silicon installation has Android/iOS discovery and application build e
 
 ## Product and operating boundaries
 
-CIMT means Curtis Intelligent Mobile Test. A terminal command (also intended for Jenkins) tests configured .NET MAUI targets with AI through Mobile MCP. Mobile MCP is a device-tool adapter, not a second agent. Physical and virtual devices are separate run kinds, selected at startup, with at most two active device workers.
+The product is named TestPilot; its terminal command is `testpilot`. A terminal command (also intended for Jenkins) tests configured .NET MAUI targets with AI through Mobile MCP. Mobile MCP is a device-tool adapter, not a second agent. Physical and virtual devices are separate run kinds, selected at startup, with at most two active device workers.
 
-AI chooses tests, actions, targets, history relevance and recovery. CIMT provides original inputs, masked current evidence, exact selected history, mechanical execution and feedback. Do not add application-specific semantic gates or host-selected replacement actions. Command syntax/capabilities, geometry, privacy, permission authorization, budget and stopping rules remain necessary. Do not patch third-party adapter source.
+AI chooses tests, actions, targets, history relevance and recovery. TestPilot provides original inputs, masked current evidence, exact selected history, mechanical execution and feedback. Do not add application-specific semantic gates or host-selected replacement actions. Command syntax/capabilities, geometry, privacy, permission authorization, budget and stopping rules remain necessary. Do not patch third-party adapter source.
 
 Execute commands FIFO and cancel pending tail commands after an unexecutable command. Supply actual complete batch results to the next normal decision request; a tool call succeeding does not prove the desired UI state or requirement passed. AI owns desired app values. Shared context is scenario-local; reviewed navigation knowledge belongs in test inputs, separate from issue descriptions.
 
@@ -29,14 +29,14 @@ Instructions take priority over conflicting requirements; retain the conflict an
 
 `run` clones the configured remote branch and builds. `replay` uses one matching retained build set with current inputs, without Git/restore/build; saved-action replay is unfinished. A manually copied checkout is not a retained build. A new commit or missing platform needs `run`. Project pre-build commands, including CuRMiTagger, remain project-owned. Do not skip/inject application build steps without explicit need and authorization.
 
-The launcher automatically discovers the installation and loads its `environment.sh`. Keep host, worker, runtime and scripts consistent. Do not modify an installation or test inputs while a run uses them. CIMT's source SDK selection and the tested application's SDK selection may differ; inspect each checkout rather than applying historical versions universally.
+The launcher automatically discovers the installation and loads its `environment.sh`. Keep host, worker, runtime and scripts consistent. Do not modify an installation or test inputs while a run uses them. TestPilot's source SDK selection and the tested application's SDK selection may differ; inspect each checkout rather than applying historical versions universally.
 
 ## Working and reporting rules
 
 - Keep private YAML, keys, login credentials, device IDs, packages, fixtures, unmasked data and generated outputs out of Git/chat. Use credential aliases and existing masking/redaction boundaries.
 - Do not start a run/replay or paid request for a documentation/review task. When authorized, use the public workflow and respect cancellation and configured checkpoints.
 - Report reviews must identify the exact run, commit, devices, final/interim state, findings and stopping reasons. Separate confirmed observations from hypotheses. Inspect all configured platforms, not only the first visible result.
-- Follow the requested branch/scope. Commit/push only authorized changes and preserve unrelated local overrides. Do not merge a PR unless asked. Current CIMT Git identity is Richard032; application-only author preferences are separate.
+- Follow the requested branch/scope. Commit/push only authorized changes and preserve unrelated local overrides. Do not merge a PR unless asked. Current TestPilot Git identity is Richard032; application-only author preferences are separate.
 - Run relevant existing checks and report blockers exactly. Do not claim tests/builds passed unless executed. Keep the user informed with concise meaningful updates.
 
 ## References

@@ -1,4 +1,4 @@
-# CIMT product and implementation review
+# TestPilot product and implementation review
 
 > Historical review/proposal. Read findings and later resolution notes in their dated context. Current behavior and open release gates are tracked in [implementation status](../implementation-status.md) and [release readiness](../release-1.0.md). Commands here are recorded examples, not a new request to execute them.
 
@@ -7,7 +7,7 @@ Date: 28 October 2026, Europe/Zurich. Reviewed local source corresponding to com
 
 ## Assessment
 
-CIMT is an engineering prototype with an initial exploration engine. It is not yet ready to produce trusted daily-testing or nightly Jenkins verdicts. The product definition covers the intended workflow, but the current code implements only part of it and contains correctness defects.
+TestPilot is an engineering prototype with an initial exploration engine. It is not yet ready to produce trusted daily-testing or nightly Jenkins verdicts. The product definition covers the intended workflow, but the current code implements only part of it and contains correctness defects.
 
 The last refactor improved readability and separated several useful boundaries. It did not establish that the product behaves correctly. I reran all 91 existing checks successfully, then reproduced six defects with isolated synthetic inputs. No OpenAI request, application build, or physical-device operation was used for this review. The iPhone is currently unavailable; iPhone acceptance remains pending.
 
@@ -51,7 +51,7 @@ CrashRecovery observes native crash evidence, then takes and saves a screenshot 
 
 Reproduction: the monitor returns a matching crash diagnostic, then snapshot raises an evidence error. The stored crash count remains zero and the scenario remains inconclusive.
 
-Impact: the report can lose the exact bug CIMT was asked to find. The final exit may correctly indicate infrastructure failure, but the test verdict still needs to retain the known failure. This conflicts with FR-21, FR-28, FR-29, and the separate verdict/completion rules.
+Impact: the report can lose the exact bug TestPilot was asked to find. The final exit may correctly indicate infrastructure failure, but the test verdict still needs to retain the known failure. This conflicts with FR-21, FR-28, FR-29, and the separate verdict/completion rules.
 
 Suggested change: record and publish the finding and action before optional evidence capture. Record capture failure separately. Preserve failed + incomplete when infrastructure failure takes precedence.
 
@@ -73,7 +73,7 @@ Simple tests: successful native JSON; nonzero native result; invalid JSON; proce
 
 ### R5 — P2: replacement-script YAML fallbacks are not honored
 
-Location: src/Cimt/Execution/ApplicationBuilds.cs, lines 47–68 and 79–86.
+Location: src/TestPilot/Execution/ApplicationBuilds.cs, lines 47–68 and 79–86.
 
 The default build worker has fallback logic, but the public orchestration does not merge a replacement script's result with platform YAML. It rejects missing result metadata before applying configured artifact/app-id values. A successful script without a result file is also treated as failed even when YAML supplies both fields.
 
@@ -87,7 +87,7 @@ Simple tests: complete script result; artifact from YAML; app-id from YAML; both
 
 ### R6 — P2: a helper-stop exception prevents clone deletion
 
-Location: src/Cimt/Execution/WorkDirectoryManager.cs, lines 90–102.
+Location: src/TestPilot/Execution/WorkDirectoryManager.cs, lines 90–102.
 
 The owned folder is removed after the helper-stop process call. If that call throws, folder removal is never attempted. The coordinator reports a cleanup error, but the clone remains despite the filesystem being usable.
 
@@ -125,7 +125,7 @@ Other concerns:
 | Requirement evaluation | Requirements are passed as text and shown in the report. | No complete set of per-requirement statuses/evidence or explicit conflict results: FR-19/27, AC-09. |
 | Scenarios | One objective per target/device. | Explicit scenario boundaries, reset between individual scenarios, and continuing independent work after equipment blocks are not implemented: FR-14/15/17. |
 | Replay | Command is recognized but returns an unimplemented error. | Adaptive replay and its demonstrations remain missing: FR-22/48, AC-18/19. |
-| Setup | Pilot prerequisite helpers exist; cimt setup is unimplemented. | Manifest-driven reusable provisioning, replacement/resume behavior, and second-Mac proof remain open: FR-33/34/50. |
+| Setup | Pilot prerequisite helpers exist; testpilot setup is unimplemented. | Manifest-driven reusable provisioning, replacement/resume behavior, and second-Mac proof remain open: FR-33/34/50. |
 | Interrupted runs | Ownership markers support cleanup during a later run. | No graceful cancellation handler or retained previous-report link/interruption record; recovery is reached through run preparation rather than every launch: FR-08/38, AC-12/16. |
 | Run identity | Work and report names use independently generated times; work adds a random suffix. | They do not share the required timestamp: FR-30, AC-22. |
 | Real app/device acceptance | Helper control probes and simulated execution checks exist. | The reviewed run engine has not completed a real signed MAUI build/install/reset/exploration workflow. The iPhone is unavailable. |
@@ -147,8 +147,8 @@ Keep the approved product definition. These findings call for implementation fix
 
 - Existing suite: 36 .NET unit tests, 32 Python unit tests, 18 CLI/lifecycle regression checks, four simulated build-contract checks, and one MSBuild adapter fixture: all 91 passed.
 - Additional isolated review reproductions: six defects confirmed, as described in R1–R6.
-- Review reproduction files: /private/tmp/cimt-review-20261028/reproduce.py and HostProbes/Program.cs under that folder.
-- Existing-suite log: /private/tmp/cimt-review-20261028/baseline-checks.log.
+- Review reproduction files: /private/tmp/testpilot-review-20261028/reproduce.py and HostProbes/Program.cs under that folder.
+- Existing-suite log: /private/tmp/testpilot-review-20261028/baseline-checks.log.
 - Implementation, private configuration, and deployed application data were not changed. Only this review document was added to the project.
 
 ## Resolution record — 28 October 2026
@@ -165,7 +165,7 @@ The original findings above describe the reviewed snapshot, not the corrected so
 | R6 | Helper shutdown and owned-folder deletion are independent attempts. The ownership guard remains mandatory. | Successful stop, nonzero stop, thrown stop error, and changed ownership token. |
 | R7 | DeviceScheduler submits work to a bounded executor. Simple recording services test submission separately from real threads and reports. Both test-complexity rules are in AGENTS.md and the development guide. | Separate zero-, one-, two-, and three-device cases. These verify the two-worker submission contract, not physical-device concurrency. |
 
-Final offline verification: 62 .NET unit tests, 64 Python unit tests, 18 CLI/lifecycle checks, four build-contract simulations, and one MSBuild example fixture passed: 149 checks. The full log is local at /private/tmp/cimt-defect-fix-checks-20261028.log. No paid API request, real MAUI build, physical-device operation, or private-configuration read occurred.
+Final offline verification: 62 .NET unit tests, 64 Python unit tests, 18 CLI/lifecycle checks, four build-contract simulations, and one MSBuild example fixture passed: 149 checks. The full log is local at /private/tmp/testpilot-defect-fix-checks-20261028.log. No paid API request, real MAUI build, physical-device operation, or private-configuration read occurred.
 
 These corrections close R1–R7 for the tested paths. They do not close the release gaps listed above. The iPhone remains unavailable, and a real application run remains necessary before relying on the product for daily or nightly verdicts.
 

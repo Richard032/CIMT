@@ -30,19 +30,19 @@ The device adapter is separate from AI decision making. The Python composition r
 | Host discovery and readiness | DeviceDiscovery and ReadinessValidator load the Mobile MCP Node module. WorkPreparation and RunCleanup own the helper home and daemon. | Supply inventory, owned startup and shutdown, and diagnostics through a host device service. Keep device selection and run ownership in the host. |
 | Worker preflight and construction | Execution checks for Node and mcp-server-mobile and gives Mobile the native binary and run context. | Let the selected backend check its own prerequisites and supply its own worker adapter. |
 | Actions and recovery | ActionExecutor and crash recovery call MCP tool names and assemble backend-specific arguments. Swipe evidence also names the provider tool. | Expose operations such as tap, type, swipe, back, launch and terminate through a device contract. Have the implementation translate calls and report the actual tool and parameters. |
-| Observations and lifecycle | Execution consumes verified masked screenshots, elements, app identity and crash records. It assumes the CIMT screen-size record, device-coordinate bounds and current target refs. | Standardize those data and behavior guarantees, including credential masking, typed errors, cancellation, reset and foreground checks. |
+| Observations and lifecycle | Execution consumes verified masked screenshots, elements, app identity and crash records. It assumes the TestPilot screen-size record, device-coordinate bounds and current target refs. | Standardize those data and behavior guarantees, including credential masking, typed errors, cancellation, reset and foreground checks. |
 
 A neutral action contract would make a second worker adapter easier to test. Replacing Mobile MCP throughout run, replay and validate additionally requires the host discovery, readiness and cleanup boundary. The build and AI decision interfaces can stay separate from both. Verify a replacement using the existing offline suites and qualify the actual device platforms separately.
 
 ## Android app memory
 
-The AI can request the read-only `sample_memory` command at any point when the tested app is running on Android. CIMT uses ADB on the selected device and measures the main process of the installed app. Action feedback contains total PSS and RSS in KiB and the PID. Compare the samples at comparable checkpoints in the same process. Missing readings produce command feedback without fabricated metrics.
+The AI can request the read-only `sample_memory` command at any point when the tested app is running on Android. TestPilot uses ADB on the selected device and measures the main process of the installed app. Action feedback contains total PSS and RSS in KiB and the PID. Compare the samples at comparable checkpoints in the same process. Missing readings produce command feedback without fabricated metrics.
 
 ## Startup recovery
 
 Before app setup, Mobile.connect checks cancellation and the device lock. DeviceStartup then calls only native apps list, checking the returned inventory is structured. This is a read-only probe; an empty app list can be valid. After success, Mobile rechecks readiness and shared stop before connecting MCP. No install/reset or AI action starts while readiness is unresolved.
 
-Only the native helper's specific device-server startup answer becomes a retryable DeviceServerStartupError. NativeDevice classifies the answer at the command boundary and redacts the message before propagating it. Invalid JSON/inventory, device locks, permission/connection errors and ordinary process timeouts do not retry. The helper's five-second attempt timeout is unchanged; CIMT does not patch or rebuild it.
+Only the native helper's specific device-server startup answer becomes a retryable DeviceServerStartupError. NativeDevice classifies the answer at the command boundary and redacts the message before propagating it. Invalid JSON/inventory, device locks, permission/connection errors and ordinary process timeouts do not retry. The helper's five-second attempt timeout is unchanged; TestPilot does not patch or rebuild it.
 
 The cumulative recovery window is 90 seconds, starting with the first probe and capped by the whole-run deadline. Each subprocess receives at most 30 seconds or the remaining window. A known startup failure waits one second before another read-only probe. During waits, execution's shared-stop check runs at most 0.1 seconds apart. Cancellation after a probe is also checked before further setup. In-flight subprocesses retain the existing process/deadline cancellation limits.
 
@@ -54,7 +54,7 @@ After recovery fails, the existing infrastructure stopping policy applies. This 
 
 After successful reset/install/launch, Mobile.reset calls AppLifecycle.wait_after_launch before returning to the scenario. The wait lasts 20 seconds and is logged as an explicit activity operation. It precedes the first masked capture, startup/foreground check and AI request. Mobile supplies execution's shared-stop check; AppLifecycle uses a monotonic duration and 0.1-second sleep chunks, with checks before sleeping and on completion. Cancellation, shared stop or the run deadline end the wait and prevent subsequent checks.
 
-This belongs entirely to CIMT. The helper is already connected during installation; the wait does not delay its process startup, patch source or change an internal timeout. Failed setup never waits. The new interval applies to each successful scenario installation on either platform/device kind, not every tap, normal AI command, app restart or crash relaunch. It is a settling delay, not a foreground-specific retry or proof that the historical error is fixed.
+This belongs entirely to TestPilot. The helper is already connected during installation; the wait does not delay its process startup, patch source or change an internal timeout. Failed setup never waits. The new interval applies to each successful scenario installation on either platform/device kind, not every tap, normal AI command, app restart or crash relaunch. It is a settling delay, not a foreground-specific retry or proof that the historical error is fixed.
 
 ## Packaging and verification
 

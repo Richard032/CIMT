@@ -1,8 +1,8 @@
-# Observed prerequisite profile; not yet consumed by the future cimt setup CLI.
+# Observed prerequisite profile; not yet consumed by the future testpilot setup CLI.
 profile-id: intel-xcode-26.5-pilot
 recorded-on: "2026-10-28"
 status: prerequisites-installed-and-rerun-verified
-installation-root: /Users/Shared/CIMT
+installation-root: /Users/Shared/TestPilot
 host:
   architecture: x86_64
   inspected-macos: "26.7.1"
@@ -12,7 +12,7 @@ runtimes:
   npm: "10.9.9"
   microsoft-jdk: "21.0.13.0.2"
   python-support: "3.14.8"
-  python-support-path: /Users/Shared/CIMT/tools/python/bin/python
+  python-support-path: /Users/Shared/TestPilot/tools/python/bin/python
   pillow: "13.0.0"
   truststore: "0.10.5"
 dotnet:
@@ -41,7 +41,7 @@ verification:
   installer-rerun: passed
   mobile-mcp-startup-and-tools-list: passed
   xcuitest-required-doctor-checks: passed
-  uiautomator2-doctor: missing-emulator-outside-cimt-physical-device-scope
+  uiautomator2-doctor: missing-emulator-outside-testpilot-physical-device-scope
   application-git-read-access: subgit-https-verified
   github-terminal-authentication: not-configured-not-needed-for-application
   android-device: connected-authorized-control-probes-passed

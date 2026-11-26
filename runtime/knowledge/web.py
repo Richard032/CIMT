@@ -209,7 +209,7 @@ def ensure_server(installation):
         time.sleep(0.1)
     if worker.poll() is None:
         worker.terminate()
-    raise OSError(f"CIMT could not start the local report viewer at {ORIGIN}. Check {directory / 'web.log'}.")
+    raise OSError(f"TestPilot could not start the local report viewer at {ORIGIN}. Check {directory / 'web.log'}.")
 
 
 def serve(installation):
@@ -311,7 +311,7 @@ def serve(installation):
                 self.html("<p>The change could not be saved. The request remains pending.</p>", 500)
 
     with ThreadingHTTPServer(("127.0.0.1", PORT), Handler) as server:
-        print(f"CIMT knowledge editor: {ORIGIN}", flush=True)
+        print(f"TestPilot knowledge editor: {ORIGIN}", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
@@ -330,7 +330,7 @@ def main():
             KnowledgeStore(options.installation).register(*options.register)
         if options.report_url or options.editor_url:
             if options.report_url and KnowledgeStore(options.installation).report(options.report_url)[0] is None:
-                parser.exit(3, "The report is not registered with this CIMT installation.\n")
+                parser.exit(3, "The report is not registered with this TestPilot installation.\n")
             ensure_server(options.installation)
             print(ORIGIN + (report_url(options.report_url) if options.report_url else "/"))
         elif not options.register:

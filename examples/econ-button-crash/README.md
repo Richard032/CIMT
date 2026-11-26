@@ -1,10 +1,10 @@
 # Main-branch button/crash example
 
-Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `TESTPILOT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `testpilot` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
 
 This is the user-facing test example for the supplied ECON MAUI repository.
 All run configuration, text inputs, and application-specific build integration
-live in this folder. CIMT and its Mac prerequisites must first be installed.
+live in this folder. TestPilot and its Mac prerequisites must first be installed.
 
 This is a configurable example, not a recorded application test pass. Supply your own private settings and inspect current [implementation status](../../docs/implementation-status.md) for executed evidence and open checks. No usable key or login is bundled.
 
@@ -34,19 +34,19 @@ published pricing were checked on 28 October 2026 in the
 
 ## Start as a user
 
-From the CIMT source folder:
+From the TestPilot source folder:
 
 ```bash
-cimt validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+testpilot validate --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
 ```
 
 After reviewing readiness, a separately authorized test uses:
 
 ```bash
-cimt run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
+testpilot run --config examples/econ-button-crash/default.private.yaml --run-config examples/econ-button-crash/application.example.yaml
 ```
 
-The application example enables execution.interactive-pauses. CIMT displays the
+The application example enables execution.interactive-pauses. TestPilot displays the
 next operation and waits for Enter before OpenAI preflight, repository access/builds,
 and AI testing after any successful build. Messages are generic and contain no
 network-change instructions. Complete your own preparation, then press Enter.
@@ -59,16 +59,16 @@ means false; enabled pauses with redirected input fail explicitly. See the
 [interactive-pause walkthrough](../../docs/product-guide.md#interactive-pauses).
 
 Keep both phones unlocked. Locked devices are reported as incomplete and receive
-no application actions. The native automation daemon is isolated per CIMT run.
+no application actions. The native automation daemon is isolated per TestPilot run.
 
 ## Build integration
 
-Both Release_Generic and Release_Pride are configured for Android and iOS. CIMT
+Both Release_Generic and Release_Pride are configured for Android and iOS. TestPilot
 clones main and its recorded submodule revisions, builds every compatible
 target/device combination, and records the source commit in the report.
 
 The application project and selected build configuration own CuRMiT and other tool
-integration. The example wrappers delegate directly to CIMT's installed defaults
+integration. The example wrappers delegate directly to TestPilot's installed defaults
 without reading or editing project files or build requests. The earlier Windows
 resource-copy replacement has been removed. Platform-specific build commands
 belong to the application project; unsupported commands fail visibly. Application
@@ -88,9 +88,9 @@ establish a successful real MAUI build, signing, installation, or test run.
 ## Output and limits
 
 Run this installed command from any folder; configuration and inputs need not live
-in the CIMT source checkout. The folder containing --run-config is the input folder,
-or --config when no override is supplied. Users supply inputs only. CIMT creates
-CIMT output/reports/report_<date-time> and CIMT output/work/work_<date-time>
+in the TestPilot source checkout. The folder containing --run-config is the input folder,
+or --config when no override is supplied. Users supply inputs only. TestPilot creates
+TestPilot output/reports/report_<date-time> and TestPilot output/work/work_<date-time>
 under that input folder. Work and publish output remain after execution and are
 replaced only immediately before a new clone for these inputs. Screenshots, actions,
 interpretations, crashes, blocked paths, and coverage must be described in HTML.
@@ -117,7 +117,7 @@ screenshots can be masked reliably; unavailable masking stops the run.
 After a completed build stage with a successful app, run the same inputs without cloning/building:
 
 ```bash
-cimt replay --config ./default.private.yaml --run-config ./application.example.yaml
+testpilot replay --config ./default.private.yaml --run-config ./application.example.yaml
 ```
 
 Replay uses the latest published app set for this input folder, current text inputs and credentials, and a new report. It verifies original build identity, branch/profile compatibility, paths, and artifact digests. Earlier work remains. No retained build means an explicit error, not an automatic build. Saved-action-history replay with --scenario is not implemented. The default worker now preserves project/default properties; explicitly configure APK/IPA output when the project needs it. See [retention and replay](../../docs/work-retention-and-replay.md).

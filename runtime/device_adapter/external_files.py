@@ -99,7 +99,7 @@ class ExternalFiles:
                   "--domain-identifier", app_id, "--timeout", "60"]
         self._run(["xcrun", "devicectl", "device", "copy", "to", *common,
                    "--source", str(source), "--destination", destination], text=True)
-        with tempfile.TemporaryDirectory(prefix="cimt-external-file-") as directory:
+        with tempfile.TemporaryDirectory(prefix="testpilot-external-file-") as directory:
             received = Path(directory) / "verify-file"
             self._run(["xcrun", "devicectl", "device", "copy", "from", *common,
                        "--source", destination, "--destination", str(received)], text=True)

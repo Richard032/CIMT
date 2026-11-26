@@ -75,7 +75,7 @@ class InstructionContext:
         """Keep one device's task separate from independently scheduled devices."""
         scope = dict(platform=device.get('platform', ''), deviceId=device.get('id', ''),
             target=session.result['target'])
-        return self.inputs.get('setup', '') + '\nCIMT execution scope: ' + json.dumps(scope) + (
+        return self.inputs.get('setup', '') + '\nTESTPILOT execution scope: ' + json.dumps(scope) + (
             '\nExecute the supplied objective only for this device and target. '
             'Report remaining work only within this scope. Other devices and targets '
             'are scheduled independently; do not claim they were or were not tested.')

@@ -4,7 +4,7 @@
 
 
 Date: 30 October 2026  
-Product: CIMT — Curtis Intelligent Mobile Test  
+Product: TestPilot
 Status: analysis and proposed improvements; implementation is not authorized by this document
 
 Follow-up: the [Apple and Tesla comparison](2026-10-30-apple-tesla-report-design-comparison.md) supports these findings and refines the proposed implementation order. It moves accessibility/responsive work into the first increment and separates primary section navigation from device/target selection. These are recommendations, not implemented changes.
@@ -15,7 +15,7 @@ The report retains useful evidence, but it is difficult to use for the normal de
 
 This is primarily an information hierarchy and navigation problem. The reviewed HTML contains Android results; their position makes them easy to overlook. Adding another shared report page would not solve this problem and would conflict with the confirmed folder contract.
 
-Keep one report folder for each run/replay: `CIMT output/reports/report_<date-time>/index.html`. Improve the presentation inside that report. Do not introduce a shared latest page, alter recorded verdicts, or change saved evidence.
+Keep one report folder for each run/replay: `TestPilot output/reports/report_<date-time>/index.html`. Improve the presentation inside that report. Do not introduce a shared latest page, alter recorded verdicts, or change saved evidence.
 
 ## 2. Evidence and review limits
 
@@ -145,10 +145,10 @@ Keep these changes in the existing report renderer responsibilities and unit-tes
 
 ## 8. Source locations
 
-- [RunHtmlRenderer](../../src/Cimt/Reporting/RunHtmlRenderer.cs): section order, expanded device steps, step labels, image links, raw details and budget output.
-- [RunDiagnosticsRenderer](../../src/Cimt/Reporting/RunDiagnosticsRenderer.cs): overview, stop reasons and expanded activity entries.
-- [RequirementHtmlRenderer](../../src/Cimt/Reporting/RequirementHtmlRenderer.cs): expanded requirement/scoped evidence presentation.
+- [RunHtmlRenderer](../../src/TestPilot/Reporting/RunHtmlRenderer.cs): section order, expanded device steps, step labels, image links, raw details and budget output.
+- [RunDiagnosticsRenderer](../../src/TestPilot/Reporting/RunDiagnosticsRenderer.cs): overview, stop reasons and expanded activity entries.
+- [RequirementHtmlRenderer](../../src/TestPilot/Reporting/RequirementHtmlRenderer.cs): expanded requirement/scoped evidence presentation.
 - [Requirements](../requirements.md): FR-26–FR-30, FR-61–FR-64, FR-69 and AC-45.
-- Reviewed saved execution: `/Users/sumkar/Development/Testing/TestRun_ios_android_SingleTarget/CIMT output/reports/report_2026-10-30_16-43-21-093/`.
+- Reviewed saved execution: `/Users/sumkar/Development/Testing/TestRun_ios_android_SingleTarget/TestPilot output/reports/report_2026-10-30_16-43-21-093/`.
 
 No application code, renderer code, installed component, private configuration or historical report was modified during this review. The only added project artifact is this analysis.

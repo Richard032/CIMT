@@ -1,4 +1,4 @@
-# CIMT architecture
+# TestPilot architecture
 
 The [current UML and layer map](architecture-uml.md) describe the implemented interfaces and execution flows. The [worker protocol](worker-protocol.md) defines the private .NET/Python handoff.
 
@@ -17,7 +17,7 @@ Implemented screenshot correction: the existing device adapter now injects a nat
 
 ## 1. Architectural boundary
 
-One Mac hosts a single CIMT run; terminal invocation is the public interface and Jenkins is intended to invoke it unchanged. Intel is the original pilot; Apple Silicon installation/build evidence is now recorded. Testing selects physical or virtual Android/iOS devices available at startup, with no more than two active device workers. OpenAI supplies model reasoning. Application backends and manually prepared external equipment are outside CIMT.
+One Mac hosts a single TestPilot run; terminal invocation is the public interface and Jenkins is intended to invoke it unchanged. Intel is the original pilot; Apple Silicon installation/build evidence is now recorded. Testing selects physical or virtual Android/iOS devices available at startup, with no more than two active device workers. OpenAI supplies model reasoning. Application backends and manually prepared external equipment are outside TestPilot.
 
 Approved: a local .NET command-line orchestrator owns configuration, builds, device scheduling, policy enforcement, evidence, cost accounting, and reports. The model proposes actions and interpretations; deterministic host code controls budgets, limits, cleanup, and concurrency. The model must not be the sole enforcer of these rules.
 
@@ -27,7 +27,7 @@ Approved implementation: a .NET command-line application, shell script for Mac s
 
 See the [current component and dependency diagram](architecture-uml.md#layers-and-dependencies).
 
-The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the CIMT lifecycle, evaluation policy, or strict cost cap.
+The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the TestPilot lifecycle, evaluation policy, or strict cost cap.
 
 | Component | Responsibility under approved structure |
 | --- | --- |
@@ -79,7 +79,7 @@ Configuration, orchestration, evidence and reporting in the component table rema
 
 ### AI action ownership and mechanical resources — FR-95
 
-The AI selects ordinary actions and targets from current evidence, prior observations, its plan or expected application behavior. ActionExecutor forwards selected refs to the adapter even when absent or marked disabled in the latest UI tree. Coordinate taps need valid device coordinates, not a matched observed control. Current observations and known routes are resources for the AI rather than an action whitelist. CIMT does not select replacement targets.
+The AI selects ordinary actions and targets from current evidence, prior observations, its plan or expected application behavior. ActionExecutor forwards selected refs to the adapter even when absent or marked disabled in the latest UI tree. Coordinate taps need valid device coordinates, not a matched observed control. Current observations and known routes are resources for the AI rather than an action whitelist. TestPilot does not select replacement targets.
 
 The RPC result boundary distinguishes an answered interaction rejection as DeviceActionError. ScenarioRunner records that feedback, gathers normal post-action evidence and lets the next AI decision choose how to proceed. It does not retry or substitute an action itself. MCP connection/protocol/timeouts and masking/storage failures retain their existing infrastructure behavior. Failed requests do not become verified routes or observed-control coverage. Requested refs lacking current observations have separate path/crash identities and are labelled as requests.
 
@@ -91,7 +91,7 @@ Approved configuration rules: recursively merge nested mappings, replace lists c
 
 Installed execution is independent of the launch folder and source checkout. OutputLayout selects the input folder from the explicit --run-config path, or --config if no run override is supplied. Shared settings can live elsewhere. ConfigurationLoader preserves this selection before applying branch overrides; inherited input/script paths still keep their declaring YAML origins. No configuration discovery or current-directory change is needed.
 
-The user supplies configuration, referenced texts, and optional application build/reset scripts. CIMT creates the following output layout on demand:
+The user supplies configuration, referenced texts, and optional application build/reset scripts. TestPilot creates the following output layout on demand:
 
 ```text
 <input folder>/                    # for example testing/FirstRun
@@ -99,7 +99,7 @@ The user supplies configuration, referenced texts, and optional application buil
   application.yaml                # optional run-specific configuration
   inputs/                         # referenced user texts; exact names are configurable
   build/                          # optional user build integration
-  CIMT output/                    # CIMT creates this entire output tree
+  TestPilot output/                    # TestPilot creates this entire output tree
     work/work_<date-time>/repository/ # temporary owned clone
     reports/report_<date-time>/
       index.html
@@ -116,9 +116,9 @@ Metadata/action JSON is an internal architecture proposal; HTML is the confirmed
 
 OutputLayout owns path selection and containment checks, not folder creation. RunFolderAllocator creates the retained report parents and report folder. WorkDirectoryManager creates the paired work folder when execution needs it and removes only verified owned work. Validation and configuration errors create retained output without a clone. Installation tools, caches, and the Mac-wide lock/ownership registry remain installation concerns, separate from run-owned files.
 
-NativeHomeLink gives the helper a short absolute transport address under /tmp/cimt-native-<installation-and-user-hash>. It points to the verified work folder's mobilecli directory; actual socket, PID, and log files stay there. This avoids Mobile CLI's 103-byte macOS socket-address limit without changing the selected output layout or the user's launch directory. The name is derived from the ownership-registry path and execution user. Existing files/links are never adopted. Normal and next-start owned-work cleanup remove only a link with the expected target; missing targets are supported. The host and Python worker receive the same short address through MOBILECLI_HOME/nativeHome. No change to the device-control runtime or API configuration is needed.
+NativeHomeLink gives the helper a short absolute transport address under /tmp/testpilot-native-<installation-and-user-hash>. It points to the verified work folder's mobilecli directory; actual socket, PID, and log files stay there. This avoids Mobile CLI's 103-byte macOS socket-address limit without changing the selected output layout or the user's launch directory. The name is derived from the ownership-registry path and execution user. Existing files/links are never adopted. Normal and next-start owned-work cleanup remove only a link with the expected target; missing targets are supported. The host and Python worker receive the same short address through MOBILECLI_HOME/nativeHome. No change to the device-control runtime or API configuration is needed.
 
-RunCleanup retains a redacted helper log under the report's logs/native-daemon.log before deleting temporary work. Discovery and helper-stop errors preserve redacted stderr rather than replacing the diagnostic with a generic message. If work preparation failed before selecting an owned helper address, cleanup does not issue a global helper stop. The temporary link is coordination metadata under FR-52; it does not move output data outside CIMT output.
+RunCleanup retains a redacted helper log under the report's logs/native-daemon.log before deleting temporary work. Discovery and helper-stop errors preserve redacted stderr rather than replacing the diagnostic with a generic message. If work preparation failed before selecting an owned helper address, cleanup does not issue a global helper stop. The temporary link is coordination metadata under FR-52; it does not move output data outside TestPilot output.
 
 Legacy workspace.root and reports.root are accepted to preserve private configuration compatibility, but cannot relocate output. CommandApplication prints the policy and a legacy-setting notice; CommandReports stores the policy in output-layout.json. New templates omit those roots. No private file is rewritten. Command errors retain the selected layout even when YAML cannot load. With unusable command syntax and no selected input, the launch folder is the last known input location. Unsafe/unwritable output produces a terminal failure; there is no fallback report tree elsewhere. Output containment resolves existing aliases before creating folders. This replaces the earlier common-root proposal under FR-52/FR-53.
 
@@ -163,7 +163,7 @@ Approved terminal mapping:
 
 Precedence is **3 → 1 → 2 → 0** when conditions coexist. Build failures do not stop other targets, but produce code 3 at finalization. Overall coverage cannot be labelled complete when required combinations never ran.
 
-Jenkins archives the generated run folder through pipeline configuration. CIMT itself stores reports locally and does not publish them externally.
+Jenkins archives the generated run folder through pipeline configuration. TestPilot itself stores reports locally and does not publish them externally.
 
 ## 8. Credential and evidence handling
 
@@ -182,7 +182,7 @@ The product owner approved evaluating Mobile MCP and Appium against the physical
 | Candidate | Documented basis | Fit and evidence still needed |
 | --- | --- | --- |
 | Mobile MCP | Native Android/iOS device interaction through accessibility snapshots and screenshot-based actions; supports physical devices. | Strong candidate for AI tool integration. Validate Intel Macs, physical iPhone provisioning, reset semantics, diagnostics, two-device isolation, and unattended operation under Jenkins. |
-| Appium with platform drivers | Microsoft's MAUI sample demonstrates UI testing through platform drivers, including Android and iOS. | Candidate for structured selectors and mature scripted execution. Autonomous exploration still needs CIMT's reasoning layer. Validate physical iPhone setup and equivalent reset/evidence capabilities. |
+| Appium with platform drivers | Microsoft's MAUI sample demonstrates UI testing through platform drivers, including Android and iOS. | Candidate for structured selectors and mature scripted execution. Autonomous exploration still needs TestPilot's reasoning layer. Validate physical iPhone setup and equivalent reset/evidence capabilities. |
 | Direct Android/iOS platform tooling | Android tooling supports device management; Apple tooling supplies signing, provisioning, and diagnostics. | Likely supporting dependencies rather than a complete autonomous test engine. Evaluate maintenance cost before selecting direct UI control. |
 
 Selection gate: demonstrate the same small MAUI workflow on physical Android and iPhone from an Intel Mac under a noninteractive server account, including install, reset, login, UI inspection, action, screenshot, crash recovery, and simultaneous independent control of both devices. Document limitations before choosing.
@@ -197,7 +197,7 @@ These links support evaluation; dependency versions must be rechecked during imp
 
 ## 10. Mac setup architecture
 
-Approved setup policy: use a tested compatibility manifest with pinned tool versions; inspect existing installations; reuse compatible versions; automatically replace incompatible CIMT-required tools without asking for confirmation and record replacements. Setup may request administrator privileges, ordinary runs may not. Support reruns after interrupted setup and emit a report of installed/replaced components, validation results, and remaining manual tasks. Exact dependency manager and replacement mechanics are not selected.
+Approved setup policy: use a tested compatibility manifest with pinned tool versions; inspect existing installations; reuse compatible versions; automatically replace incompatible TestPilot-required tools without asking for confirmation and record replacements. Setup may request administrator privileges, ordinary runs may not. Support reruns after interrupted setup and emit a report of installed/replaced components, validation results, and remaining manual tasks. Exact dependency manager and replacement mechanics are not selected.
 
 Needed categories: compatible macOS/Xcode and developer tools, Android SDK/JDK, .NET SDK and MAUI workloads compatible with the application, selected device adapter runtime, Git, OpenAI connectivity, iOS signing/provisioning material, and trusted devices.
 
@@ -244,13 +244,13 @@ The [product guide](product-guide.md) is the reference for implemented command i
 
 ## 13. Approved build/reset script contracts
 
-CIMT supplies default Android/iOS build scripts in its installation, using configured build targets. Develop and validate them during the first real tests against a user-supplied application; no tested-repository changes or bundled demo MAUI app are required.
+TestPilot supplies default Android/iOS build scripts in its installation, using configured build targets. Develop and validate them during the first real tests against a user-supplied application; no tested-repository changes or bundled demo MAUI app are required.
 
-Each target supplies name, build configuration, project path, per-platform framework/properties, and optional replacement script. Project paths resolve from the clone root. Replacement script paths resolve from the declaring YAML file; defaults resolve from the CIMT installation.
+Each target supplies name, build configuration, project path, per-platform framework/properties, and optional replacement script. Project paths resolve from the clone root. Replacement script paths resolve from the declaring YAML file; defaults resolve from the TestPilot installation.
 
 The orchestrator supplies a result-file path. Successful scripts write JSON artifact and app-id values. YAML platform fields provide fallbacks per field; returned values take precedence. JSON artifact paths are absolute, while YAML artifact paths resolve from the clone root. The implemented environment/JSON handoff is specified in the [build contract](build-script-contract.md).
 
-CIMT updates replace its defaults and preserve separate user-customized copies. Custom reset/verification commands augment platform reset and receive target/device/app-id through environment variables. Exit code 0 is success; other codes stop the run and generate a report. Exact environment variable names and verification implementation remain to be specified.
+TestPilot updates replace its defaults and preserve separate user-customized copies. Custom reset/verification commands augment platform reset and receive target/device/app-id through environment variables. Exit code 0 is success; other codes stop the run and generate a report. Exact environment variable names and verification implementation remain to be specified.
 
 Every CLI command and build/reset integration requires examples and runnable demos using a user-supplied application. These must cover invocation, configuration, expected output, and failure behaviour.
 
@@ -264,7 +264,7 @@ The .NET CLI/configuration foundation, generic default build workers, and initia
 
 The single-run lock uses exclusive file sharing supported on macOS. YAML mappings merge, arrays replace, and inherited paths retain their source-file origin. Secret values are removed from snapshots and diagnostics. The support worker implements element-ID masking before screenshot storage or AI submission; missing reliable geometry stops execution. Named credentials are entered directly by the host. These paths have simulated checks but still need application acceptance.
 
-Default-script handoff now uses CIMT_REPOSITORY_ROOT, CIMT_BUILD_REQUEST, and CIMT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
+Default-script handoff now uses TESTPILOT_REPOSITORY_ROOT, TESTPILOT_BUILD_REQUEST, and TESTPILOT_BUILD_RESULT, as detailed in the [build contract](build-script-contract.md). Real app publish attempts exposed platform-specific source/signing blockers. Neither the adapter selection gate nor app build acceptance is marked passed.
 
 The current pricing profiles accept gpt-5.4-mini-2026-03-17 and gpt-5.6-luna with USD accounting; section 27 defines their charge bounds. One shared lock admits requests using counted input. Uncertain requests retain the counted input plus the full output cap. Unsupported profiles fail before inference. This policy is implemented and fixture-tested; live account/model access, billing reconciliation, and end-to-end limits remain unverified.
 
@@ -306,7 +306,7 @@ The Mac lock now spans allocation, execution, cleanup, final reporting, and erro
 
 ExecutionCheckpoint is an ordered run step with one responsibility: display the upcoming operation and wait for the user's acknowledgement. RunEngine inserts it before ModelAccessCheck, before RepositoryCheckout (covering clone, submodules, and the following builds), and before UiExecution. The last checkpoint is skipped when no installable build exists. Each checkpoint reads execution.interactive-pauses from merged configuration; omitted/false preserves unattended execution. Input/output are injected for unit tests. Production uses a StreamReader over standard input so a blocked console read does not synchronously block the coordinator.
 
-Messages identify the operation and credential use without exposing values. The shared prompt asks for Enter. No network name, network-change instruction, application-specific preparation, or environment policy is embedded. CIMT does not infer the user's preparation from an acknowledgement; the next stage still runs its normal checks. Configuration/key loading and text/runtime preparation happen before the first checkpoint, but authenticated OpenAI requests wait for acknowledgement.
+Messages identify the operation and credential use without exposing values. The shared prompt asks for Enter. No network name, network-change instruction, application-specific preparation, or environment policy is embedded. TestPilot does not infer the user's preparation from an acknowledgement; the next stage still runs its normal checks. Configuration/key loading and text/runtime preparation happen before the first checkpoint, but authenticated OpenAI requests wait for acknowledgement.
 
 An enabled checkpoint requires non-redirected input and records waiting/continued stages without terminal response text. The original deadline bounds the asynchronous wait and is checked again before continuing. Waiting consumes the run allowance and retains the Mac-wide lock. End of input is an infrastructure failure; deadline expiry is incomplete with normal precedence. RunCoordinator still cleans owned work and writes the report. validate retains its existing readiness checks without run-only pauses. Jenkins must omit the setting or use false. This generic design supersedes the environment-specific network wording from version 0.14.
 
@@ -344,7 +344,7 @@ The AI guidance directs the AI to accept OS permission requests raised by the te
 
 ## 23. AI replies and resource execution
 
-FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. FR-99 supersedes the earlier single-object limitation: one object, an array or consecutive objects execute FIFO after complete-reply decoding. Prose and malformed replies remain notes with generic resource feedback; CIMT does not guess embedded commands. See [AI Resource Exchange](ai-resource-exchange.md).
+FR-96 replaces the earlier bounded response-correction policy. The execution component runtime/command_reply.py reads provider text and binds command arguments without semantic approval. The input-only AI Instruction and Context layer is defined by FR-97. There is no strict provider response schema, complete-response gate or three-response exhaustion. Plans, checks and source/path references are optional AI-owned records. The complete redacted original reply is retained alongside typed records and actual command outcomes. FR-99 supersedes the earlier single-object limitation: one object, an array or consecutive objects execute FIFO after complete-reply decoding. Prose and malformed replies remain notes with generic resource feedback; TestPilot does not guess embedded commands. See [AI Resource Exchange](ai-resource-exchange.md).
 
 Execution still enforces supported resources, bounds, privacy, shared limits and real provider/infrastructure failures. Legacy rejectedResponses records remain readable in old reports; new execution does not create response-format rejections.
 
@@ -417,7 +417,7 @@ The separate runtime/test_planning package owns planning records without device,
 
 FR-88 is a highest-priority boundary. ContextMemory applies exact AI selections: a summary, includeAll collections and record addresses. It does not rank, trim, summarise or select records itself. Bootstrap supplies the available records; subsequent requests use the last AI selection. Counts and current masked evidence remain available. The AI can issue recall to retrieve more records without a device action. Decisions and selections stay in complete local records. There is no last-24 history window, first/last-40 map/task window or host field projection of selected history.
 
-The selected history is supplied without the former 64 KiB deferral. The AI may request individual records, and provider context and shared budget limits still apply. CIMT retains source records without choosing their relevance.
+The selected history is supplied without the former 64 KiB deferral. The AI may request individual records, and provider context and shared budget limits still apply. TestPilot retains source records without choosing their relevance.
 
 The existing configured model supplies summaries, retrieval choices and recovery decisions. No additional model or provider is introduced. All inference passes through Agent/Budget and the same run deadline. Supported pricing profiles with cache controls use an explicit breakpoint after stable system instructions. Cache usage is measured when supplied, while settlement remains conservative. See [AI context and recovery](ai-context-and-recovery.md) for the response contract and sequence diagram.
 
@@ -462,7 +462,7 @@ AI Instruction and Context supplies commands as another exact-selection collecti
 
 ## 36. Post-installation settling delay
 
-FR-100 / AC-70 add a fixed 20-second app-settling interval in CIMT's existing Device Adapter layer. AppLifecycle.wait_after_launch owns the timed wait; Mobile.reset orders successful reset/install/launch, then waits before returning to ScenarioRunner. The first screen capture, startup/foreground check and inference request therefore occur after the interval. Mobile MCP must already be connected for installation; its process startup and internal five-second timeouts are not changed.
+FR-100 / AC-70 add a fixed 20-second app-settling interval in TestPilot's existing Device Adapter layer. AppLifecycle.wait_after_launch owns the timed wait; Mobile.reset orders successful reset/install/launch, then waits before returning to ScenarioRunner. The first screen capture, startup/foreground check and inference request therefore occur after the interval. Mobile MCP must already be connected for installation; its process startup and internal five-second timeouts are not changed.
 
 The lifecycle receives execution's shared-stop callback and injectable monotonic clock/sleep. It waits in chunks no longer than 0.1 seconds, checking cancellation, shared stop and the run deadline before each chunk and on completion. The wait counts toward the run limit. Mobile wraps the wait in a named activity operation for terminal/HTML timing. Failed setup never reaches the wait. Normal actions, restart/crash relaunches and readiness probes get no new delay. No new layer, field, dependency or retry policy is introduced. The delay may allow startup to settle; live foreground recovery remains unqualified.
 
@@ -496,7 +496,7 @@ Activity records distinguish evidence capture, context preparation, the decision
 
 The swipe contract adds optional distance, while ref and x/y remain alternate target forms. command_reply preserves swipe numeric arguments, including fractional values, and retains invalid values for explicit execution failure. Nonfinite values and containers in numeric slots are represented safely in failure records; the full original reply is retained.
 
-ActionExecutor resolves only geometry: current ref bounds map to their centre in the CimtScreenInfo device coordinate system. It never scales by imageWidth/imageHeight, selects an application control/value, or silently substitutes a whole-screen gesture. Validation rejects conflicting/unknown targets and invalid numeric arguments. Untargeted gestures with no distance use the adapter default. Distance requires a target because Mobile MCP 1.0.14 forwards it only through swipeFromCoordinate(x, y, direction, distance).
+ActionExecutor resolves only geometry: current ref bounds map to their centre in the TestPilotScreenInfo device coordinate system. It never scales by imageWidth/imageHeight, selects an application control/value, or silently substitutes a whole-screen gesture. Validation rejects conflicting/unknown targets and invalid numeric arguments. Untargeted gestures with no distance use the adapter default. Distance requires a target because Mobile MCP 1.0.14 forwards it only through swipeFromCoordinate(x, y, direction, distance).
 
 An execution-local callback records the exact attempted mobile_swipe_on_screen call before dispatch and updates its status after the adapter returns or raises. ScenarioRunner saves it beside the requested action and BatchFeedback supplies it with the next normal request. No mutable call record is shared between device workers. Both report redactors preserve protocol metadata and numeric values while redacting textual data. StepHtmlRenderer shows Requested action and Adapter call attempted details, including failures. Mobile MCP source and the application project are unchanged.
 
@@ -511,4 +511,4 @@ ContextMemory.project supplies bootstrap history until the AI chooses a selectio
 
 ## Replaceable decision agent
 
-The decision contract in `runtime/decision_agent.py` accepts a `DecisionRequest` and returns normalized CIMT commands. `check_access` checks the chosen agent; `decide` supplies its next decision. The request carries original inputs, fresh masked screen evidence, history, credential aliases, shared budget and deadline/cancellation and optional request-recording facilities. The default `runtime/agent.py` uses `AiServices` for OpenAI. CompletionReviewer and ProposalGenerator receive redacted evidence and an observer in EvidenceRequest. Their default implementations build their own prompts and decode replies. AiServices only handles provider access, journaling, transport and accounting. Execution accepts an agent factory and a separate review factory; it owns device actions, evidence, stopping and reporting. See [decision agent](decision-agent.md) for the contract and integration limits.
+The decision contract in `runtime/decision_agent.py` accepts a `DecisionRequest` and returns normalized TestPilot commands. `check_access` checks the chosen agent; `decide` supplies its next decision. The request carries original inputs, fresh masked screen evidence, history, credential aliases, shared budget and deadline/cancellation and optional request-recording facilities. The default `runtime/agent.py` uses `AiServices` for OpenAI. CompletionReviewer and ProposalGenerator receive redacted evidence and an observer in EvidenceRequest. Their default implementations build their own prompts and decode replies. AiServices only handles provider access, journaling, transport and accounting. Execution accepts an agent factory and a separate review factory; it owns device actions, evidence, stopping and reporting. See [decision agent](decision-agent.md) for the contract and integration limits.

@@ -1,14 +1,14 @@
 # Requirement mapping example
 
-Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `TESTPILOT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `testpilot` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
 
-This example shows the complete mapping report with synthetic data. It does not test an app and needs no API key or phone. Run from the CIMT source folder on a prepared Mac:
+This example shows the complete mapping report with synthetic data. It does not test an app and needs no API key or phone. Run from the TestPilot source folder on a prepared Mac:
 
 ```bash
-dotnet run --project tools/Cimt.RequirementDemo/Cimt.RequirementDemo.csproj -c Release
+dotnet run --project tools/TestPilot.RequirementDemo/TestPilot.RequirementDemo.csproj -c Release
 ```
 
-Expected: the command prints a report path under this example's ignored `CIMT output/reports/report_<timestamp>/` folder. Open index.html there. There are five requirements, each scoped to simulated Android and iOS devices, and five statuses: passed, failed, not tested, inconclusive, and overridden. The export conflict quotes “Do not test export.” Every item retains its original label, text, line range, and generated internal ID.
+Expected: the command prints a report path under this example's ignored `TestPilot output/reports/report_<timestamp>/` folder. Open index.html there. There are five requirements, each scoped to simulated Android and iOS devices, and five statuses: passed, failed, not tested, inconclusive, and overridden. The export conflict quotes “Do not test export.” Every item retains its original label, text, line range, and generated internal ID.
 
 The two-platform report exercises the approved navigation, overview, failure cards and requirement links. Each simulated device has two clearly labelled synthetic checkerboard PNG records for trying the image viewer, previous/next, zoom and close. These are generated fixtures, not screenshots of a real application. Requirement checks deliberately retain missing-evidence explanations. No app, physical device or API is used.
 
@@ -29,7 +29,7 @@ Those paths resolve from the declaring YAML file. Requirements need no special I
 Then use the existing public command:
 
 ```text
-cimt run --config /absolute/path/default.private.yaml --run-config /absolute/path/app.yaml
+testpilot run --config /absolute/path/default.private.yaml --run-config /absolute/path/app.yaml
 ```
 
 A real run initializes all requirements before device actions. The model sees the catalogue and current statuses, and must reference known IDs. The report includes every applicable configured target/startup-device pair, including failed builds, locked devices, and objectives that did not start. Missing evidence cannot produce a pass. See [mapping rules](../../docs/requirement-mapping.md).

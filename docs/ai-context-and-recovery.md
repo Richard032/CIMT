@@ -10,13 +10,13 @@ Date: 31 October 2026. Requirements: FR-88–FR-97. Source implementation and of
 
 FR-96 removes response-format evaluation and three-attempt correction exhaustion. See [AI Resource Exchange](ai-resource-exchange.md) for command decoding, optional records, original reply retention and resource feedback. Earlier schema/quote/ID prerequisites are superseded.
 
-The AI exclusively decides what history and context to retain in working memory, summarise, omit from a request or retrieve. CIMT stores complete records and resolves the AI's exact selections. It does not rank relevance, choose a history window, silently truncate records or choose app recovery actions. Original instructions and requirements remain authoritative. An AI summary is working memory, not a replacement correctness oracle.
+The AI exclusively decides what history and context to retain in working memory, summarise, omit from a request or retrieve. TestPilot stores complete records and resolves the AI's exact selections. It does not rank relevance, choose a history window, silently truncate records or choose app recovery actions. Original instructions and requirements remain authoritative. An AI summary is working memory, not a replacement correctness oracle.
 
 Test Planning and Exploration stores the records and AI selections. AI Instruction and Context supplies those retained records and fresh masked screen/control information without receiving replies. ContextMemory applies selections, TestPlan owns task/source identity, ExplorationMemory/ApplicationMap hold observations and LoopRecovery holds recovery requests. Execution owns device calls, storage, report publication, privacy and mechanical resource limits. All inference uses the configured model and shared budget/deadline.
 
 ## Context contract
 
-FR-95 extends the AI-ownership boundary to ordinary action selection. The AI may select a ref or coordinate from current evidence, earlier observations or its expectations. The latest accessibility tree is evidence, not an action whitelist. CIMT forwards supported requests and records adapter-reported interaction rejections for the next AI decision, without choosing another action. It still enforces technical execution and privacy constraints. An earlier ref may be stale; its requested identity and returned outcome are retained without claiming it was an observed control or a completed action. Credential entry requires a verified maskable field before typing any secret.
+FR-95 extends the AI-ownership boundary to ordinary action selection. The AI may select a ref or coordinate from current evidence, earlier observations or its expectations. The latest accessibility tree is evidence, not an action whitelist. TestPilot forwards supported requests and records adapter-reported interaction rejections for the next AI decision, without choosing another action. It still enforces technical execution and privacy constraints. An earlier ref may be stale; its requested identity and returned outcome are retained without claiming it was an observed control or a completed action. Credential entry requires a verified maskable field before typing any secret.
 
 Context is optional under FR-96. Omitting it or returning null retains the previous AI summary/selection without regenerating it. To change it, return:
 
@@ -41,13 +41,13 @@ Current UI evidence, execution scope, fixed permission/safety instructions and c
 
 ## Capacity and cost
 
-The selected history is sent without an automatic 64 KiB deferral. The AI can request individual records to keep its context focused. Provider context limits apply to the whole request, including source inputs, current evidence, and selected historical screenshots. If the request is too large or the provider fails, CIMT reports the actual failure rather than silently dropping selected records. All selected image input remains covered by the provider-counted input reservation.
+The selected history is sent without an automatic 64 KiB deferral. The AI can request individual records to keep its context focused. Provider context limits apply to the whole request, including source inputs, current evidence, and selected historical screenshots. If the request is too large or the provider fails, TestPilot reports the actual failure rather than silently dropping selected records. All selected image input remains covered by the provider-counted input reservation.
 
 Supported pricing profiles with prompt-cache controls place an explicit cache breakpoint after stable system instructions. Actual reuse depends on provider eligibility and matching context; it is not assumed. Budget records input/output tokens and optional cached-token counts for each settled request. Missing cache details are unavailable, not zero. The conservative accounted spending bound continues to charge validated upper rates without relying on optional cache discounts. Context-selection and recovery requests use the same reservation/cancellation/deadline path as ordinary decisions.
 
 ## Recovery contract
 
-After executed unchanged attempts or repeated traversals without discovery, CIMT supplies repetition facts and a recovery notice in the next instruction with fresh masked evidence. This does not veto an AI-selected command. A signal does not itself prove a functional defect or an unproductive loop. The AI determines whether repetition is intentional and chooses its revised approach. AI may also return recover with recovery id -1, decision replan and a reason to request this workflow before counters signal.
+After executed unchanged attempts or repeated traversals without discovery, TestPilot supplies repetition facts and a recovery notice in the next instruction with fresh masked evidence. This does not veto an AI-selected command. A signal does not itself prove a functional defect or an unproductive loop. The AI determines whether repetition is intentional and chooses its revised approach. AI may also return recover with recovery id -1, decision replan and a reason to request this workflow before counters signal.
 
 Every pending request has a stable ID. Its response includes:
 
@@ -59,11 +59,11 @@ Every pending request has a stable ID. Its response includes:
 }
 ```
 
-Suggested recovery decisions are replan, intentional or blocked, with an explanation. These are optional records, not permission to act. The AI can issue recall or notes while recovery remains pending. A command can continue without a structured acknowledgement; CIMT records that fact without inventing an explanation for the AI. repeatInstruction/repeatReason can explain deliberate reproduction.
+Suggested recovery decisions are replan, intentional or blocked, with an explanation. These are optional records, not permission to act. The AI can issue recall or notes while recovery remains pending. A command can continue without a structured acknowledgement; TestPilot records that fact without inventing an explanation for the AI. repeatInstruction/repeatReason can explain deliberate reproduction.
 
-Each renewed repetition signal opens a new request. There is no fixed three-episode semantic recovery stop. The AI can still make poor choices; time/budget/cancellation bound execution. FR-96 removes schema/source evaluation and the three-response correction limit. Transport, masking, storage and refusal/incomplete-response failures keep their existing policy. Three matching crashes remain a separate crash-recovery limit. CIMT does not choose a replacement button, restart/reset the app or discard history for loop recovery.
+Each renewed repetition signal opens a new request. There is no fixed three-episode semantic recovery stop. The AI can still make poor choices; time/budget/cancellation bound execution. FR-96 removes schema/source evaluation and the three-response correction limit. Transport, masking, storage and refusal/incomplete-response failures keep their existing policy. Three matching crashes remain a separate crash-recovery limit. TestPilot does not choose a replacement button, restart/reset the app or discard history for loop recovery.
 
-AI done/complete ends interaction. CIMT preserves unresolved plan, path and requirement work and reports incomplete coverage; it does not choose an extra reconsideration request. The AI owns when to finish and should explain blockers.
+AI done/complete ends interaction. TestPilot preserves unresolved plan, path and requirement work and reports incomplete coverage; it does not choose an extra reconsideration request. The AI owns when to finish and should explain blockers.
 
 ## Identity and mapping corrections
 
@@ -75,7 +75,7 @@ Map identity distinguishes screen structure, observed input values and last-obse
 
 HTML shows AI-selected working context, source-linked tasks, path scope, the application map and AI-directed recovery. Recovery entries identify trigger, reason, AI decision/explanation and waiting/continued/blocked status. A waiting entry after cancellation means no completed recovery decision was recorded. JSON retains full redacted AI replies, optional decisions, selections and resource feedback; HTML exposes the original replies as escaped text. The run overview includes available input/output/cache counts and request-purpose usage records. Both report boundaries redact text while preserving typed IDs. Historical reports remain unchanged.
 
-Existing offline suites cover AI-only selection, exact paging, action-free retrieval, capacity-only reduction requests, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new CIMT app run is part of this source increment. FR-97 keeps Mobile MCP and separates the input-only layer from command decoding and execution; see [AI Instruction and Context](ai-instruction-context.md).
+Existing offline suites cover AI-only selection, exact paging, action-free retrieval, capacity-only reduction requests, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new TestPilot app run is part of this source increment. FR-97 keeps Mobile MCP and separates the input-only layer from command decoding and execution; see [AI Instruction and Context](ai-instruction-context.md).
 
 ## Sequence
 
@@ -83,7 +83,7 @@ Existing offline suites cover AI-only selection, exact paging, action-free retri
 sequenceDiagram
     autonumber
     actor User
-    participant Run as CIMT Execution
+    participant Run as TestPilot Execution
     participant Memory as Planning and Exploration
     participant AI as Configured OpenAI Model
     participant Device as Device Adapter
@@ -131,7 +131,7 @@ sequenceDiagram
 - [Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching): use eligible stable prefixes and measure actual reuse.
 - [Agent evaluation](https://developers.openai.com/api/docs/guides/agent-evals): compare workflow traces and representative outcomes.
 
-Exclusive AI ownership of relevance is CIMT's approved product choice, not an OpenAI requirement or a claim of certified conformance.
+Exclusive AI ownership of relevance is TestPilot's approved product choice, not an OpenAI requirement or a claim of certified conformance.
 
 ## Requirement-to-implementation mapping
 

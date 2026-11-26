@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors><AssemblyName>testpilot-build</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <!-- Share text redaction without depending on the TestPilot command host. -->
+    <Compile Include="../../src/TestPilot/Settings/SecretText.cs" Link="SecretText.cs" />
+  </ItemGroup>
+</Project>

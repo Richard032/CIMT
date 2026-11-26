@@ -3,8 +3,8 @@
 import json,os,pathlib,shutil,subprocess,tempfile
 source=pathlib.Path(__file__).resolve().parents[1]
 real_dotnet=shutil.which('dotnet')
-worker=source/'tools/Cimt.BuildWorker/bin/Release/net10.0/cimt-build.dll'
-with tempfile.TemporaryDirectory(prefix='cimt-build-contract-') as tmp:
+worker=source/'tools/TestPilot.BuildWorker/bin/Release/net10.0/testpilot-build.dll'
+with tempfile.TemporaryDirectory(prefix='testpilot-build-contract-') as tmp:
  root=pathlib.Path(tmp);bin=root/'bin';bin.mkdir();(root/'App.csproj').write_text('<Project />')
  fake=bin/'dotnet'
  fake.write_text('''#!/usr/bin/env python3
@@ -17,7 +17,7 @@ if args[0]=='msbuild':
 assert args[0]=='publish'
 assert '-c' in args and '-f' in args
 platform=os.environ['FIXTURE_PLATFORM']
-provided=json.loads(pathlib.Path(os.environ['CIMT_BUILD_REQUEST']).read_text())['properties']
+provided=json.loads(pathlib.Path(os.environ['TESTPILOT_BUILD_REQUEST']).read_text())['properties']
 actual=dict(arg[3:].split('=',1) for arg in args if arg.startswith('-p:'))
 assert actual==provided, 'Configured build properties were changed'
 print('fixture credential: synthetic-signing-secret')
@@ -31,7 +31,7 @@ if os.environ['FIXTURE_MODE']=='ambiguous':(out/'other-Signed.apk').write_bytes(
   request=root/'request.json';result=root/'result.json'
   request.write_text(json.dumps({'project':'App.csproj','configuration':'Release','framework':'net10.0-'+platform,'properties':{'AndroidSigningStorePass':'synthetic-signing-secret'}}))
   result.write_text('{"artifact":"stale.apk","app-id":"stale"}')
-  env=os.environ.copy();env.update(PATH=str(bin)+os.pathsep+env['PATH'],CIMT_DOTNET_EXECUTABLE=str(fake),CIMT_REPOSITORY_ROOT=str(root),CIMT_BUILD_REQUEST=str(request),CIMT_BUILD_RESULT=str(result),FIXTURE_PLATFORM=platform,FIXTURE_MODE=mode)
+  env=os.environ.copy();env.update(PATH=str(bin)+os.pathsep+env['PATH'],TESTPILOT_DOTNET_EXECUTABLE=str(fake),TESTPILOT_REPOSITORY_ROOT=str(root),TESTPILOT_BUILD_REQUEST=str(request),TESTPILOT_BUILD_RESULT=str(result),FIXTURE_PLATFORM=platform,FIXTURE_MODE=mode)
   r=subprocess.run([real_dotnet,str(worker),platform],env=env,capture_output=True,text=True)
   assert r.returncode==expected,(platform,mode,r.returncode,r.stdout[-1200:],r.stderr[-1200:])
   assert 'synthetic-signing-secret' not in r.stdout+r.stderr,'Signing value leaked'

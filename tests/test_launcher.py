@@ -16,26 +16,26 @@ class LauncherTests(unittest.TestCase):
         self.check_launcher(installed=False)
 
     def check_launcher(self, installed):
-        source = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "cimt"
-        with tempfile.TemporaryDirectory(prefix="cimt launcher ") as folder:
+        source = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "testpilot"
+        with tempfile.TemporaryDirectory(prefix="testpilot launcher ") as folder:
             root = pathlib.Path(folder)
-            launcher = root / ("bin" if installed else "scripts") / "cimt"
+            launcher = root / ("bin" if installed else "scripts") / "testpilot"
             launcher.parent.mkdir()
             shutil.copy2(source, launcher)
             installation = root if installed else root / ".local" / "install"
             installation.mkdir(parents=True, exist_ok=True)
-            (installation / "environment.sh").write_text("export CIMT_SETUP_LOADED=yes\n")
+            (installation / "environment.sh").write_text("export TESTPILOT_SETUP_LOADED=yes\n")
             if installed:
-                assembly = root / "lib" / "cimt" / "cimt.dll"
+                assembly = root / "lib" / "testpilot" / "testpilot.dll"
                 assembly.parent.mkdir(parents=True)
                 assembly.write_text("fixture")
             tools = root / "fake tools"
             tools.mkdir()
             dotnet = tools / "dotnet"
-            dotnet.write_text('#!/bin/sh\nprintf "%s\\n" "$CIMT_INSTALL_ROOT" "$CIMT_SETUP_LOADED" "$@"\n')
+            dotnet.write_text('#!/bin/sh\nprintf "%s\\n" "$TESTPILOT_INSTALL_ROOT" "$TESTPILOT_SETUP_LOADED" "$@"\n')
             dotnet.chmod(0o700)
             environment = dict(os.environ)
-            environment.pop("CIMT_INSTALL_ROOT", None)
+            environment.pop("TESTPILOT_INSTALL_ROOT", None)
             environment["PATH"] = str(tools) + os.pathsep + os.defpath
             result = subprocess.run(["/bin/bash", str(launcher), "--help"], env=environment,
                                     capture_output=True, text=True, check=True)

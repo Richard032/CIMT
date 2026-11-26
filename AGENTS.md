@@ -9,4 +9,4 @@
 - If a unit test needs complicated or advanced code, simplify the tested source first.
 - If the test is still complicated after that refactor, split the behavior into a set of simple test cases.
 
-- Read [GPT continuation.md](GPT%20continuation.md) for the user's portable coding instructions and CIMT handover before starting project work. Check current requirements and the user's latest instructions as well.
+- Read [GPT continuation.md](GPT%20continuation.md) for the user's portable coding instructions and TestPilot handover before starting project work. Check current requirements and the user's latest instructions as well.

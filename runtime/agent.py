@@ -1,4 +1,4 @@
-"""Default OpenAI decision engine for CIMT's replaceable agent contract."""
+"""Default OpenAI decision engine for TestPilot's replaceable agent contract."""
 
 import json
 import sqlite3
@@ -85,11 +85,11 @@ class Agent:
         if knowledge_lookup is not None:
             response = self._resolve_knowledge(response, retry_body, knowledge_lookup, observer,
                                                check_cancelled, report_timing)
-        return response['cimtToolReply'] if 'cimtToolReply' in response else read_reply(response)
+        return response['testpilotToolReply'] if 'testpilotToolReply' in response else read_reply(response)
 
     def _resolve_knowledge(self, response, body, lookup, observer, check_cancelled, report_timing):
         for count in range(5):
-            reply = response.get('cimtToolReply', {})
+            reply = response.get('testpilotToolReply', {})
             if reply.get('action') != 'knowledge_lookup':
                 break
             try:
