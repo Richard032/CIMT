@@ -9,7 +9,7 @@ This review compares the current code with the approved requirements and archite
 
 ## D1 — P1: secret removal can change the test result and damage JSON
 
-Locations: [CheckRecorder](../../runtime/check_recorder.py), lines 15–24; [Redactor.object](../../runtime/redaction.py), lines 40–46; [RunReportWriter](../../src/Cimt/Reporting/RunReportWriter.cs), lines 47–48. Related requirements: FR-27, FR-31, FR-36; generated identity is also affected under FR-30.
+Locations: [CheckRecorder](../../runtime/check_recorder.py), lines 15–24; [Redactor.object](../../runtime/redaction.py), lines 40–46; [RunReportWriter](../../src/TestPilot/Reporting/RunReportWriter.cs), lines 47–48. Related requirements: FR-27, FR-31, FR-36; generated identity is also affected under FR-30.
 
 CheckRecorder validates a model check, then removes secret values from every string, including status, source, and requirement ID. These changed values become the input to the verdict policy. RunJournal applies the same general transformation to worker results. The report writer also removes secrets from an already serialized JSON document, including its property names and numbers.
 
@@ -63,7 +63,7 @@ D3 and D4 are separate mistakes: missing requested work can pass, while unrelate
 
 ## D5 — P2: source context is treated as mandatory test work
 
-Locations: [RequirementCatalogue](../../src/Cimt/Execution/RequirementCatalogue.cs), lines 29–36 and 48–53; [RequirementResults.unresolved](../../runtime/requirement_results.py), lines 67–69; [action prompt](../../runtime/action_prompt.py). Related requirement: FR-27. Design decision needed for input classification.
+Locations: [RequirementCatalogue](../../src/TestPilot/Execution/RequirementCatalogue.cs), lines 29–36 and 48–53; [RequirementResults.unresolved](../../runtime/requirement_results.py), lines 67–69; [action prompt](../../runtime/action_prompt.py). Related requirement: FR-27. Design decision needed for input classification.
 
 The catalogue preserves every nonblank source block as a requirement, including document headings and table headers. The prompt correctly prevents invented passes for context, but also requires such context to remain not tested. Every not-tested row then prevents completion.
 
@@ -77,11 +77,11 @@ Resolution of document headings, 28 October 2026: the product owner requested th
 
 ## D6 — P2: instruction-defined failure rules have no execution contract
 
-Locations: [FR-31](../requirements.md), line 81; [scenario_verdict](../../runtime/check_results.py), lines 79–80; [CrashRecovery](../../runtime/crashes.py), lines 182–186; [RunOutcomePolicy](../../src/Cimt/Reporting/RunOutcome.cs), lines 24–25. Design decision needed for rule priority.
+Locations: [FR-31](../requirements.md), line 81; [scenario_verdict](../../runtime/check_results.py), lines 79–80; [CrashRecovery](../../runtime/crashes.py), lines 182–186; [RunOutcomePolicy](../../src/TestPilot/Reporting/RunOutcome.cs), lines 24–25. Design decision needed for rule priority.
 
 FR-31 says instructions define failure criteria, and defines crash-as-failure as the fallback when no criteria are supplied. The worker and final .NET policy always treat a recorded crash as failure. Neither policy receives a resolved instruction-defined failure rule. A model check cannot change that outcome.
 
-Example: an explicit test asks CIMT to trigger the app's diagnostic crash action, relaunch, and pass if recovery works. Under the present code, the recorded crash forces failure even when the stated expected behavior was observed. The same issue affects instructions that define a narrower set of failures.
+Example: an explicit test asks TestPilot to trigger the app's diagnostic crash action, relaunch, and pass if recovery works. Under the present code, the recorded crash forces failure even when the stated expected behavior was observed. The same issue affects instructions that define a narrower set of failures.
 
 Recommended design decision: define which outcome rules instructions may change. Keep crash detection and the three-attempt recovery rule independent from the verdict rule. Either implement a recorded, bounded failure policy that both runtimes enforce, or explicitly amend the requirement so crashes always fail. Do not silently change either contract during a fix.
 
@@ -89,7 +89,7 @@ Recommended design decision: define which outcome rules instructions may change.
 
 The existing development suite passes: 119 .NET unit tests, 88 Python tests, and 23 CLI/build/example checks, for 230 checks total. These passing tests do not cover the confirmed counterexamples above.
 
-Additional offline probes used real Redactor, ScreenMasker, CheckRecorder, ScenarioRunner completion, worker exit policy, RequirementCatalogue, and RunReportWriter services with invented data. The false-pass example was passed from the Python policy into the real .NET final report writer. Temporary probe files and output are under `/private/tmp/cimt-design-review-*`; the suite log is `/private/tmp/cimt-design-review-checks-20261028.log`.
+Additional offline probes used real Redactor, ScreenMasker, CheckRecorder, ScenarioRunner completion, worker exit policy, RequirementCatalogue, and RunReportWriter services with invented data. The false-pass example was passed from the Python policy into the real .NET final report writer. Temporary probe files and output are under `/private/tmp/testpilot-design-review-*`; the suite log is `/private/tmp/testpilot-design-review-checks-20261028.log`.
 
 No OpenAI calls, phone operations, real application builds, or private configuration reads were needed. The review is not real-device acceptance. Existing documented gaps—setup/replay, complete scenario planning, interruption recovery, adapter qualification, Jenkins, and second-Mac acceptance—remain open and are not counted as newly discovered defects here. No new run-folder allocation defect was confirmed in this review.
 

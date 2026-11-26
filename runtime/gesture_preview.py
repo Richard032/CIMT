@@ -30,7 +30,7 @@ class GesturePreview:
             x, y, end_x, end_y = ActionExecutor._swipe_points(resolved, elements)
             start, end = (x, y), (end_x, end_y)
 
-        screen = next(element for element in elements if element.get('type') == 'CimtScreenInfo')
+        screen = next(element for element in elements if element.get('type') == 'TestPilotScreenInfo')
         canvas = ScreenshotImage.decode(screenshot)
         scale = (canvas.width / screen['screenWidth'], canvas.height / screen['screenHeight'])
 
@@ -117,7 +117,7 @@ class GesturePreview:
         arguments.setdefault('distance', 400)
         if 'x' in arguments:
             return
-        screen = next((element for element in elements if element.get('type') == 'CimtScreenInfo'), None)
+        screen = next((element for element in elements if element.get('type') == 'TestPilotScreenInfo'), None)
         if not screen:
             raise ValueError('Swipe screen coordinate size is unavailable')
         x, y = math.floor(screen['screenWidth'] / 2), math.floor(screen['screenHeight'] / 2)

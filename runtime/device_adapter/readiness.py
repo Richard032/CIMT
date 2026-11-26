@@ -9,7 +9,7 @@ from .target import DeviceTarget
 
 
 class DeviceReadiness:
-    """Checks device locks before CIMT can perform an app action."""
+    """Checks device locks before TestPilot can perform an app action."""
 
     def __init__(self, commands, folder):
         self.commands = commands

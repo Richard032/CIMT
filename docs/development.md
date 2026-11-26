@@ -8,7 +8,7 @@ The repository rules are in [AGENTS.md](../AGENTS.md). The product requirements 
 
 ## Debug a command from the terminal
 
-Use the [CIMT debug README](../DEBUG-README.md) to attach VS Code to the C# host and Python worker from a terminal command.
+Use the [TestPilot debug README](../DEBUG-README.md) to attach VS Code to the C# host and Python worker from a terminal command.
 
 ## Keep each part small
 
@@ -32,12 +32,12 @@ Report presentation is split by responsibility: RunHtmlRenderer composes section
 
 | Location | Responsibility | How to test it |
 | --- | --- | --- |
-| src/Cimt/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
-| src/Cimt/Settings | Read YAML, validate sections, and redact secrets. | Validate in-memory nodes; replace the file reader when testing overrides. |
-| src/Cimt/Execution | Order run steps, enforce deadlines, discover devices, check out source, and build targets. | Replace ICommandRunner, IRunStep, cleanup, progress, or text input at their boundaries. |
-| src/Cimt/Reporting | Render the outcome and evidence supplied by execution finalization. | Supply saved JSON and configuration; no device or API is needed. |
-| src/Cimt/Infrastructure | Start processes and hold the Mac lock. | Use fake process runners for unit tests; keep actual lock/process checks in regression tests. |
-| tools/Cimt.BuildWorker | Read a build request, create arguments, publish, select artifacts, and write metadata. | Test command/outcome policies directly; replace IBuildProcess for workflow tests. |
+| src/TestPilot/Cli | Parse commands, load settings, and route handlers. | Supply a settings reader, readiness service, run function, and report writer. |
+| src/TestPilot/Settings | Read YAML, validate sections, and redact secrets. | Validate in-memory nodes; replace the file reader when testing overrides. |
+| src/TestPilot/Execution | Order run steps, enforce deadlines, discover devices, check out source, and build targets. | Replace ICommandRunner, IRunStep, cleanup, progress, or text input at their boundaries. |
+| src/TestPilot/Reporting | Render the outcome and evidence supplied by execution finalization. | Supply saved JSON and configuration; no device or API is needed. |
+| src/TestPilot/Infrastructure | Start processes and hold the Mac lock. | Use fake process runners for unit tests; keep actual lock/process checks in regression tests. |
+| tools/TestPilot.BuildWorker | Read a build request, create arguments, publish, select artifacts, and write metadata. | Test command/outcome policies directly; replace IBuildProcess for workflow tests. |
 
 RunState stores data only. RunCoordinator orders steps and handles failure/cleanup. It does not implement Git, builds, device access, or HTML. Production services are connected at Entry and RunEngine. There is no dependency-injection container to configure.
 
@@ -72,17 +72,17 @@ RunState stores data only. RunCoordinator orders steps and handles failure/clean
 
 Each objective has its own ScenarioSession. Workers share only the run stop signal, budget, and synchronized journal. Tests provide fake phones, agents, HTTP transport, process functions, and clocks through normal constructors. Do not bypass constructors to create test objects.
 
-CIMT runs each decision, completion review and instruction proposal as a single Agents SDK turn. The SDK uses CIMT's audited Responses model adapter. CIMT reserves budget and journals each provider request before transport, preserves provider status for response handling, and dispatches commands through its existing queue. SDK tracing and automatic retries are disabled. Reinstall the Python support runtime after upgrading to this revision to pick up the SDK dependency.
+TestPilot runs each decision, completion review and instruction proposal as a single Agents SDK turn. The SDK uses TestPilot's audited Responses model adapter. TestPilot reserves budget and journals each provider request before transport, preserves provider status for response handling, and dispatches commands through its existing queue. SDK tracing and automatic retries are disabled. Reinstall the Python support runtime after upgrading to this revision to pick up the SDK dependency.
 
 ## Run the checks
 
-On a prepared development Mac, from the CIMT folder:
+On a prepared development Mac, from the TestPilot folder:
 
 ```bash
 bash scripts/check-development.sh
 ```
 
-This runs xUnit host/build-policy tests, Python unit tests, the existing CLI/cleanup regression checks, four simulated build-contract checks, and the macOS build-adapter fixture. It does not call OpenAI, operate physical phones, or build the real MAUI application. The xUnit project pins its test dependencies; the Python tests use unittest from the standard library and the installed CIMT support dependencies.
+This runs xUnit host/build-policy tests, Python unit tests, the existing CLI/cleanup regression checks, four simulated build-contract checks, and the macOS build-adapter fixture. It does not call OpenAI, operate physical phones, or build the real MAUI application. The xUnit project pins its test dependencies; the Python tests use unittest from the standard library and the installed TestPilot support dependencies.
 
 Unit tests cover behavior at the extracted boundaries: failure precedence, deadlines, cleanup after failure, argument validation, safe HTML, build properties, metadata fallback, budget reservation, masking, rejected actions, startup crashes, repeated action crashes, reset failures, RPC parsing, and submission of every startup device with a two-worker limit. Scheduling tests use a recording executor and worker in separate one-, two-, and three-device cases. They do not use barriers, locks, temporary reports, or method replacement. The production executor uses a bounded thread pool; the small tests verify its submission contract, not physical-device concurrency. Real-device acceptance remains a separate gate.
 
@@ -116,7 +116,7 @@ Verification for this increment: 181 .NET tests, 155 Python tests, and 28 CLI/bu
 
 ## Long helper socket paths — 29 October 2026
 
-NativeHomeLink separates the short socket address from its actual run-owned storage folder. The existing xUnit project binds a real local UNIX socket through that link, without launching CIMT or a mobile helper. Other small tests check ownership, occupied addresses, dangling targets, interrupted cleanup, shared host/worker configuration, retained logs, redaction, and useful discovery errors. Tests use ordinary temporary folders and recording command boundaries, with no new project, copied source, or alternative harness.
+NativeHomeLink separates the short socket address from its actual run-owned storage folder. The existing xUnit project binds a real local UNIX socket through that link, without launching TestPilot or a mobile helper. Other small tests check ownership, occupied addresses, dangling targets, interrupted cleanup, shared host/worker configuration, retained logs, redaction, and useful discovery errors. Tests use ordinary temporary folders and recording command boundaries, with no new project, copied source, or alternative harness.
 
 The complete offline suite passes 379 checks: 196 .NET, 155 Python, and 28 CLI/build/example checks. No live API or phone was used. The user's next actual test run remains separate acceptance evidence.
 
@@ -126,7 +126,7 @@ Use the existing Python unittest suite and xUnit project. ScriptedTransport supp
 
 ## Exploration and interruption verification — 30 October 2026
 
-The Python unittest suite tests identity/ref changes, long-history retention, pending paths, observed outcomes, no-progress taps and navigation cycles, explicit repeat quotes, scenario-only blocking, prompt memory, user-stop signals/markers, and adapter-error classification. Existing xUnit tests cover cancellation between stages and at checkpoints/process boundaries, cleanup/reporting, failure precedence, and partial/final report lifecycle. The existing Cimt.Checks program adds temporary public-command probes: send one SIGINT to its own child and verify final incomplete output; force-kill a separate child after observing partial HTML and verify the atomic snapshot survives. All helpers are synthetic and remain in the existing test infrastructure. No test project, external provider, or physical device is added.
+The Python unittest suite tests identity/ref changes, long-history retention, pending paths, observed outcomes, no-progress taps and navigation cycles, explicit repeat quotes, scenario-only blocking, prompt memory, user-stop signals/markers, and adapter-error classification. Existing xUnit tests cover cancellation between stages and at checkpoints/process boundaries, cleanup/reporting, failure precedence, and partial/final report lifecycle. The existing TestPilot.Checks program adds temporary public-command probes: send one SIGINT to its own child and verify final incomplete output; force-kill a separate child after observing partial HTML and verify the atomic snapshot survives. All helpers are synthetic and remain in the existing test infrastructure. No test project, external provider, or physical device is added.
 
 ## Compact AI history verification — 30 October 2026
 

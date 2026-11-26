@@ -19,7 +19,7 @@ def state(elements):
 
 class InstructionTests(unittest.TestCase):
     def test_request_retains_screen_dimensions_without_the_full_ui_element_list(self):
-        dimensions = dict(type='CimtScreenInfo', screenWidth=1080, screenHeight=2400)
+        dimensions = dict(type='TestPilotScreenInfo', screenWidth=1080, screenHeight=2400)
         text = dict(ref='@status', type='Text', text='Loading')
         inputs = state([dimensions, text])
         self.assertEqual(inputs['elements'], [dimensions])
@@ -155,7 +155,7 @@ class InstructionTests(unittest.TestCase):
         prompt = body['input'][0]['content']
         self.assertIn('Prefer an array for multiple commands', prompt)
         self.assertIn('Commas between commands require enclosing array brackets', prompt)
-        self.assertIn('CIMT executes none of that reply', prompt)
+        self.assertIn('TestPilot executes none of that reply', prompt)
         self.assertIn('reason and expected format', prompt)
 
     def test_timed_check_example_keeps_the_triggering_command_as_the_start(self):

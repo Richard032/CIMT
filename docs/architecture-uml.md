@@ -1,4 +1,4 @@
-# Current CIMT architecture diagrams
+# Current TestPilot architecture diagrams
 
 These diagrams describe the source implementation. [Architecture decisions](architecture.md) preserve the design history. The [worker protocol](worker-protocol.md) specifies the host and worker handoff.
 
@@ -6,9 +6,9 @@ These diagrams describe the source implementation. [Architecture decisions](arch
 
 ```mermaid
 flowchart TD
-    CLI["CLI and settings<br/>src/Cimt/Cli and Settings"]
-    Run["Run orchestration<br/>src/Cimt/Execution"]
-    Build["Application build worker<br/>tools/Cimt.BuildWorker"]
+    CLI["CLI and settings<br/>src/TestPilot/Cli and Settings"]
+    Run["Run orchestration<br/>src/TestPilot/Execution"]
+    Build["Application build worker<br/>tools/TestPilot.BuildWorker"]
     Worker["Device scheduling and scenario execution<br/>runtime/run_ui.py and scenario.py"]
     Inputs["AI instruction and context<br/>runtime/ai_instructions"]
     Plan["Test planning and exploration<br/>runtime/test_planning"]
@@ -20,8 +20,8 @@ flowchart TD
     Knowledge["App knowledge and approval<br/>runtime/knowledge"]
     Editor["Local HTML editor and report review"]
     Journal["Masked evidence and worker journal<br/>runtime/evidence.py"]
-    Finish["Run finalization<br/>src/Cimt/Execution/RunFinalization.cs"]
-    Report["JSON and HTML rendering<br/>src/Cimt/Reporting"]
+    Finish["Run finalization<br/>src/TestPilot/Execution/RunFinalization.cs"]
+    Report["JSON and HTML rendering<br/>src/TestPilot/Reporting"]
 
     CLI --> Run
     Run --> Build

@@ -11,7 +11,7 @@ def identity(value):
 def app_elements(elements):
     # Ignore only known status indicators, not permission dialogs or the keyboard.
     ignored = {'com.android.systemui:id/clock', 'com.android.systemui:id/mobile_combo'}
-    return [item for item in elements if item.get('type') != 'CimtScreenInfo'
+    return [item for item in elements if item.get('type') != 'TestPilotScreenInfo'
             and item.get('identifier') not in ignored]
 
 

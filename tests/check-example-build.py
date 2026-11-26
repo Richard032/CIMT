@@ -13,7 +13,7 @@ WINDOWS_COPY = r'<Exec Command="copy /Y &quot;$(ProjectDir)Platforms\Android\Res
 
 class ExampleBuildChecks(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix='cimt-example-build-')
+        self.temporary = tempfile.TemporaryDirectory(prefix='testpilot-example-build-')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.app = self.root / 'EconMobile.Common'
@@ -35,8 +35,8 @@ class ExampleBuildChecks(unittest.TestCase):
         worker = '''#!/bin/bash
 python3 - <<'WORKER'
 import json, os, pathlib, subprocess
-request = json.loads(pathlib.Path(os.environ['CIMT_BUILD_REQUEST']).read_text())
-project = pathlib.Path(os.environ['CIMT_REPOSITORY_ROOT']) / request['project']
+request = json.loads(pathlib.Path(os.environ['TESTPILOT_BUILD_REQUEST']).read_text())
+project = pathlib.Path(os.environ['TESTPILOT_REPOSITORY_ROOT']) / request['project']
 args = ['dotnet', 'msbuild', str(project), '-nologo', '-t:PreBuild', '-p:Configuration=' + request['configuration']]
 args += ['-p:' + key + '=' + value for key, value in request['properties'].items()]
 raise SystemExit(subprocess.run(args).returncode)
@@ -45,9 +45,9 @@ WORKER
         for platform in ('android', 'ios'):
             (scripts / (platform + '.sh')).write_text(worker)
         self.environment = dict(os.environ,
-            CIMT_BUILD_REQUEST=str(self.request),
-            CIMT_REPOSITORY_ROOT=str(self.root),
-            CIMT_INSTALL_ROOT=str(self.root / 'installation'))
+            TESTPILOT_BUILD_REQUEST=str(self.request),
+            TESTPILOT_REPOSITORY_ROOT=str(self.root),
+            TESTPILOT_INSTALL_ROOT=str(self.root / 'installation'))
 
     def write_project(self, targets):
         self.project.write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>'

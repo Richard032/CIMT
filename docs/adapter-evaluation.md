@@ -8,7 +8,7 @@ Status: both candidates have Android/iPhone basic control evidence; full applica
 
 ## Decision
 
-Mobile MCP was the preferred candidate provisionally after the first Android checks. Following Xcode account recovery, Appium was the first candidate to demonstrate basic control on both physical platforms. Mobile MCP subsequently passed eight guarded iPhone smoke checks as well. **Final adapter selection is not approved by these smoke checks:** the agreed gate still requires a real MAUI application, reset, and unattended operation. CIMT retains its interchangeable adapter boundary.
+Mobile MCP was the preferred candidate provisionally after the first Android checks. Following Xcode account recovery, Appium was the first candidate to demonstrate basic control on both physical platforms. Mobile MCP subsequently passed eight guarded iPhone smoke checks as well. **Final adapter selection is not approved by these smoke checks:** the agreed gate still requires a real MAUI application, reset, and unattended operation. TestPilot retains its interchangeable adapter boundary.
 
 Both candidates have demonstrated Android control. Appium has now demonstrated iPhone UI inspection, screenshots, and navigation; Mobile MCP's separate DeviceKit helper is installed and its guarded unlocked-phone check passed. The approved full qualification gate is preserved.
 
@@ -18,7 +18,7 @@ Intel Mac, Xcode 26.5, Mobile MCP 1.0.14/native helper 1.0.21, Appium 3.9.0, UiA
 
 Probes ran under the normal user account without sudo. They opened Settings, read accessibility/UI information, captured local screenshots, and exercised navigation. No passwords were entered, application data reset, or production application replaced.
 
-Evidence and raw diagnostics remain under the private /Users/Shared/CIMT/evaluation/adapter-2026-10-28 folder; screenshots, device identifiers, profile details, and raw UI text were not committed.
+Evidence and raw diagnostics remain under the private /Users/Shared/TestPilot/evaluation/adapter-2026-10-28 folder; screenshots, device identifiers, profile details, and raw UI text were not committed.
 
 ## Observed results
 
@@ -41,7 +41,7 @@ A returned command is not proof of every expected visual transition. These are c
 
 Appium's first Android session failed with UiAutomation not connected while Mobile MCP's daemon still owned automation state. After stopping the native daemon, Appium created its session and completed UI/screenshot/navigation checks.
 
-CIMT must give one adapter exclusive ownership of each device and clean up its sessions/helpers. The maximum two-device policy means two different devices, not two competing adapters on one phone.
+TestPilot must give one adapter exclusive ownership of each device and clean up its sessions/helpers. The maximum two-device policy means two different devices, not two competing adapters on one phone.
 
 ## iPhone signing findings
 
@@ -55,7 +55,7 @@ The first dedicated WebDriverAgent build with automatic provisioning exited 65 b
 
 Mobile MCP's structured tool vocabulary and accessibility refs fit the intended autonomous action loop; the Android result includes identifiers/bounds needed for later element-ID masking. That original preference was an engineering inference. Both candidates now have basic Android/iPhone control evidence. Mobile MCP's guarded iPhone check passed after unlocking; complete MAUI workflows remain unproved. The original preference remains provisional and the final decision must follow the remaining gate.
 
-Credential input/logging and element masking still require CIMT-side controls; direct adapter logging must not leak secrets.
+Credential input/logging and element masking still require TestPilot-side controls; direct adapter logging must not leak secrets.
 
 ## Reproduction
 
@@ -67,7 +67,7 @@ With the prerequisite environment active:
 - scripts/evaluate-appium.py --output <same-private-evidence-folder> --platform android
 - iPhone session evaluation additionally needs the appropriate Apple team/signing setup.
 
-These are engineering probes, not CIMT's eventual user-facing test commands. Close sessions and stop the temporary Appium server afterward.
+These are engineering probes, not TestPilot's eventual user-facing test commands. Close sessions and stop the temporary Appium server afterward.
 
 ## Remaining gate
 
@@ -109,6 +109,6 @@ The temporary MCP client and native daemon were stopped. DeviceKit remains insta
 
 Both connected platforms passed the production lossless-PNG capture and element-ID masking smoke check. Android returned 1080 × 2340 pixels; iPhone returned 828 × 1792 pixels. The selected visible mask was black, its UI text was hidden, and image metadata was absent. Checks ran sequentially without navigation, typing, app resets, AI calls, or a real MAUI build. No raw screen image or UI response was saved.
 
-The connected iPhone initially had no DeviceKit installed. Installing it with an existing profile matching the phone and an available signing identity restored UI access; the repeated check passed. Connection and pairing must therefore be checked separately from helper installation. No CIMT product-code change was needed. See [installation section 22](installation-notes.md#22-connected-device-masking-check--29-october-2026) and [masking limits](screenshot-masking.md).
+The connected iPhone initially had no DeviceKit installed. Installing it with an existing profile matching the phone and an available signing identity restored UI access; the repeated check passed. Connection and pairing must therefore be checked separately from helper installation. No TestPilot product-code change was needed. See [installation section 22](installation-notes.md#22-connected-device-masking-check--29-october-2026) and [masking limits](screenshot-masking.md).
 
 This adds physical capture/masking evidence. It does not establish real credential-entry, orientation changes, simultaneous two-device operation, application reset/crash handling, or unattended Jenkins acceptance. Final adapter selection remains open.

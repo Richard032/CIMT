@@ -1,4 +1,4 @@
-"""Map registered SDK tools to CIMT commands and report observed results."""
+"""Map registered SDK tools to TestPilot commands and report observed results."""
 
 import json
 import math
@@ -193,7 +193,7 @@ class ToolTurn:
                       else command(dict(values, action=name)))
         self.reply['modelResponse'] = original_tool_call(self.original_calls[0])
         self.reply['toolCall'] = dict(self.call, reasoning=self.reasoning)
-        return 'Command accepted for CIMT dispatch.'
+        return 'Command accepted for TestPilot dispatch.'
 
     def reject(self, reason):
         self.reply = command({})

@@ -6,7 +6,7 @@ Implements FR-101 / AC-71. The source is verified offline; installation and live
 
 ## Execution contract
 
-Before the next testing decision, CIMT supplies every result of the previous batch through the normal AI request. Successful batches receive the same complete path feedback as unsuccessful batches, without an acknowledgement-only inference call. AI decides the meaning of observations and whether to continue, recover or finish.
+Before the next testing decision, TestPilot supplies every result of the previous batch through the normal AI request. Successful batches receive the same complete path feedback as unsuccessful batches, without an acknowledgement-only inference call. AI decides the meaning of observations and whether to continue, recover or finish.
 
 The sequence is:
 
@@ -20,11 +20,11 @@ Command results include the action and requested target, actual execution status
 
 For a timed observation, record the triggering command's UTC time from `completedAt` and compare it with the later command's `observedAt` or the current evidence's capture time. Each command result has its own capture time even when its observation ID is reused. Preserve the original time in the AI's context summary or retain that batch for later decisions.
 
-The wait command accepts a nonnegative integer `durationMs`. Omitting it or using null waits for two seconds. The wait counts toward the run deadline and can be interrupted. Its action feedback reports the requested duration, the elapsed wait measured by CIMT, and whether the wait completed.
+The wait command accepts a nonnegative integer `durationMs`. Omitting it or using null waits for two seconds. The wait counts toward the run deadline and can be interrupted. Its action feedback reports the requested duration, the elapsed wait measured by TestPilot, and whether the wait completed.
 
 The classifications are changed, no observed change and observation unavailable. Comparing complete masked UI/image identities records an observed difference; it does not prove the command caused it, that it is relevant, or that behavior is correct. Structural screen identities and existing repetition signals remain separate. Controls such as recall or deferred finish are marked not applicable for UI change. Cancelled/unexecuted commands have no manufactured after-observation. A successful dispatch does not pass a requirement.
 
-An independent change found during a fresh observation or existing recovery capture is a separate path event in its actual position. CIMT does not add a new polling loop to guess unseen transitions. Every registered intermediate UI remains available through its full observation ID in the existing catalogue.
+An independent change found during a fresh observation or existing recovery capture is a separate path event in its actual position. TestPilot does not add a new polling loop to guess unseen transitions. Every registered intermediate UI remains available through its full observation ID in the existing catalogue.
 
 ## References and delivery
 
@@ -32,7 +32,7 @@ BatchFeedback stores scenario-local ordered data without provider, device or fil
 
 Each resolved batch contains its initial reference, ordered path, referenced observation metadata and warning records. Observation metadata points to the registered screenshot and full masked UI record rather than embedding pixels or full UI trees. New paths appear in top-level batchFeedback, and currentWarnings supplies present system warnings, including before the first batch. These resources remain present when the AI omits optional history.
 
-A completed reply marks pending feedback supplied to AI. If a run stops before another request is allowed, results remain local with explicit unsupplied delivery status. Shared time, spending, cancellation, provider/privacy and infrastructure rules remain authoritative; they are not bypassed to send feedback. Actual requests retain normal budget reservation/accounting. Whole provider limits still apply; CIMT does not trim path steps to make them fit.
+A completed reply marks pending feedback supplied to AI. If a run stops before another request is allowed, results remain local with explicit unsupplied delivery status. Shared time, spending, cancellation, provider/privacy and infrastructure rules remain authoritative; they are not bypassed to send feedback. Actual requests retain normal budget reservation/accounting. Whole provider limits still apply; TestPilot does not trim path steps to make them fit.
 
 Older batches remain available through the batches collection and exact AI-selected IDs/ranges. Their full UI and registered historical pixels remain available through the existing observation/screenshot resources. AI exclusively selects historical relevance; new execution feedback is a required resource frame, not a host-selected history summary.
 

@@ -48,7 +48,7 @@ class ActionExecutor:
             # The AI may use earlier knowledge. Let the adapter resolve its target.
             mobile.call("mobile_click_on_screen_at_coordinates", ref=action["ref"])
             return
-        size = next(element for element in elements if element.get("type") == "CimtScreenInfo")
+        size = next(element for element in elements if element.get("type") == "TestPilotScreenInfo")
         x, y = action["x"], action["y"]
         if (
             type(x) is not int
@@ -135,7 +135,7 @@ class ActionExecutor:
             x, y = bounds['x'] + bounds['width'] / 2, bounds['y'] + bounds['height'] / 2
         if not cls._number(x) or not cls._number(y) or x < 0 or y < 0:
             raise ValueError('Swipe requires both finite nonnegative x/y coordinates')
-        screen = next((element for element in elements if element.get('type') == 'CimtScreenInfo'), {})
+        screen = next((element for element in elements if element.get('type') == 'TestPilotScreenInfo'), {})
         width, height = screen.get('screenWidth'), screen.get('screenHeight')
         if not cls._number(width) or not cls._number(height) or width <= 0 or height <= 0:
             raise ValueError('Swipe screen coordinate size is unavailable')
@@ -158,7 +158,7 @@ class ActionExecutor:
         if not cls._number(end_x) or not cls._number(end_y):
             raise ValueError('Swipe endpoint must be finite')
         points = [x, y, end_x, end_y]
-        screen = next(element for element in elements if element.get('type') == 'CimtScreenInfo')
+        screen = next(element for element in elements if element.get('type') == 'TestPilotScreenInfo')
         sizes = [screen['screenWidth'], screen['screenHeight']] * 2
         if any(not 0 <= point < size for point, size in zip(points, sizes)):
             raise ValueError('Native swipe start or endpoint is outside the current device screen')
