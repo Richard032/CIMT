@@ -1162,12 +1162,14 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual([row["matchingAttempt"] for row in result["crashes"]], [1, 2, 3])
         for batch in result['batchFeedback']['batches']:
             self.assertEqual(batch['path'][0]['error'], 'unexpected termination / suspected crash')
-        self.assertEqual(result["verdict"], "failed")
+        self.assertEqual(result["verdict"], "inconclusive")
         self.assertEqual(result["completion"], "incomplete")
+        self.assertEqual(result_exit_code([{"error": None, "stoppingReason": None, "scenarios": [result]}]), 2)
 
     def test_three_startup_terminations_do_not_call_the_agent(self):
         result, agent = self.run_scenario(FakeMobile(self.root, foreground=["home"] * 3), [])
         self.assertEqual(len(result["crashes"]), 3)
+        self.assertEqual(result["verdict"], "inconclusive")
         self.assertFalse(agent.calls)
 
     def test_reset_failure_prevents_any_agent_action(self):
@@ -1221,7 +1223,7 @@ class ScenarioTests(unittest.TestCase):
                 mobile, self.build, result, FakeAgent([action("tap", ref="@e1")]), lambda: None
             )
         scenario = result["scenarios"][0]
-        self.assertEqual(scenario["verdict"], "failed")
+        self.assertEqual(scenario["verdict"], "inconclusive")
         self.assertEqual(len(scenario["crashes"]), 1)
         self.assertEqual(scenario["steps"][-1]["action"]["action"], "tap")
         self.assertIn("evidenceError", scenario["steps"][-1])

@@ -52,6 +52,23 @@ public sealed class OutcomeTests
         Assert.Equal(exit, RunOutcomePolicy.Evaluate(0, execution, expectedScopes: scopes).ExitCode);
     }
 
+    [Theory]
+    [InlineData("unexpected termination / suspected crash", 2, "inconclusive")]
+    [InlineData("unexpected startup termination / suspected crash", 2, "inconclusive")]
+    [InlineData("confirmed crash report", 1, "failed")]
+    public void CrashOutcomeUsesEvidenceKind(string kind, int exit, string verdict)
+    {
+        var execution = JsonSerializer.SerializeToElement(new
+        {
+            devices = new[] { new { scenarios = new[] { new
+            {
+                verdict = "passed", completion = "complete", crashes = new[] { new { kind } }
+            } } } }
+        });
+        Assert.Equal(exit, RunOutcomePolicy.Evaluate(0, execution).ExitCode);
+        Assert.Equal(verdict, RunOutcomePolicy.Evaluate(0, execution).Verdict);
+    }
+
     [Fact]
     public void InvalidCheckStatusCannotBeHiddenByAPassedScenario()
     {

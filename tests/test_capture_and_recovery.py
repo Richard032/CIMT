@@ -319,7 +319,7 @@ class CrashEvidenceTests(unittest.TestCase):
         guard = StartupGuard(fixture, fixture, fixture.publish)
         with self.assertRaises(OSError):
             guard.check(fixture.session)
-        self.assertEqual(fixture.session.result["verdict"], "failed")
+        self.assertEqual(fixture.session.result["verdict"], "inconclusive")
         self.assertEqual(fixture.published_crashes, [1, 1])
 
 

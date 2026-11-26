@@ -31,6 +31,12 @@ def check(status="passed", source="instructions"):
 
 
 class StoppingPolicyTests(unittest.TestCase):
+    def test_suspected_termination_cannot_be_reported_as_passed(self):
+        self.assertEqual(scenario_verdict([check()], False, True, suspected_crash=True), "inconclusive")
+
+    def test_confirmed_crash_still_fails_with_suspected_termination(self):
+        self.assertEqual(scenario_verdict([check()], True, True, suspected_crash=True), "failed")
+
     def test_launch_failure_stops_only_the_affected_device(self):
         self.assertFalse(stops_entire_run(AppLaunchError('Could not launch the app')))
 

@@ -5,6 +5,7 @@ its decisions and keep the evidence that explains why testing stopped.
 """
 
 from errors import AppLaunchError, DeviceLocked
+from check_results import crash_evidence
 
 
 def stops_entire_run(error):
@@ -22,7 +23,7 @@ def result_exit_code(results):
     if any(device["error"] for device in results):
         return 3
     if any(
-        scenario["crashes"] or scenario.get("verdict") == "failed"
+        crash_evidence(scenario["crashes"])[0] or scenario.get("verdict") == "failed"
         for device in results
         for scenario in device["scenarios"]
     ):
@@ -38,6 +39,7 @@ def _incomplete(device):
         or not device["scenarios"]
         or any(
             scenario["completion"] != "complete" or scenario.get("verdict") != "passed"
+            or crash_evidence(scenario["crashes"])[1]
             for scenario in device["scenarios"]
         )
     )

@@ -134,7 +134,7 @@ public sealed class ExecutionTests : IDisposable
     {
         var execution = JsonSerializer.Deserialize<JsonElement>("""
             {"devices":[{"stoppingReason":"limit","error":null,
-            "scenarios":[{"crashes":[{}],"completion":"incomplete"}]}]}
+            "scenarios":[{"crashes":[{"kind":"confirmed crash report"}],"completion":"incomplete"}]}]}
             """);
         var outcome = RunOutcomePolicy.Evaluate(exit, execution);
         Assert.Equal(expected, outcome.ExitCode);

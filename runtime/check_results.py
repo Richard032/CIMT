@@ -46,7 +46,14 @@ CHECK_SCHEMA = {"anyOf": [
 ]}
 
 
-def scenario_verdict(checks, has_crash, complete, requirements=None):
+def crash_evidence(crashes):
+    """Separate diagnostic-confirmed crashes from unconfirmed terminations."""
+    confirmed = any(row.get("kind") == "confirmed crash report" for row in crashes)
+    suspected = any(row.get("kind") != "confirmed crash report" for row in crashes)
+    return confirmed, suspected
+
+
+def scenario_verdict(checks, has_crash, complete, requirements=None, *, suspected_crash=False):
     """A known failure stays failed. Finishing navigation alone cannot prove a pass."""
     requirements = requirements or []
     # Retain old observations, but do not judge an overridden expectation as a failure.
@@ -62,7 +69,7 @@ def scenario_verdict(checks, has_crash, complete, requirements=None):
         return 'inconclusive'
     if any(row["status"] in ["not tested", "inconclusive"] for row in requirements):
         return "inconclusive"
-    if not complete or not checks:
+    if suspected_crash or not complete or not checks:
         return "inconclusive"
     # Later evidence may resolve an unknown check. Keep every observation in the report.
     latest = {
