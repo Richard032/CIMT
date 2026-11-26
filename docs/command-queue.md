@@ -14,7 +14,7 @@ AI owns the testing logic: what to test, which actions to choose and which histo
 
 ## Decoding and order
 
-The Responses text transport accepts one JSON object, an array of objects, or consecutive JSON objects, with optional whitespace between them. For example, these commands execute tap before back:
+The default agent supports registered tool calls as described in [decision agent](decision-agent.md#registered-tools). A tool call is translated to a command without operating the device. The Responses text transport also accepts one JSON object, an array of objects, or consecutive JSON objects, with optional whitespace between them. For example, these commands execute tap before back:
 
 ```json
 [
@@ -57,11 +57,11 @@ An executed command is not a passed requirement or proof of a correct applicatio
 
 JSON and HTML retain batch/order/state, actual step number and reason. The HTML Devices scenario shows the queue separately from the action steps and exposes one complete reply per batch. Escaping prevents reply text from becoming HTML. RecordRedactor and ExecutionRedactor preserve host-generated identities/control metadata while scrubbing free text at both boundaries. Existing reports are not rewritten.
 
-The commands context collection exposes the stored rows using existing AI-owned exact selection. AI can select an id, latest, an exact @range or the whole collection. Counts remain in the resource catalogue. The host does not automatically include a relevant subset or silently trim command history. The existing payload allowance can request a smaller AI selection without deleting local records.
+The commands context collection exposes the stored rows using existing AI-owned exact selection. AI can select an id, latest, an exact @range or the whole collection. Counts remain in the resource catalogue. The host does not automatically include a relevant subset or silently trim command history. There is no separate local history byte allowance or automatic deferral. Provider context limits and shared budget admission still apply to the complete request.
 
 ## Cost, packaging and verification
 
-A provider reply containing several commands incurs one inference request. Taking another queued command makes no new provider call. Success adds no acknowledgement call; issue feedback is part of the next normal decision request, not an additional request. Device observation work, shared accounting, time and cancellation checks remain. A fresh request after failure/recovery uses the configured model and normal budget reservation. Offline checks do not establish measured savings or live exploration quality.
+A provider reply containing several commands incurs one inference request. Taking another queued command makes no new provider call. Success adds no acknowledgement call; complete successful and failing batch feedback is part of the next normal decision request, not an additional request. Device observation work, shared accounting, time and cancellation checks remain. A fresh request after failure/recovery uses the configured model and normal budget reservation. Offline checks do not establish measured savings or live exploration quality.
 
 Install the matching .NET report host and Python runtime together. The existing installer includes command_queue.py with the top-level runtime modules. No third-party source change, package dependency, public CLI command, YAML field, model or key is added.
 
@@ -69,46 +69,55 @@ Existing unittest suites cover decoding, FIFO state, one-request batches, action
 
 ```mermaid
 sequenceDiagram
-    participant Agent as DecisionAgent
+    participant Run as ScenarioRunner
     participant Inputs as AI Instruction and Context
-    participant Decode as Command Decoder
-    participant Queue as Scenario FIFO Queue
-    participant Run as Execution
+    participant Agent as DecisionAgent
+    participant Queue as Scenario FIFO queue
     participant Device as Device Adapter
-    participant Store as Records and HTML
+    participant Reviewer as CompletionReviewer
+    participant Store as Evidence and report snapshots
 
-    Run->>Inputs: Prepare sources, fresh masked UI and AI-selected context
-    Inputs-->>Run: Instructions, resources and command descriptions
-    Run->>Agent: Request a decision under shared limits
-    Agent->>Decode: Default agent decodes provider reply
-    Decode-->>Agent: Normalized commands and optional records
-    Agent-->>Run: Return command batch
+    Run->>Inputs: Prepare sources, fresh masked UI and pending complete batch paths
+    Inputs-->>Run: Decision inputs and exact AI-selected history
+    Run->>Agent: Request next decision under shared limits
+    Agent-->>Run: Translated tool command or fully decoded text batch
     Run->>Queue: Append objects in received order
-    Queue->>Store: Save all commands and redacted original reply
-    loop Until queue empty, AI finish, recovery or execution stop
+    Run->>Store: Publish received commands and redacted original reply
+    loop Until empty, handoff, recovery, finish or execution stop
         Run->>Run: Check shared stop, startup and foreground
         Run->>Queue: Take next command
-        Queue-->>Run: Command and batch/order identity
-        Run->>Store: Apply optional records and save started state
-        alt Device action
-            Run->>Device: Execute AI-selected command
-            Device-->>Run: Actual outcome and post-action masked observation
-            Run->>Store: Save action step, evidence and queue status
-        else Note, recall, recover or done
-            opt First-command done with no prior review
-                Run->>Run: Ask independent reviewer for advisory feedback
+        Queue-->>Run: Command with batch and position
+        alt Done behind earlier commands
+            Run->>Queue: Defer done and leave tail unexecuted
+            Run->>Store: Save handoff without predicted checks or completion
+        else First-command done
+            opt Review has not run
+                Run->>Reviewer: Ask for independent advisory review
+                Reviewer-->>Run: Agree, revise or unavailable
             end
-            Run->>Store: Record handling without a device action
-        end
-        opt Failure, recovery, done or execution stop
-            Run->>Queue: Cancel pending commands on execution failure; otherwise retain unexecuted tail
-            Queue->>Store: Publish queue state
+            Run->>Store: Finish, or retain reconsideration feedback and cancel pending tail
+        else Device action
+            Run->>Store: Apply optional records and save started state
+            Run->>Device: Dispatch chosen action
+            Device-->>Run: Actual execution status
+            opt Command cannot execute
+                Run->>Queue: Cancel pending tail before observing
+            end
+            Run->>Device: Existing post-action crash check and masked capture
+            Device-->>Run: Observation or capture failure
+            Run->>Store: Save command result, warnings and evidence references
+        else Note, recall or recover
+            Run->>Store: Handle without device action
+            opt Recovery
+                Run->>Queue: Leave remaining batch unexecuted
+            end
         end
     end
-    opt Scenario continues and another AI decision is needed
-        Run->>Inputs: Prepare fresh evidence and exact selected records, including commands
-        Inputs-->>Run: Sources/context; issue feedback only when present, no success acknowledgement
-        Run->>Agent: Decide the next commands and context selection
+    alt Another decision is allowed
+        Run->>Inputs: Complete ordered path, including successful and unchanged results
+        Note over Run,Agent: Continue with next normal decision, without acknowledgement-only inference
+    else Execution stopped
+        Run->>Store: Keep unsupplied results and unexecuted commands with reasons
     end
 ```
 

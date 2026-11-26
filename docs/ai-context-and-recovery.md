@@ -35,7 +35,7 @@ Available collections are commands, actions, decisions, observations, screenshot
 
 Task, requirement, state and path addresses use their stable IDs. Configuration uses its generated control ID. Commands, accepted decisions, actions, checks and transitions also have zero-based addresses. Commands retain batch/order/status and any reason why they were not executed; they are plans until dispatch. Every collection accepts @0 for its first record and @3:7 for the exact half-open range selected by AI. Unknown/out-of-range addresses return resource feedback without clipping to a different selection or blocking commands. latest follows the newest record only when explicitly selected by AI. Routes use the task ID and contain verified observed edges to that task's AI-selected targetState. Empty routes are not evidence of successful navigation.
 
-An action of recall changes context and requests another model decision without a tap, swipe, wait, restart or reset. This lets AI inspect omitted records before acting. Accepted response/selection records remain in decisions, including recall and recovery requests. Device action history remains in actions. observations retains the already captured masked UI data; screenshots exposes stable addresses of saved masked images; the AI can retrieve an older screen without relying on its summary or adding a new device query. Historical pixels are sent only when explicitly selected by AI, are labelled as historical, and must still match the registered image digest. Identical current/historical pixels share one image payload. Evidence-name reuse preserves earlier images instead of replacing them. Retrieval and filtering consume API budget; update the summary/selection with normal decisions when possible instead of adding a separate filtering call to every step.
+An action of recall changes context without a tap, swipe, wait, restart or reset. Remaining commands in its batch run first; the updated selection is used when execution next requests a decision. This lets AI inspect omitted records before acting. Accepted response/selection records remain in decisions, including recall and recovery requests. Device action history remains in actions. observations retains the already captured masked UI data; screenshots exposes stable addresses of saved masked images; the AI can retrieve an older screen without relying on its summary or adding a new device query. Historical pixels are sent only when explicitly selected by AI, are labelled as historical, and must still match the registered image digest. Identical current/historical pixels share one image payload. Evidence-name reuse preserves earlier images instead of replacing them. Retrieval and filtering consume API budget; update the summary/selection with normal decisions when possible instead of adding a separate filtering call to every step.
 
 Current UI evidence, execution scope, fixed permission/safety instructions and collection counts form the protocol frame. These are not a host-selected relevance subset. AI may select current or earlier refs; the adapter returns whether the requested ref is usable. Full requirement records remain available even when AI omits them from its working context; unresolved catalogue items still prevent complete coverage.
 
@@ -75,51 +75,56 @@ Map identity distinguishes screen structure, observed input values and last-obse
 
 HTML shows AI-selected working context, source-linked tasks, path scope, the application map and AI-directed recovery. Recovery entries identify trigger, reason, AI decision/explanation and waiting/continued/blocked status. A waiting entry after cancellation means no completed recovery decision was recorded. JSON retains full redacted AI replies, optional decisions, selections and resource feedback; HTML exposes the original replies as escaped text. The run overview includes available input/output/cache counts and request-purpose usage records. Both report boundaries redact text while preserving typed IDs. Historical reports remain unchanged.
 
-Existing offline suites cover AI-only selection, exact paging, action-free retrieval, capacity-only reduction requests, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new TestPilot app run is part of this source increment. FR-97 keeps Mobile MCP and separates the input-only layer from command decoding and execution; see [AI Instruction and Context](ai-instruction-context.md).
+Existing offline suites cover AI-only selection, exact paging, action-free retrieval, selected context without local byte deferral, task identity after redaction, historical-check replay, passive status changes, route refinement, repeated recovery beyond three episodes, AI-detected loops, cancellation, reporting and shared accounting. These do not establish live exploration quality or cost savings. Future user-authorised comparisons should measure requirement completion, useful coverage, repeated actions, recovery success, lost evidence, note-only replies, latency and total usage including filtering/recovery. No new TestPilot app run is part of this source increment. FR-97 keeps Mobile MCP and separates the input-only layer from command decoding and execution; see [AI Instruction and Context](ai-instruction-context.md).
 
 ## Sequence
 
 ```mermaid
 sequenceDiagram
-    autonumber
     actor User
-    participant Run as TestPilot Execution
+    participant Run as Execution
+    participant Inputs as AI Instruction and Context
     participant Memory as Planning and Exploration
-    participant AI as Configured OpenAI Model
+    participant Agent as DecisionAgent
     participant Device as Device Adapter
-    participant Report as Local Records and Reports
+    participant Report as Local records and reports
 
     User->>Run: Configuration, instructions and requirements
-    Run->>Memory: Initialise source-linked records
-    Run->>Device: Prepare app and capture masked evidence
-    Device-->>Run: Current UI and screenshot
-
-    loop Until complete, blocked, cancelled or limited
-        Memory-->>Run: Exact AI-selected context and record counts
-        Run->>Run: Check capacity, time and spending limits
-        Run->>AI: Instructions, masked evidence and selected context
-        AI-->>Run: Command or note, optional records and context updates
-        alt AI requests omitted records
-            Run->>Memory: Apply exact recall addresses
-            Memory-->>Run: Requested records or resource feedback
-        else Reply has no readable command object
-            Run->>AI: No command dispatched, resource feedback
-        else Repetition signal or AI-detected loop
-            Run->>Device: Refresh masked evidence without an app action
-            Device-->>Run: Fresh state
-            Run->>AI: Recovery request and repetition facts
-            AI-->>Run: Recall records, revise approach or finish
-            Note over Run,AI: No structured acknowledgement gate
-        else AI finishes
-            Run->>Memory: Retain any unresolved work for the report
-        else Decoded commands queued in FIFO order
-            Run->>Device: Execute each queued action with normal per-action checks
-            Device-->>Run: Actual outcome or interaction error
-            Run->>Memory: Record actual action, transition and outcome
+    Run->>Memory: Initialize source-linked records
+    Run->>Device: Prepare app and capture initial masked evidence
+    loop While another decision is allowed
+        Run->>Inputs: Refresh evidence and assemble next request
+        Inputs->>Device: Capture fresh masked observation
+        Device-->>Inputs: Current screen and image
+        Inputs->>Memory: Retrieve exact AI-selected records and recovery notice
+        Memory-->>Inputs: Selected records, counts and unavailable-address feedback
+        Inputs-->>Run: Original inputs, current evidence and mandatory pending batch results
+        Run->>Agent: Decide under shared cancellation, deadline and counted-input budget gate
+        Agent-->>Run: Commands and optional AI-owned context or planning records
+        loop Commands in FIFO order until handoff or stop
+            alt Recall or note
+                Run->>Memory: Retain AI selection and records without a device action
+            else AI requests recovery
+                Run->>Device: Refresh masked evidence
+                Run->>Memory: Record recovery notice and leave batch tail unexecuted
+            else First-command done
+                Run->>Run: Apply single advisory completion review if not already used
+                Run->>Memory: Retain unresolved work when finishing
+            else Deferred done behind actions
+                Run->>Memory: Retain actual batch path for a new decision
+            else Device action
+                Run->>Device: Execute selected action and capture outcome
+                Device-->>Run: Actual outcome and masked observation
+                Run->>Memory: Record action, transition and repetition facts
+                opt Repetition detected after execution
+                    Run->>Memory: Open recovery notice and leave pending commands unexecuted
+                    Note over Run,Agent: Next normal request includes fresh evidence; no semantic acknowledgement gate
+                end
+            end
         end
-        Run->>Report: Publish decisions, evidence, recovery and usage
+        Run->>Report: Publish decisions, ordered results, evidence, recovery and usage
     end
-    Run->>Report: Finalise outcome, stopping reason and remaining work
+    Run->>Report: Finalize outcome, stopping reason and remaining work
     Report-->>User: HTML report
 ```
 
@@ -138,7 +143,7 @@ Exclusive AI ownership of relevance is TestPilot's approved product choice, not 
 | Requirement | Implementation | Existing-suite validation |
 | --- | --- | --- |
 | FR-88: AI relevance ownership | ContextMemory, TestPlanner, ActionPromptBuilder | ContextSelectionTests, MappingPromptTests |
-| FR-89: every detected loop recovers | LoopRecovery, DecisionRecovery, ScenarioRunner | ScenarioTests: repeated recovery, AI-detected loops, recall, blocking and cancellation |
+| FR-89: every detected loop recovers | LoopRecovery, AiInteraction, ScenarioRunner | ScenarioTests: repeated recovery, AI-detected loops, recall, blocking and cancellation |
 | FR-90: efficient recoverable context | ContextMemory paging/retain, ScenarioEvidence, Agent | HistoricalImageTests, scenario screenshot selection |
 | FR-91: stable task/check identity | TestPlan, CheckRecorder, typed redactors | PlanningRegressionTests, redaction suites |
 | FR-92: mapping/progress corrections | screen_model, ApplicationMap, ExplorationMemory | PlanningRegressionTests, existing map/control tests |

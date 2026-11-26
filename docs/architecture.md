@@ -5,7 +5,7 @@ The [current UML and layer map](architecture-uml.md) describe the implemented in
 **Current decision context:** Each request contains original instructions, fresh masked evidence, feedback, and selected scenario records. Previous chat messages are not sent. The AI may explicitly select registered historical screenshots.
 
 Documentation baseline: 1.0
-Updated: 14 November 2026
+Updated: 26 November 2026
 Status: approved architecture with dated implementation increments; Mobile MCP selected, release qualification open
 Authority: [confirmed requirements](requirements.md)
 
@@ -27,7 +27,7 @@ Approved implementation: a .NET command-line application, shell script for Mac s
 
 See the [current component and dependency diagram](architecture-uml.md#layers-and-dependencies).
 
-The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the TestPilot lifecycle, evaluation policy, or strict cost cap.
+The device-control bridge is separate from the AI gateway. An MCP server can provide device tools, but does not by itself implement the TestPilot lifecycle, evaluation policy, or counted-input budget admission and usage accounting.
 
 | Component | Responsibility under approved structure |
 | --- | --- |
@@ -44,22 +44,20 @@ The device-control bridge is separate from the AI gateway. An MCP server can pro
 | Report renderer | Produce local HTML with relative evidence links, including a partial report without further AI calls. |
 | Finalizer | After cleanup and the proposal attempt, calculate the outcome from worker evidence and coverage. Supply the outcome to reporting and return its exit code. |
 
-## 3. Proposed execution lifecycle
+## 3. Implemented execution lifecycle
 
-1. Establish a local run folder and acquire the Mac-wide lock. A rejected concurrent invocation must not alter the active run.
-2. Load/merge/validate configuration. Verify the secret file's access restrictions.
-3. Snapshot connected devices; verify reachability, trust, and compatibility. No devices means report and stop.
-4. Resolve instruction, requirements, and setup text. Start tracking an end-to-end deadline from invocation; startup, builds, and AI calls consume the run limit.
-5. Clone the configured Git URL under the working root. Record branch and resolved commit.
-6. Build every configured target for required platforms. Failed targets are recorded; remaining builds proceed.
-7. Create a scenario plan, recording inferred boundaries, ambiguities, requirement mappings, and instruction overrides.
-8. Queue compatible target/device combinations. Run at most two device workers; keep a device's tasks sequential.
-9. For each scenario: reset application state, perform required setup/login, execute exact or exploratory actions, and persist screenshots and observations after each step.
-10. Recover app crashes. On the third matching same-point crash, cancel that scenario only. Continue other scenarios.
-11. Stop on completed coverage, run deadline, budget exhaustion, user interruption, or a blocking infrastructure failure. Cancel active work through the orchestrator, not independent worker decisions.
-12. Finalize observations into HTML, stop/release the owned helper, retain work/build outputs/evidence, and release the lock. Earlier work for those inputs is removed only immediately before a later clone.
+1. Select the input/output location, acquire the machine lock, load and validate settings, then allocate the run/report. A rejected concurrent invocation must not alter the active run. Track the invocation deadline throughout execution.
+2. Resolve and snapshot instruction, requirement and setup text; check the installed runtime. For replay, load and verify the matching retained build set before preparing work.
+3. Prepare owned working paths. Apply the optional OpenAI preflight checkpoint, check runtime/model access without inference, then take the startup device snapshot.
+4. For `run`, apply the optional repository/build checkpoint, clone the configured branch, initialize recorded submodules, build each configured target/platform and retain usable artifacts. A failed target does not prevent the remaining target builds. `replay` skips Git, restore and build.
+5. Apply the optional AI-testing checkpoint when usable artifacts exist. Schedule eligible target/device pairs with at most two active device workers. Prepare the adapter once per worker and run that device's scenarios sequentially.
+6. For each scenario, reset app data, copy configured fixtures, launch and wait for the fixed 20-second settling interval. Capture masked evidence and provide source inputs, selected history and current controls to AI. Execution applies the returned queue in order and retains every result.
+7. Recover confirmed crashes under the three-matching-crash policy. Isolate local launch/device-lock failures; apply shared infrastructure, privacy, deadline, budget and cancellation policy independently. AI owns test actions, interpretation and finish; unresolved work remains incomplete.
+8. Clean up the owned helper and retain redacted logs. Keep work/build outputs. Earlier work is removed only immediately before a later clone, never during replay or finalization.
+9. Attempt the instruction/setup proposal and, with Learning enabled, an independent knowledge proposal. Use retained partial evidence, separate bounded post-run time windows and the shared ledger; authorized proposals may exceed the testing budget. Failed proposals retain an unavailable explanation and do not change the test verdict.
+10. Validate the saved worker results, calculate coverage/outcome/exit code and write final JSON/HTML. Register the finalized report with the installed knowledge viewer; optionally open the browser in an interactive macOS terminal. Release the machine lock when the invocation ends.
 
-The report must survive a failure of the model service. Reporting and cleanup cannot depend on another paid AI request.
+Cleanup and local reporting do not require a model response. Proposal inference is optional to the report's survival; if it fails, local finalization still uses recorded evidence. See [the run/replay sequence](architecture-uml.md#run-replay-and-finalization-sequence).
 
 Hard termination or host failure cannot guarantee helper shutdown. Record ownership before use, stop/release verified abandoned helpers on a later run, and preserve work/reports. Earlier work for those inputs is removed only at a new clone boundary; see section 20. Never delete unrelated folders.
 
@@ -126,7 +124,7 @@ Legacy workspace.root and reports.root are accepted to preserve private configur
 
 The OpenAI transport counts the same model input used for generation. AiServices journals the request and asks Budget to reserve the counted input cost. The shared ledger admits a request only if its counted input cost fits. Each retry has its own count and reservation.
 
-Budget settles full reported usage even when the output charges take the run over budget. If usage is missing or the process exits with a request in flight, the ledger retains the counted input cost plus the full output cap as uncertain. The budget is an admission estimate and actual spending can exceed it. See [the run engine](run-engine.md#budget-deadline-and-stopping) for the current policy.
+Budget settles full reported usage even when the output charges take the run over budget. If usage is missing or the process exits with a request in flight, the ledger retains the counted input cost plus the full output cap as uncertain. The budget is an admission estimate and actual spending can exceed it. Authorized post-run instruction and knowledge proposals bypass counted-input budget admission, retain separate bounded time windows, and settle into the same ledger without changing the test verdict. See [the run engine](run-engine.md#budget-deadline-and-stopping) for the current policy.
 
 ## 6. Scenario execution, crashes, and replay
 
@@ -134,7 +132,7 @@ Each worker maintains its own device state and scenario context. Screenshot/UI r
 
 Approved reset policy: use platform reset capabilities before every scenario and support application-specific reset commands for additional state such as keychain/backend records. Verify reset completion, repeat setup/login when needed, and stop the entire run with a report if reset fails. Platform-specific reset completeness remains a validation gate.
 
-Approved step definition: each meaningful device action or check is recorded with its result and a screenshot afterward, with credentials masked. Internal AI reasoning and build operations are logged separately from test steps. If the app has crashed, capture the available device screen and attach the crash event.
+Approved step definition: each meaningful device action or check is recorded with its result and a screenshot afterward, with configured screenshot masking applied. Credential values are not automatically masked under the current FR-36 policy; known values remain redacted from structured text. Internal AI reasoning and build operations are logged separately from test steps. If the app has crashed, capture the available device screen and attach the crash event.
 
 Approved crash matching: crashes match when they occur in the same scenario at the same action or screen, with a matching crash signature when available. A successful retry resets the consecutive-crash counter. Three consecutive matching crashes cancel only the affected scenario, overriding AI-selected reproduction counts. The concrete fingerprint implementation still requires validation.
 
@@ -437,7 +435,7 @@ Execution journals accepted decisions, selections, pending/completed recovery re
 
 FR-97 changes the layer to inputs and retained information only. runtime/ai_instructions/ contains InstructionContext, ActionPromptBuilder and the human-interface catalogue. Before each AI request, InstructionContext queries the supplied Mobile MCP adapter for a fresh verified masked screen and retains the observation. It assembles instructions, requirements, setup/scope, aliases, resources and the AI-selected context from the existing planning/evidence stores. All masked elements remain evidence; the separate humanInterface catalogue describes adapter-declared controls, including unavailable controls with their state flags. It is not an action whitelist.
 
-Reply reading is in runtime/command_reply.py, provider/accounting and independent AI services in runtime/ai_services.py, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. The text-command transport remains. FR-99 adds ordered command batches outside this input-only layer; function calling is not introduced. The owner confirmed Mobile MCP, so no Appium adapter is added.
+Reply reading is in runtime/command_reply.py, provider/accounting and independent AI services in runtime/ai_services.py, interaction orchestration in runtime/ai_interaction.py and dispatch in ActionExecutor/ScenarioRunner. None calls the instruction layer to approve a reply. Repetition facts are supplied after execution and do not veto a command. FR-99 adds ordered text-command batches outside this input-only layer. The default agent now also translates registered SDK function tools, ending the model turn before execution dispatches the command. Both routes preserve the same execution ownership; see [registered tools](decision-agent.md#registered-tools). The owner confirmed Mobile MCP, so no Appium adapter is added.
 
 DR-01 packaging includes the full ai_instructions/, test_planning/, stopping_policy/ and device_adapter/ folders. Remove obsolete ai_exchange source modules and decision_recovery.py when installing. Existing action_prompt.py imports preserve caller compatibility. See [responsibilities, tradeoffs and sequence](ai-instruction-context.md). Source/offline checks remain separate from installation and live qualification.
 

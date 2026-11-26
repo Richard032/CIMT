@@ -8,17 +8,17 @@ Updated: 1 November 2026. Describes FR-96/AC-66 and FR-99/AC-69 execution resour
 
 FR-97 supersedes the former reply-reading layer responsibility. [AI Instruction and Context](ai-instruction-context.md) now owns inputs and retained information only, in runtime/ai_instructions/. It queries the confirmed Mobile MCP adapter for fresh masked screen/control information before each instruction request. It does not receive or evaluate replies.
 
-This document describes the separate execution command protocol. runtime/command_reply.py binds explicit commands; runtime/command_queue.py retains their FIFO order and state; Agent owns transport/accounting; AiInteraction coordinates requests and feedback; ActionExecutor executes. Test Planning and Exploration and the evidence store retain information for future instructions. No response approval is delegated to the input layer.
+This document describes the separate execution command protocol. runtime/command_reply.py binds explicit commands; runtime/command_queue.py retains their FIFO order and state; Agent uses AiServices for transport/accounting; AiInteraction coordinates requests and feedback; ActionExecutor executes. Test Planning and Exploration and the evidence store retain information for future instructions. No response approval is delegated to the input layer.
 
 ## Resources given to AI
 
 Each request provides the original testing instructions, setup and execution scope, current masked screenshot and UI data, credential aliases, command argument descriptions, and the AI-selected context. The full requirement catalogue and stored history remain available through exact record addresses. The AI can retain its previous context selection, choose another selection, or request records without acting on the app.
 
-TestPilot returns actual resource outcomes, including unavailable record addresses and adapter interaction errors. If the selected context exceeds the technical payload allowance, TestPilot reports that the entire selected package was deferred. The AI decides what to request next; that notice does not veto a command based on the current evidence. TestPilot never chooses a relevant subset.
+TestPilot returns actual resource outcomes, including unavailable record addresses and adapter interaction errors. Selected context is sent without a separate local byte allowance or automatic deferral under FR-88. Provider context limits and counted-input budget admission still apply. Unavailable addresses are reported without choosing a relevant subset for the AI.
 
 ## Command decoding
 
-The current transport remains the Responses API with text output. This change does not migrate to function calling or add a new service. No strict response schema is requested from the provider.
+The default agent uses the Responses API through the Agents SDK, with registered function tools as well as text command replies. Tool arguments have mechanical schemas; text command replies do not use a strict provider response schema. Both routes return normalized commands to execution. See [registered tools](decision-agent.md#registered-tools); the input layer does not decode either route.
 
 The reply supplies readable JSON command objects containing action and its needed arguments. One object, an array of objects or consecutive objects are accepted in received order. For example:
 
@@ -55,25 +55,38 @@ The existing Python suites cover minimal commands, optional records, unbound IDs
 ```mermaid
 sequenceDiagram
     participant Run as Execution
-    participant Resources as Command Decoding
-    participant AI as Configured Model
+    participant Inputs as AI Instruction and Context
+    participant Agent as Default Agent
+    participant Service as Accounted provider requests
+    participant Decode as Command translation
     participant Device as Device Adapter
-    participant Records as Local Records and HTML
-    loop Until AI finishes or an execution limit stops the run
-        Run->>AI: Instructions, requirements, masked evidence and AI-selected context
-        AI-->>Resources: Complete reply
-        Resources-->>Run: Ordered command objects or note, optional records, original text
-        Run->>Records: Redacted reply and all queued commands before dispatch
-        alt No executable command
-            Run->>AI: Resource feedback, no device action dispatched
-        else Commands queued
-            loop FIFO until empty, done, failure, recovery or execution limit
-                Run->>Device: Check limits and execute next AI-selected device command
-                Device-->>Run: Actual outcome or interaction error
-                Run->>Records: Queue state, outcome and masked evidence
+    participant Records as Local records and report snapshots
+
+    loop Until AI finishes or an execution rule stops testing
+        Run->>Inputs: Refresh masked evidence and prepare sources, selected history and pending paths
+        Inputs-->>Run: Decision inputs and resource descriptions
+        Run->>Agent: Decide with shared recording and execution hooks
+        Agent->>Service: Counted and accounted inference
+        Service-->>Agent: Complete tool call or text reply
+        Agent->>Decode: Translate registered tool or decode complete text reply
+        Decode-->>Agent: Ordered commands or note with mechanical feedback
+        Agent-->>Run: Normalized result
+        Run->>Records: Save redacted reply and queued commands before dispatch
+        alt Unreadable text command
+            Run->>Records: Retain note and feedback for next normal decision
+        else Readable commands
+            loop FIFO until batch handoff, failure, recovery or stop
+                alt Device command
+                    Run->>Device: Execute selected action under shared limits and privacy
+                    Device-->>Run: Actual outcome and post-action masked evidence
+                else Context or completion command
+                    Run->>Run: Handle recall, note, recovery or finish without a device action
+                end
+                Run->>Records: Save queue status and complete ordered result
             end
         end
+        Note over Run,Inputs: Next normal request includes successful, unchanged and failing paths; no separate acknowledgement
     end
 ```
 
-FR-101 supplies complete new batch paths and current ANR warnings outside optional history deferral. This is mandatory execution feedback, not host relevance filtering. Historical batches remain available by exact AI-selected batches addresses. See [batch feedback and continuation](batch-feedback.md).
+FR-101 supplies complete new batch paths and current ANR warnings outside optional history selection. This is mandatory execution feedback, not host relevance filtering. Historical batches remain available by exact AI-selected batches addresses. See [batch feedback and continuation](batch-feedback.md).

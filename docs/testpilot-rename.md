@@ -8,14 +8,16 @@ Approved: 26 November 2026. The former CIMT product is now **TestPilot**. This i
 | --- | --- | --- |
 | Product | CIMT | TestPilot |
 | Terminal command | `cimt` | `testpilot` |
-| Debug launcher | `scripts/cimt-debug` | `scripts/testpilot-debug` |
+| Debug launcher (development branch) | `scripts/cimt-debug` | `scripts/testpilot-debug` |
 | Runtime installer | `scripts/install-cimt-runtime.sh` | `scripts/install-testpilot-runtime.sh` |
-| Solution/workspace | `CIMT.slnx`, `CIMT.code-workspace` | `TestPilot.slnx`, `TestPilot.code-workspace` |
+| Solution/workspace (development branch) | `CIMT.slnx`, `CIMT.code-workspace` | `TestPilot.slnx`, `TestPilot.code-workspace` |
 | Source namespace/project | `Cimt` | `TestPilot` |
 | Environment prefix | `CIMT_*` | `TESTPILOT_*` |
 | Standard installation root | `/Users/Shared/CIMT` | `/Users/Shared/TestPilot` |
 | Generated output | `CIMT output` | `TestPilot output` |
 | Host/runtime/build worker | `cimt`, `cimt-runtime`, `cimt-build` | `testpilot`, `testpilot-runtime`, `testpilot-build` |
+
+The debug launcher, solution and workspace files are on `feature/vscode-development`; they are not present on `main` at this review's baseline (`b2b9ced`). On `main`, use the project files and commands in the [development guide](development.md). Both old `CIMT output/` and new `TestPilot output/` folders remain ignored so private generated files are not staged by accident.
 
 ```bash
 testpilot validate --config ./default.private.yaml --run-config ./application.yaml

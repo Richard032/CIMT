@@ -88,7 +88,7 @@ public sealed class CommandApplication(IConfigurationLoader configurations, IRea
     private async Task<int> Validate(CommandSession session)
     {
         await readiness.Validate(session.Configuration!, session.Messages);
-        session.Messages.Add("Configuration/readiness checks passed. Model access, signing, login, application behaviour and strict billing enforcement require execution-time validation.");
+        session.Messages.Add("Configuration/readiness checks passed. Model access, signing, login, application behaviour and AI usage accounting require execution-time validation.");
         await reports.Write(session, "passed", "complete", 0);
         output.WriteLine("Validation passed. Report: " + Path.Combine(session.Report!, "index.html"));
         return 0;

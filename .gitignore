@@ -11,5 +11,7 @@ setup.yaml
 examples/**/work/
 examples/**/reports/
 TestPilot output/
+# Keep private outputs from installations made before the product rename ignored.
+CIMT output/
 **/__pycache__/
 *.pyc

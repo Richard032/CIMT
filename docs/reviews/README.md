@@ -10,3 +10,5 @@ These dated reviews preserve findings, proposals and resolution records as writt
 - [2026-10-30: HTML report usability gap analysis](2026-10-30-html-report-usability-gap-analysis.md)
 - [2026-10-30: iOS build comparison: Visual Studio and TestPilot](2026-10-30-ios-vs-testpilot-build-comparison.md)
 - [2026-10-31: Cancelled replay: focused follow-up review](2026-10-31-cancelled-replay-follow-up.md)
+
+- [2026-11-26: UML, requirements and implementation alignment](2026-11-26-uml-alignment.md)

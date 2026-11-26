@@ -1,6 +1,6 @@
 # Documentation index
 
-Updated: 10 November 2026. Start with the guide matching your task. Current user instructions take priority over document snapshots. Examples and historical commands are explanatory material, not new requests to execute them.
+Updated: 26 November 2026. Start with the guide matching your task. Current user instructions take priority over document snapshots. Examples and historical commands are explanatory material, not new requests to execute them.
 
 ## Install and operate
 
@@ -21,6 +21,7 @@ Updated: 10 November 2026. Start with the guide matching your task. Current user
 - [Requirements](requirements.md): approved product and numbered acceptance criteria; later decisions can supersede earlier wording.
 - [Architecture](architecture.md): responsibilities and evolution; distinguish approved design from implemented increments.
 - [Current UML and layer map](architecture-uml.md) and [worker protocol](worker-protocol.md).
+- [UML alignment review](reviews/2026-11-26-uml-alignment.md): reviewed source baseline, corrected discrepancies and offline validation.
 - [Decision agent](decision-agent.md): replacement contract and integration limits.
 - [Development](development.md): source boundaries, conventions and existing verification commands.
 - [Current implementation status](implementation-status.md): dated evidence, limitations and executed check results.
