@@ -36,7 +36,7 @@ class Execution:
     def __init__(self, context, mobile_factory=None, agent_factory=None, scheduler=None, review_factory=None, budget_factory=None):
         self.context = context
         self.config = context["config"]
-        self.knowledge = (KnowledgeStore(os.environ["CIMT_INSTALL_ROOT"])
+        self.knowledge = (KnowledgeStore(os.environ["TESTPILOT_INSTALL_ROOT"])
                           if context.get("learning") else None)
         self.redactor = Redactor(self.config)
         self.budget = (budget_factory or Budget)(
@@ -64,7 +64,7 @@ class Execution:
                 if shutil.which(tool) is None:
                     raise InfrastructureError(
                         "Required device adapter executable is missing from PATH: " + tool
-                        + ". Repair the CIMT tool installation; its command paths are configured automatically."
+                        + ". Repair the TestPilot tool installation; its command paths are configured automatically."
                     )
             self.agent_factory().check_access()
             print(
@@ -152,7 +152,7 @@ def finalize_proposal(context, proposal_factory=None, budget_factory=None, knowl
         if context.get("learning"):
             service = AiServices(config, budget, request_deadline()) if knowledge_factory is None else None
             knowledge = knowledge_factory() if knowledge_factory else OpenAiKnowledgeProposal(service)
-            write_proposals(report, knowledge, observer, KnowledgeStore(os.environ["CIMT_INSTALL_ROOT"]),
+            write_proposals(report, knowledge, observer, KnowledgeStore(os.environ["TESTPILOT_INSTALL_ROOT"]),
                             redactor, context.get("builds", []),
                             {"inputs": context["inputs"], "runOutcome": outcome, "devices": results})
     except Exception as error:
@@ -176,26 +176,26 @@ def main(stream, arguments):
         with RunSignals(execution.control):
             return execution.run(preflight=preflight)
     except (InfrastructureError, LimitReached) as error:
-        print("CIMT execution stopped: " + str(error), file=sys.stderr)
+        print("TestPilot execution stopped: " + str(error), file=sys.stderr)
         return 3 if isinstance(error, InfrastructureError) else 2
     except Exception as error:
-        print("CIMT execution infrastructure failed: " + type(error).__name__, file=sys.stderr)
+        print("TestPilot execution infrastructure failed: " + type(error).__name__, file=sys.stderr)
         return 3
 
 
 def wait_for_debugger(arguments):
     """Pause the selected worker entry point before reading the private request."""
     phase = "proposal" if "--proposal" in arguments else "preflight" if "--preflight" in arguments else "execution"
-    if os.environ.get("CIMT_DEBUG_PYTHON") != phase:
+    if os.environ.get("TESTPILOT_DEBUG_PYTHON") != phase:
         return
-    sys.path.insert(0, os.environ["CIMT_DEBUGPY_PATH"])
+    sys.path.insert(0, os.environ["TESTPILOT_DEBUGPY_PATH"])
     try:
         import debugpy
     finally:
         sys.path.pop(0)
     debugpy.configure(subProcess=False)
     debugpy.listen(("127.0.0.1", 5678))
-    print(f"CIMT activity: Python {phase} worker waiting for the debugger on port 5678.", flush=True)
+    print(f"TestPilot activity: Python {phase} worker waiting for the debugger on port 5678.", flush=True)
     debugpy.wait_for_client()
 
 

@@ -39,7 +39,7 @@ The development suite passes 343 checks: 165 .NET unit tests, 155 Python tests, 
 
 ## Physical-device acceptance and limits
 
-On 28 October, the first Mac's Android probe stopped at the lock check, and no ready iPhone session was available. The product owner requested skipping physical checks at that time. That attempt did not establish a live masking pass. Its aggregate result remains local under `/private/tmp/cimt-screenshot-masking-live-20261028`.
+On 28 October, the first Mac's Android probe stopped at the lock check, and no ready iPhone session was available. The product owner requested skipping physical checks at that time. That attempt did not establish a live masking pass. Its aggregate result remains local under `/private/tmp/testpilot-screenshot-masking-live-20261028`.
 
 On 29 October, the product owner connected both devices and verification resumed. Both were online and passed the production readiness check. Android passed immediately. The connected iPhone initially had no DeviceKit helper installed, so its UI read failed before screenshot capture. Installation with an existing profile that also matched a valid local signing identity succeeded; the repeated iPhone check then passed.
 
@@ -48,7 +48,7 @@ On 29 October, the product owner connected both devices and verification resumed
 | Android | 1080 × 2340 | 1 | 2 | Passed |
 | iOS | 828 × 1792 | 1 | 4 | Passed after helper installation |
 
-Each check selected a visible element with an identifier and text from the current screen, treated that identifier as a configured masking rule, and called the production Mobile.snapshot path. It verified that every pixel in the selected mask was black, corresponding returned UI text was `<masked>`, and the result was an RGB PNG with no image metadata. All 28 installed runtime modules matched source. The checks ran sequentially, without AI requests, real MAUI builds, navigation, typing, resets, or application-data changes. Installing the separate iPhone automation helper was the only device setup change. Raw screenshots and UI responses stayed in memory; the probe discarded MCP diagnostic output and retained aggregate outcomes locally under `/private/tmp/cimt-screenshot-masking-live-20261029`.
+Each check selected a visible element with an identifier and text from the current screen, treated that identifier as a configured masking rule, and called the production Mobile.snapshot path. It verified that every pixel in the selected mask was black, corresponding returned UI text was `<masked>`, and the result was an RGB PNG with no image metadata. All 28 installed runtime modules matched source. The checks ran sequentially, without AI requests, real MAUI builds, navigation, typing, resets, or application-data changes. Installing the separate iPhone automation helper was the only device setup change. Raw screenshots and UI responses stayed in memory; the probe discarded MCP diagnostic output and retained aggregate outcomes locally under `/private/tmp/testpilot-screenshot-masking-live-20261029`.
 
 This establishes a live capture/masking smoke check on both connected platforms. The selected fields were not entered credentials, and no real application scenario or orientation change was exercised. The earlier failed attempts remain part of the history.
 
@@ -64,6 +64,6 @@ Permission decisions are controlled by testing instructions. The AI guidance req
 
 ## Generic mapping tolerance correction — 31 October 2026
 
-The first virtual-device run built and installed both apps, but stopped before AI inference because the helper returned one pixel less width than the simulator's reported screen size implied. The product owner requested a generic ±5% correction. CIMT applies the same relative scale-ratio rule to every device and expands masks for accepted scale differences. Native PNG capture through binary stdout, image/region validation and fail-closed behavior remain. No third-party tool source changes or raw-file capture fallback were added.
+The first virtual-device run built and installed both apps, but stopped before AI inference because the helper returned one pixel less width than the simulator's reported screen size implied. The product owner requested a generic ±5% correction. TestPilot applies the same relative scale-ratio rule to every device and expands masks for accepted scale differences. Native PNG capture through binary stdout, image/region validation and fail-closed behavior remain. No third-party tool source changes or raw-file capture fallback were added.
 
 The existing Python suite passes 234 unit tests, including both 5% boundaries, just-outside rejection, the real simulator dimensions without platform metadata, uniform downscaling, large mismatch rejection, expanded mask bounds and synthetic secret-pixel masking. The 22 runtime-policy checks also pass. Real replay qualification is recorded separately.

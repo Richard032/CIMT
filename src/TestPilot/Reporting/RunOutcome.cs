@@ -1,0 +1,78 @@
+using System.Text.Json;
+
+namespace TestPilot;
+
+public sealed record RunOutcome(int ExitCode, string Verdict, string Completion);
+
+/// <summary>Calculates the final outcome without reading files or calling tools.</summary>
+public static class RunOutcomePolicy
+{
+    /// <summary>Keep failures visible even when coverage is incomplete or a build failed.</summary>
+    public static RunOutcome Evaluate(int exit, JsonElement? execution, RequirementCoverage? coverage = null,
+        IReadOnlyList<RequirementScope>? expectedScopes = null)
+    {
+        var hasFailure = false;
+        var missing = expectedScopes?.Where(scope => scope.DeviceId.Length > 0)
+            .Select(scope => (scope.DeviceId, scope.Platform, scope.Target)).ToHashSet();
+        var scenarioCount = 0;
+        var allComplete = execution.HasValue;
+        var allDecided = execution.HasValue;
+        if (execution is { } value && value.TryGetProperty("devices", out var devices))
+            foreach (var device in devices.EnumerateArray())
+            {
+                allComplete &= !HasStop(device);
+                foreach (var scenario in device.GetProperty("scenarios").EnumerateArray())
+                {
+                    scenarioCount++;
+                    if (missing is { Count: > 0 } && device.TryGetProperty("device", out var identity)
+                        && identity.TryGetProperty("id", out var id) && identity.TryGetProperty("platform", out var platform)
+                        && scenario.TryGetProperty("target", out var target))
+                        missing.Remove((id.ToString(), platform.ToString(), target.ToString()));
+                    var verdict = scenario.TryGetProperty("verdict", out var result) ? result.GetString() : null;
+                    var crashes = scenario.GetProperty("crashes").EnumerateArray().ToArray();
+                    hasFailure |= crashes.Any(IsConfirmedCrash) || verdict == "failed";
+                    allDecided &= crashes.All(IsConfirmedCrash);
+                    allDecided &= verdict is "passed" or "failed";
+                    allDecided &= KnownCheckStatuses(scenario);
+                    allComplete &= scenario.GetProperty("completion").GetString() == "complete";
+                }
+            }
+        allDecided &= scenarioCount > 0;
+        allComplete &= missing is not { Count: > 0 };
+        hasFailure |= coverage?.HasFailures == true;
+        allComplete &= coverage?.HasUnresolved != true;
+        if (hasFailure)
+            exit = ExitCodes.Combine(exit, 1);
+        if (!allComplete || !allDecided)
+            exit = ExitCodes.Combine(exit, 2);
+        var finalVerdict = hasFailure || exit == 1 ? "failed" : exit == 0 ? "passed" : "inconclusive";
+        var completion = (exit is 0 or 1) && allComplete && allDecided ? "complete" : "incomplete";
+        return new(exit, finalVerdict, completion);
+    }
+
+    private static bool IsConfirmedCrash(JsonElement crash)
+    {
+        return crash.ValueKind == JsonValueKind.Object
+            && crash.TryGetProperty("kind", out var kind)
+            && kind.ValueKind == JsonValueKind.String
+            && kind.GetString() == "confirmed crash report";
+    }
+
+    private static bool HasStop(JsonElement device)
+    {
+        return new[] { "stoppingReason", "error" }.Any(key =>
+            device.TryGetProperty(key, out var reason) && reason.ValueKind != JsonValueKind.Null);
+    }
+
+    private static bool KnownCheckStatuses(JsonElement scenario)
+    {
+        if (!scenario.TryGetProperty("checks", out var checks))
+            return true;
+        if (checks.ValueKind != JsonValueKind.Array)
+            return false;
+        // A damaged status must not disappear from the completion decision.
+        return checks.EnumerateArray().All(check => check.ValueKind == JsonValueKind.Object
+            && check.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String
+            && status.GetString() is "passed" or "failed" or "not tested" or "inconclusive" or "overridden");
+    }
+}

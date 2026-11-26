@@ -1,0 +1,89 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "TestPilot.slnx",
+    "python.defaultInterpreterPath": "${userHome}/Development/TestPilot/.local/install/tools/python/bin/python"
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build TestPilot Debug",
+        "type": "process",
+        "command": "/usr/local/share/dotnet/dotnet",
+        "args": [
+          "build",
+          "src/TestPilot/TestPilot.csproj",
+          "-c",
+          "Debug"
+        ],
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": "$msCompile"
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "TestPilot host · attach to terminal command",
+        "type": "coreclr",
+        "request": "attach",
+        "processId": "${command:pickProcess}"
+      },
+      {
+        "name": "TestPilot Python worker · attach",
+        "type": "debugpy",
+        "request": "attach",
+        "connect": {
+          "host": "127.0.0.1",
+          "port": 5678
+        }
+      },
+      {
+        "name": "TestPilot host · show help",
+        "type": "coreclr",
+        "request": "launch",
+        "preLaunchTask": "Build TestPilot Debug",
+        "program": "${workspaceFolder}/src/TestPilot/bin/Debug/net10.0/testpilot.dll",
+        "args": [
+          "--help"
+        ],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "env": {
+          "TESTPILOT_INSTALL_ROOT": "${userHome}/Development/TestPilot/.local/install"
+        }
+      },
+      {
+        "name": "Python runtime · knowledge tests",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "unittest",
+        "args": [
+          "discover",
+          "-s",
+          "tests",
+          "-p",
+          "test_knowledge.py"
+        ],
+        "python": "${userHome}/Development/TestPilot/.local/install/tools/python/bin/python",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-dotnettools.csharp",
+      "ms-python.python",
+      "ms-python.debugpy"
+    ]
+  }
+}

@@ -97,9 +97,9 @@ class AppLifecycle:
                 continue
             env = dict(
                 self.commands.env,
-                CIMT_TARGET=target,
-                CIMT_DEVICE=self.commands.device["id"],
-                CIMT_APP_ID=app_id,
+                TESTPILOT_TARGET=target,
+                TESTPILOT_DEVICE=self.commands.device["id"],
+                TESTPILOT_APP_ID=app_id,
             )
             result = self.commands.run_command(
                 context["config"]["reset"][key],

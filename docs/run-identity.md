@@ -9,11 +9,11 @@ Implemented: 28 October 2026; input-local placement updated 29 October 2026 unde
 Each invocation captures its start time once. One identity selects the work and report folder pair:
 
 ```text
-<input-folder>/CIMT output/work/work_2026-10-28_14-30-00-123/
-<input-folder>/CIMT output/reports/report_2026-10-28_14-30-00-123/
+<input-folder>/TestPilot output/work/work_2026-10-28_14-30-00-123/
+<input-folder>/TestPilot output/reports/report_2026-10-28_14-30-00-123/
 ```
 
-The date-time portion is identical. Neither name has an independent counter or random suffix. OutputLayout chooses the folder containing --run-config, or --config when used alone, and places all run-owned output under its CIMT output subfolder. Launch location and source checkout do not select output. Legacy root settings are ignored with a notice. Users do not create any output folders.
+The date-time portion is identical. Neither name has an independent counter or random suffix. OutputLayout chooses the folder containing --run-config, or --config when used alone, and places all run-owned output under its TestPilot output subfolder. Launch location and source checkout do not select output. Legacy root settings are ignored with a notice. Users do not create any output folders.
 
 The design left the precise timestamp format, timezone, and collision handling open. The implementation uses UTC and yyyy-MM-dd_HH-mm-ss-fff with invariant digits and millisecond precision. These complete the open engineering details; they do not replace the required prefixes or shared timestamp.
 
@@ -27,7 +27,7 @@ The command acquires the Mac lock before configuration/execution and keeps it th
 
 RunFolderAllocator creates the retained report first and selects the work path. WorkDirectoryManager later creates precisely that work folder when preparation needs it. It receives the selected pair and never reads another clock or generates another folder name. Validation and early-error reports can therefore have an identity without creating a temporary clone folder.
 
-Reports must remain outside temporary cleanup folders. The checks resolve filesystem aliases, reject reports below CIMT-owned work ancestors, and protect a retained report before removing interrupted work. If an allocated work path becomes occupied before creation, CIMT stops instead of adopting it. Ownership tokens still protect deletion; their internal random values are not folder-name suffixes.
+Reports must remain outside temporary cleanup folders. The checks resolve filesystem aliases, reject reports below TestPilot-owned work ancestors, and protect a retained report before removing interrupted work. If an allocated work path becomes occupied before creation, TestPilot stops instead of adopting it. Ownership tokens still protect deletion; their internal random values are not folder-name suffixes.
 
 Legacy ownership records remain readable. Earlier work is retained until a new clone for the same inputs, then removed only after its path/token are verified. Existing retained reports are not renamed. Full interruption history and graceful cancellation remain separate release work.
 
@@ -37,13 +37,13 @@ The native helper uses a short temporary link to its directory inside owned work
 
 run-identity.json is saved beside index.html and uses report-relative folder names. It retains the identity, actual start, UTC folder timestamp, timezone, and paired names. It remains after clone deletion and after copying the report folder.
 
-The same identity is included in final run results, validation/error results, HTML, progress.json, the runtime request, and worker ui-results.json. Build/reset/helper processes receive CIMT_RUN_ID. The shared identity is ordinary host metadata; no model call is needed to create it.
+The same identity is included in final run results, validation/error results, HTML, progress.json, the runtime request, and worker ui-results.json. Build/reset/helper processes receive TESTPILOT_RUN_ID. The shared identity is ordinary host metadata; no model call is needed to create it.
 
 Keep the whole report folder when copying it. Evidence links remain relative. Only the clone boundary removes older verified owned work for the same inputs, never the retained report or its screenshots/actions.
 
 ## Verification and use
 
-Command syntax is unchanged. New YAML templates omit workspace.root/reports.root; older values still load but no longer relocate output. Continue to use cimt validate and cimt run as documented. New folders use the UTC format above; older retained report folders remain unchanged.
+Command syntax is unchanged. New YAML templates omit workspace.root/reports.root; older values still load but no longer relocate output. Continue to use testpilot validate and testpilot run as documented. New folders use the UTC format above; older retained report folders remain unchanged.
 
 Run the offline development checks from the source folder:
 

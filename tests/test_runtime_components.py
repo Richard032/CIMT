@@ -39,8 +39,8 @@ from device_adapter.screen_capture import ScreenCapture
 
 MODEL = "gpt-5.4-mini-2026-03-17"
 BUTTON = {"ref": "@e1", "identifier": "ButtonA", "type": "Button", "label": "Open"}
-SIZE = {"type": "CimtScreenInfo", "screenWidth": 100, "screenHeight": 200}
-SWIPE_SCREEN = dict(type='CimtScreenInfo', screenWidth=402, screenHeight=874,
+SIZE = {"type": "TestPilotScreenInfo", "screenWidth": 100, "screenHeight": 200}
+SWIPE_SCREEN = dict(type='TestPilotScreenInfo', screenWidth=402, screenHeight=874,
                     imageWidth=1206, imageHeight=2622)
 SWIPE_WHEEL = dict(ref='@wheel', type='PickerWheel', value='DEVELOPER',
                    coordinates=dict(x=9, y=620, width=384, height=291))
@@ -1776,7 +1776,7 @@ class ScenarioTests(unittest.TestCase):
 
         countdown = [line for line in output.getvalue().splitlines() if 'AI wait — countdown' in line]
         self.assertEqual([line.rsplit(': ', 1)[-1] for line in countdown], ['2 s remaining', '1 s remaining'])
-        self.assertTrue(all(line.startswith('CIMT activity: ') and '/Release]' in line for line in countdown))
+        self.assertTrue(all(line.startswith('TestPilot activity: ') and '/Release]' in line for line in countdown))
         journal = (self.root / 'activity.jsonl').read_text()
         self.assertNotIn('countdown', journal)
         self.assertIn('Execute device action: wait', journal)
@@ -1862,7 +1862,7 @@ class ScenarioTests(unittest.TestCase):
         from gesture_preview import GesturePreview
         from screenshot_image import ScreenshotImage
 
-        screen = dict(type='CimtScreenInfo', screenWidth=360, screenHeight=240)
+        screen = dict(type='TestPilotScreenInfo', screenWidth=360, screenHeight=240)
         screenshot = ScreenshotImage.encode(Image.new('RGB', (360, 240), 'white'))
         preview = GesturePreview.render(action('demo_swipe', x=80, y=100, direction='right',
             distance=200), [screen], screenshot)

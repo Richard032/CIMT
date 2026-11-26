@@ -4,7 +4,7 @@
 
 
 Date: 30 October 2026  
-Product: CIMT — Curtis Intelligent Mobile Test  
+Product: TestPilot
 Status: approved by the product owner on 30 October 2026; implementation and verification recorded in [diagnostic reporting](../diagnostic-reporting.md)
 
 ## 1. Purpose
@@ -17,7 +17,7 @@ This design resolves the presentation gaps in the [gap analysis](2026-10-30-html
 
 Use a restrained desktop layout with a small left navigation area. At narrower widths, move the same labelled navigation above the content and allow it to wrap. Keep all sections available. A horizontal navigation alternative is included in the design preview for comparison; the recommendation is the sidebar on wider screens.
 
-The header identifies CIMT, the command, the exact run identity and the report state. Below it, use five sections:
+The header identifies TestPilot, the command, the exact run identity and the report state. Below it, use five sections:
 
 | Section | Main question answered | Default content |
 | --- | --- | --- |
@@ -102,7 +102,7 @@ The first implementation increment must verify keyboard navigation, focus visibi
 
 ## 8. Data and implementation boundaries
 
-Keep one `CIMT output/reports/report_<timestamp>/index.html` per run or replay, with its own relative evidence. No shared latest page is introduced. Partial and final updates use the existing atomic publication path. Historical reports remain unchanged. Opening a report directly from disk must work offline after the whole report folder is moved.
+Keep one `TestPilot output/reports/report_<timestamp>/index.html` per run or replay, with its own relative evidence. No shared latest page is introduced. Partial and final updates use the existing atomic publication path. Historical reports remain unchanged. Opening a report directly from disk must work offline after the whole report folder is moved.
 
 Use the existing .NET report pipeline and unit-test project. Keep RunHtmlRenderer responsible for composition and scenario/evidence presentation, RunDiagnosticsRenderer for overview/stopping/activity, and RequirementHtmlRenderer for requirement results. Introduce focused helpers only when shared identity, formatting or summary rules justify them. Do not add a framework, server, interface hierarchy or AI dependency to reporting.
 
@@ -116,7 +116,7 @@ All summary values derive from saved host/worker data. Missing states must be re
 | B — investigate | Scoped filters, readable steps/remaining work/coverage, compact activity, evidence viewer, time/budget presentation. | Filter clearing and empty states, failure deep links across filters, unfinished operations, missing screenshots, viewer keyboard/focus behavior and offline moved-folder check. |
 | C — qualify | Large reports, multiple targets, blocked/disconnected devices, failed builds, interruption and browser/accessibility review. | No lost journal/evidence records; usability checks on representative reports, contrast and screen-reader checks, developer review. |
 
-Use the reviewed two-device replay as the baseline: identify the failed device within ten seconds and reach its exact triggering step and evidence through no more than two navigation actions. These are proposed CIMT targets requiring manual validation. The design preview demonstrates the route, not a completed timing or accessibility test.
+Use the reviewed two-device replay as the baseline: identify the failed device within ten seconds and reach its exact triggering step and evidence through no more than two navigation actions. These are proposed TestPilot targets requiring manual validation. The design preview demonstrates the route, not a completed timing or accessibility test.
 
 Traceability: A covers UX-01–UX-06 and the UX-14 baseline; B covers UX-07–UX-13; C verifies the whole design. UX-10's worker scope correction remains a separately identified correctness task. Existing FR-26–FR-30, FR-61–FR-64, FR-69 and AC-45 remain authoritative. Navigation/filter/viewer behavior and usability thresholds are proposed additions to approve before implementation.
 

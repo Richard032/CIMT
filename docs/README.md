@@ -14,6 +14,8 @@ Updated: 10 November 2026. Start with the guide matching your task. Current user
 | [Virtual devices](virtual-devices.md) | Simulator/emulator prerequisites, build profiles and capture boundaries. |
 | [Work retention and replay](work-retention-and-replay.md) | Clone lifecycle, retained build integrity and current-input replay. |
 
+- [TestPilot rename and migration](testpilot-rename.md): executable, project paths, environment and existing data.
+
 ## Product, development and release
 
 - [Requirements](requirements.md): approved product and numbered acceptance criteria; later decisions can supersede earlier wording.

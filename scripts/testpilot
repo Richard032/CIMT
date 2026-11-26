@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+TESTPILOT_SOURCE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -z "${TESTPILOT_INSTALL_ROOT:-}" ]; then
+  if [ -f "$TESTPILOT_SOURCE_ROOT/lib/testpilot/testpilot.dll" ]; then
+    export TESTPILOT_INSTALL_ROOT="$TESTPILOT_SOURCE_ROOT"
+  elif [ -f "$TESTPILOT_SOURCE_ROOT/.local/install/environment.sh" ]; then
+    export TESTPILOT_INSTALL_ROOT="$TESTPILOT_SOURCE_ROOT/.local/install"
+  else
+    export TESTPILOT_INSTALL_ROOT=/Users/Shared/TestPilot
+  fi
+fi
+if [ -f "$TESTPILOT_INSTALL_ROOT/environment.sh" ]; then source "$TESTPILOT_INSTALL_ROOT/environment.sh"; fi
+if [ "${1:-}" = "knowledge" ]; then
+  shift
+  if [ "$#" -ne 0 ]; then echo "Usage: testpilot knowledge" >&2; exit 3; fi
+  cd "$TESTPILOT_INSTALL_ROOT/lib/testpilot-runtime"
+  exec "$TESTPILOT_INSTALL_ROOT/tools/python/bin/python" -m knowledge.web "$TESTPILOT_INSTALL_ROOT" --editor-url
+fi
+if [ -f "$TESTPILOT_SOURCE_ROOT/lib/testpilot/testpilot.dll" ]; then
+  exec dotnet "$TESTPILOT_SOURCE_ROOT/lib/testpilot/testpilot.dll" "$@"
+fi
+exec dotnet "$TESTPILOT_SOURCE_ROOT/src/TestPilot/bin/Release/net10.0/testpilot.dll" "$@"

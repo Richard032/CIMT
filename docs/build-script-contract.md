@@ -5,23 +5,23 @@ Status: scripts implemented and contract-tested; Apple Silicon application build
 
 ## Installed locations
 
-The paths below use the original shared installation as an example; replace `/Users/Shared/CIMT` with your actual `CIMT_INSTALL_ROOT`. Our Apple Silicon installation used `~/Development/CIMT/.local/install`. The launcher loads its environment automatically. The manual script invocation below sources it only because it bypasses the launcher.
+The paths below use the original shared installation as an example; replace `/Users/Shared/TestPilot` with your actual `TESTPILOT_INSTALL_ROOT`. Our Apple Silicon installation used `~/Development/TestPilot/.local/install`. The launcher loads its environment automatically. The manual script invocation below sources it only because it bypasses the launcher.
 
-- /Users/Shared/CIMT/scripts/build/android.sh
-- /Users/Shared/CIMT/scripts/build/ios.sh
-- Shared .NET worker: /Users/Shared/CIMT/lib/cimt-build/cimt-build.dll
+- /Users/Shared/TestPilot/scripts/build/android.sh
+- /Users/Shared/TestPilot/scripts/build/ios.sh
+- Shared .NET worker: /Users/Shared/TestPilot/lib/testpilot-build/testpilot-build.dll
 
-Source lives in scripts/build and tools/Cimt.BuildWorker. User replacements remain supported. Supplied defaults may be replaced on update; separate custom copies must be preserved.
+Source lives in scripts/build and tools/TestPilot.BuildWorker. User replacements remain supported. Supplied defaults may be replaced on update; separate custom copies must be preserved.
 
 ## Environment contract
 
 | Variable | Meaning |
 | --- | --- |
-| CIMT_REPOSITORY_ROOT | Absolute path to the temporary application clone. |
-| CIMT_BUILD_REQUEST | Absolute path to the JSON request file. |
-| CIMT_BUILD_RESULT | Absolute path where successful artifact/app-id JSON is written. |
-| CIMT_BUILD_WORKER | Optional explicit worker assembly path. |
-| CIMT_DOTNET_EXECUTABLE | Optional explicit dotnet executable, for a selected toolchain or contract testing. |
+| TESTPILOT_REPOSITORY_ROOT | Absolute path to the temporary application clone. |
+| TESTPILOT_BUILD_REQUEST | Absolute path to the JSON request file. |
+| TESTPILOT_BUILD_RESULT | Absolute path where successful artifact/app-id JSON is written. |
+| TESTPILOT_BUILD_WORKER | Optional explicit worker assembly path. |
+| TESTPILOT_DOTNET_EXECUTABLE | Optional explicit dotnet executable, for a selected toolchain or contract testing. |
 
 No secret values need to be supplied as shell-script arguments. MSBuild properties are passed as separate arguments to dotnet; configured sensitive property values are redacted from captured build output. Further evidence/credential protection belongs to the full run engine.
 
@@ -40,21 +40,21 @@ Request example:
 
 Project paths remain relative to the clone root. Properties are application-specific scalar MSBuild values. The worker forwards only explicit properties; omitted packaging/runtime/archive values remain under project/SDK control. It searches for installable APK/IPA output and reports a clear error if none is produced. It does not force physical/output flags or silently rebuild with changed values. The generic defaults do not alter source code or skip repository build targets.
 
-Success writes absolute artifact and app-id JSON to CIMT_BUILD_RESULT, separately from build logs. MSBuild-derived values take precedence over configured fallbacks. Multiple signed artifacts are rejected unless an explicit fallback resolves the choice. A previous result file is removed before building so failure cannot reuse stale metadata.
+Success writes absolute artifact and app-id JSON to TESTPILOT_BUILD_RESULT, separately from build logs. MSBuild-derived values take precedence over configured fallbacks. Multiple signed artifacts are rejected unless an explicit fallback resolves the choice. A previous result file is removed before building so failure cannot reuse stale metadata.
 
 ## Invocation example
 
 After creating a real request file outside source control:
 
 ```bash
-source /Users/Shared/CIMT/environment.sh
-export CIMT_REPOSITORY_ROOT="/absolute/path/to/temporary-clone"
-export CIMT_BUILD_REQUEST="/absolute/path/to/request.json"
-export CIMT_BUILD_RESULT="/absolute/path/to/result.json"
-bash /Users/Shared/CIMT/scripts/build/android.sh
+source /Users/Shared/TestPilot/environment.sh
+export TESTPILOT_REPOSITORY_ROOT="/absolute/path/to/temporary-clone"
+export TESTPILOT_BUILD_REQUEST="/absolute/path/to/request.json"
+export TESTPILOT_BUILD_RESULT="/absolute/path/to/result.json"
+bash /Users/Shared/TestPilot/scripts/build/android.sh
 ```
 
-For iOS, set an iOS framework in the request and invoke ios.sh. A failed publish returns its nonzero exit status and produces no successful result. CIMT's initial run engine translates build failures into final exit code 3 while continuing other targets, including when a script returns unusable metadata.
+For iOS, set an iOS framework in the request and invoke ios.sh. A failed publish returns its nonzero exit status and produces no successful result. TestPilot's initial run engine translates build failures into final exit code 3 while continuing other targets, including when a script returns unusable metadata.
 
 ## Verification
 
@@ -63,7 +63,7 @@ The worker builds with zero warnings/errors. Four simulated contract checks cove
 Run from the source checkout:
 
 ```bash
-dotnet build tools/Cimt.BuildWorker/Cimt.BuildWorker.csproj -c Release
+dotnet build tools/TestPilot.BuildWorker/TestPilot.BuildWorker.csproj -c Release
 python3 tests/check-build-contract.py
 ```
 
@@ -79,7 +79,7 @@ These attempts predate the working Apple Silicon setup and are not current unive
 
 A test-only global OutputType override initially affected referenced projects and was removed. The reported real-build blockers above are from attempts using the application's own project settings.
 
-The original developer checkout was unchanged. That historical check removed its temporary clone after recording results. Current CIMT work retention is described below; normal finalization does not delete its clone.
+The original developer checkout was unchanged. That historical check removed its temporary clone after recording results. Current TestPilot work retention is described below; normal finalization does not delete its clone.
 
 ## Qualification after the historical attempts
 
@@ -93,7 +93,7 @@ branch's project/configuration remains authoritative for CuRMiT and other tools.
 The wrappers delegate directly without reading or editing the application project
 or build request. Resource-copy commands, tools, imports, conditions, and explicit
 properties remain owned by the project/configuration. An unsupported Windows
-command fails normally; CIMT does not replace or hide it.
+command fails normally; TestPilot does not replace or hide it.
 
 The former late target override and Mono invocation were wrong for a branch that
 removed the old tagger command. Both override files and their injected properties
@@ -104,7 +104,7 @@ behavior, and conditions. Real MAUI build/startup acceptance remains separate.
 
 ## Retained build output
 
-CIMT now retains work/publish folders after execution and removes older verified work only immediately before the next clone for the same inputs. Successful report artifacts are indexed after the build stage for replay without cloning/building. See [retention and replay](work-retention-and-replay.md), including optional explicit APK/IPA properties and saved-history replay limits. This supersedes the historical clone-cleanup descriptions above.
+TestPilot now retains work/publish folders after execution and removes older verified work only immediately before the next clone for the same inputs. Successful report artifacts are indexed after the build stage for replay without cloning/building. See [retention and replay](work-retention-and-replay.md), including optional explicit APK/IPA properties and saved-history replay limits. This supersedes the historical clone-cleanup descriptions above.
 
 ## Explicit iOS Simulator builds
 

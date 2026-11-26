@@ -1,8 +1,8 @@
 # Instruction-driven planning example
 
-Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `CIMT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `cimt` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
+Use the [current installation](../../docs/installation.md) and [test-input guide](../../docs/test-inputs.md) to adapt this example. `TESTPILOT_INSTALL_ROOT` in manual source-check commands means your actual installation folder. Public `testpilot` commands load their environment automatically. Example runs operate apps and can incur configured AI costs; offline demonstrations do not.
 
-Use these text inputs with an application's existing working CIMT configuration. They demonstrate a focused objective, configuration alternatives, navigation back to a known screen and requirement checks. They do not assume a particular app or authorize unrelated actions.
+Use these text inputs with an application's existing working TestPilot configuration. They demonstrate a focused objective, configuration alternatives, navigation back to a known screen and requirement checks. They do not assume a particular app or authorize unrelated actions.
 
 Copy instructions.txt and requirements.txt into your test input folder. In its existing application.yaml, point inputs.instructions and inputs.requirements to those files:
 
@@ -17,30 +17,30 @@ Keep your own Git branch, build targets, platform/device selection, model, time/
 Run using the normal command from any directory:
 
 ```sh
-cimt run --config /absolute/path/default.private.yaml --run-config /absolute/path/application.yaml
+testpilot run --config /absolute/path/default.private.yaml --run-config /absolute/path/application.yaml
 ```
 
-The normal per-invocation report is created under that input folder's CIMT output/reports/report_<timestamp>. No user-created report/work folders are needed. Use the printed index.html path.
+The normal per-invocation report is created under that input folder's TestPilot output/reports/report_<timestamp>. No user-created report/work folders are needed. Use the printed index.html path.
 
 Expected demonstration: the AI first defines/selects a concrete task, identifies current controls, visits language settings, observes supported choices and tests the requested alternatives. It records state transitions and last-observed selected values, returns using known routes and checks the requirements. Other features need an explicit scope explanation instead of random taps. A path being visited does not prove its requirement passed. Permission blocks, missing settings and run limits remain explicit incomplete work. These files are an example, not recorded live acceptance.
 
-For an offline demonstration of the same policy without a device or paid request, run the existing test module from the CIMT source folder:
+For an offline demonstration of the same policy without a device or paid request, run the existing test module from the TestPilot source folder:
 
 ```sh
-"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_test_planner.py -v
+"$TESTPILOT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_test_planner.py -v
 ```
 
 The separate implementation layer is runtime/test_planning. It receives masked observations, instructions and requirements; it has no device/API/storage access. The current runtime adapter remains Mobile MCP. An Appium implementation can supply the same semantics after separate qualification.
 
 ## AI memory and recovery demonstration
 
-With the updated runtime, normal testing decisions also select working context. The AI can retain a summary, recall older masked observations by address/range, and recover from loops without CIMT choosing another button. HTML shows the selected context, recovery explanations and recorded request usage. Instructions and requirements remain authoritative. No additional key or configuration is needed.
+With the updated runtime, normal testing decisions also select working context. The AI can retain a summary, recall older masked observations by address/range, and recover from loops without TestPilot choosing another button. HTML shows the selected context, recovery explanations and recorded request usage. Instructions and requirements remain authoritative. No additional key or configuration is needed.
 
 The existing offline cases demonstrate these protocols without a mobile test run or paid request:
 
 ```sh
-"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_context_memory.py -v
-"$CIMT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_runtime_components.py -v
+"$TESTPILOT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_context_memory.py -v
+"$TESTPILOT_INSTALL_ROOT/tools/python/bin/python" -m unittest discover -s tests -p test_runtime_components.py -v
 ```
 
 These examples validate protocol behavior with synthetic data. They do not establish real-app effectiveness or cost savings. See [the contract and sequence diagram](../../docs/ai-context-and-recovery.md).

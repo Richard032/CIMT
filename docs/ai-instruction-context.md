@@ -4,7 +4,7 @@
 
 > Contract and dated evidence: later refinements supersede earlier wording. Recorded test counts and live observations belong to their stated dates, not the current full-suite result. See [implementation status](implementation-status.md), [release readiness](release-1.0.md), and the [current usage guide](product-guide.md).
 
-Updated: 1 November 2026. Implements FR-97 and AC-67. The product owner confirmed that CIMT keeps Mobile MCP; this change does not introduce Appium.
+Updated: 1 November 2026. Implements FR-97 and AC-67. The product owner confirmed that TestPilot keeps Mobile MCP; this change does not introduce Appium.
 
 ## Responsibility
 
@@ -32,9 +32,9 @@ Time, spending, cancellation, credential destinations, masking and platform capa
 
 ## Repetition information
 
-The old pre-action repetition gate is removed. CIMT executes the selected command first. After observing its real outcome, repeated unchanged attempts or navigation without discovery create a recovery notice for the next AI request. The AI may revise its approach, recall history, explain intentional repetition, continue with its chosen command or finish.
+The old pre-action repetition gate is removed. TestPilot executes the selected command first. After observing its real outcome, repeated unchanged attempts or navigation without discovery create a recovery notice for the next AI request. The AI may revise its approach, recall history, explain intentional repetition, continue with its chosen command or finish.
 
-No replacement action is selected by CIMT, and no structured recovery acknowledgement is required before a command. Every renewed repetition signal is supplied to AI; there is no fixed recovery-episode stop. Budget, time, cancellation and independent crash/infrastructure policies still apply. An explicit AI recover request can ask for a fresh observation without an app action.
+No replacement action is selected by TestPilot, and no structured recovery acknowledgement is required before a command. Every renewed repetition signal is supplied to AI; there is no fixed recovery-episode stop. Budget, time, cancellation and independent crash/infrastructure policies still apply. An explicit AI recover request can ask for a fresh observation without an app action.
 
 ## Packaging and verification
 
@@ -75,7 +75,7 @@ FR-101: InstructionContext supplies pending complete batch results and current w
 
 ## Observation freshness and context selection
 
-Every decision refreshes the masked screen, including after a note or recall. The request includes current controls, the current screenshot, the evidence ledger, mandatory batch feedback, and AI-selected history. When the selection omits requirement entries, the request also includes the original requirement text. CIMT records screen acquisition, context preparation, and provider timing separately.
+Every decision refreshes the masked screen, including after a note or recall. The request includes current controls, the current screenshot, the evidence ledger, mandatory batch feedback, and AI-selected history. When the selection omits requirement entries, the request also includes the original requirement text. TestPilot records screen acquisition, context preparation, and provider timing separately.
 
 The decision ledger lists recent post-action screens by step, observation time, and observation IDs. To retrieve a screen's retained UI elements, use `recall` with a `context.records` entry whose collection is `observations` and whose ID is the screen's `uiObservation`. The saved ledger and completion critic receive the existing recent screen element summaries.
 

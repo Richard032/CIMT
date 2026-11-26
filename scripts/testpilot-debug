@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+source_root="$(cd "$(dirname "$0")/.." && pwd)"
+export TESTPILOT_INSTALL_ROOT="${TESTPILOT_INSTALL_ROOT:-$HOME/Development/TestPilot/.local/install}"
+source "$TESTPILOT_INSTALL_ROOT/environment.sh"
+
+case "${TESTPILOT_DEBUG_PYTHON:-execution}" in
+  execution|preflight|proposal|off) ;;
+  *) echo "TESTPILOT_DEBUG_PYTHON must be execution, preflight, proposal, or off." >&2; exit 3 ;;
+esac
+export TESTPILOT_DEBUG_PYTHON="${TESTPILOT_DEBUG_PYTHON:-execution}"
+
+if [ "$TESTPILOT_DEBUG_PYTHON" != off ] && [ -z "${TESTPILOT_DEBUGPY_PATH:-}" ]; then
+  # Use the debugger bundled with VS Code's Python Debugger extension.
+  for libs in "$HOME"/.vscode/extensions/ms-python.debugpy-*/bundled/libs; do
+    if [ -d "$libs/debugpy" ]; then TESTPILOT_DEBUGPY_PATH="$libs"; fi
+  done
+  if [ -z "${TESTPILOT_DEBUGPY_PATH:-}" ]; then
+    echo "Install the VS Code Python Debugger extension or set TESTPILOT_DEBUGPY_PATH to the folder containing debugpy." >&2
+    exit 3
+  fi
+fi
+export TESTPILOT_DEBUGPY_PATH
+
+(cd "$source_root" && dotnet build src/TestPilot/TestPilot.csproj -c Debug)
+export TESTPILOT_DEBUG_RUNTIME="$source_root/runtime"
+export TESTPILOT_WAIT_FOR_DEBUGGER=1
+exec "$source_root/src/TestPilot/bin/Debug/net10.0/testpilot" "$@"

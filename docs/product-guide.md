@@ -1,4 +1,4 @@
-# Configure and run CIMT
+# Configure and run TestPilot
 
 Documentation baseline: 1.0. Updated: 10 November 2026.
 
@@ -6,19 +6,19 @@ This guide describes implemented commands. [Requirements](requirements.md) defin
 
 ## App knowledge
 
-Set `Learning: true` in the run configuration to give the agent a platform-scoped index of knowledge groups and let it propose changes after the run. The agent can browse group descriptions at any time and retrieve approved steps by knowledge ID. In the editor, assign an entry to one or more groups. Missing or false Learning disables both. Knowledge is guidance. Current test instructions take priority. Builds use the existing app title, and replay reuses the title from build metadata. For a custom build without a common title or a retained build created before title capture, set `application-name` in CIMT settings.
+Set `Learning: true` in the run configuration to give the agent a platform-scoped index of knowledge groups and let it propose changes after the run. The agent can browse group descriptions at any time and retrieve approved steps by knowledge ID. In the editor, assign an entry to one or more groups. Missing or false Learning disables both. Knowledge is guidance. Current test instructions take priority. Builds use the existing app title, and replay reuses the title from build metadata. For a custom build without a common title or a retained build created before title capture, set `application-name` in TestPilot settings.
 
-Double-click **Knowledge Database.command** in the CIMT folder to open the local editor in your browser. You can also run `cimt knowledge` to print its address. Browse, add, edit, or delete entries independently of testing. Learning-enabled runs print an interactive report URL. CIMT starts its local report viewer automatically. Interactive Mac runs and replays open the finalized report in the default browser. For an enabled run, the report opens to the **Knowledge** tab. You can edit, accept, decline, or reopen a proposal. Acceptance saves immediately. Older reports show their history read-only. The SQLite database lives under `$CIMT_INSTALL_ROOT/data/knowledge/`.
+Double-click **Knowledge Database.command** in the TestPilot folder to open the local editor in your browser. You can also run `testpilot knowledge` to print its address. Browse, add, edit, or delete entries independently of testing. Learning-enabled runs print an interactive report URL. TestPilot starts its local report viewer automatically. Interactive Mac runs and replays open the finalized report in the default browser. For an enabled run, the report opens to the **Knowledge** tab. You can edit, accept, decline, or reopen a proposal. Acceptance saves immediately. Older reports show their history read-only. The SQLite database lives under `$TESTPILOT_INSTALL_ROOT/data/knowledge/`.
 
 ## Commands
 
 | Command | What happens |
 | --- | --- |
-| `cimt validate --config default.private.yaml --run-config application.yaml` | Validate inputs, configuration, Git branch access, tools and selected device readiness; write a local report. No paid inference, clone, application build, reset or test. |
-| `cimt run --config default.private.yaml --run-config application.yaml` | Prepare, check model access, clone the configured remote branch, build, reset/install and test; write a new report. |
-| `cimt replay --config default.private.yaml --run-config application.yaml` | Test current instructions against one retained successful build set; no clone, submodule update, restore or application build. |
+| `testpilot validate --config default.private.yaml --run-config application.yaml` | Validate inputs, configuration, Git branch access, tools and selected device readiness; write a local report. No paid inference, clone, application build, reset or test. |
+| `testpilot run --config default.private.yaml --run-config application.yaml` | Prepare, check model access, clone the configured remote branch, build, reset/install and test; write a new report. |
+| `testpilot replay --config default.private.yaml --run-config application.yaml` | Test current instructions against one retained successful build set; no clone, submodule update, restore or application build. |
 
-`--config` is required; `--run-config` is an optional override. `--branch <branch>` overrides the repository branch for the invocation. Use `cimt --help` for the installed command. YAML-driven `setup` and saved-scenario `replay --scenario` are not implemented. A source folder copied into a test folder is not a substitute for a CIMT retained build. There is no implemented command to rebuild an arbitrary existing checkout without cloning.
+`--config` is required; `--run-config` is an optional override. `--branch <branch>` overrides the repository branch for the invocation. Use `testpilot --help` for the installed command. YAML-driven `setup` and saved-scenario `replay --scenario` are not implemented. A source folder copied into a test folder is not a substitute for a TestPilot retained build. There is no implemented command to rebuild an arbitrary existing checkout without cloning.
 
 Run and replay operate applications and may spend the configured AI budget. They are separate actions from validation. Replay is another AI test using current text, not playback of a saved sequence of taps. See [retained work and replay](work-retention-and-replay.md).
 
@@ -90,7 +90,7 @@ Use a simulator runtime identifier matching host architecture (`iossimulator-arm
 
 ## Path rules and run folders
 
-The folder containing `--run-config`, or `--config` when used alone, is the input folder and output parent. CIMT runs from any launch directory. Repository solution/project and YAML artifact fallback paths resolve from the clone root. Text inputs, replacement scripts and reset commands resolve from their declaring YAML. External fixture sources have stricter containment rules described below.
+The folder containing `--run-config`, or `--config` when used alone, is the input folder and output parent. TestPilot runs from any launch directory. Repository solution/project and YAML artifact fallback paths resolve from the clone root. Text inputs, replacement scripts and reset commands resolve from their declaring YAML. External fixture sources have stricter containment rules described below.
 
 ```text
 CE1-I560/
@@ -105,7 +105,7 @@ CE1-I560/
     build.sh
     android.sh
     ios.sh
-  CIMT output/                           # generated by CIMT
+  TestPilot output/                           # generated by TestPilot
     retained-builds.json                  # after successful artifact publication
     work/work_<UTC-date-time>/            # retained clone/build work
     reports/report_<same-date-time>/      # new report per invocation
@@ -115,24 +115,24 @@ The [test-input how-to](test-inputs.md) explains this real-life layout and what 
 
 ## Build scripts and project authority
 
-The installed defaults forward explicit project, configuration, framework and properties. They preserve the application's build/pre-build targets, including CuRMiTagger. CIMT does not inject a substitute tagger invocation or silently skip an incompatible command. Fix/configure the application or provide an explicitly authorized wrapper for the owned clone.
+The installed defaults forward explicit project, configuration, framework and properties. They preserve the application's build/pre-build targets, including CuRMiTagger. TestPilot does not inject a substitute tagger invocation or silently skip an incompatible command. Fix/configure the application or provide an explicitly authorized wrapper for the owned clone.
 
 For the layout above, copy all three supplied wrappers together:
 
 ```bash
 mkdir -p ./build
-cp "$CIMT_INSTALL_ROOT/templates/test-run/build/"*.sh ./build/
+cp "$TESTPILOT_INSTALL_ROOT/templates/test-run/build/"*.sh ./build/
 ```
 
 `android.sh` and `ios.sh` call their adjacent `build.sh`, which delegates to installed backends. The source templates are in `scripts/test-run/build`. Do not install these forwarding wrappers over the backend scripts they call. Keep custom preparation in the test folder's wrapper; an installation update does not update that custom copy.
 
-A normal run builds the **remote** branch. Required application changes must already be committed and pushed; local application edits are not used. NuGet sources and signing are the application's build prerequisites, not an effect of successful CIMT compilation. [Build-script contract](build-script-contract.md) defines environment variables, JSON handoff, artifact ambiguity and error handling.
+A normal run builds the **remote** branch. Required application changes must already be committed and pushed; local application edits are not used. NuGet sources and signing are the application's build prerequisites, not an effect of successful TestPilot compilation. [Build-script contract](build-script-contract.md) defines environment variables, JSON handoff, artifact ambiguity and error handling.
 
 ## External test files
 
 Declare fixtures in `external-files`, as in the XPA example. `source` must be a readable file beside its declaring YAML or in a subfolder; absolute paths, URLs and parent traversal are rejected. `platform` is `ios` or `android`; `destination` is a file path relative to the tested app's data container. Destinations must be unique per platform, including case-insensitive iOS checks.
 
-CIMT checks source readability before model access/reset, then copies and verifies SHA-256 after every reset and optional reset hooks, before app launch. Replay repeats this provisioning using current settings. Transfer/verification failure stops setup; the original host file is preserved. Fixture bytes are not supplied as AI instructions. iOS Simulator uses `simctl`; physical iOS uses authorized `devicectl` transfer/read-back; Android uses `adb run-as` and requires a debuggable app. Offline command coverage is not live qualification of every device type.
+TestPilot checks source readability before model access/reset, then copies and verifies SHA-256 after every reset and optional reset hooks, before app launch. Replay repeats this provisioning using current settings. Transfer/verification failure stops setup; the original host file is preserved. Fixture bytes are not supplied as AI instructions. iOS Simulator uses `simctl`; physical iOS uses authorized `devicectl` transfer/read-back; Android uses `adb run-as` and requires a debuggable app. Offline command coverage is not live qualification of every device type.
 
 Providing an XPA file does not teach the AI to open it. Put the actual navigation in `setup.txt`, expected behavior in `requirements.txt`, and regression steps in `instructions.txt`. See [test inputs](test-inputs.md).
 
@@ -150,9 +150,9 @@ masking:
     - element-id: PasswordEntry
 ```
 
-Instructions refer to the alias, never the value. Credential commands require an explicit field and verifiable target. CIMT resolves, focuses, masks and replaces the field contents locally rather than appending or sending values to AI. Repeating the command leaves one configured value; adapter completion does not prove login succeeded. Ordinary text entry retains ordinary semantics.
+Instructions refer to the alias, never the value. Credential commands require an explicit field and verifiable target. TestPilot resolves, focuses, masks and replaces the field contents locally rather than appending or sending values to AI. Repeating the command leaves one configured value; adapter completion does not prove login succeeded. Ordinary text entry retains ordinary semantics.
 
-Before each current objective CIMT reinstalls/resets the app, then runs optional `reset.command` and `reset.verify-command` argument lists. Hooks receive `CIMT_TARGET`, `CIMT_DEVICE`, and `CIMT_APP_ID`. Failure stops setup. iOS reinstall does not promise to clear Keychain/server state; supply authorized hooks where needed. Prepare external equipment separately and state which scenarios depend on it.
+Before each current objective TestPilot reinstalls/resets the app, then runs optional `reset.command` and `reset.verify-command` argument lists. Hooks receive `TESTPILOT_TARGET`, `TESTPILOT_DEVICE`, and `TESTPILOT_APP_ID`. Failure stops setup. iOS reinstall does not promise to clear Keychain/server state; supply authorized hooks where needed. Prepare external equipment separately and state which scenarios depend on it.
 
 Masking is element-ID based. Lossless PNG screenshots and UI text must be masked before storage or AI submission; unreliable required geometry stops execution. See [redaction](redaction.md) and [screenshot masking](screenshot-masking.md). Outputs can still contain sensitive application data; keep work and reports private.
 
@@ -162,9 +162,9 @@ Set `execution.interactive-pauses: true` for local acknowledgement before model 
 
 ## AI interaction, limits and outcomes
 
-AI chooses actions, targets, exploration and recovery. Each request includes the original instructions, current screen evidence, feedback, and selected scenario records. CIMT does not automatically cover credential fields in screenshots; visible credentials may be saved in reports and sent to the AI. Structured text still redacts known credential values, and explicit masking rules remain active. Earlier chat messages are not sent. The AI may request earlier records or select a registered screenshot. CIMT checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. Mobile MCP is a tool adapter, not another agent.
+AI chooses actions, targets, exploration and recovery. Each request includes the original instructions, current screen evidence, feedback, and selected scenario records. TestPilot does not automatically cover credential fields in screenshots; visible credentials may be saved in reports and sent to the AI. Structured text still redacts known credential values, and explicit masking rules remain active. Earlier chat messages are not sent. The AI may request earlier records or select a registered screenshot. TestPilot checks executable syntax, capabilities, coordinates, privacy and shared limits, then returns actual feedback. Mobile MCP is a tool adapter, not another agent.
 
-CIMT prepares a marked pre-action screenshot for each tap and swipe whose gesture can be resolved. The AI uses `show_gesture` to inspect the latest saved gesture, or supplies `gestureCommandId` to inspect a specific one. For a proposed correction, it can request `demo_tap` or `demo_swipe` using the same target arguments. It can provide a UI reference or absolute device coordinates. A swipe preview also needs a direction and distance. Set `expectedRef` to mark the intended control and check whether the start is inside its bounds. CIMT marks the touch point or swipe path on a copy of the masked screenshot and sends it with the next decision request. The demo sends no input. The AI inspects the result and then chooses its next action.
+TestPilot prepares a marked pre-action screenshot for each tap and swipe whose gesture can be resolved. The AI uses `show_gesture` to inspect the latest saved gesture, or supplies `gestureCommandId` to inspect a specific one. For a proposed correction, it can request `demo_tap` or `demo_swipe` using the same target arguments. It can provide a UI reference or absolute device coordinates. A swipe preview also needs a direction and distance. Set `expectedRef` to mark the intended control and check whether the start is inside its bounds. TestPilot marks the touch point or swipe path on a copy of the masked screenshot and sends it with the next decision request. The demo sends no input. The AI inspects the result and then chooses its next action.
 
 Commands execute FIFO. Failure cancels the pending tail; complete ordered results are supplied to the next normal decision request, subject to stopping rules. Targeted swipes preserve the requested target/distance; refs resolve from current bounds, coordinates are absolute device coordinates. Invalid arguments return generic corrective feedback. Picker guidance explains gesture direction and observation, but the AI must identify the desired picker/value from test instructions and verify it. See [command resources](ai-resource-exchange.md), [command queue](command-queue.md), [batch feedback](batch-feedback.md), and [instruction context](ai-instruction-context.md).
 
@@ -185,16 +185,16 @@ Precedence is 3, then 1, then 2, then 0. Verdict and completion are separate. Co
 
 Each new device scenario includes an **AI request overview** in its report. Expand a request to open its redacted JSON input, review its section sizes and reported token usage, and open the saved screenshots supplied with it. Field-level masking depends on protected fields being present in the device UI tree. Text section sizes are UTF-8 bytes, not token counts. A single AI request can produce several queued commands; later commands in that batch have no separate request. Completion reviews appear in the same overview. The separate end-of-run proposal request is linked under Technical records. Older reports cannot reconstruct request contents that were not saved.
 
-CIMT maintains a compact evidence ledger for each scenario. Its recorded evidence contains actions, outcomes and a limited set of post-action UI observations with timestamps. A separate AI interpretations section contains its progress note, context summary, explanations and checks; these can be stale or wrong. The ledger marks omitted older records and truncated elements. Dispatch and UI changes do not by themselves prove success. Before the first proposed stop, a separate critic reviews the test inputs and available evidence using the same model and shared limits. If the critic requests reconsideration, CIMT sends its feedback to the acting AI without saving that proposed result's checks. The AI may continue or stop, and its next stop is accepted without another critic request. A failed or unavailable review is recorded. The review is advisory and does not guarantee correctness.
+TestPilot maintains a compact evidence ledger for each scenario. Its recorded evidence contains actions, outcomes and a limited set of post-action UI observations with timestamps. A separate AI interpretations section contains its progress note, context summary, explanations and checks; these can be stale or wrong. The ledger marks omitted older records and truncated elements. Dispatch and UI changes do not by themselves prove success. Before the first proposed stop, a separate critic reviews the test inputs and available evidence using the same model and shared limits. If the critic requests reconsideration, TestPilot sends its feedback to the acting AI without saving that proposed result's checks. The AI may continue or stop, and its next stop is accepted without another critic request. A failed or unavailable review is recorded. The review is advisory and does not guarantee correctness.
 
-After a run or replay, including one stopped with Ctrl+C, CIMT asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It explains how the AI interpreted the goals, details, timing and stopping conditions, then gives draft instructions, reusable app setup and supporting evidence. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
+After a run or replay, including one stopped with Ctrl+C, TestPilot asks the configured AI to review the recorded results and writes `instruction-setup-proposal.md` in that invocation's report folder. It explains how the AI interpreted the goals, details, timing and stopping conditions, then gives draft instructions, reusable app setup and supporting evidence. Review and edit the draft before applying it; original input files are never rewritten. Current testing instructions retain priority.
 
-CIMT attempts one instruction and setup proposal request, plus one knowledge proposal request when Learning is enabled. Each has its own time window. These post-run requests can exceed the testing budget, and the run ledger includes their charges and any overrun. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a proposal timeout, missing checkpoint acknowledgement, or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
+TestPilot attempts one instruction and setup proposal request, plus one knowledge proposal request when Learning is enabled. Each has its own time window. These post-run requests can exceed the testing budget, and the run ledger includes their charges and any overrun. If testing ended early, the review uses available inputs and partial results. When interactive pauses are enabled, the AI testing checkpoint must already have been acknowledged. If a proposal timeout, missing checkpoint acknowledgement, or provider failure prevents generation, the file records the reason and includes the available original instructions and setup. The recorded test verdict stays independent of the review. Proposal text and evidence may be private. Review before sharing.
 
 ## Open a run or replay report
 
-Use the exact `index.html` path printed by that invocation, under `CIMT output/reports/report_<timestamp>/`. Each invocation gets a new folder. Inspect the summary, source commit, selected devices, build results, scoped checks, findings, chronological activity and stopping reasons. Evidence links are relative to that report.
+Use the exact `index.html` path printed by that invocation, under `TestPilot output/reports/report_<timestamp>/`. Each invocation gets a new folder. Inspect the summary, source commit, selected devices, build results, scoped checks, findings, chronological activity and stopping reasons. Evidence links are relative to that report.
 
 While running, `result.json` can contain `inProgress: true` and a provisional incomplete result. This is not the final process exit. After completion, check `inProgress: false`, completion, verdict and exit together. A user interruption preserves available partial evidence. A hard kill cannot guarantee finalization; use the interim report honestly. [Diagnostic reporting](diagnostic-reporting.md) explains the report fields.
 
-For replay, first inspect `CIMT output/retained-builds.json` for the source commit and available platform artifacts. Editing build properties does not change cached binaries. Missing, incompatible or corrupt artifacts stop explicitly; replay never silently builds. Use `run` for a new commit, framework/property change or missing platform.
+For replay, first inspect `TestPilot output/retained-builds.json` for the source commit and available platform artifacts. Editing build properties does not change cached binaries. Missing, incompatible or corrupt artifacts stop explicitly; replay never silently builds. Use `run` for a new commit, framework/property change or missing platform.

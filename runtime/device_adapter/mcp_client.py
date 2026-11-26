@@ -59,7 +59,7 @@ class Mcp:
             {
                 "protocolVersion": "2025-06-18",
                 "capabilities": {},
-                "clientInfo": {"name": "cimt", "version": "0.1"},
+                "clientInfo": {"name": "testpilot", "version": "0.1"},
             },
         )
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
