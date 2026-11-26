@@ -1,6 +1,6 @@
 # GPT continuation
 
-Updated: 10 November 2026. This is an agent handover, not an installation log or a new user request. Current user instructions and the actual checkout take priority.
+Updated: 26 November 2026. This is an agent handover, not an installation log or a new user request. Current user instructions and the actual checkout take priority.
 
 ## Start here
 
@@ -11,11 +11,13 @@ Updated: 10 November 2026. This is an agent handover, not an installation log or
 
 ## Current handover
 
-The documentation review targets existing `feature/external_file`; no merge, release tag or new paid/device test is authorized by it. The source baseline before the documentation revision is `c54ea32`. The earlier automatic shared app-learning feature was reverted. App knowledge is maintained through explicit reviewed setup text, not automatic learning or publishing.
+The repository is [Richard032/TestPilot](https://github.com/Richard032/TestPilot), renamed in place from CIMT. The terminal command is `testpilot`. `main` contains the product rename from PR #23. This UML review starts at `b2b9ced`; inspect the current Git state instead of treating that baseline as the latest revision forever. `feature/vscode-development` contains separate development work, including the renamed solution/workspace and debug launcher. Do not imply those files exist on `main` or merge unrelated development features to complete a documentation change.
 
-[Implementation status](docs/implementation-status.md) records current scope and executed evidence. On 10 November, 349 .NET unit tests, 512 Python unit tests, 22 runtime-policy checks, 22 CLI/lifecycle checks, four build-contract checks and four example checks passed. The final output-layout fixture failed because its isolated Mobile MCP module was missing. Do not call the full bundle green or change an unrelated test merely to hide the failure.
+All changes to `main` must go through a pull request. Leave a PR open for review unless the user explicitly asks to merge it. Preserve branch protection and the user's private files. Source changes do not establish that an installed copy was updated.
 
-The Apple Silicon installation has Android/iOS discovery and application build evidence. The latest recorded two-platform application run built both artifacts but ended incomplete/inconclusive, exit 2. Private reports, fixtures and settings remain local. Manual app feedback and successful builds do not establish automated two-platform acceptance. [1.0 readiness](docs/release-1.0.md) lists open gates, including unfinished approved features, Jenkins and another host. Verify current evidence before making a new claim.
+The current implementation includes optional app knowledge controlled by Learning. The AI can read approved installation-local knowledge and propose changes after a run; it cannot approve or write those changes. Users apply changes through the latest finalized report's local review interface or the standalone editor. Current instructions override conflicting knowledge. See the [requirements](docs/requirements.md) and [current UML](docs/architecture-uml.md), including lookup, review and persistence boundaries.
+
+[Implementation status](docs/implementation-status.md) and [1.0 readiness](docs/release-1.0.md) contain dated validation evidence and remaining acceptance gates. Do not present historical test totals, local device observations, installation revisions or release claims as current. The [UML alignment review](docs/reviews/2026-11-26-uml-alignment.md) records this review's baseline and offline checks. Live two-platform quality, another host, Jenkins and unfinished approved features remain separate acceptance work.
 
 ## Product and operating boundaries
 
@@ -25,7 +27,7 @@ AI chooses tests, actions, targets, history relevance and recovery. TestPilot pr
 
 Execute commands FIFO and cancel pending tail commands after an unexecutable command. Supply actual complete batch results to the next normal decision request; a tool call succeeding does not prove the desired UI state or requirement passed. AI owns desired app values. Shared context is scenario-local; reviewed navigation knowledge belongs in test inputs, separate from issue descriptions.
 
-Instructions take priority over conflicting requirements; retain the conflict and interpretation. Keep observed failures and unresolved work visible. The configured model has no fallback and shares a conservative budget/deadline across workers. Device launch failure is local; three matching crashes stop the objective; shared infrastructure/privacy failures follow the [stopping policy](docs/execution-stopping.md).
+Instructions take priority over conflicting requirements; retain the conflict and interpretation. Keep observed failures and unresolved work visible. The configured model has no fallback. Workers share counted-input budget admission and the testing deadline; output settlement can exceed the configured budget. Authorized post-run instruction and knowledge proposals have separate bounded windows and bypass the input-budget gate while accounting for usage in the same ledger. Device launch failure is local; three matching crashes stop the objective; shared infrastructure/privacy failures follow the [stopping policy](docs/execution-stopping.md).
 
 `run` clones the configured remote branch and builds. `replay` uses one matching retained build set with current inputs, without Git/restore/build; saved-action replay is unfinished. A manually copied checkout is not a retained build. A new commit or missing platform needs `run`. Project pre-build commands, including CuRMiTagger, remain project-owned. Do not skip/inject application build steps without explicit need and authorization.
 

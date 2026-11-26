@@ -198,7 +198,7 @@ These rules distinguish a test finding from an inability to execute. Instruction
 | No devices at startup | Stop and report. |
 | AI reply without an executable command | Retain the reply and return actual command-resource feedback under FR-65/FR-96; no semantic approval or fixed correction-attempt limit. |
 | Device disconnect / blocking AI or infrastructure failure | Stop run and report partial execution. |
-| Time or AI budget exhausted | Stop and report incomplete execution. |
+| Time or AI budget exhausted | Stop testing and report incomplete execution; authorized post-run proposals retain their separate bounded windows and budget exception under FR-24. |
 | User interruption | Stop execution and preserve/report observations and work where possible. Do not clear work at finalization. |
 
 Run results shall contain separate test verdict (passed, failed, inconclusive), completion (complete, incomplete), and execution-error fields. For example, a confirmed failure followed by timeout is failed + incomplete.
@@ -377,7 +377,7 @@ On 30 October 2026, the product owner requested faster execution. The first opti
 
 ## Configured model and Luna support — version 0.19
 
-On 30 October 2026, the product owner retained strict budget enforcement and approved adding gpt-5.6-luna to the validated pricing profiles. FR-23/FR-24 and AC-44 describe configured-model selection and conservative per-request accounting. Automatic online pricing, provider cost polling, and generic user-defined prices are deferred. Private YAML is not changed automatically.
+On 30 October 2026, the product owner retained strict budget enforcement and approved adding gpt-5.6-luna to the validated pricing profiles. The later counted-input admission and post-run proposal policy in FR-24 and the current budget section below supersedes that historical full-cost gate; output settlement and authorized proposals can exceed the configured budget. FR-23/FR-24 and AC-44 describe configured-model selection and conservative per-request accounting. Automatic online pricing, provider cost polling, and generic user-defined prices are deferred. Private YAML is not changed automatically.
 
 ## Per-execution report clarification — version 0.20
 
@@ -476,7 +476,7 @@ The default OpenAI decision agent shall expose supported device commands as regi
 
 ### Dynamic request reservations
 
-Before each generation request, count its exact input through the provider's input-token counting endpoint, including screenshots and message formatting. Reserve the counted input at conservative rates plus the request's enforced output-token cap. Counting failure or invalid counts must stop generation rather than send an unfunded request. Retries, completion reviews and proposals each require their own count and reservation. Only the post-run proposal requests may bypass the input budget gate. Device decisions and in-run reviews retain the gate. Keep separate pending amounts for concurrent requests; settle each against reported usage, and retain its own reservation as uncertain when usage is unavailable or the worker exits. Restore older fixed-reservation ledgers compatibly. The model-wide maximum remains a ceiling, not the amount normally reserved. Cost accounting remains an upper bound and does not apply cache-read discounts.
+Before each generation request, count its exact input through the provider's input-token counting endpoint, including screenshots and message formatting. Admit testing requests against the remaining budget using counted input cost at conservative rates; track the enforced output-token cap separately as potential exposure, not as a condition for admission. Counting failure or invalid counts must stop generation rather than send an unfunded request. Retries, completion reviews and proposals each require their own count and reservation. Only the post-run proposal requests may bypass the input budget gate. Device decisions and in-run reviews retain the gate. Keep separate pending amounts for concurrent requests; settle each against full reported input and output usage even if this exceeds the budget, and retain its counted input plus full output-cap exposure as uncertain when usage is unavailable or the worker exits. Restore older fixed-reservation ledgers compatibly. The model-wide maximum remains a ceiling, not the amount normally reserved. Cost accounting remains an upper bound and does not apply cache-read discounts.
 
 ## App knowledge database — 20 November 2026
 

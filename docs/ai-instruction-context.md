@@ -18,7 +18,7 @@ Complete records remain in the existing scenario evidence and Test Planning and 
 
 Before each AI instruction request, InstructionContext asks the active device adapter for a fresh masked screen observation. Mobile MCP remains the source. ScreenCapture keeps its existing readiness, before/after UI, dimensions, lossless-image and masking checks. No raw screen text or image is saved or sent before that privacy boundary succeeds.
 
-The request contains both the full masked elements and a humanInterface catalogue. The catalogue includes identified elements and controls indicated by adapter-provided types or interaction metadata. Each entry retains its reported ref, label, bounds, type and available state flags without adding an inferred action kind. Hidden or disabled elements remain available as information. An identifier or type does not prove that an element is interactive or limit it to one action; the AI chooses an action using the instructions and evidence, then checks the result. Other elements remain in the full observations.
+The default prompt supplies screen dimensions in `elements` and current control metadata in `humanInterface`, alongside the current masked screenshot. Full masked UI observations remain stored locally and available through exact AI-selected observation references; they are not duplicated as a second full UI tree in every request. The catalogue includes identified elements and controls indicated by adapter-provided types or interaction metadata. Each entry retains its reported ref, label, bounds, type and available state flags without adding an inferred action kind. Hidden or disabled elements remain available as information. An identifier or type does not prove that an element is interactive or limit it to one action; the AI chooses an action using the instructions and evidence, then checks the result. Other elements remain in the full observations.
 
 Refreshing before a new request also covers note-only and recall turns, when the app may have changed by itself. This adds observation work compared with reusing the previous screenshot. It does not remove the separate post-action crash and evidence capture. Live latency has not been measured for this increment.
 
@@ -26,7 +26,7 @@ Refreshing before a new request also covers note-only and recall turns, when the
 
 Agent and AiInteraction are execution-side coordinators outside this layer. The default Agent requests a decision through AiServices, which owns request accounting and transport. runtime/command_reply.py reads the command protocol. ActionExecutor performs the AI-selected supported command. ScenarioRunner retains the reply and actual execution outcome for subsequent instructions and the report. These components do not ask the instruction layer to approve a reply, plan, quote or action target.
 
-The text-command transport remains. Under FR-99, execution decodes explicit JSON objects into a FIFO queue and performs each in received order. It returns actual resource errors and retains unreadable text as a note without guessing commands from prose. The queue belongs outside this layer. An unexecutable command cancels the remaining queue; execution supplies the actual issue on the next normal decision request. Successful batches add no separate acknowledgement call. Queue records are available as the commands context collection, selected only by AI. No semantic response evaluation or migration to function calling is introduced. See [command queue](command-queue.md).
+The text-command transport remains. Under FR-99, execution decodes explicit JSON objects into a FIFO queue and performs each in received order. It returns actual resource errors and retains unreadable text as a note without guessing commands from prose. The queue belongs outside this layer. An unexecutable command cancels the remaining queue; execution supplies the actual issue on the next normal decision request. Successful batches add no separate acknowledgement call. Queue records are available as the commands context collection, selected only by AI. The default agent also translates registered SDK function tools outside this layer; text batches remain supported. Neither transport gives the input layer a role in approving decisions. See [command queue](command-queue.md).
 
 Time, spending, cancellation, credential destinations, masking and platform capability checks remain execution constraints. AI claims about future actions are not records of performed actions. Findings and plan updates remain AI-owned data, independently of dispatch.
 
@@ -44,34 +44,38 @@ Existing offline tests cover input sources, credential aliases, control metadata
 
 ```mermaid
 sequenceDiagram
-    participant Run as Execution
+    participant Run as AiInteraction and ScenarioRunner
     participant Inputs as AI Instruction and Context
-    participant Device as Mobile MCP and Masking
-    participant Store as Retained Context and Evidence
+    participant Device as Device Adapter and Masking
+    participant Store as Retained context and evidence
     participant Agent as DecisionAgent
-    participant AI as Accounted provider request
-    participant Commands as Command Execution
+    participant Service as AiServices
 
-    loop Until AI finishes or an execution rule stops the run
-        Run->>Inputs: Prepare next instructions
+    loop When command queue is empty and another decision is allowed
+        Run->>Inputs: Refresh screen evidence
         Inputs->>Device: Query current screen and human-interface metadata
         Device-->>Inputs: Verified masked UI and screenshot
-        Inputs->>Store: Retain observation and retrieve AI-selected context
-        Store-->>Inputs: Requested information and resource feedback
-        Inputs-->>Run: Sources, current controls, context and command descriptions
-        Run->>Agent: Decide from copied context
-        Agent->>AI: Default implementation submits a journaled request
-        AI-->>Agent: Provider reply
-        Agent-->>Run: Normalized commands and optional records
-        Run->>Commands: Queue objects; take each in FIFO order without input-layer approval
-        Commands->>Device: Execute AI choice
-        Device-->>Commands: Actual outcome
-        Commands-->>Run: Execution result and evidence
-        Run->>Store: Save outcome and repetition facts for future instructions
+        Inputs->>Store: Retain observation and retrieve exact AI-selected context
+        Store-->>Inputs: Selected records and resource feedback
+        Inputs-->>Run: Sources, current controls, selected context and complete pending batch paths
+        Run->>Agent: Decide from copied inputs and shared hooks
+        Agent->>Service: Default implementation counts, journals and accounts for requests
+        Service-->>Agent: Tool call or text reply
+        Agent-->>Run: Translated commands and optional records
+        Run->>Store: Mark earlier pending feedback delivered after completed reply
+        loop FIFO commands until handoff, recovery, finish or stop
+            alt Device action
+                Run->>Device: Execute selected action without input-layer approval
+                Device-->>Run: Actual outcome and post-action masked observation
+            else Note, recall, recovery or finish
+                Run->>Run: Handle without a device action
+            end
+            Run->>Store: Save ordered outcome, warnings and repetition facts
+        end
     end
 ```
 
-FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history deferral. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
+FR-101: InstructionContext supplies pending complete batch results and current warning records provided by execution, alongside sources and AI-selected historical information. ActionPromptBuilder places these resources outside optional history selection. The input layer does not decide whether to execute/defer a finish; execution owns mechanical batch handoff. Existing retained observation callbacks register masked evidence and Android system warning facts. See [batch feedback](batch-feedback.md).
 
 ## Observation freshness and context selection
 

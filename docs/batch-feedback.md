@@ -64,44 +64,53 @@ Python unit tests cover full cycles, unchanged/missing observations, separate in
 
 ```mermaid
 sequenceDiagram
-    participant AI as Configured Model
-    participant Inputs as AI Instruction and Context
     participant Run as Execution
-    participant Queue as Scenario Queue
+    participant Inputs as AI Instruction and Context
+    participant Agent as DecisionAgent
+    participant Queue as Scenario queue
     participant Device as Device Adapter
-    participant Facts as Batch Feedback and Evidence
-    participant Report as Local Log and HTML
+    participant Facts as Batch feedback and evidence
+    participant Report as Local log and HTML snapshots
 
-    Run->>Inputs: Sources, current masked observation and pending complete batch results
-    Inputs->>AI: Normal decision request; optional history chosen by AI
-    AI-->>Run: Ordered command objects
+    Run->>Inputs: Refresh evidence and prepare pending complete paths
+    Inputs-->>Run: Decision inputs and AI-selected history
+    Run->>Agent: Next normal decision request
+    Agent-->>Run: Normalized command objects
+    Run->>Facts: Mark earlier feedback delivered after completed reply
     Run->>Queue: Store batch
     Run->>Facts: Register initial observation once
-    loop Until batch ends, recovery or execution stop
-        Queue-->>Run: Next command
-        Run->>Device: Execute under existing limits/privacy
-        Device-->>Run: Actual outcome and verified masked observation
-        Run->>Facts: Command, status, result reference and warnings/errors
+    loop Until batch ends, handoff, recovery or execution stop
+        Run->>Queue: Take next command
+        Queue-->>Run: Command and identity
+        alt Done follows other commands
+            Run->>Facts: Defer finish without applying predicted checks
+            Run->>Queue: Leave remaining commands unexecuted
+        else Note, recall, recovery or first-command done
+            Run->>Run: Handle context or completion, including advisory review if needed
+            Run->>Facts: Record non-device outcome
+        else Device action
+            Run->>Device: Dispatch under existing limits and privacy
+            Device-->>Run: Actual execution status
+            opt Command cannot execute
+                Run->>Queue: Cancel all pending commands before observing
+                Run->>Facts: Retain failure and cancelled-command results
+            end
+            Run->>Device: Existing post-action observation
+            Device-->>Run: Verified masked evidence or observation unavailable
+            Run->>Facts: Command, status, result reference, change flag and warnings/errors
+        end
         opt Independent change detected by an existing observation
             Run->>Facts: Separate ordered observation event
         end
         opt Android system ANR observed
-            Facts->>Report: Warning with device, time and step
-        end
-        opt Command cannot execute
-            Run->>Queue: Cancel every pending command
-            Run->>Facts: Retain failure and cancelled command results
-        end
-        opt Done follows other commands
-            Run->>Facts: Defer finish; do not apply predicted checks
+            Facts->>Report: Warning with device, time and step, no automatic crash or stop
         end
     end
     Run->>Report: Save complete path and evidence references
     alt Another decision is allowed
-        Run->>Inputs: Complete new path and current evidence
-        Inputs->>AI: Next normal request, including success/unchanged results
-        AI-->>Run: Continue, recover or first-command done using actual results
-    else Stopping/privacy rule prevents another request
+        Run->>Inputs: Complete pending paths, including successful and unchanged results
+        Note over Run,Agent: Next normal decision continues testing, batch completion alone does not finish the objective
+    else Stopping or privacy prevents another request
         Run->>Report: Retain unsupplied results and stopping reason
     end
 ```

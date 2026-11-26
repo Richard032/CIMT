@@ -66,29 +66,36 @@ The existing unittest suite supplies fake clocks/commands for bounds, deadline, 
 sequenceDiagram
     participant Run as Execution
     participant Adapter as Device Adapter
-    participant Native as Unmodified Native Helper
+    participant Native as Unmodified native helper
     participant Stop as Execution Stopping Policy
     participant Inputs as AI Instruction and Context
 
-    Run->>Adapter: Connect device; supply deadline and stop check
+    Run->>Adapter: Connect with deadline and shared-stop callback
     Adapter->>Adapter: Check device lock
-    loop Until ready or recovery/whole-run limit
+    loop Probe until ready or final failure, within 90 seconds and whole-run deadline
         Adapter->>Run: Check shared stop and cancellation
         Adapter->>Native: Read-only apps list probe
-        Native-->>Adapter: Inventory or startup failure
-        Adapter->>Run: Record redacted retry activity if another probe is allowed
+        Native-->>Adapter: Inventory or typed failure
+        alt Valid inventory, including empty inventory
+            Adapter->>Adapter: Mark ready and leave probe loop
+        else Known device-server startup error and time remains
+            Adapter->>Run: Record redacted retry activity
+            Adapter->>Adapter: Wait one second with cancellation checks
+        else Other error or exhausted window
+            Adapter->>Adapter: Leave probe loop with failure, no automatic retry
+        end
     end
     alt Ready
         Adapter->>Adapter: Recheck lock and connect MCP
         Adapter-->>Run: Ready for app setup
-        Run->>Adapter: Perform app setup once
-        Adapter->>Adapter: Wait 20 seconds with shared-stop checks; record activity
-        Adapter-->>Run: Ready for screen and foreground/startup checks
-        Inputs->>Adapter: Request masked observations for AI inputs
+        Run->>Adapter: Reset, optional fixture transfer and launch once
+        Adapter->>Adapter: After success, wait 20 seconds with shared-stop checks
+        Adapter-->>Run: Ready for first screen and foreground/startup checks
+        Inputs->>Adapter: Request current masked observation
         Adapter-->>Inputs: Verified masked UI and screenshot
-    else Final failure
-        Adapter-->>Run: Typed failure and diagnostics
+    else Final preparation failure
+        Adapter-->>Run: Typed failure and redacted diagnostics
         Run->>Stop: Determine stopping scope
-        Stop-->>Run: Existing infrastructure or limit policy
+        Stop-->>Run: Existing local or shared failure policy
     end
 ```
