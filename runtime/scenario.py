@@ -13,7 +13,7 @@ from crashes import ANDROID_PERMISSION_CONTROLLERS, CrashMonitor, CrashRecovery,
 from errors import DeviceActionError, InfrastructureError, LimitReached, NoProgressAction
 from evidence import ScenarioEvidence
 from gesture_preview import GesturePreview
-from check_results import scenario_verdict
+from check_results import crash_evidence, scenario_verdict
 from check_recorder import CheckRecorder
 from requirement_results import RequirementResults
 from ai_interaction import AiInteraction
@@ -512,8 +512,9 @@ class ScenarioRunner:
         result["interpretation"] = action["observation"]
         complete = action["completion"] == "complete" and not result["remaining"]
         result["completion"] = "complete" if complete else "incomplete"
+        confirmed, suspected = crash_evidence(result["crashes"])
         result["verdict"] = scenario_verdict(
-            result.get("checks", []), bool(result["crashes"]), complete, result["requirements"]
+            result.get("checks", []), confirmed, complete, result["requirements"], suspected_crash=suspected
         )
 
     @staticmethod

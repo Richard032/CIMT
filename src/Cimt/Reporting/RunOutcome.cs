@@ -29,7 +29,9 @@ public static class RunOutcomePolicy
                         && scenario.TryGetProperty("target", out var target))
                         missing.Remove((id.ToString(), platform.ToString(), target.ToString()));
                     var verdict = scenario.TryGetProperty("verdict", out var result) ? result.GetString() : null;
-                    hasFailure |= scenario.GetProperty("crashes").GetArrayLength() > 0 || verdict == "failed";
+                    var crashes = scenario.GetProperty("crashes").EnumerateArray().ToArray();
+                    hasFailure |= crashes.Any(IsConfirmedCrash) || verdict == "failed";
+                    allDecided &= crashes.All(IsConfirmedCrash);
                     allDecided &= verdict is "passed" or "failed";
                     allDecided &= KnownCheckStatuses(scenario);
                     allComplete &= scenario.GetProperty("completion").GetString() == "complete";
@@ -46,6 +48,14 @@ public static class RunOutcomePolicy
         var finalVerdict = hasFailure || exit == 1 ? "failed" : exit == 0 ? "passed" : "inconclusive";
         var completion = (exit is 0 or 1) && allComplete && allDecided ? "complete" : "incomplete";
         return new(exit, finalVerdict, completion);
+    }
+
+    private static bool IsConfirmedCrash(JsonElement crash)
+    {
+        return crash.ValueKind == JsonValueKind.Object
+            && crash.TryGetProperty("kind", out var kind)
+            && kind.ValueKind == JsonValueKind.String
+            && kind.GetString() == "confirmed crash report";
     }
 
     private static bool HasStop(JsonElement device)

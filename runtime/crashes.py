@@ -126,7 +126,9 @@ class StartupGuard:
                 "matchingAttempt": self.failures,
             }
         )
-        session.result["verdict"] = "failed"
+        # A termination without a crash diagnostic is not a confirmed failure.
+        if session.result["verdict"] != "failed":
+            session.result["verdict"] = "inconclusive"
         step = {"action": "startup/relaunch check"}
         session.result["steps"].append(step)
         # Save the known failure before attempting image storage.
@@ -199,7 +201,10 @@ class CrashRecovery:
         count = self.counter.record(point + ":" + self._signature(observation.diagnostics), True)
         crash = self._crash_record(session, entry, action, point, observation, count)
         session.result["crashes"].append(crash)
-        session.result["verdict"] = "failed"
+        if crash["kind"] == "confirmed crash report":
+            session.result["verdict"] = "failed"
+        elif session.result["verdict"] != "failed":
+            session.result["verdict"] = "inconclusive"
         entry.update(crash=crash["kind"], matchingAttempt=count)
         if matching_crash_limit_reached(count):
             session.result["remaining"].append(

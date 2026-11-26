@@ -1,6 +1,6 @@
 """Record checks and their evidence without owning scenario navigation."""
 
-from check_results import scenario_verdict
+from check_results import crash_evidence, scenario_verdict
 from requirement_results import RequirementResults
 
 
@@ -30,8 +30,9 @@ class CheckRecorder:
             ),
         }
         session.result["steps"].append(step)
+        confirmed, suspected = crash_evidence(session.result["crashes"])
         session.result["verdict"] = scenario_verdict(
-            session.result["checks"], bool(session.result["crashes"]), False, rows
+            session.result["checks"], confirmed, False, rows, suspected_crash=suspected
         )
         self.publish()
         self._save_image(session, step, recorded)
